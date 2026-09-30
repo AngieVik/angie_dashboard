@@ -1,0 +1,9 @@
+.information-module { padding: 8px; overflow-wrap: anywhere; }
+.information-text { white-space: pre-wrap; }
+.information-phase { margin: 8px 0; padding-block: 5px; border-block: 1px solid #3A3F43; color: var(--color-text-secondary); font-size: 13px; }
+.information-phase span { color: var(--color-text); font-weight: 650; }
+.information-units { display: flex; flex-direction: column; gap: 4px; }
+.information-units .document-button { text-align: left; padding: 4px 6px; }
+.information-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.unit-tag { display: inline-flex; align-items: center; max-width: 100%; padding: 2px 6px; border: 1px solid #64605A; border-radius: 3px; background: linear-gradient(180deg, #373531, #242320); color: var(--color-text); font-size: 12px; overflow-wrap: anywhere; }
+.module-empty { margin: 4px 0; color: var(--color-text-secondary); font-size: 13px; }

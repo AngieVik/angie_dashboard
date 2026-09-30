@@ -321,7 +321,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `changeElementStatus(document, elementId, nextStatus, now): AngieDocumentV1`.
 - Produces: `undoAutomaticTimelineEntry(document, entryId): UndoResult`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para ocho estados, anotaciones, etiquetas, vista global, entradas manuales/automáticas y deshacer.**
+- [x] **Step 1: Escribir pruebas fallidas para ocho estados, anotaciones, etiquetas, vista global, entradas manuales/automáticas y deshacer.**
 
 Cubrir la selección global compartida entre pizarra, Elementos, Información y Operativo. Sin selección, Información debe listar únicamente los nombres de las dotaciones o `Sin dotaciones`; tocar un nombre debe seleccionarla. Operativo debe mostrar, en el orden definido, solo los contadores no vacíos de estados exactos; tocar uno debe desplegar exclusivamente sus dotaciones, sustituir cualquier despliegue anterior y permitir seleccionarlas. Con una dotación seleccionada, Operativo debe mostrar los ocho estados y resaltar el actual; seleccionar un elemento general debe mantener la vista de contadores.
 
@@ -329,15 +329,15 @@ Cubrir la selección manual de cualquier estado sin transiciones obligatorias y 
 
 Para anotaciones y etiquetas, cubrir alta con botón o Enter, edición en línea, eliminación sin confirmación, recorte de espacios, rechazo de vacíos y duplicados sin distinguir mayúsculas, autoguardado y visualización en Información sin representación sobre la pizarra.
 
-- [ ] **Step 2: Implementar dominio de estados y timeline como operaciones atómicas sobre el documento, manteniendo separada la selección manual del estado de la creación automática de su entrada cronológica.**
+- [x] **Step 2: Implementar dominio de estados y timeline como operaciones atómicas sobre el documento, manteniendo separada la selección manual del estado de la creación automática de su entrada cronológica.**
 
-- [ ] **Step 3: Implementar los tres módulos y su coordinación mediante una única selección estable por ID, incluyendo los dos modos de Información y Operativo.**
+- [x] **Step 3: Implementar los tres módulos y su coordinación mediante una única selección estable por ID, incluyendo los dos modos de Información y Operativo.**
 
-- [ ] **Step 4: Verificar.**
+- [x] **Step 4: Verificar.**
 
 Run: `npm test -- --run src/domain/operations src/features/information src/features/operations src/features/timeline`
 
-- [ ] **Step 5: Entregar la tarea para revisión.**
+- [x] **Step 5: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

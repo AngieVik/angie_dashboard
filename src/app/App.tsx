@@ -7,6 +7,9 @@ import { getDocumentStore, useDocumentStore } from '../features/document/documen
 import { ViewMenu } from '../features/view/ViewMenu'
 import { BoardModule } from '../features/board/BoardModule'
 import { ElementsModule } from '../features/elements/ElementsModule'
+import { InformationModule } from '../features/information/InformationModule'
+import { OperationsModule } from '../features/operations/OperationsModule'
+import { TimelineModule } from '../features/timeline/TimelineModule'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
@@ -106,7 +109,10 @@ export function App() {
         <MobileViewport state={viewport.state} size={viewport.size} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid modules={open} scale={viewport.state.scale} active={active} onActive={setActive} onClose={close} onLayout={saveLayout}
             renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement} /> :
-              id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> : null} />
+              id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
+              id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
+              id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
+              id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> : null} />
         </MobileViewport>
       </main>
     </div>
