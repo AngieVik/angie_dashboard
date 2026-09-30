@@ -56,33 +56,33 @@
 - Produces: scripts `dev`, `test`, `test:watch`, `lint`, `typecheck`, `build` y `e2e`.
 - Produces: tokens CSS para la paleta Titan y un shell React vacío reutilizable.
 
-- [ ] **Step 1: Inicializar Vite React/TypeScript e instalar únicamente las dependencias aprobadas y las herramientas de prueba.**
+- [x] **Step 1: Inicializar Vite React/TypeScript e instalar únicamente las dependencias aprobadas y las herramientas de prueba.**
 
-- [ ] **Step 2: Configurar Vitest, Testing Library, ESLint, TypeScript estricto y Playwright.**
+- [x] **Step 2: Configurar Vitest, Testing Library, ESLint, TypeScript estricto y Playwright.**
 
-- [ ] **Step 3: Escribir las pruebas iniciales.**
+- [x] **Step 3: Escribir las pruebas iniciales.**
 
 `App.test.tsx` debe comprobar que aparece la cabecera, que el área principal no contiene módulos abiertos y que la interfaz general utiliza Roboto Condensed mientras los datos técnicos conservan una familia monoespaciada. `smoke.spec.ts` debe comprobar carga sin errores, disponibilidad local de las fuentes y ausencia de scroll de página en un viewport de escritorio y uno móvil. La verificación de recursos debe comprobar dimensiones, transparencia de los iconos normales, opacidad de los `maskable` y zona segura.
 
-- [ ] **Step 4: Ejecutar las pruebas y confirmar que fallan antes de crear el shell.**
+- [x] **Step 4: Ejecutar las pruebas y confirmar que fallan antes de crear el shell.**
 
 Run: `npm test -- --run src/app/App.test.tsx`
 
 Expected: FAIL porque el shell aún no está implementado.
 
-- [ ] **Step 5: Implementar el shell mínimo, los tokens Titan y la configuración PWA.**
+- [x] **Step 5: Implementar el shell mínimo, los tokens Titan y la configuración PWA.**
 
 Integrar en el manifiesto los iconos PWA existentes, ya derivados de `public/assets/elements/icon_chincheta.png`: normales transparentes de `16 × 16`, `32 × 32`, `180 × 180`, `192 × 192` y `512 × 512`, y variantes `maskable` de `192 × 192` y `512 × 512` con fondo opaco `#0C0D0E` y la chincheta completa dentro de la zona segura circular del `80 %`. No regenerarlos ni sobrescribirlos cuando superen la verificación; si falla un recurso derivado, corregir únicamente ese archivo sin modificar el PNG original.
 
 Importar la hoja local existente de Roboto Condensed variable normal y cursiva, pesos `100–900`, subconjuntos `latin` y `latin-ext`, junto con su licencia; aplicarla a la interfaz general y mantener una fuente monoespaciada para datos técnicos. El manifiesto usará `Angie Dashboard`, nombre corto `Angie` y color de tema `#0C0D0E`.
 
-- [ ] **Step 6: Verificar la base.**
+- [x] **Step 6: Verificar la base.**
 
 Run: `npm run lint && npm run typecheck && npm test -- --run && npm run build && npm run e2e`
 
 Expected: todos los comandos terminan con código `0`.
 
-- [ ] **Step 7: Entregar la tarea para revisión.**
+- [x] **Step 7: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 
