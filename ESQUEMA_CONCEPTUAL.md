@@ -91,63 +91,268 @@ El JSON no incluirá:
 - La visibilidad momentánea de los módulos; cada sesión comenzará con todos cerrados.
 - Modales, menús, herramientas u otros estados momentáneos de la interfaz.
 
-### Estructura general y versionado
+### Contrato JSON V1
 
-El documento se organizará mediante los siguientes bloques raíz:
+El documento tendrá exactamente nueve propiedades raíz. El documento vacío utilizará esta estructura completa:
 
 ```json
 {
   "format": "angie-dashboard",
   "formatVersion": 1,
-  "document": {},
-  "board": {},
+  "document": {
+    "id": "00000000-0000-4000-8000-000000000000",
+    "title": "",
+    "createdAt": "2026-09-30T18:42:15.000Z",
+    "updatedAt": "2026-09-30T18:42:15.000Z"
+  },
+  "board": {
+    "backgroundColor": "#25282B",
+    "strokes": [],
+    "quickNotes": []
+  },
   "elements": [],
   "notebook": [],
   "timeline": [],
   "moduleLayouts": {},
-  "filters": {}
+  "filters": {
+    "visibleStatuses": [
+      "Disponible",
+      "Asignada",
+      "En camino",
+      "En el lugar",
+      "En traslado",
+      "En destino",
+      "Operativa",
+      "Inoperativa"
+    ]
+  }
 }
 ```
 
-- `format` identificará el archivo como un documento de Angie Dashboard.
-- `formatVersion` identificará la versión de su estructura, independientemente de la versión de la aplicación.
-- `document` contendrá el identificador, el título y las fechas de creación y modificación.
-- `board` contendrá el color, los trazos y las notas rápidas de la pizarra.
-- `elements` contendrá los elementos, dotaciones, iconos o emotes, información, posiciones y datos operativos.
-- `notebook` contendrá las notas y checklist del Cuaderno.
-- `timeline` contendrá el Registro cronológico.
-- `moduleLayouts` contendrá la última posición y el último tamaño de cada módulo, pero no su visibilidad.
-- `filters` contendrá los filtros operativos seleccionados.
+- `format` tendrá siempre el valor literal `angie-dashboard`.
+- `formatVersion` tendrá el valor entero `1` para este contrato.
+- Todos los objetos utilizarán validación estricta y rechazarán propiedades desconocidas mediante `additionalProperties: false`.
+- Todos los campos de cada objeto presente serán obligatorios, aunque su valor sea `""`, `[]` o `null`; la única excepción serán las nueve claves conocidas y opcionales de `moduleLayouts`, donde la ausencia de una clave significará que ese módulo aún no tiene distribución guardada.
+- Los identificadores se generarán mediante `crypto.randomUUID()` y se validarán como UUID.
+- Todos los objetos persistentes que puedan identificarse individualmente tendrán su propio `id`: documento, trazos, notas rápidas, elementos, bloques del Cuaderno, ítems de checklist y entradas cronológicas.
+- Las fechas se guardarán como cadenas ISO 8601 en UTC terminadas en `Z`; `createdAt` no cambiará y `updatedAt` se actualizará con cada modificación persistente del documento.
+- Los colores se normalizarán como cadenas hexadecimales opacas en formato `#RRGGBB`.
+- Todos los números deberán ser finitos.
 
-La aplicación validará la estructura antes de cargar un archivo:
+#### `document`
 
-- Un archivo dañado o que no sea de Angie Dashboard no sustituirá el documento activo.
-- Las versiones antiguas compatibles se migrarán internamente a la estructura vigente.
-- El archivo original importado no se modificará automáticamente.
+`document` contendrá exactamente `id`, `title`, `createdAt` y `updatedAt`.
+
+- `title` será una cadena y podrá estar vacía.
+- `updatedAt` nunca será anterior a `createdAt`.
+
+#### `board`
+
+La pizarra utilizará un lienzo lógico fijo de `1000 × 1000`. Redimensionar el módulo solo modificará la escala visual del lienzo: nunca sus coordenadas internas. El lienzo completo se mostrará centrado, conservando su proporción cuadrada y sin recortarse; cuando el módulo sea rectangular, el espacio sobrante quedará como bandas vacías.
+
+`board` contendrá exactamente `backgroundColor`, `strokes` y `quickNotes`. El color inicial será `#25282B`.
+
+Un trazo de lápiz utilizará:
+
+```json
+{
+  "id": "UUID",
+  "tool": "pen",
+  "color": "#D63A3A",
+  "width": 4,
+  "points": [
+    { "x": 120.5, "y": 340.25 }
+  ]
+}
+```
+
+Un trazo de goma utilizará los mismos campos con `tool: "eraser"` y `color: null`.
+
+- `tool` solo admitirá `pen` o `eraser`.
+- `width` será un número positivo.
+- `points` contendrá uno o más objetos con exactamente `x` e `y`.
+- Las coordenadas de cada punto estarán comprendidas entre `0` y `1000`, ambos inclusive.
+
+Una nota rápida utilizará:
+
+```json
+{
+  "id": "UUID",
+  "text": "Acceso norte",
+  "position": { "x": 500, "y": 350 }
+}
+```
+
+- `position` representará el centro de la nota.
+- Sus coordenadas estarán comprendidas entre `0` y `1000`, ambos inclusive.
+
+#### `elements`
+
+Cada elemento utilizará exactamente:
+
+```json
+{
+  "id": "UUID",
+  "name": "Tango 1",
+  "visual": {
+    "type": "asset",
+    "assetId": "ambulance",
+    "scale": 1
+  },
+  "information": "TES: Pichu",
+  "position": { "x": 420, "y": 610 },
+  "isUnit": true,
+  "operational": {
+    "status": "Disponible",
+    "notes": "",
+    "tags": []
+  }
+}
+```
+
+- `name` contendrá al menos un carácter que no sea un espacio.
+- `information` será una cadena libre y podrá estar vacía.
+- `position` será `null` mientras el pin no tenga ubicación o un objeto con exactamente `x` e `y` entre `0` y `1000`; representará el centro del pin.
+- `isUnit` corresponderá al checkbox visible `Dotación`.
+- `isUnit` se decidirá al crear el elemento y será inmutable: una dotación no podrá convertirse en general y un elemento general no podrá convertirse en dotación.
+- Si `isUnit` es `false`, `operational` será obligatoriamente `null`.
+- Si `isUnit` es `true`, `operational` contendrá exactamente `status`, `notes` y `tags` y una dotación nueva comenzará como `Disponible`.
+- `status` solo admitirá `Disponible`, `Asignada`, `En camino`, `En el lugar`, `En traslado`, `En destino`, `Operativa` o `Inoperativa`.
+- La fase no se guardará: se obtendrá de manera inequívoca a partir de `status`.
+- `notes` será una cadena libre y podrá estar vacía.
+- `tags` será una lista de cadenas que contengan al menos un carácter que no sea un espacio. Se eliminarán los espacios iniciales y finales y no se admitirán duplicados aunque solo difieran en mayúsculas y minúsculas; se conservará la escritura original de la etiqueta aceptada.
+
+La representación mediante un PNG utilizará exactamente:
+
+```json
+{
+  "type": "asset",
+  "assetId": "ambulance",
+  "scale": 1
+}
+```
+
+- `assetId` solo admitirá `ambulance`, `pathfinder`, `quad`, `checkpoint`, `hydration`, `start`, `finish`, `warning` o `pushpin`.
+- `scale` será un número comprendido entre `0.25` y `3`, ambos inclusive.
+
+La representación mediante emoji utilizará exactamente:
+
+```json
+{
+  "type": "emoji",
+  "value": "🚑"
+}
+```
+
+- `value` será una cadena no vacía.
+- Las variantes `asset` y `emoji` solo admitirán sus campos respectivos.
+
+#### `notebook`
+
+Un bloque de nota utilizará exactamente:
+
+```json
+{
+  "id": "UUID",
+  "type": "note",
+  "text": "Acceso norte cerrado"
+}
+```
+
+Un bloque de checklist utilizará exactamente:
+
+```json
+{
+  "id": "UUID",
+  "type": "checklist",
+  "items": [
+    {
+      "id": "UUID",
+      "text": "Comprobar canal de radio",
+      "checked": false
+    }
+  ]
+}
+```
+
+- El orden de los bloques y de los ítems será el orden de sus arrays; no se añadirá un campo `order` redundante.
+- Los textos podrán estar vacíos mientras se editan.
+- Las variantes `note` y `checklist` solo admitirán sus campos respectivos.
+
+#### `timeline`
+
+Una entrada manual utilizará exactamente:
+
+```json
+{
+  "id": "UUID",
+  "type": "manual",
+  "occurredAt": "2026-09-30T18:42:15.000Z",
+  "text": "Acceso norte cerrado"
+}
+```
+
+Una entrada automática utilizará exactamente:
+
+```json
+{
+  "id": "UUID",
+  "type": "status-change",
+  "occurredAt": "2026-09-30T18:45:10.000Z",
+  "unitId": "UUID",
+  "unitName": "Tango 1",
+  "previousStatus": "Asignada",
+  "nextStatus": "En camino"
+}
+```
+
+- Las entradas se conservarán en orden cronológico ascendente.
+- Editar una entrada manual no cambiará `occurredAt`.
+- Las entradas automáticas no serán editables.
+- `unitName` será una copia del nombre visible en el momento del cambio para mantener la entrada legible si la dotación se renombra o elimina.
+- `unitId` identificará la dotación que originó el cambio, pero podrá dejar de resolver a un elemento existente cuando esa dotación se elimine; esta situación no invalidará el historial conservado.
+- `previousStatus` y `nextStatus` utilizarán los ocho valores exactos definidos para `status`.
+- `Deshacer` restaurará `previousStatus` y eliminará la entrada automática; las condiciones operativas para permitirlo se definen en el apartado del Registro cronológico.
+
+#### `moduleLayouts`
+
+`moduleLayouts` podrá contener únicamente las claves `board`, `elements`, `information`, `operations`, `coordinates`, `clock`, `calculator`, `notebook` y `timeline`. Un módulo sin distribución guardada no aparecerá en el objeto.
+
+Cada distribución contendrá exactamente:
+
+```json
+{
+  "x": 40,
+  "y": 30,
+  "width": 720,
+  "height": 480
+}
+```
+
+- Los cuatro valores serán enteros expresados en el espacio lógico general `1600 × 1000`.
+- La posición y las dimensiones deberán mantener el módulo dentro de ese espacio y respetar su tamaño mínimo correspondiente.
+- No se guardarán la visibilidad, el orden de apilamiento ni el estado activo.
+
+#### `filters`
+
+`filters` contendrá exactamente `visibleStatuses`, una lista sin duplicados formada exclusivamente por los ocho valores de estado definidos.
+
+- Un documento nuevo incluirá los ocho estados y mostrará todas las dotaciones.
+- Una lista vacía ocultará todas las dotaciones mediante el filtro sin eliminar ni modificar sus datos.
+
+#### Validación, migración y serialización
+
+- Se mantendrá un esquema independiente basado en JSON Schema 2020-12.
+- Los tipos discriminados `visual`, `notebook` y `timeline` se validarán como uniones estrictas.
+- También se validarán las relaciones `isUnit`/`operational` y `tool`/`color`, los límites de coordenadas y escala, los tamaños de módulos y el orden cronológico.
+- La aplicación analizará y validará completamente un archivo antes de sustituir el documento activo.
+- Un archivo dañado, ajeno a Angie Dashboard, con propiedades desconocidas o con relaciones incoherentes se rechazará completo y no se corregirá ni sobrescribirá automáticamente.
+- Las versiones antiguas reconocidas se migrarán en memoria y se volverán a validar; el archivo original importado no se modificará.
 - Si el archivo procede de una versión futura que la aplicación no reconoce, se mostrará un aviso y no se cargará.
 - Después de una migración, el formato vigente solo se exportará cuando el usuario guarde el documento.
-- Se mantendrá un esquema de validación independiente basado en JSON Schema 2020-12.
-
-### Campos internos definidos
-
-- `document` utilizará `id`, `title`, `createdAt` y `updatedAt`.
-- Los identificadores internos serán estables y permitirán distinguir elementos aunque compartan el mismo nombre visible.
-- Las fechas y horas se almacenarán en un formato estándar independiente de la zona horaria y se mostrarán en la interfaz con la hora española.
-- `board` utilizará `backgroundColor`, `strokes` y `quickNotes`.
-- Cada trazo conservará su identificador, herramienta (`pen` o `eraser`), color cuando corresponda, grosor y puntos recorridos.
-- Cada nota rápida conservará su identificador, texto y posición.
-- Las posiciones de pines, notas y puntos de los trazos se almacenarán respecto al sistema interno del lienzo, no a los píxeles visibles del módulo, para conservar su ubicación al redimensionarlo.
-- Cada entrada de `elements` conservará su identificador, nombre, representación visual, información libre, posición del pin y valor de `Dotación`.
-- La representación visual distinguirá entre `emoji` y `asset`; en este último caso almacenará el identificador estable del PNG incluido en la aplicación y su escala proporcional.
-- Los elementos marcados como dotación conservarán además su estado operativo, anotaciones y etiquetas.
-- El estado operativo solo podrá contener uno de los ocho estados definidos.
-- `notebook` conservará bloques identificados como nota o checklist, su contenido y su orden.
-- Los checklist conservarán sus elementos y el estado marcado o desmarcado de cada uno.
-- `timeline` distinguirá entre entradas manuales y cambios automáticos de estado.
-- Cada entrada cronológica conservará un identificador y la fecha y hora completas.
-- Los cambios automáticos conservarán la dotación, el estado anterior y el estado nuevo necesarios para la acción `Deshacer`.
-- `moduleLayouts` relacionará cada módulo con sus coordenadas y dimensiones dentro del espacio lógico del dashboard.
-- `filters` conservará los estados mostrados u ocultos por el filtro del Módulo de elementos.
+- Los errores indicarán la ruta problemática; por ejemplo, `elements[2].visual.scale debe estar entre 0.25 y 3`.
+- El JSON se serializará con sangría de dos espacios y un salto de línea final.
+- El orden de los arrays de Cuaderno, checklist y Registro cronológico se conservará.
 
 ### Decisión técnica de persistencia
 
@@ -224,9 +429,10 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 | `warning` | Advertencia | `icon_peligro.png` | Cuadrado | `110 × 110` |
 | `pushpin` | Chincheta | `icon_chincheta.png` | Cuadrado | `110 × 110` |
 
-- Los tamaños del catálogo se expresarán en las coordenadas lógicas del espacio de trabajo `1920 × 1080`; no describirán ni alterarán la resolución física de los archivos PNG.
+- Los tamaños del catálogo se expresarán en las coordenadas del lienzo lógico `1000 × 1000` de la pizarra; no describirán ni alterarán la resolución física de los archivos PNG.
+- Cada tamaño inicial será una caja máxima: el PNG se encajará centrado dentro de ella conservando su proporción, aunque sus dimensiones finales no ocupen exactamente ambos lados de la caja.
 - El tamaño inicial de cada icono corresponderá a una escala `1` o `100 %`.
-- Cada pin que utilice un icono PNG podrá redimensionarse entre `0.5` y `3`, equivalentes al `50 %` y al `300 %` de su tamaño inicial.
+- Cada pin que utilice un icono PNG podrá redimensionarse entre `0.25` y `3`, equivalentes al `25 %` y al `300 %` de su tamaño inicial.
 - La redimensión utilizará un único valor de escala proporcional, por lo que la relación de aspecto original nunca podrá deformarse.
 - El mismo valor de escala podrá modificarse mediante un tirador visible al seleccionar el pin y mediante un control deslizante en la configuración del elemento.
 - Ambos controles permanecerán sincronizados y actualizarán el mismo valor.
@@ -312,11 +518,17 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 - Separará visualmente los elementos en `Dotaciones` y `Generales`.
 - El nombre será libre.
 - Permitirá elegir un icono PNG disponible o escribir o pegar cualquier emoji.
-- Incluirá un checkbox `Dotación` para indicar si el elemento debe tratarse como una dotación y activar los módulos relacionados con ellas.
+- El formulario de creación incluirá un checkbox `Dotación` para indicar si el elemento debe tratarse como una dotación y activar los módulos relacionados con ellas.
+- El valor de `Dotación` será inmutable después de crear el elemento. El editor posterior mostrará `Dotación` o `General` como dato de solo lectura y no incluirá ese checkbox.
 - Dispondrá de un campo de texto amplio para introducir información libre.
 - Después de configurarse, el elemento aparecerá como pin movible en la pizarra.
-- No están definidos campos estructurados adicionales aparte del nombre, el icono o emote, el checkbox `Dotación` y el texto libre.
+- La configuración común de cualquier elemento estará formada por nombre, representación visual e información libre. Las dotaciones dispondrán además, dentro del Módulo operativo, de los campos estructurados `status`, `notes` y `tags` definidos en el contrato JSON V1.
 - Incluirá un botón de configuración `⚙` desde el que se podrán añadir, quitar, duplicar y modificar elementos.
+- Eliminar una dotación conservará sus entradas cronológicas existentes, identificadas mediante el `unitName` guardado, pero ninguna de ellas podrá deshacerse una vez eliminado el elemento.
+- `Duplicar` generará un elemento nuevo con otro UUID y el nombre `<nombre original> copia`.
+- La copia conservará la representación visual, la escala, la información libre y el tipo inmutable `Dotación` o `General`.
+- Una dotación duplicada comenzará como `Disponible`, con `notes: ""` y `tags: []`; no copiará el estado, las anotaciones, las etiquetas ni las entradas cronológicas del original.
+- Si el original tiene posición, la copia se colocará `24` unidades a la derecha y `24` hacia abajo, ajustando su centro para que el pin completo permanezca dentro del lienzo `1000 × 1000`. Si el original tiene `position: null`, la copia también comenzará sin posición.
 - Incluirá un filtro visual para mostrar u ocultar dotaciones según su estado y fase.
 - El filtro representará la secuencia `🟢`, `🟡`, `🔵`, `🔴`, `💠`, `🟠`, `🟢` y `⚫`, sin letras añadidas.
 - Los dos controles verdes comparten el significado operativo de que la unidad está lista para recibir un aviso: `Disponible` en su punto de cobertura u `Operativa` mientras regresa hacia él.
@@ -349,7 +561,7 @@ Ejemplo de una dotación:
 ```text
 Nombre: Echo 1
 Icono: 🚑
-Dotación: [x]
+Tipo: Dotación (solo lectura)
 
 TES: Pichu
 DUE: Kiko Perez
@@ -361,27 +573,52 @@ Medico: Juan Antonio Holiqtal
 - Mostrará la información de cualquier elemento seleccionado, tanto si es una dotación como si no.
 - La información procederá del texto introducido al configurar el elemento.
 - Cuando se seleccione una dotación, mostrará también la fase asociada a su estado.
-- Cuando no haya ningún elemento seleccionado, mostrará una vista global de la flota.
-- La vista global solo mostrará contadores de los estados o fases que tengan al menos una dotación.
-- Al hacer clic o tocar un espacio vacío se deseleccionará el elemento y el módulo volverá a mostrar la vista global.
+- Cuando se seleccione una dotación, mostrará sus etiquetas como información asociada, pero no permitirá colocarlas ni moverlas sobre la pizarra.
+- Cuando se seleccione un elemento general, mostrará únicamente su información libre.
+- Cuando no haya ningún elemento seleccionado, mostrará únicamente una lista con los nombres de todas las dotaciones, sin estado, fase, contador, agrupación ni checkbox.
+- Hacer clic o tocar el nombre de una dotación en esa lista la seleccionará globalmente y el módulo pasará a mostrar su información libre, su fase y sus etiquetas.
+- Si no existen dotaciones, la vista sin selección mostrará `Sin dotaciones`.
+- Al hacer clic o tocar un espacio vacío de la pizarra se deseleccionará el elemento y el módulo volverá a mostrar la lista de dotaciones.
 
-Ejemplo de vista global:
+Ejemplo sin selección:
 
 ```text
-🟢 8 Libres
-🔴 2 Interviniendo
-💠 1 En traslado
-⚫ 1 Inoperativa
+TANGO-1
+ALPHA-2
 ```
 
 ## 9. Módulo operativo
 
-- Solo incluirá los elementos que tengan marcado el checkbox `Dotación`.
-- Permitirá seleccionar una dotación y cambiar su estado mediante un selector.
+- Solo incluirá los elementos creados como `Dotación`, es decir, aquellos cuyo valor inmutable sea `isUnit: true`.
+- Cuando no haya ninguna dotación seleccionada, mostrará los contadores de los estados exactos que tengan al menos una dotación. Seleccionar un elemento general equivaldrá, para este módulo, a no tener ninguna dotación seleccionada.
+- Los contadores seguirán el orden `Disponible`, `Asignada`, `En camino`, `En el lugar`, `En traslado`, `En destino`, `Operativa` e `Inoperativa`; cada uno mostrará el icono, el número y el nombre exacto del estado, sin sustituirlo por su fase ni por una agrupación nueva.
+- Hacer clic o tocar un contador desplegará los nombres de las dotaciones que estén exactamente en ese estado. Solo habrá un estado desplegado a la vez y abrir otro sustituirá la lista visible.
+- Hacer clic o tocar una dotación de la lista desplegada la seleccionará globalmente. El módulo dejará los contadores y mostrará los ocho estados seleccionables para esa dotación.
+- Cuando haya una dotación seleccionada, mostrará los ocho estados, resaltará el actual y permitirá cambiarlo mediante selección directa.
+- Al deseleccionar la dotación, volverá a la vista de contadores.
+- Los ocho estados estarán disponibles en todo momento: no formarán una secuencia ni existirán transiciones obligatorias entre ellos.
+- Seleccionar el mismo estado que ya tiene la dotación no modificará el documento ni generará una entrada cronológica.
 - El selector utilizará los valores de la columna `Estado` como código CCU; la fase asociada se mostrará en el módulo de información.
-- Permitirá agregar anotaciones durante el servicio.
+- Permitirá editar una anotación libre por dotación; los cambios se guardarán automáticamente en `operational.notes`.
+- Permitirá crear etiquetas libres mediante el campo `Nueva etiqueta`, el botón `Añadir` o la tecla Enter.
+- Las etiquetas se mostrarán como chips compactos en la ficha de la dotación. Un clic o toque permitirá editar el texto en línea y cada chip incluirá `×` para eliminarlo sin confirmación.
+- Añadir, editar o eliminar una etiqueta actualizará automáticamente `operational.tags`.
+- Las etiquetas pertenecerán siempre a su dotación, se mostrarán también en el Módulo de información y no serán objetos independientes ni aparecerán junto al pin. Para colocar texto libre sobre la pizarra se utilizarán notas rápidas.
 - Los ocho estados definidos serán fijos; no se crearán estados adicionales o circunstanciales.
 - Las circunstancias que no formen parte de esos estados se registrarán mediante etiquetas o anotaciones independientes, sin modificar el estado operativo.
+
+La selección de un elemento será única y compartida entre la pizarra y los módulos de Elementos, Información y Operativo. Seleccionar una dotación desde cualquiera de ellos actualizará inmediatamente los demás.
+
+Ejemplo sin selección y con `En el lugar` desplegado:
+
+```text
+🟢 3 Disponible
+🟡 1 Asignada
+🔴 2 En el lugar
+  TANGO-1
+  ALPHA-2
+🟢 1 Operativa
+```
 
 ### Estados y fases
 
@@ -391,7 +628,7 @@ Ejemplo de vista global:
 | Asignada | Activación | 🟡 | Se ha transmitido por radio un aviso prioritario. |
 | En camino | Aproximación | 🔵 | Unidad movilizada. |
 | En el lugar | Intervención | 🔴 | Unidad en asistencia sanitaria. |
-| Traslado | Evacuación | 💠 | Traslado de paciente. |
+| En traslado | Evacuación | 💠 | Traslado de paciente. |
 | En destino | Transferencia | 🟠 | Transferencia en el destino objetivo. |
 | Operativa | Retorno | 🟢 | Unidad regresando a su punto de cobertura asignado por el recorrido. |
 | Inoperativa | Bloqueo | ⚫ | Unidad inmovilizada. |
@@ -552,8 +789,14 @@ Representación conceptual:
 - La interfaz utilizará un formato compacto que diferenciará por su contenido las entradas automáticas y las manuales.
 - Internamente se conservarán la fecha y la hora completas, aunque en la línea visible se muestre principalmente la hora.
 - Las entradas manuales podrán editarse o eliminarse directamente desde la interfaz.
-- Una entrada automática de cambio de estado ofrecerá una acción `Deshacer`.
-- `Deshacer` restaurará el estado anterior de la dotación y eliminará la entrada automática creada por error.
+- Cambiar manualmente una dotación a un estado distinto generará automáticamente una entrada con su estado anterior y su estado nuevo. La aplicación no cambiará estados por iniciativa propia.
+- Solo la entrada automática más reciente de cada dotación existente ofrecerá la acción `Deshacer`; las entradas anteriores serán historial de solo lectura.
+- Para ejecutar `Deshacer`, la dotación deberá seguir existiendo y su estado actual deberá coincidir con el `nextStatus` registrado en esa entrada.
+- `Deshacer` restaurará `previousStatus` y eliminará atómicamente la entrada creada por error. La propia acción no generará otra entrada cronológica.
+- Después de deshacer, la entrada inmediatamente anterior de esa dotación podrá convertirse en la más reciente y ofrecer `Deshacer` si su `nextStatus` coincide con el estado restaurado. De este modo se podrán corregir varios errores únicamente en orden inverso.
+- Los cambios de otras dotaciones no afectarán a la disponibilidad de `Deshacer` para la dotación examinada.
+- Si la dotación se ha eliminado, sus entradas se conservarán como historial legible mediante `unitName`, pero ninguna ofrecerá `Deshacer`.
+- Si alguna condición no se cumple, la operación se rechazará sin modificar el estado ni el registro.
 - No será necesario editar el archivo JSON para corregir estos errores.
 - Las entradas se presentarán en orden ascendente: las más antiguas arriba y las nuevas abajo.
 - Si el usuario ya está observando el final del registro, una entrada nueva desplazará automáticamente la vista hasta ella.
@@ -581,7 +824,7 @@ Ejemplo:
 - El empaquetado y la recolocación automáticos permanecerán desactivados: mover o redimensionar un módulo no deberá reorganizar por sí solo los demás.
 - No se utilizará un docking completo basado en grupos de pestañas, divisiones de pantalla o paneles propios de un IDE.
 - La solución técnica seleccionada para esta función es `React Grid Layout`.
-- El espacio de trabajo utilizará `1920 × 1080` como sistema lógico de coordenadas y se ajustará visualmente al espacio disponible en cada pantalla.
+- El espacio de trabajo utilizará `1600 × 1000` como sistema lógico general de coordenadas, con proporción `16:10`, y se ajustará visualmente al espacio disponible en cada pantalla.
 - La cabecera permanecerá fija, siempre visible y fuera del área afectada por el desplazamiento o el zoom.
 - Los módulos ocuparán el espacio de trabajo situado bajo la cabecera.
 - El dashboard no crecerá verticalmente ni obligará a utilizar scroll de página para acceder a módulos.
@@ -597,7 +840,7 @@ Ejemplo:
 
 ### Apertura, tamaño y colocación de módulos
 
-Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las coordenadas lógicas del espacio `1920 × 1080`:
+Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las coordenadas lógicas del espacio general `1600 × 1000`:
 
 | Módulo | Tamaño inicial | Tamaño mínimo |
 | --- | --- | --- |
@@ -625,7 +868,7 @@ Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las c
 
 ### Navegación en pantallas móviles
 
-- El espacio lógico `1920 × 1080` se recorrerá en pantallas móviles mediante gestos directos, sin utilizar barras de desplazamiento de página, una miniatura de navegación ni un modo de desplazamiento separado.
+- El espacio lógico general `1600 × 1000` se recorrerá en pantallas móviles mediante gestos directos, sin utilizar barras de desplazamiento de página, una miniatura de navegación ni un modo de desplazamiento separado.
 - Pellizcar con dos dedos ampliará o reducirá la vista y mantendrá como centro del zoom el punto situado entre ambos dedos.
 - Arrastrar con dos dedos desplazará la vista del dashboard.
 - Los gestos realizados con un solo dedo se reservarán para manejar los módulos, pines, controles y herramientas de la pizarra.
@@ -635,7 +878,7 @@ Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las c
 - Un dedo sobre la pizarra seleccionará, moverá, dibujará, borrará o creará notas según la herramienta que esté activa.
 - Mientras haya dos dedos interactuando con el dashboard, se suspenderán temporalmente las acciones de módulos, pines y dibujo para evitar movimientos o trazos accidentales.
 - La cabecera principal permanecerá fija, fuera del área afectada por el desplazamiento y el zoom.
-- El zoom mínimo será el valor dinámico necesario para encajar y centrar por completo el espacio `1920 × 1080` en el área disponible de la pantalla.
+- El zoom mínimo será el valor dinámico necesario para encajar y centrar por completo el espacio `1600 × 1000` en el área disponible de la pantalla.
 - El zoom máximo será `200 %`.
 - El desplazamiento se limitará para impedir que el espacio de trabajo desaparezca completamente fuera de la pantalla; el margen elástico fuera de cada borde no superará el `10 %` de la dimensión visible correspondiente.
 - La cabecera incluirá un botón `Encajar` que centrará el dashboard y aplicará el mayor nivel de zoom con el que pueda verse completo.
@@ -667,7 +910,13 @@ Los recursos estáticos aprobados se organizarán de la siguiente forma:
 
 - `public/assets/elements`: nueve iconos PNG utilizados por los pines.
 - `public/assets/audio/alarm.mp3`: timbre local de `T-Minus` y `Advisories`.
+- `public/assets/pwa`: iconos derivados para la instalación, el acceso directo y el favicon de la PWA.
+- `public/assets/fonts/roboto-condensed`: archivos locales de Roboto Condensed y su licencia.
 - La chincheta roja `public/assets/elements/icon_chincheta.png` será la fuente visual para generar los tamaños necesarios del icono instalable de la PWA, sin modificar el archivo original.
+- Los iconos normales de `16 × 16`, `32 × 32`, `180 × 180`, `192 × 192` y `512 × 512` conservarán fondo transparente.
+- Las variantes `maskable` de `192 × 192` y `512 × 512` tendrán fondo opaco Titan `#0C0D0E` y mantendrán completa la chincheta dentro de la zona segura circular central del `80 %`.
+- Todos los iconos derivados conservarán exactamente el dibujo, los colores y la proporción de la chincheta original; solo cambiarán el encuadre, el fondo exigido para `maskable` y la resolución.
+- Roboto Condensed se alojará localmente para no depender de Google Fonts durante el uso. Se incluirán las variantes variables normal y cursiva, con pesos continuos de `100` a `900`, y los subconjuntos `latin` y `latin-ext`.
 
 shadcn/ui se utilizará especialmente en:
 
@@ -723,7 +972,7 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 - El amarillo se utilizará como segundo acento en marcadores, avisos o pequeños elementos técnicos.
 - El blanco frío se utilizará para la información principal y los grises claros para la información secundaria.
 - Los estados operativos conservarán sus colores y una forma visual reconocible para no confundirse con los acentos decorativos.
-- Las cabeceras, menús y nombres de módulos utilizarán una tipografía firme y condensada.
+- Roboto Condensed será la tipografía principal de la interfaz general, incluidas cabeceras, menús, botones, etiquetas y nombres de módulos, utilizando según la jerarquía los pesos variables disponibles entre `100` y `900` y la cursiva cuando corresponda.
 - El reloj, los tiempos, las coordenadas, los contadores y otros datos técnicos utilizarán una tipografía monoespaciada.
 - Las animaciones serán rápidas y precisas: cambios de brillo, encendido de líneas, pulsaciones mecánicas y transiciones cortas.
 - Se permitirá un resplandor controlado en elementos activos; los destellos intensos quedarán reservados para alarmas.

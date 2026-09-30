@@ -24,7 +24,7 @@ Si dos instrucciones parecen incompatibles, prevalece `ESQUEMA_CONCEPTUAL.md`. N
 
 - Stack aprobado: React, TypeScript, Vite, PWA, shadcn/ui, React Grid Layout, React Konva, Dexie/IndexedDB y Proj4.
 - La interfaz debe funcionar como una única PWA local-first en Windows y Android.
-- El espacio lógico es `1920 × 1080`; no debe existir scroll de página.
+- El espacio lógico general es `1600 × 1000`; no debe existir scroll de página.
 - Todos los módulos comienzan cerrados y se abren individualmente desde `Ver`.
 - La persistencia visible utiliza JSON versionado y validado; el autoguardado interno utiliza IndexedDB.
 - Mantén separadas la lógica de dominio, persistencia, interfaz y acceso al navegador.

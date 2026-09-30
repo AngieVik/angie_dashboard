@@ -7,7 +7,7 @@
 | Asignada    | Activación    | 🟡   | Se ha transmitido por radio un aviso prioritario.                    |
 | En camino   | Aproximación  | 🔵   | Unidad movilizada.                                                   |
 | En el lugar | Intervención  | 🔴   | Unidad en asistencia sanitaria.                                      |
-| Traslado    | Evacuación    | 💠   | Traslado de paciente.                                                |
+| En traslado | Evacuación    | 💠   | Traslado de paciente.                                                |
 | En destino  | Transferencia | 🟠   | Transferencia en el destino objetivo.                                |
 | Operativa   | Retorno       | 🟢   | Unidad regresando a su punto de cobertura asignado por el recorrido. |
 | Inoperativa | Bloqueo       | ⚫   | Unidad inmovilizada.                                                 |

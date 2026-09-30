@@ -13,6 +13,8 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] `Cargar` rechaza archivos dañados, ajenos a Angie Dashboard o de versiones futuras sin reemplazar el documento activo.
 - [ ] Un JSON compatible antiguo se migra en memoria y su original no se modifica.
 - [ ] El archivo exportado cumple el JSON Schema 2020-12 y contiene únicamente los bloques aprobados.
+- [ ] El JSON contiene exactamente las nueve propiedades raíz aprobadas, rechaza propiedades desconocidas y conserva la estructura obligatoria completa aunque existan textos, listas o posiciones vacíos.
+- [ ] UUID, fechas UTC, colores, uniones discriminadas, relaciones condicionales, coordenadas, escalas, tamaños y orden cronológico se validan conforme al contrato V1.
 
 ## 2. Autoguardado y recuperación
 
@@ -31,7 +33,7 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Sin espacio disponible, el módulo se abre centrado al tamaño mínimo, por encima de los demás, con el aviso aprobado y solapamiento temporal.
 - [ ] `moduleLayouts` conserva posiciones y tamaños, pero no visibilidad.
 - [ ] En móvil, un dedo manipula contenido y dos dedos desplazan o amplían el dashboard sin provocar acciones accidentales.
-- [ ] `Encajar` muestra completo y centrado el espacio `1920 × 1080`; el zoom no baja de ese valor ni supera `200 %`.
+- [ ] `Encajar` muestra completo y centrado el espacio general `1600 × 1000`; el zoom no baja de ese valor ni supera `200 %`.
 - [ ] Girar el dispositivo conserva el punto lógico central y mantiene una vista válida.
 - [ ] No aparece scroll de página en Windows ni Android.
 
@@ -42,15 +44,20 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Un fallo de imagen conserva el fondo anterior y no sube datos a servicios externos.
 - [ ] Los modos `Seleccionar/mover`, `Lápiz`, `Goma` y `Nota rápida` respetan las prioridades definidas.
 - [ ] La goma elimina únicamente trazos del lápiz.
-- [ ] Pines y notas rápidas se pueden seleccionar, mover y persistir en coordenadas internas del lienzo.
+- [ ] Pines, notas rápidas y trazos se persisten en el lienzo lógico fijo `1000 × 1000`; el módulo lo muestra completo, centrado, proporcional y sin recortarlo.
 - [ ] Las notas rápidas se pueden crear, editar y eliminar y mantienen tamaño visual fijo.
 
 ## 5. Elementos y pines
 
-- [ ] Se pueden crear, editar, duplicar y eliminar elementos con nombre, información, representación visual y checkbox `Dotación`.
+- [ ] Se pueden crear, editar, duplicar y eliminar elementos con nombre, información, representación visual y clasificación inmutable como `Dotación` o `General`.
+- [ ] `Dotación` solo puede elegirse durante la creación; después se muestra como dato de solo lectura y no puede cambiarse en ningún sentido.
+- [ ] Una dotación nueva comienza como `Disponible`, con anotaciones vacías y sin etiquetas.
+- [ ] Las etiquetas de una dotación se pueden crear, editar y eliminar como chips, rechazan vacíos y duplicados sin distinguir mayúsculas y se muestran en Información sin convertirse en objetos de la pizarra.
+- [ ] Duplicar crea otro UUID y el nombre `<nombre> copia`, conserva configuración, tipo e información y desplaza el pin `24` unidades dentro del lienzo; si es una dotación, reinicia sus datos operativos y no copia entradas cronológicas.
 - [ ] Se pueden usar los nueve PNG del catálogo o cualquier emoji escrito o pegado.
 - [ ] Cada ID del catálogo carga el archivo, nombre y tamaño inicial correctos.
-- [ ] Los PNG conservan su proporción y pueden escalarse entre `50 %` y `300 %` mediante tirador y deslizador sincronizados.
+- [ ] Los tamaños iniciales de los PNG actúan como cajas máximas y los iconos se encajan centrados sin deformarse.
+- [ ] Los PNG conservan su proporción y pueden escalarse entre `25 %` y `300 %` mediante tirador y deslizador sincronizados.
 - [ ] La escala se guarda en el JSON y el nombre del elemento mantiene un tamaño de texto independiente.
 - [ ] Los elementos se separan visualmente en `Dotaciones` y `Generales`.
 - [ ] El filtro de ocho estados muestra u oculta dotaciones sin alterar sus datos.
@@ -58,10 +65,20 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 ## 6. Información, operativo y registro
 
 - [ ] Información muestra el elemento seleccionado y la fase cuando sea una dotación.
-- [ ] Sin selección, Información muestra únicamente contadores no vacíos de la flota.
+- [ ] Sin selección, Información muestra únicamente los nombres de las dotaciones, o `Sin dotaciones` cuando no exista ninguna; tocar un nombre selecciona globalmente esa dotación.
+- [ ] Con una dotación seleccionada, Información muestra su información libre, fase y etiquetas; con un elemento general, muestra únicamente su información libre.
 - [ ] Operativo incluye solo dotaciones y permite los ocho estados fijos definidos.
+- [ ] Sin una dotación seleccionada, Operativo muestra únicamente contadores no vacíos de los ocho estados exactos, en el orden definido y sin fases ni agrupaciones nuevas.
+- [ ] Tocar un contador despliega las dotaciones que están exactamente en ese estado, con un único estado desplegado; tocar un nombre selecciona globalmente esa dotación.
+- [ ] Con una dotación seleccionada, Operativo muestra los ocho estados, resalta el actual y permite elegir cualquiera; al deseleccionarla vuelve a los contadores.
+- [ ] La selección es única y se sincroniza entre pizarra, Elementos, Información y Operativo.
+- [ ] Los ocho estados pueden elegirse manualmente en cualquier momento, sin secuencia obligatoria; seleccionar el estado actual no modifica datos ni crea una entrada.
+- [ ] Operativo permite editar una anotación libre y gestionar las etiquetas asociadas a cada dotación con autoguardado.
 - [ ] Un cambio de estado actualiza Información y crea una entrada cronológica automática con hora española.
-- [ ] `Deshacer` restaura el estado anterior y elimina la entrada automática correspondiente.
+- [ ] Solo el cambio más reciente de cada dotación existente permite `Deshacer`, y únicamente cuando el estado actual coincide con el estado nuevo registrado.
+- [ ] `Deshacer` restaura el estado anterior y elimina atómicamente la entrada correspondiente sin crear otra; permite continuar retrocediendo en orden inverso y no afecta a otras dotaciones.
+- [ ] Eliminar una dotación conserva intactas sus entradas cronológicas mediante el nombre guardado, pero ninguna de ellas permite `Deshacer`.
+- [ ] Un intento de deshacer no válido se rechaza sin modificar el estado ni el registro.
 - [ ] Las entradas manuales se pueden crear, editar y eliminar.
 - [ ] El registro sigue funcionando con su módulo cerrado y respeta el comportamiento de desplazamiento automático aprobado.
 
@@ -88,6 +105,9 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 
 ## 9. Diseño, accesibilidad y calidad
 
+- [ ] Los iconos PWA normales existen en `16`, `32`, `180`, `192` y `512` píxeles, conservan transparencia y reproducen la chincheta aprobada sin deformarla ni redibujarla.
+- [ ] Los iconos `maskable` existen en `192` y `512` píxeles, tienen fondo opaco `#0C0D0E` y mantienen completa la chincheta dentro de la zona segura circular del `80 %`.
+- [ ] Roboto Condensed normal y cursiva, con pesos variables `100–900`, se carga desde recursos locales y continúa disponible sin conexión; los datos técnicos conservan una tipografía monoespaciada.
 - [ ] La interfaz respeta la paleta y dirección Titan industrial aprobadas sin convertirse en un diseño plano o móvil simplificado.
 - [ ] Controles, foco, estado activo, errores y selección son distinguibles con teclado, ratón y tacto.
 - [ ] Los controles interactivos tienen nombre accesible y las acciones esenciales pueden realizarse con teclado en Windows.

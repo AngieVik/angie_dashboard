@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Leer `AGENTS.md`, `ESQUEMA_CONCEPTUAL.md` y `ACCEPTANCE_CRITERIA.md` completos antes de implementar.
-- Espacio lógico fijo `1920 × 1080`; ninguna vista puede producir scroll de página.
+- Espacio lógico general fijo `1600 × 1000`; ninguna vista puede producir scroll de página.
 - Todos los módulos empiezan cerrados y su visibilidad no se persiste.
 - El JSON visible usa `format: "angie-dashboard"` y `formatVersion: 1` y no incluye temporizadores ni estado transitorio.
 - Los recursos originales de `public/assets` no se modifican.
@@ -43,10 +43,12 @@
 - Create: `src/main.tsx`
 - Create: `src/app/App.tsx`
 - Create: `src/styles/tokens.css`
+- Create: `src/styles/fonts.css`
 - Create: `src/styles/global.css`
 - Create: `src/test/setup.ts`
 - Create: `playwright.config.ts`
 - Create: `public/assets/pwa/*`
+- Create: `public/assets/fonts/roboto-condensed/*`
 - Test: `src/app/App.test.tsx`
 - Test: `tests/e2e/smoke.spec.ts`
 
@@ -60,7 +62,7 @@
 
 - [ ] **Step 3: Escribir las pruebas iniciales.**
 
-`App.test.tsx` debe comprobar que aparece la cabecera y que el área principal no contiene módulos abiertos. `smoke.spec.ts` debe comprobar carga sin errores y ausencia de scroll de página en un viewport de escritorio y uno móvil.
+`App.test.tsx` debe comprobar que aparece la cabecera, que el área principal no contiene módulos abiertos y que la interfaz general utiliza Roboto Condensed mientras los datos técnicos conservan una familia monoespaciada. `smoke.spec.ts` debe comprobar carga sin errores, disponibilidad local de las fuentes y ausencia de scroll de página en un viewport de escritorio y uno móvil. La verificación de recursos debe comprobar dimensiones, transparencia de los iconos normales, opacidad de los `maskable` y zona segura.
 
 - [ ] **Step 4: Ejecutar las pruebas y confirmar que fallan antes de crear el shell.**
 
@@ -70,7 +72,7 @@ Expected: FAIL porque el shell aún no está implementado.
 
 - [ ] **Step 5: Implementar el shell mínimo, los tokens Titan y la configuración PWA.**
 
-Generar copias `192 × 192`, `512 × 512` y maskable desde `public/assets/elements/icon_chincheta.png` sin modificar el original. El manifiesto usará `Angie Dashboard`, nombre corto `Angie` y color de tema `#0C0D0E`.
+Generar desde `public/assets/elements/icon_chincheta.png`, sin modificarlo ni redibujarlo, iconos normales transparentes de `16 × 16`, `32 × 32`, `180 × 180`, `192 × 192` y `512 × 512`, además de variantes `maskable` de `192 × 192` y `512 × 512` con fondo opaco `#0C0D0E` y la chincheta completa dentro de la zona segura circular del `80 %`. Alojar localmente Roboto Condensed variable normal y cursiva, pesos `100–900`, subconjuntos `latin` y `latin-ext`, con su licencia; aplicarla a la interfaz general y mantener una fuente monoespaciada para datos técnicos. El manifiesto usará `Angie Dashboard`, nombre corto `Angie` y color de tema `#0C0D0E`.
 
 - [ ] **Step 6: Verificar la base.**
 
@@ -102,9 +104,9 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `migrateDocument(input: unknown): MigrationResult<AngieDocumentV1>`.
 - Produces: `serializeDocument(document: AngieDocumentV1): string`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para el documento vacío, los ocho bloques raíz, IDs estables, fechas, estados operativos y exclusiones.**
+- [ ] **Step 1: Escribir pruebas fallidas para el documento vacío, las nueve propiedades raíz, la estructura completa obligatoria, UUID, fechas UTC, colores, estados operativos y exclusiones.**
 
-Incluir fixtures válido, dañado, ajeno, compatible antiguo y futuro. Verificar que el futuro y el dañado devuelven error sin documento sustituto.
+Incluir fixtures válido, completo, dañado, ajeno, compatible antiguo y futuro. Cubrir propiedades desconocidas, uniones discriminadas, relaciones `isUnit`/`operational` y `tool`/`color`, etiquetas vacías o duplicadas sin distinguir mayúsculas, coordenadas `0–1000`, escala `0.25–3`, tamaños de módulos y orden cronológico. Verificar que cualquier error devuelve su ruta y no produce un documento sustituto.
 
 - [ ] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
 
@@ -114,7 +116,7 @@ Expected: FAIL porque las interfaces y el esquema no existen.
 
 - [ ] **Step 3: Implementar tipos, documento vacío, JSON Schema 2020-12, validación, serialización y la infraestructura de migración.**
 
-El tipo raíz debe contener exactamente `format`, `formatVersion`, `document`, `board`, `elements`, `notebook`, `timeline`, `moduleLayouts` y `filters`.
+El tipo raíz debe contener exactamente `format`, `formatVersion`, `document`, `board`, `elements`, `notebook`, `timeline`, `moduleLayouts` y `filters`; los nombres, tipos, valores iniciales y relaciones serán exactamente los definidos en el contrato JSON V1 del esquema. La serialización utilizará dos espacios y salto de línea final.
 
 - [ ] **Step 4: Verificar dominio y esquema.**
 
@@ -234,7 +236,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 **Interfaces:**
 - Consumes: `board` del documento y mutaciones de `useDocumentStore`.
 - Produces: `loadBoardImage(file): Promise<BoardImageResult>`; la imagen resultante vive solo en memoria.
-- Produces: eventos normalizados de trazo, borrado, pin y nota en coordenadas internas.
+- Produces: eventos normalizados de trazo, borrado, pin y nota en coordenadas del lienzo lógico fijo `1000 × 1000`.
 
 - [ ] **Step 1: Escribir pruebas fallidas para modos exclusivos, trazos, borrado, notas y transformación de coordenadas.**
 
@@ -271,11 +273,13 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 **Interfaces:**
 - Produces: `ICON_CATALOG` con los nueve IDs, rutas, clases y tamaños exactos del esquema.
 - Produces: comandos `createElement`, `updateElement`, `duplicateElement`, `deleteElement`.
-- Produces: `clampAssetScale(value): number` limitado a `0.5–3`.
+- Produces: `clampAssetScale(value): number` limitado a `0.25–3`.
 
 - [ ] **Step 1: Escribir pruebas fallidas para las nueve entradas y la existencia de sus archivos.**
 
-- [ ] **Step 2: Escribir pruebas fallidas para CRUD, emoji, Dotación, filtros y escala proporcional sincronizada.**
+- [ ] **Step 2: Escribir pruebas fallidas para CRUD, emoji, escala proporcional sincronizada e inmutabilidad de `Dotación`.**
+
+Comprobar que el checkbox solo existe durante la creación; una dotación comienza como `Disponible`; editar nunca cambia `isUnit`; y eliminar una dotación conserva intactas sus entradas cronológicas. Duplicar genera UUID y nombre nuevos, conserva configuración y tipo y desplaza el pin `24` unidades sin sacarlo del lienzo; si es una dotación, reinicia `operational` y no copia entradas cronológicas.
 
 - [ ] **Step 3: Implementar catálogo y comandos de dominio.**
 
@@ -309,11 +313,17 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `changeElementStatus(document, elementId, nextStatus, now): AngieDocumentV1`.
 - Produces: `undoAutomaticTimelineEntry(document, entryId): UndoResult`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para ocho estados, vista global, entradas manuales/automáticas y deshacer.**
+- [ ] **Step 1: Escribir pruebas fallidas para ocho estados, anotaciones, etiquetas, vista global, entradas manuales/automáticas y deshacer.**
 
-- [ ] **Step 2: Implementar dominio de estados y timeline como operaciones atómicas sobre el documento.**
+Cubrir la selección global compartida entre pizarra, Elementos, Información y Operativo. Sin selección, Información debe listar únicamente los nombres de las dotaciones o `Sin dotaciones`; tocar un nombre debe seleccionarla. Operativo debe mostrar, en el orden definido, solo los contadores no vacíos de estados exactos; tocar uno debe desplegar exclusivamente sus dotaciones, sustituir cualquier despliegue anterior y permitir seleccionarlas. Con una dotación seleccionada, Operativo debe mostrar los ocho estados y resaltar el actual; seleccionar un elemento general debe mantener la vista de contadores.
 
-- [ ] **Step 3: Implementar los tres módulos y su coordinación mediante selección estable por ID.**
+Cubrir la selección manual de cualquier estado sin transiciones obligatorias y el no-op al seleccionar el estado actual. Para `Deshacer`, comprobar que solo se admite la entrada más reciente de cada dotación cuando el estado actual coincide con su `nextStatus`; que restaura `previousStatus` y elimina la entrada sin crear otra; que permite retroceder en orden inverso; y que otras dotaciones no interfieren. Cubrir también el rechazo atómico de entradas antiguas o incoherentes y la conservación sin `Deshacer` del historial de una dotación eliminada.
+
+Para anotaciones y etiquetas, cubrir alta con botón o Enter, edición en línea, eliminación sin confirmación, recorte de espacios, rechazo de vacíos y duplicados sin distinguir mayúsculas, autoguardado y visualización en Información sin representación sobre la pizarra.
+
+- [ ] **Step 2: Implementar dominio de estados y timeline como operaciones atómicas sobre el documento, manteniendo separada la selección manual del estado de la creación automática de su entrada cronológica.**
+
+- [ ] **Step 3: Implementar los tres módulos y su coordinación mediante una única selección estable por ID, incluyendo los dos modos de Información y Operativo.**
 
 - [ ] **Step 4: Verificar.**
 
