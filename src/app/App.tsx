@@ -6,6 +6,7 @@ import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import { ViewMenu } from '../features/view/ViewMenu'
 import { BoardModule } from '../features/board/BoardModule'
+import { ElementsModule } from '../features/elements/ElementsModule'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
@@ -29,6 +30,9 @@ export function App() {
   const [modules, setModules] = useState<OpenModule[]>([])
   const [active, setActive] = useState<ModuleId | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [selection, setSelection] = useState<{ generation: number; id: string | null }>({ generation: documentGeneration, id: null })
+  const selectedId = selection.generation === documentGeneration && document.elements.some(element => element.id === selection.id) ? selection.id : null
+  const selectElement = (id: string | null) => setSelection({ generation: documentGeneration, id })
   useLayoutEffect(() => {
     const node = workspace.current
     if (!node || typeof ResizeObserver === 'undefined') return
@@ -101,7 +105,8 @@ export function App() {
         <DocumentNotices store={store} />
         <MobileViewport state={viewport.state} size={viewport.size} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid modules={open} scale={viewport.state.scale} active={active} onActive={setActive} onClose={close} onLayout={saveLayout}
-            renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} /> : null} />
+            renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement} /> :
+              id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> : null} />
         </MobileViewport>
       </main>
     </div>

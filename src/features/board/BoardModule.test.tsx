@@ -5,6 +5,7 @@ import { createDocumentStore } from '../document/documentStore'
 import { BoardModule } from './BoardModule'
 import { useBoardImage } from './useBoardImage'
 import { ViewportContext } from '../../layout/ViewportContext'
+import { createElement } from '../elements/elementCommands'
 
 // jsdom has no canvas renderer; actual Konva pixels are covered by browser tests.
 vi.mock('react-konva', () => ({ Stage: () => null, Layer: () => null, Rect: () => null, Image: () => null, Line: () => null, Circle: () => null }))
@@ -15,21 +16,49 @@ async function setup() {
   const store = createDocumentStore({ loadActive: async () => null, saveActive: async document => { local = document }, clearActive: async () => {} }, { platform: { download: () => {} } })
   await store.initialize()
   const blockedRef = { current: false }
+  const onSelect = vi.fn()
   function Harness({ visible = true, blocked = false }: { visible?: boolean; blocked?: boolean }) {
     blockedRef.current = blocked
     const imageSession = useBoardImage(store)
     return <ViewportContext.Provider value={{ blocked, blockedRef }}>
       <output aria-label="Imagen temporal">{imageSession.image ? `${imageSession.image.width}x${imageSession.image.height}` : 'Sin imagen'}</output>
-      {visible && <BoardModule store={store} imageSession={imageSession} />}
+      {visible && <BoardModule store={store} imageSession={imageSession} onSelect={onSelect} />}
     </ViewportContext.Provider>
   }
   const view = render(<Harness />)
   const surface = screen.getByTestId('board-surface')
   vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 100, width: 400, height: 400, right: 500, bottom: 500, x: 100, y: 100, toJSON: () => ({}) })
-  return { store, view, Harness, local: () => local }
+  return { store, view, Harness, onSelect, local: () => local }
 }
 
 describe('módulo Pizarra', () => {
+  it('deselecciona al terminar un toque vacío y cancela esa acción cuando aparece otro dedo', async () => {
+    const { view, Harness, onSelect } = await setup()
+    const surface = screen.getByTestId('board-surface')
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 200, clientY: 200 })
+    expect(onSelect).not.toHaveBeenCalled()
+    view.rerender(<Harness blocked />)
+    fireEvent.pointerUp(surface, { pointerId: 1 })
+    expect(onSelect).not.toHaveBeenCalled()
+    view.rerender(<Harness />)
+    fireEvent.pointerDown(surface, { pointerId: 2, button: 0, clientX: 200, clientY: 200 })
+    fireEvent.pointerUp(surface, { pointerId: 2 })
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(null)
+  })
+  it('muestra los pines persistentes y el filtro oculta solo dotaciones; Goma no los manipula', async () => {
+    const { store } = await setup()
+    act(() => store.mutateDocument(document => {
+      createElement(document, { name: 'Tango', visual: { type: 'asset', assetId: 'ambulance', scale: 1 }, information: '', isUnit: true })
+      createElement(document, { name: 'Ruta', visual: { type: 'emoji', value: '📍' }, information: '', isUnit: false })
+    }))
+    expect(screen.getByRole('button', { name: 'Seleccionar Tango' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'Goma' }))
+    expect(screen.getByRole('button', { name: 'Seleccionar Tango' })).toBeDisabled()
+    act(() => store.mutateDocument(document => { document.filters.visibleStatuses = [] }))
+    expect(screen.queryByRole('button', { name: 'Seleccionar Tango' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Seleccionar Ruta' })).toBeInTheDocument()
+    expect(store.getSnapshot().document.elements).toHaveLength(2)
+  })
   it('ofrece cuatro modos exclusivos y guarda el color con autoguardado', async () => {
     const { store, local } = await setup()
     expect(screen.getByRole('radio', { name: 'Seleccionar/mover' })).toHaveAttribute('aria-checked', 'true')

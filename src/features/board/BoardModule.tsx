@@ -9,6 +9,8 @@ import type { BoardAction } from './boardTypes'
 import { boardReducer, createBoardState, fitBoard, toBoardPosition } from './boardReducer'
 import { BoardToolbar } from './BoardToolbar'
 import { QuickNote } from './QuickNote'
+import { BoardPin } from '../elements/BoardPin'
+import { updateElement } from '../elements/elementCommands'
 import { Button } from '../../components/ui/button'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import './board.css'
@@ -21,7 +23,9 @@ function Stroke({ stroke }: { stroke: BoardStroke }) {
     lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
 }
 
-export function BoardModule({ store, imageSession }: { store: DocumentStore; imageSession: BoardImageSession }) {
+export function BoardModule({ store, imageSession, selectedId = null, onSelect }: {
+  store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
+}) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const [state, setState] = useState(() => createBoardState(document.board))
@@ -30,6 +34,7 @@ export function BoardModule({ store, imageSession }: { store: DocumentStore; ima
   const [editor, setEditor] = useState<{ id: string | null; position: Position; text: string } | null>(null)
   const area = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null)
   const pointer = useRef<number | null>(null)
+  const emptyPointer = useRef<number | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const fitted = fitBoard(size.width, size.height)
   useLayoutEffect(() => {
@@ -49,7 +54,7 @@ export function BoardModule({ store, imageSession }: { store: DocumentStore; ima
   useEffect(() => {
     // The external viewport gesture must cancel the draft and editor together.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (blocked) { pointer.current = null; dispatch({ type: 'cancel' }); setEditor(null) }
+    if (blocked) { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }); setEditor(null) }
   }, [blocked, dispatch])
   function point(event: PointerEvent, clamp = false) {
     const rect = surface.current?.getBoundingClientRect()
@@ -63,13 +68,22 @@ export function BoardModule({ store, imageSession }: { store: DocumentStore; ima
     if (!position) return
     const mode = interaction.current.mode
     if (mode === 'note') { event.preventDefault(); setEditor({ id: null, position, text: '' }); return }
-    if (mode === 'select') { dispatch({ type: 'select-note', id: null }); return }
+    if (mode === 'select') {
+      emptyPointer.current = event.pointerId
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+      return
+    }
     event.preventDefault()
     event.currentTarget.setPointerCapture?.(event.pointerId)
     pointer.current = event.pointerId
     dispatch({ type: 'start', id: crypto.randomUUID(), point: position, color, width })
   }
   function finish(event: PointerEvent<HTMLDivElement>) {
+    if (emptyPointer.current === event.pointerId) {
+      emptyPointer.current = null
+      if (!blockedRef.current) { dispatch({ type: 'select-note', id: null }); onSelect?.(null) }
+      return
+    }
     if (pointer.current !== event.pointerId) return
     pointer.current = null
     dispatch({ type: blockedRef.current ? 'cancel' : 'finish' })
@@ -78,7 +92,7 @@ export function BoardModule({ store, imageSession }: { store: DocumentStore; ima
   const imageScale = image ? 1000 / Math.max(image.width, image.height) : 1
   const strokes = state.draft && !blocked ? [...document.board.strokes, state.draft] : document.board.strokes
   return <div className="board-module" data-mode={state.mode}>
-    <BoardToolbar mode={state.mode} onMode={mode => { pointer.current = null; setEditor(null); dispatch({ type: 'mode', mode }) }}
+    <BoardToolbar mode={state.mode} onMode={mode => { pointer.current = null; emptyPointer.current = null; setEditor(null); dispatch({ type: 'mode', mode }) }}
       background={document.board.backgroundColor} onBackground={color => { imageSession.clear(); dispatch({ type: 'background', color }) }}
       color={color} onColor={setColor} width={width} onWidth={setWidth} onImage={file => { void imageSession.load(file) }} busy={imageSession.busy} blocked={blocked} />
     <div ref={area} className="board-area">
@@ -88,8 +102,8 @@ export function BoardModule({ store, imageSession }: { store: DocumentStore; ima
           if (blockedRef.current || pointer.current !== event.pointerId) return
           const position = point(event, true)
           if (position) dispatch({ type: 'point', point: position })
-        }} onPointerUp={finish} onPointerCancel={() => { pointer.current = null; dispatch({ type: 'cancel' }) }}
-        onLostPointerCapture={() => { pointer.current = null; dispatch({ type: 'cancel' }) }}>
+        }} onPointerUp={finish} onPointerCancel={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
+        onLostPointerCapture={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
         <Stage width={fitted.size} height={fitted.size} scaleX={fitted.scale} scaleY={fitted.scale} listening={false}>
           <Layer listening={false}>
             <Rect width={1000} height={1000} fill={document.board.backgroundColor} />
@@ -98,9 +112,20 @@ export function BoardModule({ store, imageSession }: { store: DocumentStore; ima
           </Layer>
           <Layer listening={false}>{strokes.map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
         </Stage>
+        <div className="board-notes board-pins" style={{ transform: `scale(${fitted.scale})` }}>
+          {document.elements.filter(element => !element.isUnit || document.filters.visibleStatuses.includes(element.operational.status)).map(element =>
+            <BoardPin key={element.id} element={element} surface={surface} selected={selectedId === element.id} enabled={state.mode === 'select'}
+              onSelect={() => { dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
+              onMove={position => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { position })) }}
+              onScale={scale => {
+                if (blockedRef.current || element.visual.type !== 'asset') return
+                const visual = { ...element.visual, scale }
+                store.mutateDocument(document => updateElement(document, element.id, { visual }))
+              }} />)}
+        </div>
         <div className="board-notes" style={{ transform: `scale(${fitted.scale})` }}>
           {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
-            onSelect={() => dispatch({ type: 'select-note', id: note.id })} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
+            onSelect={() => { onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
             onEdit={() => setEditor({ id: note.id, position: note.position, text: note.text })} onDelete={() => dispatch({ type: 'delete-note', id: note.id })} />)}
         </div>
       </div>

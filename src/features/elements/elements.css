@@ -1,0 +1,40 @@
+.elements-module { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.elements-configure { flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 5px 7px; border-bottom: 1px solid var(--color-border); background: linear-gradient(180deg, #282C2F, #17191B); }
+.elements-configure > .document-button { padding: 2px 8px; }
+.elements-configure-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.elements-configure-actions .document-button { padding: 3px 6px; font-size: 12px; }
+.elements-list { flex: 1; min-height: 0; padding: 8px; overflow: auto; }
+.elements-list h3 { margin: 0 0 5px; font-size: 14px; font-weight: 650; color: var(--color-text-secondary); }
+.element-rows { display: flex; flex-direction: column; gap: 4px; }
+.element-rows .document-button { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 4px 6px; text-align: left; }
+.element-rows .document-button > img { width: 34px; height: 26px; object-fit: contain; }
+.element-rows .document-button > span:first-child { width: 34px; font-size: 23px; text-align: center; }
+.element-rows .document-button > span:last-child { overflow-wrap: anywhere; }
+.element-rows .document-button[aria-pressed="true"] { border-color: var(--color-accent-red); background: linear-gradient(180deg, #442C2E, #241B1D); box-shadow: inset 3px 0 var(--color-accent-red); }
+.element-state-filter { position: relative; display: flex; justify-content: space-between; gap: 2px; margin: 8px 0 12px; padding: 5px 0; border-block: 1px solid #3A3F43; }
+.element-state-filter .document-button { flex: 1; min-width: 0; padding: 3px 0; font-size: 15px; border-radius: 2px; }
+.element-state-filter .document-button[aria-pressed="false"] { opacity: .4; filter: grayscale(1); }
+.element-state-filter .document-button[aria-pressed="true"] { border-bottom: 2px solid var(--color-accent-yellow); }
+.element-filter-help { position: absolute; z-index: 2; top: 100%; left: 0; padding: 4px 8px; border: 1px solid var(--color-accent-yellow); background: #25282B; color: var(--color-text); }
+.element-editor { flex: 1; min-height: 0; padding: 8px; overflow: auto; }
+.element-editor fieldset { margin: 0; padding: 0; min-width: 0; border: 0; }
+.element-editor legend { margin-bottom: 8px; font-weight: 650; }
+.element-editor label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; color: var(--color-text-secondary); font-size: 13px; }
+.element-editor .document-title { width: 100%; flex: auto; }
+.element-editor select, .element-editor textarea { width: 100%; padding: 4px 6px; border: 1px solid var(--color-border); border-radius: 2px; background: #25282B; color: var(--color-text); }
+.element-editor textarea { height: 85px; resize: vertical; }
+.element-editor .element-unit-choice { flex-direction: row; align-items: center; color: var(--color-text); }
+.element-unit-choice input { accent-color: var(--color-accent-red); }
+.element-type { margin: 0 0 8px; font-size: 13px; color: var(--color-accent-yellow); }
+.element-icon-preview { display: block; width: 70px; height: 50px; object-fit: contain; margin: 0 auto 5px; }
+.element-editor .element-scale-control { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; }
+.element-scale-control input { width: 100%; min-width: 0; accent-color: var(--color-accent-red); }
+.element-editor-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.element-editor-actions .document-button { padding: 4px 6px; font-size: 13px; }
+.board-pin-visual { display: block; position: relative; padding: 0; border: 0; background: transparent; color: var(--color-text); cursor: grab; touch-action: none; }
+.board-pin-visual:disabled { opacity: 1; cursor: inherit; }
+.board-pin-visual img { display: block; pointer-events: none; user-select: none; }
+.board-pin[data-selected="true"] { outline: 2px solid var(--color-accent-red); outline-offset: 1px; }
+.board-pin-name { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); max-width: 200px; padding: 1px 4px; border-radius: 2px; background: rgb(12 13 14 / 90%); color: #F2F2F0; line-height: 20px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; pointer-events: none; }
+.board-pin-emoji { font-size: 48px; line-height: 64px; }
+.board-pin-resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; padding: 0; border: 1px solid #F2F2F0; border-radius: 1px; background: var(--color-accent-red); cursor: nwse-resize; touch-action: none; }
