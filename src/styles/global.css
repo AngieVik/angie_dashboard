@@ -1,0 +1,84 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-interface);
+  font-size: 14px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-yellow);
+  outline-offset: 2px;
+}
+
+.technical-data {
+  font-family: var(--font-technical);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  padding: 0 16px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-accent-red);
+  background: linear-gradient(180deg, var(--color-module-header), var(--color-module));
+  box-shadow: inset 0 1px 0 rgb(242 242 240 / 7%), 0 3px 12px rgb(0 0 0 / 45%);
+}
+
+.app-header::before {
+  width: 3px;
+  height: 18px;
+  margin-right: 10px;
+  background: var(--color-accent-red);
+  content: '';
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.035em;
+}
+
+.dashboard-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 30%, transparent 25%, rgb(0 0 0 / 45%) 100%),
+    repeating-linear-gradient(135deg, rgb(167 173 177 / 2%) 0 1px, transparent 1px 6px),
+    linear-gradient(145deg, var(--color-module), var(--color-background) 65%);
+}

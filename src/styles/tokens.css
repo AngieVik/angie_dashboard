@@ -1,0 +1,13 @@
+:root {
+  color-scheme: dark;
+  --color-background: #0C0D0E;
+  --color-module: #17191B;
+  --color-module-header: #25282B;
+  --color-border: #555B60;
+  --color-text: #F2F2F0;
+  --color-text-secondary: #A7ADB1;
+  --color-accent-red: #D63A3A;
+  --color-accent-yellow: #E3B52F;
+  --font-interface: "Roboto Condensed", "Arial Narrow", sans-serif;
+  --font-technical: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
