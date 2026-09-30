@@ -1,0 +1,133 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\devil\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.6.2
+2 info using node@v24.12.0
+3 silly config load:file:C:\Users\devil\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:D:\Proyectos\angie_dashboard\.npmrc
+5 silly config load:file:C:\Users\devil\.npmrc
+6 silly config load:file:C:\Users\devil\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install react-grid-layout
+8 verbose argv "install" "react-grid-layout" "--cache" ".npm-cache" "--no-audit" "--no-fund"
+9 verbose logfile logs-max:10 dir:D:\Proyectos\angie_dashboard\.npm-cache\_logs\2026-09-30T11_32_17_337Z-
+10 verbose logfile D:\Proyectos\angie_dashboard\.npm-cache\_logs\2026-09-30T11_32_17_337Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly fetch manifest react-grid-layout@*
+15 silly packumentCache full:https://registry.npmjs.org/react-grid-layout cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/npm 500ms
+17 http fetch GET 200 https://registry.npmjs.org/react-grid-layout 493ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/react-grid-layout set size:undefined disposed:false
+19 silly fetch manifest react@^19.3.0
+20 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+21 http fetch GET 200 https://registry.npmjs.org/react 175ms (cache miss)
+22 silly packumentCache full:https://registry.npmjs.org/react set size:undefined disposed:false
+23 silly fetch manifest react-dom@^19.3.0
+24 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+25 http fetch GET 200 https://registry.npmjs.org/react-dom 184ms (cache miss)
+26 silly packumentCache full:https://registry.npmjs.org/react-dom set size:undefined disposed:false
+27 silly placeDep ROOT react-grid-layout@2.2.4 OK for: angie-dashboard@0.1.0 want: *
+28 silly fetch manifest clsx@^2.1.1
+29 silly packumentCache full:https://registry.npmjs.org/clsx cache-miss
+30 silly fetch manifest prop-types@^15.8.1
+31 silly packumentCache full:https://registry.npmjs.org/prop-types cache-miss
+32 silly fetch manifest fast-equals@^4.0.3
+33 silly packumentCache full:https://registry.npmjs.org/fast-equals cache-miss
+34 silly fetch manifest react-draggable@^4.4.6
+35 silly packumentCache full:https://registry.npmjs.org/react-draggable cache-miss
+36 silly fetch manifest react-resizable@^3.1.3
+37 silly packumentCache full:https://registry.npmjs.org/react-resizable cache-miss
+38 silly fetch manifest resize-observer-polyfill@^1.5.1
+39 silly packumentCache full:https://registry.npmjs.org/resize-observer-polyfill cache-miss
+40 http fetch GET 200 https://registry.npmjs.org/prop-types 37ms (cache miss)
+41 silly packumentCache full:https://registry.npmjs.org/prop-types set size:undefined disposed:false
+42 http fetch GET 200 https://registry.npmjs.org/clsx 40ms (cache miss)
+43 silly packumentCache full:https://registry.npmjs.org/clsx set size:undefined disposed:false
+44 http fetch GET 200 https://registry.npmjs.org/react-resizable 104ms (cache miss)
+45 silly packumentCache full:https://registry.npmjs.org/react-resizable set size:undefined disposed:false
+46 http fetch GET 200 https://registry.npmjs.org/react-draggable 108ms (cache miss)
+47 silly packumentCache full:https://registry.npmjs.org/react-draggable set size:undefined disposed:false
+48 http fetch GET 200 https://registry.npmjs.org/fast-equals 116ms (cache miss)
+49 silly packumentCache full:https://registry.npmjs.org/fast-equals set size:undefined disposed:false
+50 http fetch GET 200 https://registry.npmjs.org/resize-observer-polyfill 245ms (cache miss)
+51 silly packumentCache full:https://registry.npmjs.org/resize-observer-polyfill set size:undefined disposed:false
+52 silly fetch manifest react@>= 16.3.0
+53 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+54 http cache https://registry.npmjs.org/react 18ms (cache hit)
+55 silly packumentCache full:https://registry.npmjs.org/react set size:7011585 disposed:false
+56 silly fetch manifest react-dom@>= 16.3.0
+57 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+58 http cache https://registry.npmjs.org/react-dom 23ms (cache hit)
+59 silly packumentCache full:https://registry.npmjs.org/react-dom set size:9447690 disposed:false
+60 silly placeDep ROOT clsx@2.1.1 OK for: react-grid-layout@2.2.4 want: ^2.1.1
+61 silly placeDep ROOT fast-equals@4.0.3 OK for: react-grid-layout@2.2.4 want: ^4.0.3
+62 silly placeDep ROOT prop-types@15.8.1 OK for: react-grid-layout@2.2.4 want: ^15.8.1
+63 silly placeDep ROOT react-draggable@4.7.2 OK for: react-grid-layout@2.2.4 want: ^4.4.6
+64 silly placeDep ROOT react-resizable@3.2.0 OK for: react-grid-layout@2.2.4 want: ^3.1.3
+65 silly placeDep ROOT resize-observer-polyfill@1.5.1 OK for: react-grid-layout@2.2.4 want: ^1.5.1
+66 silly fetch manifest loose-envify@^1.4.0
+67 silly packumentCache full:https://registry.npmjs.org/loose-envify cache-miss
+68 silly fetch manifest object-assign@^4.1.1
+69 silly packumentCache full:https://registry.npmjs.org/object-assign cache-miss
+70 silly fetch manifest react-is@^16.13.1
+71 silly packumentCache full:https://registry.npmjs.org/react-is cache-miss
+72 http fetch GET 200 https://registry.npmjs.org/loose-envify 35ms (cache miss)
+73 silly packumentCache full:https://registry.npmjs.org/loose-envify set size:undefined disposed:false
+74 http fetch GET 200 https://registry.npmjs.org/object-assign 36ms (cache miss)
+75 silly packumentCache full:https://registry.npmjs.org/object-assign set size:undefined disposed:false
+76 http fetch GET 200 https://registry.npmjs.org/react-is 174ms (cache miss)
+77 silly packumentCache full:https://registry.npmjs.org/react-is set size:undefined disposed:false
+78 silly placeDep ROOT loose-envify@1.4.0 OK for: prop-types@15.8.1 want: ^1.4.0
+79 silly placeDep ROOT object-assign@4.1.1 OK for: prop-types@15.8.1 want: ^4.1.1
+80 silly placeDep node_modules/prop-types react-is@16.13.1 OK for: prop-types@15.8.1 want: ^16.13.1
+81 silly reify moves {}
+82 http cache resize-observer-polyfill@https://registry.npmjs.org/resize-observer-polyfill/-/resize-observer-polyfill-1.5.1.tgz 0ms (cache hit)
+83 http cache object-assign@https://registry.npmjs.org/object-assign/-/object-assign-4.1.1.tgz 0ms (cache hit)
+84 http cache loose-envify@https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz 0ms (cache hit)
+85 http cache react-resizable@https://registry.npmjs.org/react-resizable/-/react-resizable-3.2.0.tgz 0ms (cache hit)
+86 http cache prop-types@https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz 0ms (cache hit)
+87 http cache fast-equals@https://registry.npmjs.org/fast-equals/-/fast-equals-4.0.3.tgz 0ms (cache hit)
+88 http cache react-draggable@https://registry.npmjs.org/react-draggable/-/react-draggable-4.7.2.tgz 0ms (cache hit)
+89 http cache clsx@https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz 0ms (cache hit)
+90 http cache react-grid-layout@https://registry.npmjs.org/react-grid-layout/-/react-grid-layout-2.2.4.tgz 0ms (cache hit)
+91 http cache react-is@https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz 0ms (cache hit)
+92 silly tarball no local data for resize-observer-polyfill@https://registry.npmjs.org/resize-observer-polyfill/-/resize-observer-polyfill-1.5.1.tgz. Extracting by manifest.
+93 silly tarball no local data for object-assign@https://registry.npmjs.org/object-assign/-/object-assign-4.1.1.tgz. Extracting by manifest.
+94 silly tarball no local data for loose-envify@https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz. Extracting by manifest.
+95 silly tarball no local data for react-resizable@https://registry.npmjs.org/react-resizable/-/react-resizable-3.2.0.tgz. Extracting by manifest.
+96 silly tarball no local data for prop-types@https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz. Extracting by manifest.
+97 silly tarball no local data for fast-equals@https://registry.npmjs.org/fast-equals/-/fast-equals-4.0.3.tgz. Extracting by manifest.
+98 silly tarball no local data for react-draggable@https://registry.npmjs.org/react-draggable/-/react-draggable-4.7.2.tgz. Extracting by manifest.
+99 silly tarball no local data for clsx@https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz. Extracting by manifest.
+100 silly tarball no local data for react-grid-layout@https://registry.npmjs.org/react-grid-layout/-/react-grid-layout-2.2.4.tgz. Extracting by manifest.
+101 silly tarball no local data for react-is@https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz. Extracting by manifest.
+102 http fetch GET 200 https://registry.npmjs.org/object-assign/-/object-assign-4.1.1.tgz 77ms (cache miss)
+103 http fetch GET 200 https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz 82ms (cache miss)
+104 http fetch GET 200 https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz 104ms (cache miss)
+105 http fetch GET 200 https://registry.npmjs.org/react-resizable/-/react-resizable-3.2.0.tgz 111ms (cache miss)
+106 http fetch GET 200 https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz 118ms (cache miss)
+107 http fetch GET 200 https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz 120ms (cache miss)
+108 http fetch GET 200 https://registry.npmjs.org/resize-observer-polyfill/-/resize-observer-polyfill-1.5.1.tgz 141ms (cache miss)
+109 http fetch GET 200 https://registry.npmjs.org/fast-equals/-/fast-equals-4.0.3.tgz 147ms (cache miss)
+110 http fetch GET 200 https://registry.npmjs.org/react-draggable/-/react-draggable-4.7.2.tgz 161ms (cache miss)
+111 http fetch GET 200 https://registry.npmjs.org/react-grid-layout/-/react-grid-layout-2.2.4.tgz 184ms (cache miss)
+112 silly ADD node_modules/object-assign
+113 silly ADD node_modules/loose-envify
+114 silly ADD node_modules/resize-observer-polyfill
+115 silly ADD node_modules/react-resizable
+116 silly ADD node_modules/react-draggable
+117 silly ADD node_modules/prop-types
+118 silly ADD node_modules/prop-types/node_modules/react-is
+119 silly ADD node_modules/fast-equals
+120 silly ADD node_modules/clsx
+121 silly ADD node_modules/react-grid-layout
+122 verbose cwd D:\Proyectos\angie_dashboard
+123 verbose os Windows_NT 10.0.19045
+124 verbose node v24.12.0
+125 verbose npm  v11.6.2
+126 notice
+126 notice New minor version of npm available! 11.6.2 -> 11.20.0
+126 notice Changelog: https://github.com/npm/cli/releases/tag/v11.20.0
+126 notice To update run: npm install -g npm@11.20.0
+126 notice  { force: true, Symbol(proc-log.meta): true }
+127 verbose exit 0
+128 info ok

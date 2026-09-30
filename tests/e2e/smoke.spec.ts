@@ -37,7 +37,7 @@ test('carga sin errores, con cabecera, fuentes locales y sin scroll', async ({ p
   await page.goto('/')
   await expect(page.getByRole('banner')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Angie Dashboard' })).toBeVisible()
-  await expect(page.getByRole('main', { name: 'Espacio de trabajo' })).toBeEmpty()
+  await expect(page.getByRole('main', { name: 'Espacio de trabajo' }).locator('[data-module]')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Angie Dashboard' })).toHaveCSS('font-family', /Roboto Condensed/)
 
   const fonts = await page.evaluate(async () => {

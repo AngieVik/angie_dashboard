@@ -149,6 +149,8 @@ test('Archivo se acciona por teclado y el título conserva foco visible', async 
   await page.keyboard.press('Escape')
   await expect(trigger).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Ver', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
   const title = page.getByRole('textbox', { name: 'Título del documento' })
   await expect(title).toBeFocused()
   await expect(title).toHaveCSS('outline-style', 'solid')

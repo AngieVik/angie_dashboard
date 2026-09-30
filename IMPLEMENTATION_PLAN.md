@@ -198,29 +198,29 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `findModulePlacement(request, occupied, bounds): PlacementResult`.
 - Produces: `ViewportState { scale, offsetX, offsetY }` y acciones `fit`, `pan`, `zoomAt`, `clamp`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para tamaños, distribución guardada, búsqueda de huecos y apertura excepcional.**
+- [x] **Step 1: Escribir pruebas fallidas para tamaños, distribución guardada, búsqueda de huecos y apertura excepcional.**
 
 Comprobar orden izquierda-derecha/arriba-abajo, preservación de módulos existentes, aviso exacto y solapamiento solo cuando no exista hueco.
 
-- [ ] **Step 2: Escribir pruebas fallidas para escala de encaje dinámica, zoom máximo `max(400 %, fit)`, margen elástico `10 %`, rotación y prioridad de dos dedos.**
+- [x] **Step 2: Escribir pruebas fallidas para escala de encaje dinámica, zoom máximo `max(400 %, fit)`, margen elástico `10 %`, rotación y prioridad de dos dedos.**
 
 Comprobar que `fit` utiliza el menor valor entre `ancho disponible / 1600` y `alto disponible / 1000`, sin incluir la cabecera, y que un viewport cuya escala de encaje supere el `400 %` utiliza esa escala como máximo efectivo en lugar de limitar o recortar el dashboard.
 
-- [ ] **Step 3: Ejecutar las pruebas y confirmar el fallo.**
+- [x] **Step 3: Ejecutar las pruebas y confirmar el fallo.**
 
 Run: `npm test -- --run src/layout`
 
-- [ ] **Step 4: Implementar registro, algoritmo de colocación, marcos Titan, menú `Ver` y React Grid Layout sin packing.**
+- [x] **Step 4: Implementar registro, algoritmo de colocación, marcos Titan, menú `Ver` y React Grid Layout sin packing.**
 
-- [ ] **Step 5: Implementar viewport y gestos; durante dos punteros se bloquean arrastres, resize y canvas.**
+- [x] **Step 5: Implementar viewport y gestos; durante dos punteros se bloquean arrastres, resize y canvas.**
 
-- [ ] **Step 6: Verificar con pruebas unitarias y navegador.**
+- [x] **Step 6: Verificar con pruebas unitarias y navegador.**
 
 Run: `npm test -- --run src/layout && npm run e2e -- tests/e2e/layout-and-touch.spec.ts`
 
 Expected: PASS en viewport de escritorio y emulación táctil móvil.
 
-- [ ] **Step 7: Entregar la tarea para revisión.**
+- [x] **Step 7: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

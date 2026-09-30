@@ -30,7 +30,7 @@ describe('base de Angie Dashboard', () => {
 
   it('comienza con el espacio de trabajo vacío y sin módulos', () => {
     render(<App />)
-    expect(screen.getByRole('main', { name: 'Espacio de trabajo' })).toBeEmptyDOMElement()
+    expect(screen.getByRole('main', { name: 'Espacio de trabajo' }).querySelectorAll('[data-module]')).toHaveLength(0)
   })
 
   it('aplica Roboto Condensed a la interfaz y reserva monoespaciada para datos técnicos', () => {

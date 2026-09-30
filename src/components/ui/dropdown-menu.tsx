@@ -15,3 +15,9 @@ export function DropdownMenuContent(props: ComponentProps<typeof DropdownMenuPri
 export function DropdownMenuItem(props: ComponentProps<typeof DropdownMenuPrimitive.Item>) {
   return <DropdownMenuPrimitive.Item data-slot="dropdown-menu-item" className="file-menu-item" {...props} />
 }
+export function DropdownMenuCheckboxItem({ children, ...props }: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return <DropdownMenuPrimitive.CheckboxItem data-slot="dropdown-menu-checkbox-item" className="file-menu-item view-menu-item" {...props}>
+    <span aria-hidden="true" className="view-menu-check"><DropdownMenuPrimitive.ItemIndicator>✓</DropdownMenuPrimitive.ItemIndicator></span>
+    {children}
+  </DropdownMenuPrimitive.CheckboxItem>
+}
