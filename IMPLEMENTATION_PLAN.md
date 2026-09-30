@@ -47,8 +47,8 @@
 - Create: `src/styles/global.css`
 - Create: `src/test/setup.ts`
 - Create: `playwright.config.ts`
-- Create: `public/assets/pwa/*`
-- Create: `public/assets/fonts/roboto-condensed/*`
+- Existing — integrate and verify: `public/assets/pwa/*`
+- Existing — integrate and verify: `public/assets/fonts/roboto-condensed/*`
 - Test: `src/app/App.test.tsx`
 - Test: `tests/e2e/smoke.spec.ts`
 
@@ -72,7 +72,9 @@ Expected: FAIL porque el shell aún no está implementado.
 
 - [ ] **Step 5: Implementar el shell mínimo, los tokens Titan y la configuración PWA.**
 
-Generar desde `public/assets/elements/icon_chincheta.png`, sin modificarlo ni redibujarlo, iconos normales transparentes de `16 × 16`, `32 × 32`, `180 × 180`, `192 × 192` y `512 × 512`, además de variantes `maskable` de `192 × 192` y `512 × 512` con fondo opaco `#0C0D0E` y la chincheta completa dentro de la zona segura circular del `80 %`. Alojar localmente Roboto Condensed variable normal y cursiva, pesos `100–900`, subconjuntos `latin` y `latin-ext`, con su licencia; aplicarla a la interfaz general y mantener una fuente monoespaciada para datos técnicos. El manifiesto usará `Angie Dashboard`, nombre corto `Angie` y color de tema `#0C0D0E`.
+Integrar en el manifiesto los iconos PWA existentes, ya derivados de `public/assets/elements/icon_chincheta.png`: normales transparentes de `16 × 16`, `32 × 32`, `180 × 180`, `192 × 192` y `512 × 512`, y variantes `maskable` de `192 × 192` y `512 × 512` con fondo opaco `#0C0D0E` y la chincheta completa dentro de la zona segura circular del `80 %`. No regenerarlos ni sobrescribirlos cuando superen la verificación; si falla un recurso derivado, corregir únicamente ese archivo sin modificar el PNG original.
+
+Importar la hoja local existente de Roboto Condensed variable normal y cursiva, pesos `100–900`, subconjuntos `latin` y `latin-ext`, junto con su licencia; aplicarla a la interfaz general y mantener una fuente monoespaciada para datos técnicos. El manifiesto usará `Angie Dashboard`, nombre corto `Angie` y color de tema `#0C0D0E`.
 
 - [ ] **Step 6: Verificar la base.**
 
@@ -151,7 +153,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 
 - [ ] **Step 1: Escribir pruebas fallidas para autoguardado, recuperación, carga segura y flujo de selector/descarga.**
 
-Cubrir selector compatible, reutilización del handle, cambio de título, cancelación, permiso denegado, fallback de descarga y JSON futuro/dañado que conserva el estado activo. Verificar que un título vacío propone exactamente `drp_YYYY-MM-DD_HH-mm-ss.json` con fecha y hora local, formato de 24 horas y ceros iniciales.
+Cubrir selector compatible, reutilización del handle, cambio de título, cancelación, permiso denegado, fallback de descarga y JSON futuro/dañado que conserva el estado activo. Probar que el saneamiento del nombre no modifica el título, elimina caracteres de control, `<>:"/\|?*` y espacios o puntos finales, conserva acentos y separadores interiores y añade `.json` una sola vez. El nombre base se validará después de retirar una posible extensión `.json`; si queda vacío o reservado (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`), debe proponerse exactamente `drp_YYYY-MM-DD_HH-mm-ss.json` con fecha y hora local, formato de 24 horas y ceros iniciales.
 
 Simular fallos al abrir, leer y escribir IndexedDB. Comprobar que el documento continúa operativo en memoria, que no se borra ni recrea la base local, que aparece `Autoguardado no disponible` con `Reintentar` y `Guardar JSON` y que la exportación visible permanece disponible. Un reintento correcto debe guardar el estado más reciente y retirar el aviso; una recuperación tardía no podrá sustituir un documento ya modificado sin confirmación.
 
@@ -161,7 +163,7 @@ Run: `npm test -- --run src/storage src/platform/files src/features/document`
 
 - [ ] **Step 3: Implementar Dexie, repositorio, autoguardado, modo degradado en memoria y adaptador de archivos sin acceder directamente a APIs del navegador desde componentes.**
 
-- [ ] **Step 4: Implementar `Archivo > Nuevo/Cargar/Guardar`, el título saneado y el nombre alternativo local `drp_YYYY-MM-DD_HH-mm-ss.json`.**
+- [ ] **Step 4: Implementar `Archivo > Nuevo/Cargar/Guardar`, el saneamiento exacto del nombre propuesto y el nombre alternativo local `drp_YYYY-MM-DD_HH-mm-ss.json`.**
 
 - [ ] **Step 5: Verificar persistencia y errores.**
 
@@ -359,7 +361,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `TimerRecord` discriminado para `tzero`, `tminus` y `advisory`.
 - Produces: `calculateTimerValue(timer, now): TimerSnapshot` basado en marcas de tiempo.
 - Produces: repositorio Dexie separado del documento exportable.
-- Produces: `AlarmController.startAlarm()`, `acknowledge()`, `startPreview()`, `stopPreview()` y `stop()` sobre `public/assets/audio/alarm.mp3`, con resultados diferenciados para reproducción iniciada, bloqueo del navegador y error de reproducción.
+- Produces: `AlarmController.startAlarm(timerId)`, `acknowledge(timerId)`, `startPreview()`, `stopPreview()` y `stop()` sobre `public/assets/audio/alarm.mp3`, manteniendo el conjunto de alertas activas y resultados diferenciados para reproducción iniciada, bloqueo del navegador y error de reproducción.
 
 - [ ] **Step 1: Escribir pruebas con reloj falso para iniciar, pausar, reiniciar, completar, suspender y recuperar.**
 
@@ -368,6 +370,8 @@ Cubrir los tres campos exclusivamente numéricos de `T-Minus` y `Advisory`, el t
 Cubrir también `Desactivar` sobre un Advisory en ejecución y sobre otro que ya esté alertando: debe detener conteo, sonido y destello, volver a `00:00:00`, conservar duración y nota y quedar inactivo y reutilizable; no debe comportarse como pausa, finalización ni cierre.
 
 Cubrir el único control común cuyo texto permanece como `Probar sonido` mientras su icono alterna entre `▶` y `⏸`: reproducción en bucle sin modificar temporizadores, parada al cerrar el módulo, prioridad de una alarma real y desactivación del control mientras haya una alerta activa. Simular también el rechazo de reproducción por bloqueo del navegador y por otro error; la alerta visual debe continuar, mostrando respectivamente `Sonido bloqueado` con `Activar sonido` o `No se pudo reproducir la alarma`.
+
+Completar simultáneamente varios temporizadores y comprobar que mantienen alertas visuales independientes y una sola reproducción en bucle. Reconocer, reiniciar, desactivar o cerrar uno debe retirar únicamente su alerta y mantener el sonido mientras quede otra activa; resolver la última debe detenerlo.
 
 - [ ] **Step 2: Comprobar que `Nuevo`, `Guardar` y `Cargar` no modifican temporizadores y que el JSON nunca los contiene.**
 

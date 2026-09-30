@@ -33,9 +33,10 @@ La aplicación funcionará en Windows y Android, incluido el teléfono móvil, c
 - La cabecera incluirá un menú `Ver` desde el que se podrán abrir o cerrar todos los módulos.
 - El estado visible u oculto de cada módulo se reflejará en el menú `Ver`.
 - El título será editable.
-- El título se utilizará como nombre del archivo JSON al guardarlo.
-- Si el título está vacío, se utilizará `drp_YYYY-MM-DD_HH-mm-ss.json`, generado con la fecha y hora local del dispositivo en formato de 24 horas y con todos los bloques numéricos completados con cero a la izquierda; por ejemplo, `drp_2026-09-30_18-42-15.json`.
-- Los caracteres no válidos se eliminarán automáticamente del título.
+- El título se utilizará como base para proponer el nombre del archivo JSON al guardarlo. El saneamiento del nombre de archivo no modificará el título visible ni el valor almacenado en el documento.
+- Para obtener el nombre de archivo se eliminarán los caracteres de control y los caracteres `<>:"/\|?*`, además de los espacios y puntos situados al final. Se conservarán las letras acentuadas, los espacios interiores, los guiones y los guiones bajos.
+- Si el título saneado ya termina en `.json`, sin distinguir mayúsculas y minúsculas, se retirará temporalmente esa extensión para validar el nombre base. Después se añadirá `.json` exactamente una vez.
+- Si el nombre base queda vacío o coincide, sin distinguir mayúsculas y minúsculas, con `CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9` o `LPT1`–`LPT9`, se utilizará `drp_YYYY-MM-DD_HH-mm-ss.json`, generado con la fecha y hora local del dispositivo en formato de 24 horas y con todos los bloques numéricos completados con cero a la izquierda; por ejemplo, `drp_2026-09-30_18-42-15.json`.
 - La aplicación no intentará inspeccionar las carpetas del usuario para detectar nombres repetidos; la confirmación de sobrescritura o la creación de un nombre alternativo corresponderá al selector nativo, al navegador o al sistema operativo.
 
 ## 4. Guardado y recuperación
@@ -536,7 +537,7 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 - La copia conservará la representación visual, la escala, la información libre y el tipo inmutable `Dotación` o `General`.
 - Una dotación duplicada comenzará como `Disponible`, con `notes: ""` y `tags: []`; no copiará el estado, las anotaciones, las etiquetas ni las entradas cronológicas del original.
 - Si el original tiene posición, la copia se colocará `24` unidades a la derecha y `24` hacia abajo, ajustando su centro para que el pin completo permanezca dentro del lienzo `1000 × 1000`. Si el original tiene `position: null`, la copia también comenzará sin posición.
-- Incluirá un filtro visual para mostrar u ocultar dotaciones según su estado y fase.
+- Incluirá un filtro visual para mostrar u ocultar dotaciones según su estado exacto.
 - El filtro representará la secuencia `🟢`, `🟡`, `🔵`, `🔴`, `💠`, `🟠`, `🟢` y `⚫`, sin letras añadidas.
 - Los dos controles verdes comparten el significado operativo de que la unidad está lista para recibir un aviso: `Disponible` en su punto de cobertura u `Operativa` mientras regresa hacia él.
 - Cada control del filtro mostrará su nombre completo como ayuda al mantener pulsado o pasar el cursor.
@@ -763,8 +764,11 @@ Representación conceptual:
 - La aplicación comprobará el resultado de cada intento de reproducción. Si el navegador bloquea el audio por falta de interacción o permiso, la alerta visual continuará sin interrupción y el Módulo Reloj mostrará el aviso persistente `Sonido bloqueado` con la acción `Activar sonido`.
 - Pulsar `Activar sonido` volverá a intentar la reproducción desde una interacción directa, iniciará el timbre de la alerta actual si el navegador lo permite e intentará dejar el audio habilitado para las alertas posteriores.
 - Si la reproducción falla por una causa distinta del bloqueo del navegador, se mostrará `No se pudo reproducir la alarma`. En ambos casos, el fallo de audio nunca reconocerá, detendrá ni ocultará la alerta visual.
-- Un clic o toque sobre el temporizador completado reconocerá la alerta y detendrá conjuntamente el timbre y el parpadeo.
+- Un clic o toque sobre el temporizador completado reconocerá su alerta y detendrá el parpadeo de ese temporizador; el timbre seguirá la regla común para alertas simultáneas definida a continuación.
 - Después de reconocerla, el temporizador permanecerá visible como finalizado hasta que el usuario lo reinicie o lo cierre.
+- Cada temporizador completado conservará su alerta visual de forma independiente. Si coinciden varias alertas, el audio utilizará un único bucle compartido y no superpondrá varias reproducciones de `alarm.mp3`.
+- Reconocer, reiniciar, desactivar o cerrar un temporizador eliminará únicamente la alerta de ese temporizador. Mientras quede al menos otra alerta activa, el timbre compartido continuará y las demás alertas visuales no cambiarán.
+- El timbre se detendrá cuando ya no quede ninguna alerta activa.
 
 - El módulo se diseñará principalmente para utilizarse mientras Angie Dashboard permanezca abierto, que será su uso habitual.
 - La V1 no intentará despertar la aplicación ni reproducir el timbre mientras esté completamente cerrada.

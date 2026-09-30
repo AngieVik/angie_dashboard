@@ -9,7 +9,8 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] La cabecera permanece visible e incluye `Archivo`, `Ver`, título editable, `Encajar` y porcentaje de zoom.
 - [ ] `Nuevo` crea un documento vacío sin eliminar archivos exportados ni detener temporizadores.
 - [ ] `Guardar` valida el JSON antes de escribirlo y utiliza selector nativo o descarga según la capacidad del navegador.
-- [ ] Si el título está vacío, `Guardar` propone `drp_YYYY-MM-DD_HH-mm-ss.json` con la fecha y hora local del dispositivo, formato de 24 horas y ceros iniciales.
+- [ ] `Guardar` sanea únicamente el nombre propuesto sin modificar el título: elimina caracteres de control, `<>:"/\|?*` y espacios o puntos finales, conserva acentos y separadores interiores y añade `.json` una sola vez.
+- [ ] Si el nombre base saneado —retirando antes una posible extensión `.json`— queda vacío o es un nombre reservado de Windows, `Guardar` propone `drp_YYYY-MM-DD_HH-mm-ss.json` con la fecha y hora local del dispositivo, formato de 24 horas y ceros iniciales.
 - [ ] Cancelar o fallar un guardado no sustituye el archivo anterior ni pierde el documento activo.
 - [ ] `Cargar` rechaza archivos dañados, ajenos a Angie Dashboard o de versiones futuras sin reemplazar el documento activo.
 - [ ] Un JSON compatible antiguo se migra en memoria y su original no se modifica.
@@ -97,9 +98,10 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Los temporizadores se calculan mediante marcas de tiempo y recuperan el valor correcto después de suspensión o recarga.
 - [ ] Los temporizadores internos no se exportan ni importan mediante JSON y no cambian al usar `Nuevo`, `Guardar` o `Cargar`.
 - [ ] Al completar un ciclo, el temporizador muestra rojo intenso, borde blanco y dos destellos por segundo.
-- [ ] `public/assets/audio/alarm.mp3` se reproduce en bucle y se detiene junto al destello al reconocer la alerta.
+- [ ] `public/assets/audio/alarm.mp3` se reproduce en un único bucle compartido y se detiene cuando ya no queda ninguna alerta activa.
 - [ ] El Módulo Reloj ofrece un único control común cuyo texto permanece como `Probar sonido` y cuyo icono alterna entre `▶` y `⏸`: reproduce el timbre en bucle sin modificar temporizadores, se detiene al cerrar el módulo o comenzar una alarma real y permanece deshabilitado mientras exista una alerta real activa.
 - [ ] Si el navegador bloquea el timbre, la alerta visual continúa y aparece `Sonido bloqueado` con `Activar sonido`; otros fallos muestran `No se pudo reproducir la alarma` sin reconocer ni ocultar la alerta.
+- [ ] Varias alertas simultáneas mantienen indicadores visuales independientes y comparten un único timbre en bucle; resolver una afecta solo a ese temporizador y el sonido continúa hasta que no quede ninguna alerta activa.
 - [ ] Después de reconocerla, la entrada permanece finalizada hasta reiniciarla o cerrarla.
 
 ## 8. Coordenadas, calculadora y cuaderno
