@@ -15,7 +15,7 @@ Si dos instrucciones parecen incompatibles, prevalece `ESQUEMA_CONCEPTUAL.md`. N
 ## Alcance
 
 - Construye únicamente la V1 descrita en el esquema.
-- No añadas mapas interactivos u offline, sincronización entre dispositivos, informes, capturas, cuentas, colaboración, cifrado propio ni funciones de registro oficial.
+- No añadas funciones, módulos, integraciones ni comportamientos que no estén definidos expresamente en `ESQUEMA_CONCEPTUAL.md`.
 - No introduzcas datos clínicos ni datos de pacientes en ejemplos, pruebas o datos iniciales.
 - No despliegues, publiques, hagas `push`, conectes servicios externos ni modifiques producción sin autorización expresa.
 - Netlify es el destino previsto, pero el despliegue no forma parte de la construcción local.

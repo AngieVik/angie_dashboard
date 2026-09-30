@@ -9,6 +9,7 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] La cabecera permanece visible e incluye `Archivo`, `Ver`, título editable, `Encajar` y porcentaje de zoom.
 - [ ] `Nuevo` crea un documento vacío sin eliminar archivos exportados ni detener temporizadores.
 - [ ] `Guardar` valida el JSON antes de escribirlo y utiliza selector nativo o descarga según la capacidad del navegador.
+- [ ] Si el título está vacío, `Guardar` propone `drp_YYYY-MM-DD_HH-mm-ss.json` con la fecha y hora local del dispositivo, formato de 24 horas y ceros iniciales.
 - [ ] Cancelar o fallar un guardado no sustituye el archivo anterior ni pierde el documento activo.
 - [ ] `Cargar` rechaza archivos dañados, ajenos a Angie Dashboard o de versiones futuras sin reemplazar el documento activo.
 - [ ] Un JSON compatible antiguo se migra en memoria y su original no se modifica.
@@ -21,7 +22,9 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] El documento activo se guarda automáticamente en IndexedDB y se recupera después de recargar o reabrir la PWA.
 - [ ] El autoguardado y el archivo JSON visible funcionan de manera independiente.
 - [ ] El JSON no incluye imagen de fondo, archivos PNG, temporizadores, operación de calculadora, coordenadas temporales, selección, viewport ni visibilidad de módulos.
-- [ ] Los errores de IndexedDB se comunican sin cerrar la aplicación ni destruir el estado en memoria.
+- [ ] Un error de lectura, escritura o apertura de IndexedDB mantiene la aplicación y el documento activo funcionando en memoria, sin borrar ni recrear automáticamente la base local.
+- [ ] El error muestra `Autoguardado no disponible` con `Reintentar` y `Guardar JSON`; el guardado visible continúa funcionando y un reintento correcto retira el aviso.
+- [ ] Una recuperación posterior nunca reemplaza un documento activo modificado sin confirmación del usuario.
 
 ## 3. Sistema modular y móvil
 
@@ -33,7 +36,7 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Sin espacio disponible, el módulo se abre centrado al tamaño mínimo, por encima de los demás, con el aviso aprobado y solapamiento temporal.
 - [ ] `moduleLayouts` conserva posiciones y tamaños, pero no visibilidad.
 - [ ] En móvil, un dedo manipula contenido y dos dedos desplazan o amplían el dashboard sin provocar acciones accidentales.
-- [ ] `Encajar` muestra completo y centrado el espacio general `1600 × 1000`; el zoom no baja de ese valor ni supera `200 %`.
+- [ ] `Encajar` muestra completo y centrado el espacio general `1600 × 1000`, ocupa la mayor superficie disponible bajo la cabecera y establece el zoom mínimo; el máximo efectivo es el mayor valor entre `400 %` y la escala de encaje.
 - [ ] Girar el dispositivo conserva el punto lógico central y mantiene una vista válida.
 - [ ] No aparece scroll de página en Windows ni Android.
 
@@ -88,10 +91,15 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 
 - [ ] Se muestran hora española con cambio estacional automático y hora Zulu.
 - [ ] Se pueden crear varios `T-Zero`, `T-Minus` y `Advisories` con notas y controles correctos.
+- [ ] Las duraciones de `T-Minus` y `Advisory` utilizan tres campos exclusivamente numéricos, normalizan excesos entre segundos, minutos y horas y quedan siempre entre `00:00:01` y `23:59:59`.
+- [ ] Al completar `23:59:59`, un `T-Zero` se detiene, vuelve a `00:00:00` y queda inactivo sin alerta ni nuevo ciclo.
+- [ ] `Desactivar` un Advisory en ejecución o alertando detiene conteo, sonido y destello, vuelve a `00:00:00`, conserva duración y nota y lo deja preparado para reiniciarse sin pausarlo, completarlo ni cerrarlo.
 - [ ] Los temporizadores se calculan mediante marcas de tiempo y recuperan el valor correcto después de suspensión o recarga.
 - [ ] Los temporizadores internos no se exportan ni importan mediante JSON y no cambian al usar `Nuevo`, `Guardar` o `Cargar`.
 - [ ] Al completar un ciclo, el temporizador muestra rojo intenso, borde blanco y dos destellos por segundo.
 - [ ] `public/assets/audio/alarm.mp3` se reproduce en bucle y se detiene junto al destello al reconocer la alerta.
+- [ ] El Módulo Reloj ofrece un único control común cuyo texto permanece como `Probar sonido` y cuyo icono alterna entre `▶` y `⏸`: reproduce el timbre en bucle sin modificar temporizadores, se detiene al cerrar el módulo o comenzar una alarma real y permanece deshabilitado mientras exista una alerta real activa.
+- [ ] Si el navegador bloquea el timbre, la alerta visual continúa y aparece `Sonido bloqueado` con `Activar sonido`; otros fallos muestran `No se pudo reproducir la alarma` sin reconocer ni ocultar la alerta.
 - [ ] Después de reconocerla, la entrada permanece finalizada hasta reiniciarla o cerrarla.
 
 ## 8. Coordenadas, calculadora y cuaderno
@@ -102,6 +110,7 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Una entrada inválida conserva exactamente sus números, muestra el error y no genera conversión ni enlace.
 - [ ] Una entrada válida genera un enlace de Google Maps copiable.
 - [ ] Calculadora admite operaciones básicas, decimales, porcentajes, paréntesis, retroceso y limpieza.
+- [ ] Los porcentajes cumplen `10 % = 0,1`, `200 + 10 % = 220`, `200 - 10 % = 180`, `200 × 10 % = 20`, `200 ÷ 10 % = 2000` y `80 + 12,5 % = 90`; dividir entre `0 %` muestra error.
 - [ ] Cuaderno crea notas y checklist, permite marcar elementos y reordena bloques solo desde el tirador.
 - [ ] Las notas admiten texto multilínea, símbolos y emojis sin formato enriquecido.
 
@@ -111,8 +120,9 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Los iconos `maskable` existen en `192` y `512` píxeles, tienen fondo opaco `#0C0D0E` y mantienen completa la chincheta dentro de la zona segura circular del `80 %`.
 - [ ] Roboto Condensed normal y cursiva, con pesos variables `100–900`, se carga desde recursos locales y continúa disponible sin conexión; los datos técnicos conservan una tipografía monoespaciada.
 - [ ] La interfaz respeta la paleta y dirección Titan industrial aprobadas sin convertirse en un diseño plano o móvil simplificado.
-- [ ] Controles, foco, estado activo, errores y selección son distinguibles con teclado, ratón y tacto.
-- [ ] Los controles interactivos tienen nombre accesible y las acciones esenciales pueden realizarse con teclado en Windows.
+- [ ] Todos los controles interactivos tienen nombre accesible; los controles formados únicamente por iconos describen su acción y el foco de teclado es siempre visible y sigue un orden lógico por la cabecera y los módulos abiertos.
+- [ ] En Windows pueden utilizarse con teclado `Archivo`, `Ver`, el título, la apertura y cierre de módulos y los botones, formularios, listas, filtros, estados, etiquetas, temporizadores, calculadora y Cuaderno; los elementos y dotaciones pueden seleccionarse desde sus módulos.
+- [ ] Mover o redimensionar módulos, pines y notas rápidas y dibujar o borrar en la pizarra no requieren alternativa de teclado en la V1, sin impedir el acceso mediante teclado a sus funciones no espaciales.
 - [ ] Los estados operativos no dependen únicamente del color.
 - [ ] No se introducen datos clínicos, cuentas, telemetría ni transferencias de documentos a servidores.
 - [ ] Las pruebas unitarias, de componentes y de navegador están aprobadas.

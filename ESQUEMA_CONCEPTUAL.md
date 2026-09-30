@@ -1,6 +1,6 @@
 # Angie Dashboard — esquema conceptual
 
-> Este documento es la fuente de verdad funcional y visual de Angie Dashboard. Recoge únicamente las decisiones aprobadas durante la conversación; cualquier nota auxiliar anterior se considera sustituida cuando exista una definición equivalente en este esquema. Las decisiones aún no tomadas aparecen expresamente como pendientes.
+> Este documento es la fuente de verdad funcional y visual de Angie Dashboard. Recoge únicamente las decisiones aprobadas para la V1; cualquier nota auxiliar anterior se considera sustituida cuando exista una definición equivalente en este esquema.
 
 ## 1. Propósito
 
@@ -18,7 +18,6 @@ La aplicación funcionará en Windows y Android, incluido el teléfono móvil, c
 - Enfoque local-first: las funciones principales no dependerán de Internet.
 - Se presupone que normalmente habrá conexión disponible, por lo que los módulos que lo necesiten podrán utilizar Internet.
 - Una pérdida de conexión no deberá bloquear la pizarra, los elementos, estados, notas ni el documento activo; solo afectará a las funciones que dependan expresamente de la red.
-- Una sola aplicación e interfaz para Windows y Android.
 - Sistema modular con paneles que puedan mostrarse u ocultarse y organizarse dentro del espacio disponible.
 - Configuración previa al comienzo de cada servicio.
 - Documento de trabajo guardable y recuperable en formato JSON.
@@ -35,7 +34,7 @@ La aplicación funcionará en Windows y Android, incluido el teléfono móvil, c
 - El estado visible u oculto de cada módulo se reflejará en el menú `Ver`.
 - El título será editable.
 - El título se utilizará como nombre del archivo JSON al guardarlo.
-- Si el título está vacío, se utilizará `drp_<fecha>`.
+- Si el título está vacío, se utilizará `drp_YYYY-MM-DD_HH-mm-ss.json`, generado con la fecha y hora local del dispositivo en formato de 24 horas y con todos los bloques numéricos completados con cero a la izquierda; por ejemplo, `drp_2026-09-30_18-42-15.json`.
 - Los caracteres no válidos se eliminarán automáticamente del título.
 - La aplicación no intentará inspeccionar las carpetas del usuario para detectar nombres repetidos; la confirmación de sobrescritura o la creación de un nombre alternativo corresponderá al selector nativo, al navegador o al sistema operativo.
 
@@ -72,7 +71,7 @@ El JSON incluirá:
 - Color de fondo de la pizarra.
 - Trazos del lápiz.
 - Texto y posición de las notas rápidas.
-- Elementos: nombre, identificador del archivo de icono o emote, información, posición y valor del checkbox `Dotación`.
+- Elementos: nombre, identificador del archivo de icono o emoji, información, posición y valor del checkbox `Dotación`.
 - Estado operativo, anotaciones y etiquetas de las dotaciones.
 - Filtros activos del Módulo de elementos.
 - Cuaderno: notas, checklist, elementos marcados y orden de los bloques.
@@ -369,6 +368,11 @@ En una PWA, la escritura sobre un archivo visible elegido por el usuario depende
 - Si el selector falla por permisos u otro error, se conservará el trabajo activo y se ofrecerá la descarga del JSON como alternativa.
 - El selector nativo, el navegador o el sistema operativo resolverán las confirmaciones de sobrescritura y los nombres repetidos.
 - El autoguardado interno en IndexedDB será independiente del archivo visible y continuará funcionando aunque una exportación se cancele o falle.
+- Si IndexedDB falla al leer, escribir o abrir su almacenamiento, la aplicación continuará funcionando con el documento activo en memoria y no se cerrará ni bloqueará el resto de funciones.
+- El fallo mostrará un aviso persistente `Autoguardado no disponible` con las acciones `Reintentar` y `Guardar JSON`. El guardado JSON visible continuará disponible de manera independiente.
+- La aplicación no borrará, reiniciará ni recreará automáticamente la base local como respuesta a un error, y nunca sustituirá el documento activo por datos recuperados sin confirmación del usuario.
+- `Reintentar` repetirá la operación fallida utilizando el estado más reciente conservado en memoria. Si el error se produjo durante la recuperación inicial y aparecen datos locales mientras el documento activo ya contiene cambios, se solicitará confirmación antes de reemplazarlo.
+- Cuando una lectura o escritura posterior finalice correctamente, se retirará el aviso. Mientras el error continúe, cada nuevo cambio permanecerá disponible en memoria y podrá exportarse mediante `Guardar JSON`.
 
 ### Protección y alcance de los datos
 
@@ -400,14 +404,13 @@ En una PWA, la escritura sobre un archivo visible elegido por el usuario depende
 - En modo `Goma`, los gestos borrarán exclusivamente trazos del lápiz y no manipularán pines o notas rápidas.
 - `Nota rápida` permitirá crear y colocar una nota; después de hacerlo, la pizarra volverá automáticamente a `Seleccionar/mover`.
 - Los pines y las notas rápidas permanecerán visibles en todos los modos, aunque solo responderán a los gestos cuando corresponda.
-- La posibilidad de generar una captura limpia desde la propia aplicación no está aprobada todavía.
 
 ## 6. Pines e interacción
 
 - La aplicación incluirá nueve modelos visuales aprobados y proporcionados como archivos PNG: ambulancia, Pathfinder, quad, CP, EH, START, FINISH, advertencia y chincheta.
-- Un elemento podrá utilizar uno de esos iconos PNG o un emote.
-- El emote será libre: el usuario podrá escribir o pegar cualquier emoji, sin limitarse a una lista cerrada.
-- Cada elemento se representará mediante su icono o emote y su nombre.
+- Un elemento podrá utilizar uno de esos iconos PNG o un emoji.
+- El emoji será libre: el usuario podrá escribir o pegar cualquier emoji, sin limitarse a una lista cerrada.
+- Cada elemento se representará mediante su icono o emoji y su nombre.
 - Un clic o toque seleccionará el pin.
 - El pin deberá poder moverse tanto con ratón como con interacción táctil.
 - El movimiento se iniciará mediante un arrastre mantenido, con un margen de entre 200 y 300 milisegundos para diferenciarlo de la selección.
@@ -569,7 +572,7 @@ Tipo: Dotación (solo lectura)
 
 TES: Pichu
 DUE: Kiko Perez
-Medico: Juan Antonio Holiqtal
+Médico: Juan Antonio
 ```
 
 ## 8. Módulo de información
@@ -658,7 +661,6 @@ Ejemplo sin selección y con `En el lugar` desplegado:
 - Una zona, banda o estructura UTM inválida impedirá la conversión y conservará íntegramente el texto introducido.
 - Generará un enlace de Google Maps.
 - La acción principal sobre el enlace será copiarlo para enviarlo a otra persona.
-- Abrir Google Maps desde la aplicación no es un requisito inicial.
 - Solo se corregirán automáticamente los espacios y los errores de separación mediante puntos o comas.
 - La corrección nunca modificará, añadirá ni eliminará números.
 - Por ejemplo, `37.060234. -2.002295` se normalizará como `37.060234, -2.002295`.
@@ -681,6 +683,15 @@ Reunirá en un único módulo el reloj, los cronómetros, las cuentas regresivas
 - Estas referencias no serán selectores ni modos de funcionamiento y no implicarán añadir temática, personajes o adornos ajenos al reloj.
 - Mostrará también la hora Zulu, es decir, UTC, como referencia secundaria.
 
+#### Formato y límites temporales
+
+- Las duraciones editables de `T-Minus` y `Advisory` utilizarán tres campos numéricos separados visualmente como `[HH] : [MM] : [SS]`.
+- Los campos solo admitirán dígitos y solicitarán teclado numérico en dispositivos móviles; los separadores `:` serán fijos y no editables.
+- Al abandonar un campo o iniciar el temporizador, los tres valores se convertirán a segundos totales y se normalizarán de nuevo al formato canónico de dos dígitos por bloque.
+- Los excesos de segundos y minutos se trasladarán a la unidad superior; por ejemplo, `00:90:00` se convertirá en `01:30:00`, `00:00:90` en `00:01:30` y `01:90:90` en `02:31:30`.
+- La duración mínima será `00:00:01`. Un valor total de cero se corregirá automáticamente a ese mínimo.
+- La duración máxima será `23:59:59`. Cualquier resultado superior se limitará automáticamente a ese máximo.
+
 #### T-Zero
 
 - El botón `[+] T-Zero` añadirá un cronómetro nuevo.
@@ -688,6 +699,7 @@ Reunirá en un único módulo el reloj, los cronómetros, las cuentas regresivas
 - Cada cronómetro mostrará el tiempo en formato `HH:MM:SS`.
 - Cada cronómetro podrá tener una nota libre asociada.
 - Controles: iniciar, pausar, reiniciar a cero y cerrar.
+- El valor máximo será `23:59:59`. Al completar ese valor, el cronómetro se detendrá automáticamente, volverá a `00:00:00` y quedará inactivo, sin activar alertas ni comenzar otro ciclo.
 
 Representación conceptual:
 
@@ -721,6 +733,9 @@ Representación conceptual:
 - El contador comenzará en `00:00:00` y avanzará hacia delante hasta alcanzar la duración configurada.
 - Cada aviso podrá tener una nota libre asociada.
 - Controles definidos: iniciar, desactivar y cerrar.
+- `Desactivar` finalizará el ciclo en curso tanto si el aviso está contando como si ya ha activado la alerta. Detendrá el conteo, el timbre y el destello, y devolverá el contador a `00:00:00`.
+- La duración configurada y la nota se conservarán. El Advisory quedará inactivo y preparado para iniciar de nuevo un ciclo completo con esa misma configuración.
+- `Desactivar` no pausará el aviso, no lo marcará como completado y no lo eliminará; `Cerrar` seguirá siendo la única acción que elimina ese Advisory.
 - Al alcanzar la duración configurada completará su ciclo y activará las alertas visual y sonora comunes.
 
 Representación conceptual:
@@ -732,6 +747,11 @@ Representación conceptual:
 
 #### Finalización y alertas de T-Minus y Advisories
 
+- El Módulo Reloj incluirá un único botón común `▶ Probar sonido`, compartido por todos los `T-Minus` y `Advisories`; no se añadirá un control de prueba dentro de cada temporizador.
+- Al pulsarlo, reproducirá `public/assets/audio/alarm.mp3` en bucle. El texto permanecerá como `Probar sonido` y solo cambiará el icono del botón de `▶` a `⏸`; una segunda pulsación detendrá únicamente esa reproducción de prueba y restaurará el icono `▶`.
+- La prueba no modificará el estado, el tiempo, la nota ni la alerta de ningún temporizador y no se persistirá.
+- Cerrar el Módulo Reloj detendrá la prueba de sonido. Si comienza una alarma real durante la prueba, esta finalizará inmediatamente y la alarma tendrá prioridad.
+- Mientras exista una alarma real activa, el control `Probar sonido` permanecerá deshabilitado para evitar confundir la prueba con el timbre operativo.
 - Cuando un `T-Minus` o un `Advisory` complete su ciclo, activará simultáneamente una alerta visual y una alerta sonora.
 - La alerta visual afectará al temporizador correspondiente mediante un destello rojo intenso con resplandor marcado y un borde exterior blanco claramente visible.
 - El valor inicial será de dos destellos por segundo.
@@ -740,24 +760,31 @@ Representación conceptual:
 - `alarm.mp3` tiene una duración aproximada de un segundo, ocupa aproximadamente `14 KB` y está preparado para reproducirse en bucle sin un corte perceptible.
 - El archivo se reproducirá en bucle mientras la alerta permanezca activa.
 - El timbre formará parte de los recursos locales de la aplicación instalada.
+- La aplicación comprobará el resultado de cada intento de reproducción. Si el navegador bloquea el audio por falta de interacción o permiso, la alerta visual continuará sin interrupción y el Módulo Reloj mostrará el aviso persistente `Sonido bloqueado` con la acción `Activar sonido`.
+- Pulsar `Activar sonido` volverá a intentar la reproducción desde una interacción directa, iniciará el timbre de la alerta actual si el navegador lo permite e intentará dejar el audio habilitado para las alertas posteriores.
+- Si la reproducción falla por una causa distinta del bloqueo del navegador, se mostrará `No se pudo reproducir la alarma`. En ambos casos, el fallo de audio nunca reconocerá, detendrá ni ocultará la alerta visual.
 - Un clic o toque sobre el temporizador completado reconocerá la alerta y detendrá conjuntamente el timbre y el parpadeo.
 - Después de reconocerla, el temporizador permanecerá visible como finalizado hasta que el usuario lo reinicie o lo cierre.
 
 - El módulo se diseñará principalmente para utilizarse mientras Angie Dashboard permanezca abierto, que será su uso habitual.
-- No es un requisito inicial imprescindible que un timbre despierte la aplicación cuando esté completamente cerrada.
+- La V1 no intentará despertar la aplicación ni reproducir el timbre mientras esté completamente cerrada.
 - Los temporizadores se calcularán mediante marcas de tiempo y no dependerán de que el navegador ejecute una actualización exacta cada segundo.
 - Si la aplicación queda en segundo plano, la pantalla se bloquea o Android la suspende, el tiempo continuará transcurriendo.
 - Al volver a la aplicación, cada temporizador recalculará inmediatamente su valor correcto.
 - Si un `T-Minus` o un `Advisory` completó su ciclo mientras la aplicación estaba suspendida, activará el borde y el timbre al regresar.
 - No se garantiza que la alerta visual o sonora se ejecute mientras la aplicación permanezca completamente suspendida o cerrada.
 - El guardado automático interno conservará los datos temporales necesarios para recuperar correctamente los temporizadores al abrir de nuevo la aplicación.
-- Esta recuperación interna no exportará los temporizadores al JSON ni permitirá importarlos desde él.
-- Cambiar de documento mediante `Guardar`, `Cargar` o `Nuevo` no alterará los temporizadores activos.
+- La exclusión de los temporizadores del JSON visible y su independencia frente a `Nuevo`, `Guardar` y `Cargar` se regirán por las reglas normativas del apartado 4, `Guardado y recuperación`.
 
 ### Calculadora
 
 - Incluirá una calculadora básica.
 - Permitirá suma, resta, multiplicación, división, decimales, porcentajes y paréntesis.
+- `%` será un operador posfijo de prioridad alta. Aplicado de forma aislada, dividirá su operando entre cien; por ejemplo, `10 %` dará `0,1`.
+- En una suma o resta, el porcentaje se calculará respecto al valor situado a su izquierda: `200 + 10 %` dará `220` y `200 - 10 %` dará `180`.
+- En una multiplicación o división, el operando porcentual equivaldrá a su valor dividido entre cien: `200 × 10 %` dará `20` y `200 ÷ 10 %` dará `2000`.
+- Las mismas reglas se aplicarán dentro de paréntesis y admitirán porcentajes decimales; por ejemplo, `80 + 12,5 %` dará `90`.
+- Dividir entre `0 %` producirá un error de división por cero y no devolverá un resultado numérico.
 - Incluirá acciones para borrar el último carácter y limpiar completamente la operación.
 - La V1 no incluirá operaciones científicas ni conversiones adicionales.
 
@@ -836,8 +863,7 @@ Ejemplo:
 - Si un módulo todavía no tiene posición o tamaño guardados, aparecerá con un tamaño inicial válido dentro del dashboard.
 - Abrir o cerrar módulos no moverá ni redimensionará automáticamente los demás.
 - La visibilidad de los módulos será temporal para la sesión y no se restaurará desde el JSON.
-- El dashboard será un único espacio de trabajo virtual con la misma distribución, posiciones y tamaños en Windows y Android.
-- En Windows y Android se mostrará el mismo dashboard ajustado al espacio disponible, sin crear una composición distinta para cada dispositivo.
+- El dashboard será un único espacio de trabajo virtual con la misma distribución, posiciones y tamaños en Windows y Android; se ajustará al espacio disponible sin crear una composición distinta para cada dispositivo.
 - Los módulos no se reorganizarán automáticamente en columnas, pestañas o una interfaz móvil diferente.
 - La distribución de módulos guardada en el JSON será común para todos los dispositivos.
 - La posición y el tamaño de cada módulo se serializarán para poder restaurar la distribución.
@@ -882,8 +908,9 @@ Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las c
 - Un dedo sobre la pizarra seleccionará, moverá, dibujará, borrará o creará notas según la herramienta que esté activa.
 - Mientras haya dos dedos interactuando con el dashboard, se suspenderán temporalmente las acciones de módulos, pines y dibujo para evitar movimientos o trazos accidentales.
 - La cabecera principal permanecerá fija, fuera del área afectada por el desplazamiento y el zoom.
-- El zoom mínimo será el valor dinámico necesario para encajar y centrar por completo el espacio `1600 × 1000` en el área disponible de la pantalla.
-- El zoom máximo será `200 %`.
+- La escala de encaje se calculará como el menor valor entre `ancho disponible / 1600` y `alto disponible / 1000`, utilizando únicamente el área situada bajo la cabecera. De este modo, el espacio `1600 × 1000` quedará completo, centrado y ocupará la mayor superficie posible sin recortarse.
+- El zoom mínimo será esa escala dinámica de encaje.
+- El zoom máximo habitual será `400 %`. Si la escala de encaje de una pantalla excepcionalmente grande supera ese valor, el máximo efectivo será la propia escala de encaje; formalmente, `máximo = max(400 %, escala de encaje)`.
 - El desplazamiento se limitará para impedir que el espacio de trabajo desaparezca completamente fuera de la pantalla; el margen elástico fuera de cada borde no superará el `10 %` de la dimensión visible correspondiente.
 - La cabecera incluirá un botón `Encajar` que centrará el dashboard y aplicará el mayor nivel de zoom con el que pueda verse completo.
 - Junto al botón `Encajar` se mostrará el porcentaje de zoom actual únicamente como información.
@@ -941,7 +968,7 @@ shadcn/ui no resolvería por sí solo:
 - La conversión de coordenadas.
 - Los temporizadores y la lógica operativa.
 
-Por tanto, shadcn/ui será la base de controles visuales, no la arquitectura completa. Todavía no se ha instalado ni se han elegido componentes o presets concretos.
+Por tanto, shadcn/ui será la base de controles visuales, no la arquitectura completa.
 
 ## 14. Dirección visual
 
@@ -994,15 +1021,16 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 - El módulo activo se distinguirá mediante un borde iluminado y una profundidad ligeramente mayor.
 - La V1 no incluirá controles comunes de minimizar o maximizar; el menú `Ver` y el botón `×` cubrirán la apertura y el cierre.
 
-## 15. Alcance expresamente no decidido
+### Accesibilidad e interacción por teclado
 
-- Mapas interactivos o mapas offline.
-- Sincronización entre dispositivos.
-- Exportación de informes o capturas desde la aplicación.
-- Funciones de registro oficial, auditoría, firma o certificación de actuaciones.
-- Publicación en tiendas, despliegue o distribución.
+- Todos los controles interactivos tendrán un nombre accesible. Los controles representados únicamente mediante un icono proporcionarán un nombre que describa su acción sin depender de la interpretación visual del símbolo.
+- El foco de teclado será siempre visible y seguirá un orden lógico por la cabecera y los módulos abiertos, sin detenerse en módulos cerrados ni en elementos meramente decorativos.
+- En Windows podrán utilizarse mediante teclado los menús `Archivo` y `Ver`, la edición del título, la apertura y el cierre de módulos y todos los botones, formularios, listas, filtros, selectores de estado, etiquetas, controles de temporizadores, calculadora y Cuaderno.
+- Los elementos y las dotaciones podrán seleccionarse mediante teclado desde sus módulos correspondientes, de modo que sus acciones e información no dependan de acertar sobre un pin en la pizarra.
+- Los estados operativos se identificarán mediante su nombre o icono además del color; ningún significado operativo dependerá exclusivamente de una diferencia cromática.
+- Mover o redimensionar módulos, pines y notas rápidas, así como dibujar o borrar sobre la pizarra, seguirán siendo interacciones espaciales de ratón o tacto y no requerirán una alternativa equivalente mediante teclado en la V1.
 
-## 16. Estado de preparación para la construcción
+## 15. Estado de preparación para la construcción
 
 - `ESQUEMA_CONCEPTUAL.md` es la especificación funcional y visual de referencia.
 - `AGENTS.md` contiene las instrucciones de ejecución y los límites de alcance para Codex.

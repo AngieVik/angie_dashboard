@@ -151,15 +151,17 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 
 - [ ] **Step 1: Escribir pruebas fallidas para autoguardado, recuperación, carga segura y flujo de selector/descarga.**
 
-Cubrir selector compatible, reutilización del handle, cambio de título, cancelación, permiso denegado, fallback de descarga y JSON futuro/dañado que conserva el estado activo.
+Cubrir selector compatible, reutilización del handle, cambio de título, cancelación, permiso denegado, fallback de descarga y JSON futuro/dañado que conserva el estado activo. Verificar que un título vacío propone exactamente `drp_YYYY-MM-DD_HH-mm-ss.json` con fecha y hora local, formato de 24 horas y ceros iniciales.
+
+Simular fallos al abrir, leer y escribir IndexedDB. Comprobar que el documento continúa operativo en memoria, que no se borra ni recrea la base local, que aparece `Autoguardado no disponible` con `Reintentar` y `Guardar JSON` y que la exportación visible permanece disponible. Un reintento correcto debe guardar el estado más reciente y retirar el aviso; una recuperación tardía no podrá sustituir un documento ya modificado sin confirmación.
 
 - [ ] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
 
 Run: `npm test -- --run src/storage src/platform/files src/features/document`
 
-- [ ] **Step 3: Implementar Dexie, repositorio, autoguardado y adaptador de archivos sin acceder directamente a APIs del navegador desde componentes.**
+- [ ] **Step 3: Implementar Dexie, repositorio, autoguardado, modo degradado en memoria y adaptador de archivos sin acceder directamente a APIs del navegador desde componentes.**
 
-- [ ] **Step 4: Implementar `Archivo > Nuevo/Cargar/Guardar` y el título saneado.**
+- [ ] **Step 4: Implementar `Archivo > Nuevo/Cargar/Guardar`, el título saneado y el nombre alternativo local `drp_YYYY-MM-DD_HH-mm-ss.json`.**
 
 - [ ] **Step 5: Verificar persistencia y errores.**
 
@@ -198,7 +200,9 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 
 Comprobar orden izquierda-derecha/arriba-abajo, preservación de módulos existentes, aviso exacto y solapamiento solo cuando no exista hueco.
 
-- [ ] **Step 2: Escribir pruebas fallidas para zoom `fit–200 %`, margen elástico `10 %`, rotación y prioridad de dos dedos.**
+- [ ] **Step 2: Escribir pruebas fallidas para escala de encaje dinámica, zoom máximo `max(400 %, fit)`, margen elástico `10 %`, rotación y prioridad de dos dedos.**
+
+Comprobar que `fit` utiliza el menor valor entre `ancho disponible / 1600` y `alto disponible / 1000`, sin incluir la cabecera, y que un viewport cuya escala de encaje supere el `400 %` utiliza esa escala como máximo efectivo en lugar de limitar o recortar el dashboard.
 
 - [ ] **Step 3: Ejecutar las pruebas y confirmar el fallo.**
 
@@ -348,21 +352,28 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Create: `src/features/clock/TimerRow.tsx`
 - Test: `src/features/clock/timerEngine.test.ts`
 - Test: `src/features/clock/timerRepository.test.ts`
+- Test: `src/features/clock/alarmController.test.ts`
 - Test: `src/features/clock/ClockModule.test.tsx`
 
 **Interfaces:**
 - Produces: `TimerRecord` discriminado para `tzero`, `tminus` y `advisory`.
 - Produces: `calculateTimerValue(timer, now): TimerSnapshot` basado en marcas de tiempo.
 - Produces: repositorio Dexie separado del documento exportable.
-- Produces: `AlarmController.start()`, `acknowledge()` y `stop()` sobre `public/assets/audio/alarm.mp3`.
+- Produces: `AlarmController.startAlarm()`, `acknowledge()`, `startPreview()`, `stopPreview()` y `stop()` sobre `public/assets/audio/alarm.mp3`, con resultados diferenciados para reproducción iniciada, bloqueo del navegador y error de reproducción.
 
 - [ ] **Step 1: Escribir pruebas con reloj falso para iniciar, pausar, reiniciar, completar, suspender y recuperar.**
+
+Cubrir los tres campos exclusivamente numéricos de `T-Minus` y `Advisory`, el teclado numérico, los separadores fijos y la normalización al abandonar el campo o iniciar. Verificar, como mínimo, `00:90:00 → 01:30:00`, `00:00:90 → 00:01:30`, `01:90:90 → 02:31:30`, cero a `00:00:01` y cualquier exceso sobre `23:59:59` limitado al máximo. Comprobar que un `T-Zero` que completa `23:59:59` se detiene, vuelve a cero y queda inactivo sin alerta ni nuevo ciclo.
+
+Cubrir también `Desactivar` sobre un Advisory en ejecución y sobre otro que ya esté alertando: debe detener conteo, sonido y destello, volver a `00:00:00`, conservar duración y nota y quedar inactivo y reutilizable; no debe comportarse como pausa, finalización ni cierre.
+
+Cubrir el único control común cuyo texto permanece como `Probar sonido` mientras su icono alterna entre `▶` y `⏸`: reproducción en bucle sin modificar temporizadores, parada al cerrar el módulo, prioridad de una alarma real y desactivación del control mientras haya una alerta activa. Simular también el rechazo de reproducción por bloqueo del navegador y por otro error; la alerta visual debe continuar, mostrando respectivamente `Sonido bloqueado` con `Activar sonido` o `No se pudo reproducir la alarma`.
 
 - [ ] **Step 2: Comprobar que `Nuevo`, `Guardar` y `Cargar` no modifican temporizadores y que el JSON nunca los contiene.**
 
 - [ ] **Step 3: Implementar motor, repositorio y controlador de audio en bucle.**
 
-- [ ] **Step 4: Implementar UI con hora española, Zulu, notas, controles y alerta visual de dos destellos por segundo.**
+- [ ] **Step 4: Implementar UI con hora española, Zulu, notas, control común de prueba de sonido, recuperación manual del audio bloqueado y alerta visual de dos destellos por segundo.**
 
 - [ ] **Step 5: Verificar.**
 
@@ -425,6 +436,8 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 
 - [ ] **Step 1: Escribir pruebas para operaciones, precedencia, paréntesis, porcentajes, decimales, división por cero, retroceso y limpieza.**
 
+Verificar el operador posfijo de porcentaje y su contexto comercial con `10 % = 0,1`, `200 + 10 % = 220`, `200 - 10 % = 180`, `200 × 10 % = 20`, `200 ÷ 10 % = 2000` y `80 + 12,5 % = 90`, incluidas las mismas reglas dentro de paréntesis. Dividir entre `0 %` debe devolver un error sin resultado numérico.
+
 - [ ] **Step 2: Implementar evaluador seguro y UI compacta.**
 
 - [ ] **Step 3: Verificar.**
@@ -482,6 +495,8 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - [ ] **Step 1: Escribir flujos E2E para crear documento, elementos y dotaciones; mover pines; cambiar estado; guardar/cargar; deshacer; temporizadores; coordenadas; recarga y offline.**
 
 - [ ] **Step 2: Añadir comprobaciones de teclado, nombres accesibles, foco visible y estados no dependientes solo del color.**
+
+Verificar con teclado los menús `Archivo` y `Ver`, el título, la apertura y cierre de módulos, los controles de formularios y listas, filtros, estados, etiquetas, temporizadores, calculadora, Cuaderno y la selección de elementos y dotaciones desde sus módulos. Comprobar un orden de foco lógico limitado a la cabecera y los módulos abiertos, nombres accesibles en controles de solo icono y nombre o icono adicional para cada estado. No exigir movimiento o redimensión de módulos, pines o notas ni dibujo o borrado mediante teclado.
 
 - [ ] **Step 3: Ejecutar toda la matriz y corregir únicamente defectos que incumplan el esquema o los criterios.**
 
