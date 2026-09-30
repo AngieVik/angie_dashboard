@@ -363,7 +363,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: repositorio Dexie separado del documento exportable.
 - Produces: `AlarmController.startAlarm(timerId)`, `acknowledge(timerId)`, `startPreview()`, `stopPreview()` y `stop()` sobre `public/assets/audio/alarm.mp3`, manteniendo el conjunto de alertas activas y resultados diferenciados para reproducción iniciada, bloqueo del navegador y error de reproducción.
 
-- [ ] **Step 1: Escribir pruebas con reloj falso para iniciar, pausar, reiniciar, completar, suspender y recuperar.**
+- [x] **Step 1: Escribir pruebas con reloj falso para iniciar, pausar, reiniciar, completar, suspender y recuperar.**
 
 Cubrir los tres campos exclusivamente numéricos de `T-Minus` y `Advisory`, el teclado numérico, los separadores fijos y la normalización al abandonar el campo o iniciar. Verificar, como mínimo, `00:90:00 → 01:30:00`, `00:00:90 → 00:01:30`, `01:90:90 → 02:31:30`, cero a `00:00:01` y cualquier exceso sobre `23:59:59` limitado al máximo. Comprobar que un `T-Zero` que completa `23:59:59` se detiene, vuelve a cero y queda inactivo sin alerta ni nuevo ciclo.
 
@@ -373,17 +373,17 @@ Cubrir el único control común cuyo texto permanece como `Probar sonido` mientr
 
 Completar simultáneamente varios temporizadores y comprobar que mantienen alertas visuales independientes y una sola reproducción en bucle. Reconocer, reiniciar, desactivar o cerrar uno debe retirar únicamente su alerta y mantener el sonido mientras quede otra activa; resolver la última debe detenerlo.
 
-- [ ] **Step 2: Comprobar que `Nuevo`, `Guardar` y `Cargar` no modifican temporizadores y que el JSON nunca los contiene.**
+- [x] **Step 2: Comprobar que `Nuevo`, `Guardar` y `Cargar` no modifican temporizadores y que el JSON nunca los contiene.**
 
-- [ ] **Step 3: Implementar motor, repositorio y controlador de audio en bucle.**
+- [x] **Step 3: Implementar motor, repositorio y controlador de audio en bucle.**
 
-- [ ] **Step 4: Implementar UI con hora española, Zulu, notas, control común de prueba de sonido, recuperación manual del audio bloqueado y alerta visual de dos destellos por segundo.**
+- [x] **Step 4: Implementar UI con hora española, Zulu, notas, control común de prueba de sonido, recuperación manual del audio bloqueado y alerta visual de dos destellos por segundo.**
 
-- [ ] **Step 5: Verificar.**
+- [x] **Step 5: Verificar.**
 
 Run: `npm test -- --run src/features/clock && npm run typecheck`
 
-- [ ] **Step 6: Entregar la tarea para revisión.**
+- [x] **Step 6: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

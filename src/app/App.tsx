@@ -10,6 +10,8 @@ import { ElementsModule } from '../features/elements/ElementsModule'
 import { InformationModule } from '../features/information/InformationModule'
 import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
+import { ClockModule } from '../features/clock/ClockModule'
+import { getTimerStore } from '../features/clock/timerStore'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
@@ -25,6 +27,8 @@ function sameLayout(a: ModuleLayout | undefined, b: ModuleLayout) {
 
 export function App() {
   const store = getDocumentStore()
+  const timers = getTimerStore()
+  useEffect(() => { void timers.initialize(); return timers.connect() }, [timers])
   const { document, documentGeneration } = useDocumentStore(store)
   const boardImage = useBoardImage(store)
   useEffect(() => { void store.initialize() }, [store])
@@ -112,7 +116,8 @@ export function App() {
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
-              id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> : null} />
+              id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
+              id === 'clock' ? <ClockModule store={timers} /> : null} />
         </MobileViewport>
       </main>
     </div>
