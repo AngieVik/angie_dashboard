@@ -244,19 +244,19 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `loadBoardImage(file): Promise<BoardImageResult>`; la imagen resultante vive solo en memoria.
 - Produces: eventos normalizados de trazo, borrado, pin y nota en coordenadas del lienzo lógico fijo `1000 × 1000`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para modos exclusivos, trazos, borrado, notas y transformación de coordenadas.**
+- [x] **Step 1: Escribir pruebas fallidas para modos exclusivos, trazos, borrado, notas y transformación de coordenadas.**
 
-- [ ] **Step 2: Escribir pruebas fallidas para imagen superior a `50 MiB`, reducción sobre `4096 px` y conservación del fondo anterior ante error.**
+- [x] **Step 2: Escribir pruebas fallidas para imagen superior a `50 MiB`, reducción sobre `4096 px` y conservación del fondo anterior ante error.**
 
-- [ ] **Step 3: Implementar reducer y carga local de imágenes.**
+- [x] **Step 3: Implementar reducer y carga local de imágenes.**
 
-- [ ] **Step 4: Implementar el módulo Konva y sus cuatro herramientas sin persistir la imagen.**
+- [x] **Step 4: Implementar el módulo Konva y sus cuatro herramientas sin persistir la imagen.**
 
-- [ ] **Step 5: Verificar.**
+- [x] **Step 5: Verificar.**
 
 Run: `npm test -- --run src/features/board && npm run typecheck`
 
-- [ ] **Step 6: Entregar la tarea para revisión.**
+- [x] **Step 6: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

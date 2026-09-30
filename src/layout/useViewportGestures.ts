@@ -75,7 +75,10 @@ export function useViewportGestures(state: ViewportState, size: Size, onChange: 
     handlers: {
       onPointerDownCapture: start, onPointerMoveCapture: move,
       onPointerUpCapture: end, onPointerCancelCapture: end,
-      onLostPointerCapture: end,
+      onLostPointerCapture: (event: PointerEvent) => {
+        // Transferring a child's capture to the viewport does not lift a finger.
+        if (event.target === event.currentTarget) end(event)
+      },
       onTouchStartCapture: (event: ReactTouchEvent) => {
         if (blockedRef.current || event.touches.length >= 2) event.stopPropagation()
         else nativeTouches.current = Array.from(event.nativeEvent.touches)

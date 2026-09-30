@@ -17,6 +17,21 @@ function setup(saved: AngieDocumentV1 | null = null) {
 }
 
 describe('documento activo y autoguardado', () => {
+  it('distingue reemplazos del documento para descartar recursos temporales incluso al cargar el mismo JSON', async () => {
+    const { store } = setup()
+    await store.initialize()
+    const generation = store.getSnapshot().documentGeneration
+    expect(typeof generation).toBe('number')
+    store.setTitle('Cambiar título conserva recursos')
+    await store.saveDocument()
+    await store.loadDocument({ text: async () => '{' })
+    expect(store.getSnapshot().documentGeneration).toBe(generation)
+    const sameDocument = JSON.stringify(store.getSnapshot().document)
+    await store.loadDocument({ text: async () => sameDocument })
+    expect(store.getSnapshot().documentGeneration).toBe(generation + 1)
+    store.newDocument()
+    expect(store.getSnapshot().documentGeneration).toBe(generation + 2)
+  })
   it('una carga pendiente no reemplaza una edición posterior a su inicio', async () => {
     const { store, local } = setup(createEmptyDocument('Actual'))
     await store.initialize()

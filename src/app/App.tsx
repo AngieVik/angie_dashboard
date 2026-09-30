@@ -5,6 +5,8 @@ import { Input } from '../components/ui/input'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import { ViewMenu } from '../features/view/ViewMenu'
+import { BoardModule } from '../features/board/BoardModule'
+import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
 import { MobileViewport } from '../layout/MobileViewport'
@@ -19,7 +21,8 @@ function sameLayout(a: ModuleLayout | undefined, b: ModuleLayout) {
 
 export function App() {
   const store = getDocumentStore()
-  const { document } = useDocumentStore(store)
+  const { document, documentGeneration } = useDocumentStore(store)
+  const boardImage = useBoardImage(store)
   useEffect(() => { void store.initialize() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const [viewport, setViewport] = useState(() => ({ size: WORKSPACE, state: fit(WORKSPACE) }))
@@ -97,7 +100,8 @@ export function App() {
       <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo">
         <DocumentNotices store={store} />
         <MobileViewport state={viewport.state} size={viewport.size} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid modules={open} scale={viewport.state.scale} active={active} onActive={setActive} onClose={close} onLayout={saveLayout} />
+          <DashboardGrid modules={open} scale={viewport.state.scale} active={active} onActive={setActive} onClose={close} onLayout={saveLayout}
+            renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} /> : null} />
         </MobileViewport>
       </main>
     </div>

@@ -54,4 +54,16 @@ describe('viewport lógico bajo la cabecera', () => {
     fireEvent.click(button)
     expect(click).toHaveBeenCalledTimes(1)
   })
+  it('transferir captura desde el contenido conserva ambos dedos para hacer zoom', () => {
+    const change = vi.fn()
+    render(<MobileViewport state={{ scale: 0.5, offsetX: 0, offsetY: 0 }} size={{ width: 800, height: 500 }} onChange={change}>
+      <button>Pizarra</button>
+    </MobileViewport>)
+    const content = screen.getByRole('button')
+    fireEvent.pointerDown(content, { pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerDown(content, { pointerId: 2, clientX: 200, clientY: 100 })
+    fireEvent.lostPointerCapture(content, { pointerId: 1 })
+    fireEvent.pointerMove(screen.getByTestId('mobile-viewport'), { pointerId: 2, clientX: 300, clientY: 100 })
+    expect(change).toHaveBeenCalledWith({ scale: 1, offsetX: -100, offsetY: -100 })
+  })
 })

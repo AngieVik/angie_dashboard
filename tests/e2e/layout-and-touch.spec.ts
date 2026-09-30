@@ -135,7 +135,9 @@ test('un dedo mueve módulos y dos dedos cancelan también resize y controles', 
   const session = await context.newCDPSession(page)
   const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: { x: number; y: number; id: number }[]) => session.send('Input.dispatchTouchEvent', { type, touchPoints: points })
   const header = await page.locator('[data-module="board"] .module-header').boundingBox()
-  const x = header!.x + 40, y = header!.y + header!.height / 2
+  // At fit, Chromium adjusts tiny touch targets toward nearby toolbar buttons.
+  // Use the open part of the header to exercise dragging unambiguously.
+  const x = header!.x + header!.width * 0.65, y = header!.y + header!.height / 2
   await touch('touchStart', [{ x, y, id: 1 }]); await touch('touchMove', [{ x, y: y + 30, id: 1 }]); await touch('touchEnd', [])
   expect((await geometry(page, 'board')).y).toBeGreaterThan(0)
   const before = await geometry(page, 'board')
@@ -155,8 +157,9 @@ test('un dedo mueve módulos y dos dedos cancelan también resize y controles', 
 
 test('el marco permite desplazar su contenido con un dedo sin desplazar la página', async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'desplazamiento táctil nativo')
-  await page.goto('/'); await toggle(page, 'Pizarra')
-  const content = page.locator('[data-module="board"] .module-content')
+  // Pizarra owns spatial gestures; test the generic frame on a list surface.
+  await page.goto('/'); await toggle(page, 'Información')
+  const content = page.locator('[data-module="information"] .module-content')
   await content.evaluate(el => {
     const fixture = document.createElement('div')
     fixture.style.height = '4000px'; fixture.textContent = 'Contenido de prueba'

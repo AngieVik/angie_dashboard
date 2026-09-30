@@ -10,6 +10,7 @@ import { createAutosave } from '../../storage/autosave'
 
 export interface DocumentSnapshot {
   document: AngieDocumentV1
+  documentGeneration: number
   autosaveUnavailable: boolean
   recoveryPending: boolean
   fileBusy: boolean
@@ -19,7 +20,7 @@ export interface DocumentSnapshot {
 
 export function createDocumentStore(repository: ActiveDocumentRepository, initialContext: FileAccessContext) {
   let state: DocumentSnapshot = {
-    document: createEmptyDocument(), autosaveUnavailable: false, recoveryPending: false,
+    document: createEmptyDocument(), documentGeneration: 0, autosaveUnavailable: false, recoveryPending: false,
     fileBusy: false, fileMessage: null, downloadFallback: null,
   }
   let revision = 0
@@ -47,7 +48,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         recoveryCandidate = recovered
         update({ recoveryPending: true, autosaveUnavailable: false })
       } else {
-        if (recovered) update({ document: recovered })
+        if (recovered) update({ document: recovered, documentGeneration: state.documentGeneration + 1 })
         update({ autosaveUnavailable: false })
         await persist()
       }
@@ -95,7 +96,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       fileOperation++
       revision++
       resetFileContext()
-      update({ document: createEmptyDocument(), fileBusy: false, fileMessage: null, downloadFallback: null })
+      update({ document: createEmptyDocument(), documentGeneration: state.documentGeneration + 1, fileBusy: false, fileMessage: null, downloadFallback: null })
       void persist()
     },
     async loadDocument(file: DocumentFile) {
@@ -113,7 +114,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       else {
         revision++
         resetFileContext()
-        update({ document: result.document, fileBusy: false })
+        update({ document: result.document, documentGeneration: state.documentGeneration + 1, fileBusy: false })
         await persist()
       }
     },
@@ -157,7 +158,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       if (accept) {
         revision++
         resetFileContext()
-        update({ document: recoveryCandidate, fileMessage: null, downloadFallback: null })
+        update({ document: recoveryCandidate, documentGeneration: state.documentGeneration + 1, fileMessage: null, downloadFallback: null })
       }
       recoveryCandidate = null
       update({ recoveryPending: false })
