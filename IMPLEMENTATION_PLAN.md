@@ -35,6 +35,7 @@
 ### Task 1: Base del proyecto, calidad y recursos PWA
 
 **Files:**
+
 - Create: `package.json`
 - Create: `vite.config.ts`
 - Create: `tsconfig.json`
@@ -53,6 +54,7 @@
 - Test: `tests/e2e/smoke.spec.ts`
 
 **Interfaces:**
+
 - Produces: scripts `dev`, `test`, `test:watch`, `lint`, `typecheck`, `build` y `e2e`.
 - Produces: tokens CSS para la paleta Titan y un shell React vacío reutilizable.
 
@@ -91,6 +93,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 2: Modelo de documento, esquema y migraciones
 
 **Files:**
+
 - Create: `src/domain/document/types.ts`
 - Create: `src/domain/document/defaultDocument.ts`
 - Create: `src/domain/document/schema/angie-document-v1.schema.json`
@@ -101,6 +104,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/domain/document/fixtures/*`
 
 **Interfaces:**
+
 - Produces: `AngieDocumentV1`, `createEmptyDocument(title?: string): AngieDocumentV1`.
 - Produces: `validateDocument(input: unknown): ValidationResult<AngieDocumentV1>`.
 - Produces: `migrateDocument(input: unknown): MigrationResult<AngieDocumentV1>`.
@@ -135,6 +139,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 3: Estado del documento, autoguardado y archivos
 
 **Files:**
+
 - Create: `src/storage/db.ts`
 - Create: `src/storage/documentRepository.ts`
 - Create: `src/storage/autosave.ts`
@@ -146,6 +151,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/document/FileMenu.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `AngieDocumentV1`, `validateDocument`, `migrateDocument`, `serializeDocument` de la Tarea 2.
 - Produces: `DocumentRepository.loadActive()`, `saveActive(document)` y `clearActive()`.
 - Produces: `saveVisibleDocument(document, context): Promise<SaveOutcome>` y `loadVisibleDocument(file): Promise<LoadOutcome>`.
@@ -180,6 +186,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 4: Shell modular, colocación y viewport táctil
 
 **Files:**
+
 - Create: `src/layout/moduleRegistry.ts`
 - Create: `src/layout/layoutTypes.ts`
 - Create: `src/layout/findModulePlacement.ts`
@@ -193,6 +200,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `tests/e2e/layout-and-touch.spec.ts`
 
 **Interfaces:**
+
 - Produces: `ModuleId` con `board`, `elements`, `information`, `operations`, `coordinates`, `clock`, `calculator`, `notebook`, `timeline`.
 - Produces: `MODULE_REGISTRY` con tamaños iniciales y mínimos exactos del esquema.
 - Produces: `findModulePlacement(request, occupied, bounds): PlacementResult`.
@@ -229,6 +237,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 5: Pizarra, fondos, trazos y notas rápidas
 
 **Files:**
+
 - Create: `src/features/board/BoardModule.tsx`
 - Create: `src/features/board/BoardToolbar.tsx`
 - Create: `src/features/board/boardTypes.ts`
@@ -240,6 +249,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/board/BoardModule.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `board` del documento y mutaciones de `useDocumentStore`.
 - Produces: `loadBoardImage(file): Promise<BoardImageResult>`; la imagen resultante vive solo en memoria.
 - Produces: eventos normalizados de trazo, borrado, pin y nota en coordenadas del lienzo lógico fijo `1000 × 1000`.
@@ -265,6 +275,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 6: Catálogo, elementos y pines redimensionables
 
 **Files:**
+
 - Create: `src/features/elements/iconCatalog.ts`
 - Create: `src/features/elements/elementTypes.ts`
 - Create: `src/features/elements/elementCommands.ts`
@@ -277,6 +288,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/elements/BoardPin.test.tsx`
 
 **Interfaces:**
+
 - Produces: `ICON_CATALOG` con los nueve IDs, rutas, clases y tamaños exactos del esquema.
 - Produces: comandos `createElement`, `updateElement`, `duplicateElement`, `deleteElement`.
 - Produces: `clampAssetScale(value): number` limitado a `0.25–3`.
@@ -306,6 +318,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 7: Información, estados operativos y registro cronológico
 
 **Files:**
+
 - Create: `src/domain/operations/statuses.ts`
 - Create: `src/domain/operations/changeStatus.ts`
 - Create: `src/features/information/InformationModule.tsx`
@@ -317,6 +330,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/timeline/timelineCommands.test.ts`
 
 **Interfaces:**
+
 - Produces: `OPERATIONAL_STATUSES` con los ocho pares Estado/Fase exactos.
 - Produces: `changeElementStatus(document, elementId, nextStatus, now): AngieDocumentV1`.
 - Produces: `undoAutomaticTimelineEntry(document, entryId): UndoResult`.
@@ -346,6 +360,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 8: Reloj, temporizadores y alarma
 
 **Files:**
+
 - Create: `src/features/clock/timerTypes.ts`
 - Create: `src/features/clock/timerEngine.ts`
 - Create: `src/features/clock/timerRepository.ts`
@@ -358,6 +373,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/clock/ClockModule.test.tsx`
 
 **Interfaces:**
+
 - Produces: `TimerRecord` discriminado para `tzero`, `tminus` y `advisory`.
 - Produces: `calculateTimerValue(timer, now): TimerSnapshot` basado en marcas de tiempo.
 - Produces: repositorio Dexie separado del documento exportable.
@@ -392,6 +408,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 9: Conversión y validación de coordenadas
 
 **Files:**
+
 - Create: `src/features/coordinates/coordinateTypes.ts`
 - Create: `src/features/coordinates/parseCoordinate.ts`
 - Create: `src/features/coordinates/convertCoordinate.ts`
@@ -401,27 +418,28 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/coordinates/CoordinatesModule.test.tsx`
 
 **Interfaces:**
+
 - Produces: `parseCoordinate(input: string): CoordinateParseResult`.
 - Produces: `convertCoordinate(coordinate, targetFormat): FormattedCoordinate`.
 - Produces: `createGoogleMapsLink(latitude, longitude): string`.
 
-- [ ] **Step 1: Escribir pruebas exactas para los ejemplos DD, DMS, DMM y `30S 588700 4101800`.**
+- [x] **Step 1: Escribir pruebas exactas para los ejemplos DD, DMS, DMM y `30S 588700 4101800`.**
 
 Verificar que banda `S` implica hemisferio norte; incluir bandas `M/N`, zonas `1/60`, `I/O` inválidas y texto con separadores corregibles sin alterar números.
 
-- [ ] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
+- [x] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
 
 Run: `npm test -- --run src/features/coordinates`
 
-- [ ] **Step 3: Implementar parser, validación, conversión Proj4 y enlace.**
+- [x] **Step 3: Implementar parser, validación, conversión Proj4 y enlace.**
 
-- [ ] **Step 4: Implementar UI que conserva la entrada inválida y bloquea conversión/enlace.**
+- [x] **Step 4: Implementar UI que conserva la entrada inválida y bloquea conversión/enlace.**
 
-- [ ] **Step 5: Verificar.**
+- [x] **Step 5: Verificar.**
 
 Run: `npm test -- --run src/features/coordinates && npm run typecheck`
 
-- [ ] **Step 6: Entregar la tarea para revisión.**
+- [x] **Step 6: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 
@@ -430,12 +448,14 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 10: Calculadora
 
 **Files:**
+
 - Create: `src/features/calculator/expression.ts`
 - Create: `src/features/calculator/CalculatorModule.tsx`
 - Test: `src/features/calculator/expression.test.ts`
 - Test: `src/features/calculator/CalculatorModule.test.tsx`
 
 **Interfaces:**
+
 - Produces: `evaluateExpression(expression: string): CalculationResult` sin usar `eval`.
 
 - [ ] **Step 1: Escribir pruebas para operaciones, precedencia, paréntesis, porcentajes, decimales, división por cero, retroceso y limpieza.**
@@ -457,6 +477,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 11: Cuaderno
 
 **Files:**
+
 - Create: `src/features/notebook/notebookCommands.ts`
 - Create: `src/features/notebook/NotebookModule.tsx`
 - Create: `src/features/notebook/NoteBlock.tsx`
@@ -465,6 +486,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Test: `src/features/notebook/NotebookModule.test.tsx`
 
 **Interfaces:**
+
 - Produces: comandos para añadir nota/checklist, editar, marcar, eliminar y reordenar bloques por ID.
 
 - [ ] **Step 1: Escribir pruebas para CRUD, orden, checklist y persistencia sin título separado ni formato enriquecido.**
@@ -484,6 +506,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 ### Task 12: Integración, offline, accesibilidad y aceptación final
 
 **Files:**
+
 - Create: `tests/e2e/document-flow.spec.ts`
 - Create: `tests/e2e/operational-flow.spec.ts`
 - Create: `tests/e2e/timers.spec.ts`
@@ -493,6 +516,7 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Modify: files with defects found during verification only.
 
 **Interfaces:**
+
 - Consumes: todas las interfaces públicas de las Tareas 1–11.
 - Produces: una V1 compilable y verificable localmente; no produce despliegue.
 
