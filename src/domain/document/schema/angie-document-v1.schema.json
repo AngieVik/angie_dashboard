@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Angie Dashboard document V1",
+  "$comment": "Cross-field date order, chronological order, case-insensitive tag uniqueness and x+width/y+height bounds are checked by validateDocument after this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "document", "board", "elements", "notebook", "timeline", "moduleLayouts", "filters"],
+  "properties": {
+    "format": { "const": "angie-dashboard" },
+    "formatVersion": { "type": "integer", "const": 1 },
+    "document": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" }, "title": { "type": "string" },
+        "createdAt": { "$ref": "#/$defs/utcDate" }, "updatedAt": { "$ref": "#/$defs/utcDate" }
+      }
+    },
+    "board": {
+      "type": "object", "additionalProperties": false,
+      "required": ["backgroundColor", "strokes", "quickNotes"],
+      "properties": {
+        "backgroundColor": { "$ref": "#/$defs/color" },
+        "strokes": { "type": "array", "items": { "$ref": "#/$defs/stroke" } },
+        "quickNotes": { "type": "array", "items": { "$ref": "#/$defs/quickNote" } }
+      }
+    },
+    "elements": { "type": "array", "items": { "$ref": "#/$defs/element" } },
+    "notebook": { "type": "array", "items": { "$ref": "#/$defs/notebookBlock" } },
+    "timeline": { "type": "array", "items": { "$ref": "#/$defs/timelineEntry" } },
+    "moduleLayouts": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "board": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 320 }, "height": { "type": "integer", "minimum": 220 } } },
+        "elements": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 220 }, "height": { "type": "integer", "minimum": 240 } } },
+        "information": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 220 }, "height": { "type": "integer", "minimum": 140 } } },
+        "operations": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 240 }, "height": { "type": "integer", "minimum": 200 } } },
+        "coordinates": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 260 }, "height": { "type": "integer", "minimum": 180 } } },
+        "clock": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 320 }, "height": { "type": "integer", "minimum": 260 } } },
+        "calculator": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 220 }, "height": { "type": "integer", "minimum": 280 } } },
+        "notebook": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 260 }, "height": { "type": "integer", "minimum": 220 } } },
+        "timeline": { "$ref": "#/$defs/layout", "type": "object", "properties": { "width": { "type": "integer", "minimum": 280 }, "height": { "type": "integer", "minimum": 180 } } }
+      }
+    },
+    "filters": {
+      "type": "object", "additionalProperties": false, "required": ["visibleStatuses"],
+      "properties": { "visibleStatuses": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/status" } } }
+    }
+  },
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "utcDate": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$" },
+    "color": { "type": "string", "pattern": "^#[0-9A-F]{6}$" },
+    "nonBlank": { "type": "string", "pattern": "\\S" },
+    "tag": { "type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$" },
+    "status": { "type": "string", "enum": ["Disponible", "Asignada", "En camino", "En el lugar", "En traslado", "En destino", "Operativa", "Inoperativa"] },
+    "position": {
+      "type": "object", "additionalProperties": false, "required": ["x", "y"],
+      "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1000 }, "y": { "type": "number", "minimum": 0, "maximum": 1000 } }
+    },
+    "stroke": {
+      "type": "object", "additionalProperties": false, "required": ["id", "tool", "color", "width", "points"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" }, "tool": { "enum": ["pen", "eraser"] },
+        "color": { "oneOf": [{ "$ref": "#/$defs/color" }, { "type": "null" }] },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "points": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/position" } }
+      },
+      "if": { "properties": { "tool": { "const": "pen" } } },
+      "then": { "properties": { "color": { "$ref": "#/$defs/color" } } },
+      "else": { "properties": { "color": { "type": "null" } } }
+    },
+    "quickNote": {
+      "type": "object", "additionalProperties": false, "required": ["id", "text", "position"],
+      "properties": { "id": { "$ref": "#/$defs/uuid" }, "text": { "type": "string" }, "position": { "$ref": "#/$defs/position" } }
+    },
+    "visual": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["type", "assetId", "scale"],
+          "properties": {
+            "type": { "const": "asset" }, "assetId": { "enum": ["ambulance", "pathfinder", "quad", "checkpoint", "hydration", "start", "finish", "warning", "pushpin"] },
+            "scale": { "type": "number", "minimum": 0.25, "maximum": 3 }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["type", "value"],
+          "properties": { "type": { "const": "emoji" }, "value": { "type": "string", "minLength": 1 } }
+        }
+      ]
+    },
+    "operational": {
+      "type": "object", "additionalProperties": false, "required": ["status", "notes", "tags"],
+      "properties": {
+        "status": { "$ref": "#/$defs/status" }, "notes": { "type": "string" },
+        "tags": { "type": "array", "items": { "$ref": "#/$defs/tag" } }
+      }
+    },
+    "element": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "visual", "information", "position", "isUnit", "operational"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" }, "name": { "$ref": "#/$defs/nonBlank" }, "visual": { "$ref": "#/$defs/visual" },
+        "information": { "type": "string" }, "position": { "oneOf": [{ "$ref": "#/$defs/position" }, { "type": "null" }] },
+        "isUnit": { "type": "boolean" }, "operational": { "oneOf": [{ "$ref": "#/$defs/operational" }, { "type": "null" }] }
+      },
+      "if": { "properties": { "isUnit": { "const": true } } },
+      "then": { "properties": { "operational": { "$ref": "#/$defs/operational" } } },
+      "else": { "properties": { "operational": { "type": "null" } } }
+    },
+    "checklistItem": {
+      "type": "object", "additionalProperties": false, "required": ["id", "text", "checked"],
+      "properties": { "id": { "$ref": "#/$defs/uuid" }, "text": { "type": "string" }, "checked": { "type": "boolean" } }
+    },
+    "notebookBlock": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "type", "text"],
+          "properties": { "id": { "$ref": "#/$defs/uuid" }, "type": { "const": "note" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "type", "items"],
+          "properties": { "id": { "$ref": "#/$defs/uuid" }, "type": { "const": "checklist" }, "items": { "type": "array", "items": { "$ref": "#/$defs/checklistItem" } } }
+        }
+      ]
+    },
+    "timelineEntry": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "type", "occurredAt", "text"],
+          "properties": { "id": { "$ref": "#/$defs/uuid" }, "type": { "const": "manual" }, "occurredAt": { "$ref": "#/$defs/utcDate" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "type", "occurredAt", "unitId", "unitName", "previousStatus", "nextStatus"],
+          "properties": {
+            "id": { "$ref": "#/$defs/uuid" }, "type": { "const": "status-change" }, "occurredAt": { "$ref": "#/$defs/utcDate" },
+            "unitId": { "$ref": "#/$defs/uuid" }, "unitName": { "type": "string" },
+            "previousStatus": { "$ref": "#/$defs/status" }, "nextStatus": { "$ref": "#/$defs/status" }
+          }
+        }
+      ]
+    },
+    "layout": {
+      "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "integer", "minimum": 0, "maximum": 1600 }, "y": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "width": { "type": "integer", "exclusiveMinimum": 0, "maximum": 1600 }, "height": { "type": "integer", "exclusiveMinimum": 0, "maximum": 1000 }
+      }
+    }
+  }
+}

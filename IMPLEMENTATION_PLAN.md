@@ -106,27 +106,27 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `migrateDocument(input: unknown): MigrationResult<AngieDocumentV1>`.
 - Produces: `serializeDocument(document: AngieDocumentV1): string`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para el documento vacío, las nueve propiedades raíz, la estructura completa obligatoria, UUID, fechas UTC, colores, estados operativos y exclusiones.**
+- [x] **Step 1: Escribir pruebas fallidas para el documento vacío, las nueve propiedades raíz, la estructura completa obligatoria, UUID, fechas UTC, colores, estados operativos y exclusiones.**
 
-Incluir fixtures válido, completo, dañado, ajeno, compatible antiguo y futuro. Cubrir propiedades desconocidas, uniones discriminadas, relaciones `isUnit`/`operational` y `tool`/`color`, etiquetas vacías o duplicadas sin distinguir mayúsculas, coordenadas `0–1000`, escala `0.25–3`, tamaños de módulos y orden cronológico. Verificar que cualquier error devuelve su ruta y no produce un documento sustituto.
+Incluir fixtures válido, completo, dañado, ajeno, versión antigua no reconocida y futuro. Cubrir propiedades desconocidas, uniones discriminadas, relaciones `isUnit`/`operational` y `tool`/`color`, etiquetas vacías o duplicadas sin distinguir mayúsculas, coordenadas `0–1000`, escala `0.25–3`, tamaños de módulos y orden cronológico. Verificar que cualquier error devuelve su ruta y no produce un documento sustituto.
 
-- [ ] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
+- [x] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
 
 Run: `npm test -- --run src/domain/document/document.test.ts`
 
 Expected: FAIL porque las interfaces y el esquema no existen.
 
-- [ ] **Step 3: Implementar tipos, documento vacío, JSON Schema 2020-12, validación, serialización y la infraestructura de migración.**
+- [x] **Step 3: Implementar tipos, documento vacío, JSON Schema 2020-12, validación, serialización y la infraestructura de migración.**
 
 El tipo raíz debe contener exactamente `format`, `formatVersion`, `document`, `board`, `elements`, `notebook`, `timeline`, `moduleLayouts` y `filters`; los nombres, tipos, valores iniciales y relaciones serán exactamente los definidos en el contrato JSON V1 del esquema. La serialización utilizará dos espacios y salto de línea final.
 
-- [ ] **Step 4: Verificar dominio y esquema.**
+- [x] **Step 4: Verificar dominio y esquema.**
 
 Run: `npm test -- --run src/domain/document/document.test.ts && npm run typecheck`
 
 Expected: PASS y cero errores de tipos.
 
-- [ ] **Step 5: Entregar la tarea para revisión.**
+- [x] **Step 5: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

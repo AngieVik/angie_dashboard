@@ -13,7 +13,7 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Si el nombre base saneado —retirando antes una posible extensión `.json`— queda vacío o es un nombre reservado de Windows, `Guardar` propone `drp_YYYY-MM-DD_HH-mm-ss.json` con la fecha y hora local del dispositivo, formato de 24 horas y ceros iniciales.
 - [ ] Cancelar o fallar un guardado no sustituye el archivo anterior ni pierde el documento activo.
 - [ ] `Cargar` rechaza archivos dañados, ajenos a Angie Dashboard o de versiones futuras sin reemplazar el documento activo.
-- [ ] Un JSON compatible antiguo se migra en memoria y su original no se modifica.
+- [ ] Una versión antigua solo se migra en memoria cuando existe una migración expresamente reconocida; las versiones antiguas no reconocidas se rechazan sin modificar el archivo original.
 - [ ] El archivo exportado cumple el JSON Schema 2020-12 y contiene únicamente los bloques aprobados.
 - [ ] El JSON contiene exactamente las nueve propiedades raíz aprobadas, rechaza propiedades desconocidas y conserva la estructura obligatoria completa aunque existan textos, listas o posiciones vacíos.
 - [ ] UUID, fechas UTC, colores, uniones discriminadas, relaciones condicionales, coordenadas, escalas, tamaños y orden cronológico se validan conforme al contrato V1.
