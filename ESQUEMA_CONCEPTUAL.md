@@ -419,21 +419,25 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 
 | ID interno | Nombre visible | Archivo | Clase visual | Tamaño inicial lógico |
 | --- | --- | --- | --- | --- |
-| `ambulance` | Ambulancia | `icon_medical.png` | Ancho | `150 × 100` |
-| `pathfinder` | Pathfinder | `icon_vir.png` | Ancho | `150 × 100` |
-| `quad` | Quad | `icon_quad.png` | Ancho | `150 × 100` |
-| `checkpoint` | CP | `icon_cp.png` | Cuadrado | `110 × 110` |
-| `hydration` | EH | `icon_eh.png` | Vertical | `80 × 120` |
-| `start` | START | `icon_start.png` | Cuadrado | `110 × 110` |
-| `finish` | FINISH | `icon_finish.png` | Ancho | `150 × 100` |
-| `warning` | Advertencia | `icon_peligro.png` | Cuadrado | `110 × 110` |
-| `pushpin` | Chincheta | `icon_chincheta.png` | Cuadrado | `110 × 110` |
+| `ambulance` | Ambulancia | `icon_medical.png` | Horizontal | `150 × 100` |
+| `pathfinder` | Pathfinder | `icon_vir.png` | Horizontal | `150 × 100` |
+| `quad` | Quad | `icon_quad.png` | Horizontal | `150 × 100` |
+| `checkpoint` | CP | `icon_cp.png` | Cuadrado | `100 × 100` |
+| `hydration` | EH | `icon_eh.png` | Vertical | `100 × 150` |
+| `start` | START | `icon_start.png` | Cuadrado | `100 × 100` |
+| `finish` | FINISH | `icon_finish.png` | Horizontal | `150 × 100` |
+| `warning` | Advertencia | `icon_peligro.png` | Cuadrado | `100 × 100` |
+| `pushpin` | Chincheta | `icon_chincheta.png` | Cuadrado | `100 × 100` |
 
 - Los tamaños del catálogo se expresarán en las coordenadas del lienzo lógico `1000 × 1000` de la pizarra; no describirán ni alterarán la resolución física de los archivos PNG.
-- Cada tamaño inicial será una caja máxima: el PNG se encajará centrado dentro de ella conservando su proporción, aunque sus dimensiones finales no ocupen exactamente ambos lados de la caja.
+- El catálogo utilizará exclusivamente tres clases visuales y sus cajas máximas: `Horizontal` con `150 × 100`, `Vertical` con `100 × 150` y `Cuadrado` con `100 × 100`.
+- Cada entrada declarará explícitamente una de esas tres clases. Para añadir un icono nuevo se le asignará una clase existente y no se introducirán dimensiones iniciales particulares.
+- El PNG se encajará mediante `contain`, centrado horizontal y verticalmente dentro de su caja máxima y conservando su proporción; nunca se deformará ni recortará, aunque no ocupe exactamente ambos lados.
+- La posición del elemento representará siempre el centro de la caja lógica, con independencia del espacio transparente o de las dimensiones físicas del PNG.
 - El tamaño inicial de cada icono corresponderá a una escala `1` o `100 %`.
 - Cada pin que utilice un icono PNG podrá redimensionarse entre `0.25` y `3`, equivalentes al `25 %` y al `300 %` de su tamaño inicial.
-- La redimensión utilizará un único valor de escala proporcional, por lo que la relación de aspecto original nunca podrá deformarse.
+- La redimensión utilizará un único valor de escala proporcional aplicado conjuntamente a la caja y al PNG, por lo que la relación de aspecto original nunca podrá deformarse.
+- La colocación y los límites del lienzo se calcularán con la caja escalada completa para impedir que una parte del pin quede fuera del lienzo `1000 × 1000`.
 - El mismo valor de escala podrá modificarse mediante un tirador visible al seleccionar el pin y mediante un control deslizante en la configuración del elemento.
 - Ambos controles permanecerán sincronizados y actualizarán el mismo valor.
 - La escala elegida se guardará dentro de la representación visual del elemento en el JSON.

@@ -55,9 +55,11 @@ Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` con
 - [ ] Las etiquetas de una dotación se pueden crear, editar y eliminar como chips, rechazan vacíos y duplicados sin distinguir mayúsculas y se muestran en Información sin convertirse en objetos de la pizarra.
 - [ ] Duplicar crea otro UUID y el nombre `<nombre> copia`, conserva configuración, tipo e información y desplaza el pin `24` unidades dentro del lienzo; si es una dotación, reinicia sus datos operativos y no copia entradas cronológicas.
 - [ ] Se pueden usar los nueve PNG del catálogo o cualquier emoji escrito o pegado.
-- [ ] Cada ID del catálogo carga el archivo, nombre y tamaño inicial correctos.
-- [ ] Los tamaños iniciales de los PNG actúan como cajas máximas y los iconos se encajan centrados sin deformarse.
+- [ ] Cada ID del catálogo carga el archivo, nombre, clase y caja inicial correctos.
+- [ ] El catálogo solo admite las cajas `150 × 100` para `Horizontal`, `100 × 150` para `Vertical` y `100 × 100` para `Cuadrado`; un icono nuevo reutiliza una de esas clases.
+- [ ] Cada PNG utiliza `contain`, queda centrado en su caja máxima y conserva su proporción sin deformarse ni recortarse.
 - [ ] Los PNG conservan su proporción y pueden escalarse entre `25 %` y `300 %` mediante tirador y deslizador sincronizados.
+- [ ] La escala afecta conjuntamente a la caja y al PNG, y la caja escalada completa permanece dentro del lienzo.
 - [ ] La escala se guarda en el JSON y el nombre del elemento mantiene un tamaño de texto independiente.
 - [ ] Los elementos se separan visualmente en `Dotaciones` y `Generales`.
 - [ ] El filtro de ocho estados muestra u oculta dotaciones sin alterar sus datos.

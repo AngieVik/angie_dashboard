@@ -275,11 +275,13 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: comandos `createElement`, `updateElement`, `duplicateElement`, `deleteElement`.
 - Produces: `clampAssetScale(value): number` limitado a `0.25–3`.
 
-- [ ] **Step 1: Escribir pruebas fallidas para las nueve entradas y la existencia de sus archivos.**
+- [ ] **Step 1: Escribir pruebas fallidas para las nueve entradas, la existencia de sus archivos y las tres clases de caja permitidas.**
+
+Comprobar las cajas exactas `150 × 100` para `Horizontal`, `100 × 150` para `Vertical` y `100 × 100` para `Cuadrado`; cada entrada debe declarar una clase existente y no podrá definir dimensiones particulares.
 
 - [ ] **Step 2: Escribir pruebas fallidas para CRUD, emoji, escala proporcional sincronizada e inmutabilidad de `Dotación`.**
 
-Comprobar que el checkbox solo existe durante la creación; una dotación comienza como `Disponible`; editar nunca cambia `isUnit`; y eliminar una dotación conserva intactas sus entradas cronológicas. Duplicar genera UUID y nombre nuevos, conserva configuración y tipo y desplaza el pin `24` unidades sin sacarlo del lienzo; si es una dotación, reinicia `operational` y no copia entradas cronológicas.
+Comprobar que cada PNG utiliza `contain`, queda centrado sin deformación ni recorte y que la escala común mantiene la caja completa dentro del lienzo. Comprobar también que el checkbox solo existe durante la creación; una dotación comienza como `Disponible`; editar nunca cambia `isUnit`; y eliminar una dotación conserva intactas sus entradas cronológicas. Duplicar genera UUID y nombre nuevos, conserva configuración y tipo y desplaza el pin `24` unidades sin sacarlo del lienzo; si es una dotación, reinicia `operational` y no copia entradas cronológicas.
 
 - [ ] **Step 3: Implementar catálogo y comandos de dominio.**
 
