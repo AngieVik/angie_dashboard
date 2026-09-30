@@ -151,27 +151,27 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 - Produces: `saveVisibleDocument(document, context): Promise<SaveOutcome>` y `loadVisibleDocument(file): Promise<LoadOutcome>`.
 - Produces: `useDocumentStore` con acciones `newDocument`, `loadDocument`, `saveDocument` y mutaciones de dominio.
 
-- [ ] **Step 1: Escribir pruebas fallidas para autoguardado, recuperación, carga segura y flujo de selector/descarga.**
+- [x] **Step 1: Escribir pruebas fallidas para autoguardado, recuperación, carga segura y flujo de selector/descarga.**
 
 Cubrir selector compatible, reutilización del handle, cambio de título, cancelación, permiso denegado, fallback de descarga y JSON futuro/dañado que conserva el estado activo. Probar que el saneamiento del nombre no modifica el título, elimina caracteres de control, `<>:"/\|?*` y espacios o puntos finales, conserva acentos y separadores interiores y añade `.json` una sola vez. El nombre base se validará después de retirar una posible extensión `.json`; si queda vacío o reservado (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`), debe proponerse exactamente `drp_YYYY-MM-DD_HH-mm-ss.json` con fecha y hora local, formato de 24 horas y ceros iniciales.
 
 Simular fallos al abrir, leer y escribir IndexedDB. Comprobar que el documento continúa operativo en memoria, que no se borra ni recrea la base local, que aparece `Autoguardado no disponible` con `Reintentar` y `Guardar JSON` y que la exportación visible permanece disponible. Un reintento correcto debe guardar el estado más reciente y retirar el aviso; una recuperación tardía no podrá sustituir un documento ya modificado sin confirmación.
 
-- [ ] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
+- [x] **Step 2: Ejecutar las pruebas y confirmar el fallo.**
 
 Run: `npm test -- --run src/storage src/platform/files src/features/document`
 
-- [ ] **Step 3: Implementar Dexie, repositorio, autoguardado, modo degradado en memoria y adaptador de archivos sin acceder directamente a APIs del navegador desde componentes.**
+- [x] **Step 3: Implementar Dexie, repositorio, autoguardado, modo degradado en memoria y adaptador de archivos sin acceder directamente a APIs del navegador desde componentes.**
 
-- [ ] **Step 4: Implementar `Archivo > Nuevo/Cargar/Guardar`, el saneamiento exacto del nombre propuesto y el nombre alternativo local `drp_YYYY-MM-DD_HH-mm-ss.json`.**
+- [x] **Step 4: Implementar `Archivo > Nuevo/Cargar/Guardar`, el saneamiento exacto del nombre propuesto y el nombre alternativo local `drp_YYYY-MM-DD_HH-mm-ss.json`.**
 
-- [ ] **Step 5: Verificar persistencia y errores.**
+- [x] **Step 5: Verificar persistencia y errores.**
 
 Run: `npm test -- --run src/storage src/platform/files src/features/document && npm run typecheck`
 
 Expected: PASS; cancelar o fallar nunca cambia el documento activo.
 
-- [ ] **Step 6: Entregar la tarea para revisión.**
+- [x] **Step 6: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

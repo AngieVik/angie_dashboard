@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { App } from './App'
 
@@ -14,6 +14,13 @@ beforeAll(() => {
 afterAll(() => styles.remove())
 
 describe('base de Angie Dashboard', () => {
+  it('integra Archivo y el título editable con el documento activo', async () => {
+    render(<App />)
+    expect(screen.getByRole('button', { name: 'Archivo' })).toBeInTheDocument()
+    const title = screen.getByRole('textbox', { name: 'Título del documento' })
+    fireEvent.change(title, { target: { value: 'Preparación norte' } })
+    await waitFor(() => expect(title).toHaveValue('Preparación norte'))
+  })
   it('muestra la cabecera con el nombre de la aplicación', () => {
     render(<App />)
     expect(screen.getByRole('banner')).toContainElement(
