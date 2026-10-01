@@ -15,6 +15,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const list = useRef<HTMLOListElement>(null)
+  const addControl = useRef<HTMLButtonElement>(null)
   function mutate(command: (document: AngieDocumentV1) => void) {
     if (!blockedRef.current) store.mutateDocument(command)
   }
@@ -23,7 +24,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
   return <div className="notebook-module">
     <div className="notebook-toolbar">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button aria-label="Añadir bloque" title="Añadir bloque" disabled={blocked}>+</Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button ref={addControl} aria-label="Añadir bloque" title="Añadir bloque" disabled={blocked}>+</Button></DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem disabled={blocked} onSelect={() => add('note')}>Nota</DropdownMenuItem>
           <DropdownMenuItem disabled={blocked} onSelect={() => add('checklist')}>Checklist</DropdownMenuItem>
@@ -36,7 +37,11 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
         <div className="notebook-block-controls">
           <Button className="document-button notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} title="Reordenar bloque · ↑ / ↓" disabled={blocked} {...reorder.handleProps(block.id)}>⠿</Button>
           <span className="notebook-kind">{block.type === 'note' ? 'Nota' : 'Checklist'}</span>
-          <Button aria-label="Eliminar bloque" title="Eliminar bloque" disabled={blocked} onClick={() => mutate(document => deleteNotebookBlock(document, block.id))}>×</Button>
+          <Button aria-label="Eliminar bloque" title="Eliminar bloque" disabled={blocked} onClick={() => {
+            if (blockedRef.current) return
+            addControl.current?.focus()
+            mutate(document => deleteNotebookBlock(document, block.id))
+          }}>×</Button>
         </div>
         {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
           <ChecklistBlock block={block} disabled={blocked}

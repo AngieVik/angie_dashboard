@@ -1,0 +1,35 @@
+import { expect, test } from '@playwright/test'
+import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
+import { createElement, loadDocument, openModule, savedDocument } from './acceptance-helpers'
+
+test('estados libres, selección compartida, historial cerrado y Deshacer por dotación', async ({ page }) => {
+  await page.goto('/')
+  const document = createEmptyDocument('Aceptación operativa')
+  document.moduleLayouts = { elements: { x: 0, y: 0, width: 300, height: 420 }, information: { x: 300, y: 0, width: 320, height: 240 }, operations: { x: 620, y: 0, width: 340, height: 320 }, timeline: { x: 960, y: 0, width: 420, height: 320 } }
+  await loadDocument(page, document)
+  for (const name of ['Elementos', 'Información', 'Operativo']) await openModule(page, name)
+  await createElement(page, 'Tango A', true)
+  await createElement(page, 'Tango B', true)
+  const elements = page.getByRole('region', { name: 'Elementos', exact: true })
+  const information = page.getByRole('region', { name: 'Información', exact: true })
+  const ops = page.getByRole('region', { name: 'Operativo', exact: true })
+  await elements.getByRole('button', { name: 'Seleccionar Tango A' }).press('Enter')
+  await ops.getByRole('button', { name: 'Inoperativa', exact: true }).press('Enter')
+  await ops.getByRole('button', { name: 'Asignada', exact: true }).press('Enter')
+  await expect(information.getByText('Activación', { exact: true })).toBeVisible()
+  await elements.getByRole('button', { name: 'Seleccionar Tango B' }).press('Enter')
+  await ops.getByRole('button', { name: 'Operativa', exact: true }).press('Enter')
+  await expect.poll(async () => (await savedDocument(page))?.timeline.length).toBe(3)
+  await expect(page.locator('[data-module="timeline"]')).toHaveCount(0)
+  await openModule(page, 'Registro cronológico')
+  const timeline = page.getByRole('region', { name: 'Registro cronológico', exact: true })
+  await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(2)
+  await timeline.locator('li').filter({ hasText: 'Inoperativa ⚫ → Asignada 🟡' }).getByRole('button', { name: 'Deshacer' }).press('Enter')
+  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.operational?.status).toBe('Inoperativa')
+  await timeline.locator('li').filter({ hasText: 'Disponible 🟢 → Inoperativa ⚫' }).getByRole('button', { name: 'Deshacer' }).press('Enter')
+  await expect.poll(async () => (await savedDocument(page))?.elements.map(item => item.operational?.status)).toEqual(['Disponible', 'Operativa'])
+  await elements.getByRole('button', { name: 'Configurar elementos' }).click()
+  await elements.getByRole('button', { name: 'Quitar', exact: true }).click()
+  await expect(timeline.getByText(/Tango B/)).toBeVisible()
+  await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(0)
+})

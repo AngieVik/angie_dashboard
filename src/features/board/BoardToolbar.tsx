@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import type { Ref } from 'react'
 import { Button } from '../../components/ui/button'
 import type { BoardMode } from './boardTypes'
 
@@ -7,13 +8,14 @@ const modes: { id: BoardMode; name: string }[] = [
   { id: 'eraser', name: 'Goma' }, { id: 'note', name: 'Nota rápida' },
 ]
 
-export function BoardToolbar({ mode, onMode, background, onBackground, color, onColor, width, onWidth, onImage, busy, blocked }: {
+export function BoardToolbar({ mode, onMode, background, onBackground, color, onColor, width, onWidth, onImage, busy, blocked, toolbarRef }: {
   mode: BoardMode; onMode: (mode: BoardMode) => void; background: string; onBackground: (color: string) => void
   color: string; onColor: (color: string) => void; width: number; onWidth: (width: number) => void
   onImage: (file: File) => void; busy: boolean; blocked: boolean
+  toolbarRef?: Ref<HTMLDivElement>
 }) {
   const file = useRef<HTMLInputElement>(null)
-  return <div className="board-toolbar">
+  return <div ref={toolbarRef} className="board-toolbar">
     <div className="board-modes" role="radiogroup" aria-label="Herramienta de pizarra" onKeyDown={event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || blocked) return
       event.preventDefault()

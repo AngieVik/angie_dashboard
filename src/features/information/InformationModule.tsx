@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
@@ -10,7 +11,8 @@ export function InformationModule({ store, selectedId, onSelect }: { store: Docu
   const { blocked, blockedRef } = useViewportInteraction()
   const selected = document.elements.find(element => element.id === selectedId)
   const units = document.elements.filter(element => element.isUnit)
-  return <div className="information-module">
+  const root = useRef<HTMLDivElement>(null)
+  return <div ref={root} className="information-module">
     {selected ? <>
       <div className="information-text">{selected.information}</div>
       {selected.isUnit && <>
@@ -18,6 +20,10 @@ export function InformationModule({ store, selectedId, onSelect }: { store: Docu
         <div className="information-tags" aria-label="Etiquetas">{selected.operational.tags.map(tag => <span key={tag} className="unit-tag">{tag}</span>)}</div>
       </>}
     </> : units.length ? <div className="information-units">{units.map(unit => <Button key={unit.id} aria-label={`Seleccionar ${unit.name}`} disabled={blocked}
-      onClick={() => { if (!blockedRef.current) onSelect(unit.id) }}>{unit.name}</Button>)}</div> : <p className="module-empty">Sin dotaciones</p>}
+      onClick={() => {
+        if (blockedRef.current) return
+        root.current?.closest('.module-frame')?.querySelector<HTMLButtonElement>('.module-close')?.focus()
+        onSelect(unit.id)
+      }}>{unit.name}</Button>)}</div> : <p className="module-empty">Sin dotaciones</p>}
   </div>
 }

@@ -2,132 +2,199 @@
 
 Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` conserva el detalle normativo y prevalece ante cualquier duda.
 
+Los checks de esta entrega se refieren al alcance demostrado en la sección 10: navegador de escritorio y emulación Pixel 7, con las simulaciones y límites indicados. La instalación nativa continúa pendiente y la V1 no se declara completamente aceptada.
+
 ## 1. Arranque, cabecera y documentos
 
 - [ ] La aplicación se instala como PWA en Windows y Android y puede abrirse sin conexión después de la primera carga.
-- [ ] Cada sesión comienza con todos los módulos cerrados y sin una distribución impuesta.
-- [ ] La cabecera permanece visible e incluye `Archivo`, `Ver`, título editable, `Encajar` y porcentaje de zoom.
-- [ ] `Nuevo` crea un documento vacío sin eliminar archivos exportados ni detener temporizadores.
-- [ ] `Guardar` valida el JSON antes de escribirlo y utiliza selector nativo o descarga según la capacidad del navegador.
-- [ ] `Guardar` sanea únicamente el nombre propuesto sin modificar el título: elimina caracteres de control, `<>:"/\|?*` y espacios o puntos finales, conserva acentos y separadores interiores y añade `.json` una sola vez.
-- [ ] Si el nombre base saneado —retirando antes una posible extensión `.json`— queda vacío o es un nombre reservado de Windows, `Guardar` propone `drp_YYYY-MM-DD_HH-mm-ss.json` con la fecha y hora local del dispositivo, formato de 24 horas y ceros iniciales.
-- [ ] Cancelar o fallar un guardado no sustituye el archivo anterior ni pierde el documento activo.
-- [ ] `Cargar` rechaza archivos dañados, ajenos a Angie Dashboard o de versiones futuras sin reemplazar el documento activo.
-- [ ] Una versión antigua solo se migra en memoria cuando existe una migración expresamente reconocida; las versiones antiguas no reconocidas se rechazan sin modificar el archivo original.
-- [ ] El archivo exportado cumple el JSON Schema 2020-12 y contiene únicamente los bloques aprobados.
-- [ ] El JSON contiene exactamente las nueve propiedades raíz aprobadas, rechaza propiedades desconocidas y conserva la estructura obligatoria completa aunque existan textos, listas o posiciones vacíos.
-- [ ] UUID, fechas UTC, colores, uniones discriminadas, relaciones condicionales, coordenadas, escalas, tamaños y orden cronológico se validan conforme al contrato V1.
+- [x] Cada sesión comienza con todos los módulos cerrados y sin una distribución impuesta.
+- [x] La cabecera permanece visible e incluye `Archivo`, `Ver`, título editable, `Encajar` y porcentaje de zoom.
+- [x] `Nuevo` crea un documento vacío sin eliminar archivos exportados ni detener temporizadores.
+- [x] `Guardar` valida el JSON antes de escribirlo y utiliza selector nativo o descarga según la capacidad del navegador.
+- [x] `Guardar` sanea únicamente el nombre propuesto sin modificar el título: elimina caracteres de control, `<>:"/\|?*` y espacios o puntos finales, conserva acentos y separadores interiores y añade `.json` una sola vez.
+- [x] Si el nombre base saneado —retirando antes una posible extensión `.json`— queda vacío o es un nombre reservado de Windows, `Guardar` propone `drp_YYYY-MM-DD_HH-mm-ss.json` con la fecha y hora local del dispositivo, formato de 24 horas y ceros iniciales.
+- [x] Cancelar o fallar un guardado no sustituye el archivo anterior ni pierde el documento activo.
+- [x] `Cargar` rechaza archivos dañados, ajenos a Angie Dashboard o de versiones futuras sin reemplazar el documento activo.
+- [x] Una versión antigua solo se migra en memoria cuando existe una migración expresamente reconocida; las versiones antiguas no reconocidas se rechazan sin modificar el archivo original.
+- [x] El archivo exportado cumple el JSON Schema 2020-12 y contiene únicamente los bloques aprobados.
+- [x] El JSON contiene exactamente las nueve propiedades raíz aprobadas, rechaza propiedades desconocidas y conserva la estructura obligatoria completa aunque existan textos, listas o posiciones vacíos.
+- [x] UUID, fechas UTC, colores, uniones discriminadas, relaciones condicionales, coordenadas, escalas, tamaños y orden cronológico se validan conforme al contrato V1.
 
 ## 2. Autoguardado y recuperación
 
-- [ ] El documento activo se guarda automáticamente en IndexedDB y se recupera después de recargar o reabrir la PWA.
-- [ ] El autoguardado y el archivo JSON visible funcionan de manera independiente.
-- [ ] El JSON no incluye imagen de fondo, archivos PNG, temporizadores, operación de calculadora, coordenadas temporales, selección, viewport ni visibilidad de módulos.
-- [ ] Un error de lectura, escritura o apertura de IndexedDB mantiene la aplicación y el documento activo funcionando en memoria, sin borrar ni recrear automáticamente la base local.
-- [ ] El error muestra `Autoguardado no disponible` con `Reintentar` y `Guardar JSON`; el guardado visible continúa funcionando y un reintento correcto retira el aviso.
-- [ ] Una recuperación posterior nunca reemplaza un documento activo modificado sin confirmación del usuario.
+- [x] El documento activo se guarda automáticamente en IndexedDB y se recupera después de recargar o reabrir la PWA.
+- [x] El autoguardado y el archivo JSON visible funcionan de manera independiente.
+- [x] El JSON no incluye imagen de fondo, archivos PNG, temporizadores, operación de calculadora, coordenadas temporales, selección, viewport ni visibilidad de módulos.
+- [x] Un error de lectura, escritura o apertura de IndexedDB mantiene la aplicación y el documento activo funcionando en memoria, sin borrar ni recrear automáticamente la base local.
+- [x] El error muestra `Autoguardado no disponible` con `Reintentar` y `Guardar JSON`; el guardado visible continúa funcionando y un reintento correcto retira el aviso.
+- [x] Una recuperación posterior nunca reemplaza un documento activo modificado sin confirmación del usuario.
 
 ## 3. Sistema modular y móvil
 
-- [ ] Todos los módulos se abren y cierran desde `Ver`; el botón `×` cierra solo su módulo.
-- [ ] Los módulos se mueven y redimensionan sin recolocar automáticamente los demás.
-- [ ] Se respetan los tamaños iniciales y mínimos definidos para los nueve módulos.
-- [ ] La distribución normal impide solapamientos.
-- [ ] La apertura busca primero la distribución guardada y después un hueco libre conforme al orden definido.
-- [ ] Sin espacio disponible, el módulo se abre centrado al tamaño mínimo, por encima de los demás, con el aviso aprobado y solapamiento temporal.
-- [ ] `moduleLayouts` conserva posiciones y tamaños, pero no visibilidad.
-- [ ] En móvil, un dedo manipula contenido y dos dedos desplazan o amplían el dashboard sin provocar acciones accidentales.
-- [ ] `Encajar` muestra completo y centrado el espacio general `1600 × 1000`, ocupa la mayor superficie disponible bajo la cabecera y establece el zoom mínimo; el máximo efectivo es el mayor valor entre `400 %` y la escala de encaje.
-- [ ] Girar el dispositivo conserva el punto lógico central y mantiene una vista válida.
-- [ ] No aparece scroll de página en Windows ni Android.
+- [x] Todos los módulos se abren y cierran desde `Ver`; el botón `×` cierra solo su módulo.
+- [x] Los módulos se mueven y redimensionan sin recolocar automáticamente los demás.
+- [x] Se respetan los tamaños iniciales y mínimos definidos para los nueve módulos.
+- [x] La distribución normal impide solapamientos.
+- [x] La apertura busca primero la distribución guardada y después un hueco libre conforme al orden definido.
+- [x] Sin espacio disponible, el módulo se abre centrado al tamaño mínimo, por encima de los demás, con el aviso aprobado y solapamiento temporal.
+- [x] `moduleLayouts` conserva posiciones y tamaños, pero no visibilidad.
+- [x] En móvil, un dedo manipula contenido y dos dedos desplazan o amplían el dashboard sin provocar acciones accidentales.
+- [x] `Encajar` muestra completo y centrado el espacio general `1600 × 1000`, ocupa la mayor superficie disponible bajo la cabecera y establece el zoom mínimo; el máximo efectivo es el mayor valor entre `400 %` y la escala de encaje.
+- [x] Girar el dispositivo conserva el punto lógico central y mantiene una vista válida.
+- [x] No aparece scroll de página en Windows ni Android.
 
 ## 4. Pizarra
 
-- [ ] Permite seleccionar color o cargar temporalmente una imagen JPG/PNG local.
-- [ ] Rechaza imágenes superiores a `50 MiB` y reduce en memoria las que superen `4096 px` en su lado mayor.
-- [ ] Un fallo de imagen conserva el fondo anterior y no sube datos a servicios externos.
-- [ ] Los modos `Seleccionar/mover`, `Lápiz`, `Goma` y `Nota rápida` respetan las prioridades definidas.
-- [ ] La goma elimina únicamente trazos del lápiz.
-- [ ] Pines, notas rápidas y trazos se persisten en el lienzo lógico fijo `1000 × 1000`; el módulo lo muestra completo, centrado, proporcional y sin recortarlo.
-- [ ] Las notas rápidas se pueden crear, editar y eliminar y mantienen tamaño visual fijo.
+- [x] Permite seleccionar color o cargar temporalmente una imagen JPG/PNG local.
+- [x] Rechaza imágenes superiores a `50 MiB` y reduce en memoria las que superen `4096 px` en su lado mayor.
+- [x] Un fallo de imagen conserva el fondo anterior y no sube datos a servicios externos.
+- [x] Los modos `Seleccionar/mover`, `Lápiz`, `Goma` y `Nota rápida` respetan las prioridades definidas.
+- [x] La goma elimina únicamente trazos del lápiz.
+- [x] Pines, notas rápidas y trazos se persisten en el lienzo lógico fijo `1000 × 1000`; el módulo lo muestra completo, centrado, proporcional y sin recortarlo.
+- [x] Las notas rápidas se pueden crear, editar y eliminar y mantienen tamaño visual fijo.
 
 ## 5. Elementos y pines
 
-- [ ] Se pueden crear, editar, duplicar y eliminar elementos con nombre, información, representación visual y clasificación inmutable como `Dotación` o `General`.
-- [ ] `Dotación` solo puede elegirse durante la creación; después se muestra como dato de solo lectura y no puede cambiarse en ningún sentido.
-- [ ] Una dotación nueva comienza como `Disponible`, con anotaciones vacías y sin etiquetas.
-- [ ] Las etiquetas de una dotación se pueden crear, editar y eliminar como chips, rechazan vacíos y duplicados sin distinguir mayúsculas y se muestran en Información sin convertirse en objetos de la pizarra.
-- [ ] Duplicar crea otro UUID y el nombre `<nombre> copia`, conserva configuración, tipo e información y desplaza el pin `24` unidades dentro del lienzo; si es una dotación, reinicia sus datos operativos y no copia entradas cronológicas.
-- [ ] Se pueden usar los nueve PNG del catálogo o cualquier emoji escrito o pegado.
-- [ ] Cada ID del catálogo carga el archivo, nombre, clase y caja inicial correctos.
-- [ ] El catálogo solo admite las cajas `150 × 100` para `Horizontal`, `100 × 150` para `Vertical` y `100 × 100` para `Cuadrado`; un icono nuevo reutiliza una de esas clases.
-- [ ] Cada PNG utiliza `contain`, queda centrado en su caja máxima y conserva su proporción sin deformarse ni recortarse.
-- [ ] Los PNG conservan su proporción y pueden escalarse entre `25 %` y `300 %` mediante tirador y deslizador sincronizados.
-- [ ] La escala afecta conjuntamente a la caja y al PNG, y la caja escalada completa permanece dentro del lienzo.
-- [ ] La escala se guarda en el JSON y el nombre del elemento mantiene un tamaño de texto independiente.
-- [ ] Los elementos se separan visualmente en `Dotaciones` y `Generales`.
-- [ ] El filtro de ocho estados muestra u oculta dotaciones sin alterar sus datos.
+- [x] Se pueden crear, editar, duplicar y eliminar elementos con nombre, información, representación visual y clasificación inmutable como `Dotación` o `General`.
+- [x] `Dotación` solo puede elegirse durante la creación; después se muestra como dato de solo lectura y no puede cambiarse en ningún sentido.
+- [x] Una dotación nueva comienza como `Disponible`, con anotaciones vacías y sin etiquetas.
+- [x] Las etiquetas de una dotación se pueden crear, editar y eliminar como chips, rechazan vacíos y duplicados sin distinguir mayúsculas y se muestran en Información sin convertirse en objetos de la pizarra.
+- [x] Duplicar crea otro UUID y el nombre `<nombre> copia`, conserva configuración, tipo e información y desplaza el pin `24` unidades dentro del lienzo; si es una dotación, reinicia sus datos operativos y no copia entradas cronológicas.
+- [x] Se pueden usar los nueve PNG del catálogo o cualquier emoji escrito o pegado.
+- [x] Cada ID del catálogo carga el archivo, nombre, clase y caja inicial correctos.
+- [x] El catálogo solo admite las cajas `150 × 100` para `Horizontal`, `100 × 150` para `Vertical` y `100 × 100` para `Cuadrado`; un icono nuevo reutiliza una de esas clases.
+- [x] Cada PNG utiliza `contain`, queda centrado en su caja máxima y conserva su proporción sin deformarse ni recortarse.
+- [x] Los PNG conservan su proporción y pueden escalarse entre `25 %` y `300 %` mediante tirador y deslizador sincronizados.
+- [x] La escala afecta conjuntamente a la caja y al PNG, y la caja escalada completa permanece dentro del lienzo.
+- [x] La escala se guarda en el JSON y el nombre del elemento mantiene un tamaño de texto independiente.
+- [x] Los elementos se separan visualmente en `Dotaciones` y `Generales`.
+- [x] El filtro de ocho estados muestra u oculta dotaciones sin alterar sus datos.
 
 ## 6. Información, operativo y registro
 
-- [ ] Información muestra el elemento seleccionado y la fase cuando sea una dotación.
-- [ ] Sin selección, Información muestra únicamente los nombres de las dotaciones, o `Sin dotaciones` cuando no exista ninguna; tocar un nombre selecciona globalmente esa dotación.
-- [ ] Con una dotación seleccionada, Información muestra su información libre, fase y etiquetas; con un elemento general, muestra únicamente su información libre.
-- [ ] Operativo incluye solo dotaciones y permite los ocho estados fijos definidos.
-- [ ] Sin una dotación seleccionada, Operativo muestra únicamente contadores no vacíos de los ocho estados exactos, en el orden definido y sin fases ni agrupaciones nuevas.
-- [ ] Tocar un contador despliega las dotaciones que están exactamente en ese estado, con un único estado desplegado; tocar un nombre selecciona globalmente esa dotación.
-- [ ] Con una dotación seleccionada, Operativo muestra los ocho estados, resalta el actual y permite elegir cualquiera; al deseleccionarla vuelve a los contadores.
-- [ ] La selección es única y se sincroniza entre pizarra, Elementos, Información y Operativo.
-- [ ] Los ocho estados pueden elegirse manualmente en cualquier momento, sin secuencia obligatoria; seleccionar el estado actual no modifica datos ni crea una entrada.
-- [ ] Operativo permite editar una anotación libre y gestionar las etiquetas asociadas a cada dotación con autoguardado.
-- [ ] Un cambio de estado actualiza Información y crea una entrada cronológica automática con hora española.
-- [ ] Solo el cambio más reciente de cada dotación existente permite `Deshacer`, y únicamente cuando el estado actual coincide con el estado nuevo registrado.
-- [ ] `Deshacer` restaura el estado anterior y elimina atómicamente la entrada correspondiente sin crear otra; permite continuar retrocediendo en orden inverso y no afecta a otras dotaciones.
-- [ ] Eliminar una dotación conserva intactas sus entradas cronológicas mediante el nombre guardado, pero ninguna de ellas permite `Deshacer`.
-- [ ] Un intento de deshacer no válido se rechaza sin modificar el estado ni el registro.
-- [ ] Las entradas manuales se pueden crear, editar y eliminar.
-- [ ] El registro sigue funcionando con su módulo cerrado y respeta el comportamiento de desplazamiento automático aprobado.
+- [x] Información muestra el elemento seleccionado y la fase cuando sea una dotación.
+- [x] Sin selección, Información muestra únicamente los nombres de las dotaciones, o `Sin dotaciones` cuando no exista ninguna; tocar un nombre selecciona globalmente esa dotación.
+- [x] Con una dotación seleccionada, Información muestra su información libre, fase y etiquetas; con un elemento general, muestra únicamente su información libre.
+- [x] Operativo incluye solo dotaciones y permite los ocho estados fijos definidos.
+- [x] Sin una dotación seleccionada, Operativo muestra únicamente contadores no vacíos de los ocho estados exactos, en el orden definido y sin fases ni agrupaciones nuevas.
+- [x] Tocar un contador despliega las dotaciones que están exactamente en ese estado, con un único estado desplegado; tocar un nombre selecciona globalmente esa dotación.
+- [x] Con una dotación seleccionada, Operativo muestra los ocho estados, resalta el actual y permite elegir cualquiera; al deseleccionarla vuelve a los contadores.
+- [x] La selección es única y se sincroniza entre pizarra, Elementos, Información y Operativo.
+- [x] Los ocho estados pueden elegirse manualmente en cualquier momento, sin secuencia obligatoria; seleccionar el estado actual no modifica datos ni crea una entrada.
+- [x] Operativo permite editar una anotación libre y gestionar las etiquetas asociadas a cada dotación con autoguardado.
+- [x] Un cambio de estado actualiza Información y crea una entrada cronológica automática con hora española.
+- [x] Solo el cambio más reciente de cada dotación existente permite `Deshacer`, y únicamente cuando el estado actual coincide con el estado nuevo registrado.
+- [x] `Deshacer` restaura el estado anterior y elimina atómicamente la entrada correspondiente sin crear otra; permite continuar retrocediendo en orden inverso y no afecta a otras dotaciones.
+- [x] Eliminar una dotación conserva intactas sus entradas cronológicas mediante el nombre guardado, pero ninguna de ellas permite `Deshacer`.
+- [x] Un intento de deshacer no válido se rechaza sin modificar el estado ni el registro.
+- [x] Las entradas manuales se pueden crear, editar y eliminar.
+- [x] El registro sigue funcionando con su módulo cerrado y respeta el comportamiento de desplazamiento automático aprobado.
 
 ## 7. Reloj y alertas
 
-- [ ] Se muestran hora española con cambio estacional automático y hora Zulu.
-- [ ] Se pueden crear varios `T-Zero`, `T-Minus` y `Advisories` con notas y controles correctos.
-- [ ] Las duraciones de `T-Minus` y `Advisory` utilizan tres campos exclusivamente numéricos, normalizan excesos entre segundos, minutos y horas y quedan siempre entre `00:00:01` y `23:59:59`.
-- [ ] Al completar `23:59:59`, un `T-Zero` se detiene, vuelve a `00:00:00` y queda inactivo sin alerta ni nuevo ciclo.
-- [ ] `Desactivar` un Advisory en ejecución o alertando detiene conteo, sonido y destello, vuelve a `00:00:00`, conserva duración y nota y lo deja preparado para reiniciarse sin pausarlo, completarlo ni cerrarlo.
-- [ ] Los temporizadores se calculan mediante marcas de tiempo y recuperan el valor correcto después de suspensión o recarga.
-- [ ] Los temporizadores internos no se exportan ni importan mediante JSON y no cambian al usar `Nuevo`, `Guardar` o `Cargar`.
-- [ ] Al completar un ciclo, el temporizador muestra rojo intenso, borde blanco y dos destellos por segundo.
-- [ ] `public/assets/audio/alarm.mp3` se reproduce en un único bucle compartido y se detiene cuando ya no queda ninguna alerta activa.
-- [ ] El Módulo Reloj ofrece un único control común cuyo texto permanece como `Probar sonido` y cuyo icono alterna entre `▶` y `⏸`: reproduce el timbre en bucle sin modificar temporizadores, se detiene al cerrar el módulo o comenzar una alarma real y permanece deshabilitado mientras exista una alerta real activa.
-- [ ] Si el navegador bloquea el timbre, la alerta visual continúa y aparece `Sonido bloqueado` con `Activar sonido`; otros fallos muestran `No se pudo reproducir la alarma` sin reconocer ni ocultar la alerta.
-- [ ] Varias alertas simultáneas mantienen indicadores visuales independientes y comparten un único timbre en bucle; resolver una afecta solo a ese temporizador y el sonido continúa hasta que no quede ninguna alerta activa.
-- [ ] Después de reconocerla, la entrada permanece finalizada hasta reiniciarla o cerrarla.
+- [x] Se muestran hora española con cambio estacional automático y hora Zulu.
+- [x] Se pueden crear varios `T-Zero`, `T-Minus` y `Advisories` con notas y controles correctos.
+- [x] Las duraciones de `T-Minus` y `Advisory` utilizan tres campos exclusivamente numéricos, normalizan excesos entre segundos, minutos y horas y quedan siempre entre `00:00:01` y `23:59:59`.
+- [x] Al completar `23:59:59`, un `T-Zero` se detiene, vuelve a `00:00:00` y queda inactivo sin alerta ni nuevo ciclo.
+- [x] `Desactivar` un Advisory en ejecución o alertando detiene conteo, sonido y destello, vuelve a `00:00:00`, conserva duración y nota y lo deja preparado para reiniciarse sin pausarlo, completarlo ni cerrarlo.
+- [x] Los temporizadores se calculan mediante marcas de tiempo y recuperan el valor correcto después de suspensión o recarga.
+- [x] Los temporizadores internos no se exportan ni importan mediante JSON y no cambian al usar `Nuevo`, `Guardar` o `Cargar`.
+- [x] Al completar un ciclo, el temporizador muestra rojo intenso, borde blanco y dos destellos por segundo.
+- [x] `public/assets/audio/alarm.mp3` se reproduce en un único bucle compartido y se detiene cuando ya no queda ninguna alerta activa.
+- [x] El Módulo Reloj ofrece un único control común cuyo texto permanece como `Probar sonido` y cuyo icono alterna entre `▶` y `⏸`: reproduce el timbre en bucle sin modificar temporizadores, se detiene al cerrar el módulo o comenzar una alarma real y permanece deshabilitado mientras exista una alerta real activa.
+- [x] Si el navegador bloquea el timbre, la alerta visual continúa y aparece `Sonido bloqueado` con `Activar sonido`; otros fallos muestran `No se pudo reproducir la alarma` sin reconocer ni ocultar la alerta.
+- [x] Varias alertas simultáneas mantienen indicadores visuales independientes y comparten un único timbre en bucle; resolver una afecta solo a ese temporizador y el sonido continúa hasta que no quede ninguna alerta activa.
+- [x] Después de reconocerla, la entrada permanece finalizada hasta reiniciarla o cerrarla.
 
 ## 8. Coordenadas, calculadora y cuaderno
 
-- [ ] Coordenadas convierte correctamente entre DD, DMS, DMM y UTM utilizando los cuatro formatos canónicos.
-- [ ] `30S` se interpreta como huso 30 y banda S del hemisferio norte, no como hemisferio sur.
-- [ ] Se validan husos `1–60` y bandas `C–X`, excluyendo `I` y `O`.
-- [ ] Una entrada inválida conserva exactamente sus números, muestra el error y no genera conversión ni enlace.
-- [ ] Una entrada válida genera un enlace de Google Maps copiable.
-- [ ] Calculadora admite operaciones básicas, decimales, porcentajes, paréntesis, retroceso y limpieza.
-- [ ] Los porcentajes cumplen `10 % = 0,1`, `200 + 10 % = 220`, `200 - 10 % = 180`, `200 × 10 % = 20`, `200 ÷ 10 % = 2000` y `80 + 12,5 % = 90`; dividir entre `0 %` muestra error.
-- [ ] Cuaderno crea notas y checklist, permite marcar elementos y reordena bloques solo desde el tirador.
-- [ ] Las notas admiten texto multilínea, símbolos y emojis sin formato enriquecido.
+- [x] Coordenadas convierte correctamente entre DD, DMS, DMM y UTM utilizando los cuatro formatos canónicos.
+- [x] `30S` se interpreta como huso 30 y banda S del hemisferio norte, no como hemisferio sur.
+- [x] Se validan husos `1–60` y bandas `C–X`, excluyendo `I` y `O`.
+- [x] Una entrada inválida conserva exactamente sus números, muestra el error y no genera conversión ni enlace.
+- [x] Una entrada válida genera un enlace de Google Maps copiable.
+- [x] Calculadora admite operaciones básicas, decimales, porcentajes, paréntesis, retroceso y limpieza.
+- [x] Los porcentajes cumplen `10 % = 0,1`, `200 + 10 % = 220`, `200 - 10 % = 180`, `200 × 10 % = 20`, `200 ÷ 10 % = 2000` y `80 + 12,5 % = 90`; dividir entre `0 %` muestra error.
+- [x] Cuaderno crea notas y checklist, permite marcar elementos y reordena bloques solo desde el tirador.
+- [x] Las notas admiten texto multilínea, símbolos y emojis sin formato enriquecido.
 
 ## 9. Diseño, accesibilidad y calidad
 
-- [ ] Los iconos PWA normales existen en `16`, `32`, `180`, `192` y `512` píxeles, conservan transparencia y reproducen la chincheta aprobada sin deformarla ni redibujarla.
-- [ ] Los iconos `maskable` existen en `192` y `512` píxeles, tienen fondo opaco `#0C0D0E` y mantienen completa la chincheta dentro de la zona segura circular del `80 %`.
-- [ ] Roboto Condensed normal y cursiva, con pesos variables `100–900`, se carga desde recursos locales y continúa disponible sin conexión; los datos técnicos conservan una tipografía monoespaciada.
-- [ ] La interfaz respeta la paleta y dirección Titan industrial aprobadas sin convertirse en un diseño plano o móvil simplificado.
-- [ ] Todos los controles interactivos tienen nombre accesible; los controles formados únicamente por iconos describen su acción y el foco de teclado es siempre visible y sigue un orden lógico por la cabecera y los módulos abiertos.
-- [ ] En Windows pueden utilizarse con teclado `Archivo`, `Ver`, el título, la apertura y cierre de módulos y los botones, formularios, listas, filtros, estados, etiquetas, temporizadores, calculadora y Cuaderno; los elementos y dotaciones pueden seleccionarse desde sus módulos.
-- [ ] Mover o redimensionar módulos, pines y notas rápidas y dibujar o borrar en la pizarra no requieren alternativa de teclado en la V1, sin impedir el acceso mediante teclado a sus funciones no espaciales.
-- [ ] Los estados operativos no dependen únicamente del color.
-- [ ] No se introducen datos clínicos, cuentas, telemetría ni transferencias de documentos a servidores.
-- [ ] Las pruebas unitarias, de componentes y de navegador están aprobadas.
-- [ ] Lint, comprobación de tipos y compilación de producción finalizan sin errores.
-- [ ] La aplicación se verifica visual y funcionalmente en un viewport de escritorio y uno móvil.
-- [ ] No se realiza ningún despliegue ni publicación sin autorización expresa.
+- [x] Los iconos PWA normales existen en `16`, `32`, `180`, `192` y `512` píxeles, conservan transparencia y reproducen la chincheta aprobada sin deformarla ni redibujarla.
+- [x] Los iconos `maskable` existen en `192` y `512` píxeles, tienen fondo opaco `#0C0D0E` y mantienen completa la chincheta dentro de la zona segura circular del `80 %`.
+- [x] Roboto Condensed normal y cursiva, con pesos variables `100–900`, se carga desde recursos locales y continúa disponible sin conexión; los datos técnicos conservan una tipografía monoespaciada.
+- [x] La interfaz respeta la paleta y dirección Titan industrial aprobadas sin convertirse en un diseño plano o móvil simplificado.
+- [x] Todos los controles interactivos tienen nombre accesible; los controles formados únicamente por iconos describen su acción y el foco de teclado es siempre visible y sigue un orden lógico por la cabecera y los módulos abiertos.
+- [x] En Windows pueden utilizarse con teclado `Archivo`, `Ver`, el título, la apertura y cierre de módulos y los botones, formularios, listas, filtros, estados, etiquetas, temporizadores, calculadora y Cuaderno; los elementos y dotaciones pueden seleccionarse desde sus módulos.
+- [x] Mover o redimensionar módulos, pines y notas rápidas y dibujar o borrar en la pizarra no requieren alternativa de teclado en la V1, sin impedir el acceso mediante teclado a sus funciones no espaciales.
+- [x] Los estados operativos no dependen únicamente del color.
+- [x] No se introducen datos clínicos, cuentas, telemetría ni transferencias de documentos a servidores.
+- [x] Las pruebas unitarias, de componentes y de navegador están aprobadas.
+- [x] Lint, comprobación de tipos y compilación de producción finalizan sin errores.
+- [x] La aplicación se verifica visual y funcionalmente en un viewport de escritorio y uno móvil.
+- [x] No se realiza ningún despliegue ni publicación sin autorización expresa.
+
+## 10. Evidencia de Task 12 — 2026-10-01
+
+**Estado: parcialmente completada.** Se demostraron 102 de los 103 criterios dentro del alcance descrito. El criterio de instalación PWA permanece sin marcar y el Step 4 de Task 12 no está completo. La aprobación final corresponde al usuario.
+
+### Entornos y límites
+
+- Build de producción servido exclusivamente en loopback local. Playwright Chromium: escritorio de `1440 × 900` y Pixel 7 con emulación Android y eventos táctiles Chromium.
+- Revisión interactiva y visual en el navegador integrado de Codex a `1440 × 900` y `412 × 915`: cabecera, marcos, pizarra completa, PNG proporcional, selección, fase y estados con texto, Cuaderno, cierre y continuidad del foco. Se comprobó que el script cargado era el build final `index-Bb8K_1k7.js`, después de renovar la caché del service worker.
+- Instalación nativa Windows/Android y apertura desde una PWA instalada: **pendientes**. La herramienta Computer Use se detuvo porque no pudo determinar con suficiente confianza la URL del navegador de Windows; no se continuó mediante esa herramienta. La emulación no demuestra instalación ni prueba en Android físico.
+- Selector nativo de archivos: API simulada para permisos, cancelación y errores; descarga JSON, carga mediante input y lectura del archivo descargado comprobadas en navegador. El diálogo nativo del sistema no se verificó manualmente.
+- Suspensión de temporizadores: marcas de tiempo y reloj simulado; no se verificó una suspensión física Android. Audio: MP3 real, reproducción, bucle y pausa comprobados por la API multimedia; no se comprobó audición en altavoces de un dispositivo físico.
+- Offline: navegador sin red tras primera carga, control real del service worker, recarga y acceso a recursos locales, edición, autoguardado, descarga/carga JSON y recuperación. No se abrió el enlace externo de Maps ni se transfirieron documentos.
+
+### Matriz final
+
+Comando ejecutado:
+
+```text
+npm run lint && npm run typecheck && npm test -- --run && npm run build && npm run e2e -- --workers=2 --output=.vite/task12-verified-results
+```
+
+| Comprobación | Resultado y alcance |
+| --- | --- |
+| Lint | Código 0, sin errores ni advertencias de ESLint. |
+| Tipos | Código 0, TypeScript sin errores. |
+| Unitarias y componentes | 31 archivos, 503 pruebas aprobadas. Incluye las pruebas existentes de las tareas 1–11. |
+| Producción | Código 0; manifiesto, service worker y 32 entradas de precaché generados. |
+| Navegador | Código 0; 109 casos aprobados, 7 omitidos exclusivamente por ser táctiles en el proyecto escritorio; sus casos móviles pasan. Sin reintentos automáticos. |
+| Diff y alcance | Diff de código y siete archivos nuevos de pruebas revisados; `git diff --check` correcto. Sin dependencias nuevas, funcionalidades adicionales, secretos ni endpoints de transferencia. |
+| Recursos originales | Los 23 archivos existentes de `public/assets` conservan los SHA-256 iniciales. |
+| Revisión visual | Capturas y controles de escritorio y viewport móvil inspeccionados; además, capturas de las suites de pizarra, elementos, reloj y coordenadas. |
+
+La compilación mantiene la advertencia de Vite por el bundle JavaScript de aproximadamente `1,16 MB` minificado, superior a `500 kB`. No impide compilar y no se realizó una refactorización para resolverla.
+
+### Correspondencia de criterios con evidencia
+
+| Sección | Evidencia ejecutada |
+| --- | --- |
+| 1. Arranque, cabecera y documentos | `smoke.spec.ts`, `files-and-autosave.spec.ts`, `document-flow.spec.ts`, `accessibility.spec.ts`; pruebas de documento/Schema, store y adaptador de archivos. Instalación nativa pendiente. |
+| 2. Autoguardado y recuperación | `files-and-autosave.spec.ts`, `document-flow.spec.ts`, `offline.spec.ts`, `timers.spec.ts`; pruebas de repositorio IndexedDB y store con errores y recuperación tardía. |
+| 3. Sistema modular y móvil | `layout-and-touch.spec.ts`, `mobile-board.spec.ts`, `accessibility.spec.ts`; pruebas de colocación, grid y viewport. Orientación y tacto comprobados mediante emulación. |
+| 4. Pizarra | `board.spec.ts`, `mobile-board.spec.ts`; pruebas de imagen, reducer y componente, incluidos límites de 50 MiB/4096 px y conservación ante fallos. |
+| 5. Elementos y pines | `elements.spec.ts`, `document-flow.spec.ts`, `accessibility.spec.ts`; pruebas de comandos, catálogo y pin. |
+| 6. Información, operativo y registro | `task7-operations.spec.ts`, `operational-flow.spec.ts`, `accessibility.spec.ts`; pruebas de estados, anotaciones, registro y componentes. |
+| 7. Reloj y alertas | `task8-clock.spec.ts`, `timers.spec.ts`, `accessibility.spec.ts`; pruebas de motor, repositorio, controlador de alarma y componente. Límites de suspensión/audio indicados arriba. |
+| 8. Coordenadas, calculadora y cuaderno | `task9-coordinates.spec.ts`, `task10-calculator.spec.ts`, `task11-notebook.spec.ts`, `offline.spec.ts`, `accessibility.spec.ts`; pruebas de conversiones, expresiones y comandos de Cuaderno. |
+| 9. Diseño, accesibilidad y calidad | `smoke.spec.ts`, `accessibility.spec.ts`, matriz final, revisión visual y comparación SHA-256. Inspección de accesos de red: solo enlace de Maps definido por V1 y referencia declarativa al JSON Schema. |
+
+### Defectos corregidos y TDD
+
+La prueba inicial de cierre de módulos mostró pérdida de foco al desmontar el botón activo. Una revisión independiente detectó el mismo incumplimiento en editores y borrados. Se escribieron seis regresiones adicionales antes de corregir esos flujos: los 12 casos escritorio/móvil fallaron por falta de foco en el destino esperado. Tras los cambios, los 18 casos de accesibilidad y la matriz completa pasan.
+
+Las correcciones recuperan foco en `Ver`, `Configurar elementos`, `Nueva etiqueta`, los botones de añadir de Cuaderno, `Acontecimiento`, la herramienta activa de pizarra, el cierre de Información o el estado operativo actual. Solo las acciones del propio módulo transfieren foco al seleccionar desde sus listas.
+
+Durante una ejecución completa apareció una carrera de la prueba entre Escape y Tab del menú Archivo. Se corrigió esperando que el menú restaurara realmente el foco antes de enviar Tab; no se fuerza foco ni se oculta la aserción. La repetición completa terminó correctamente.
+
+### Archivos de esta entrega
+
+- Creados: `tests/e2e/document-flow.spec.ts`, `operational-flow.spec.ts`, `timers.spec.ts`, `mobile-board.spec.ts`, `offline.spec.ts`, `accessibility.spec.ts` y `acceptance-helpers.ts`.
+- Modificados por defectos de foco: `src/app/App.tsx`; `src/features/view/ViewMenu.tsx`; `src/features/elements/ElementsModule.tsx`; `src/features/information/InformationModule.tsx`; `src/features/operations/OperationsModule.tsx` y `UnitTags.tsx`; `src/features/timeline/TimelineModule.tsx`; `src/features/board/BoardModule.tsx` y `BoardToolbar.tsx`; `src/features/notebook/NotebookModule.tsx` y `ChecklistBlock.tsx`.
+- Documentación: `ACCEPTANCE_CRITERIA.md`, con checks y evidencia de alcance. `IMPLEMENTATION_PLAN.md` permanece intacto.
+- Evidencia local ignorada por Git: `.vite/task12-verification`, resultados Playwright en `.vite/task12-verified-results` e informe HTML en `playwright-report/index.html`.
+- Dependencias instaladas: ninguna.
+- Sin escrituras sobre Git, despliegues ni publicaciones. La siguiente actuación requiere aprobación expresa.

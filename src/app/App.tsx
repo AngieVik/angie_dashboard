@@ -36,6 +36,7 @@ export function App() {
   const boardImage = useBoardImage(store)
   useEffect(() => { void store.initialize() }, [store])
   const workspace = useRef<HTMLElement>(null)
+  const viewTrigger = useRef<HTMLButtonElement>(null)
   const [viewport, setViewport] = useState(() => ({ size: WORKSPACE, state: fit(WORKSPACE) }))
   const [modules, setModules] = useState<OpenModule[]>([])
   const [active, setActive] = useState<ModuleId | null>(null)
@@ -81,6 +82,7 @@ export function App() {
     } : module))
   }
   function close(id: ModuleId) {
+    viewTrigger.current?.focus()
     setModules(previous => previous.filter(module => module.id !== id))
     if (active === id) setActive(null)
   }
@@ -104,7 +106,7 @@ export function App() {
       <header className="app-header">
         <h1>Angie Dashboard</h1>
         <FileMenu store={store} />
-        <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} />
+        <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} triggerRef={viewTrigger} />
         <Input aria-label="Título del documento" placeholder="Título del documento"
           value={document.document.title} onChange={event => store.setTitle(event.target.value)} />
         <Button onClick={() => setViewport(previous => ({ ...previous, state: fit(previous.size) }))}>Encajar</Button>

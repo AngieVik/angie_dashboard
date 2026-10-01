@@ -15,6 +15,8 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const list = useRef<HTMLDivElement>(null)
+  const newEntryInput = useRef<HTMLInputElement>(null)
+  function finishEditing() { newEntryInput.current?.focus(); setEditing(null) }
   const following = useRef(true)
   const previousIds = useRef(new Set<string>())
   useLayoutEffect(() => {
@@ -37,20 +39,22 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
           event.preventDefault()
           if (blockedRef.current) return
           store.mutateDocument(document => editManualTimelineEntry(document, entry.id, editing.text))
-          setEditing(null)
+          finishEditing()
         }}>
           <textarea aria-label="Texto de entrada" autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ id: entry.id, text: event.target.value })} />
-          <div><Button type="submit" disabled={blocked}>Guardar entrada</Button><Button disabled={blocked} onClick={() => setEditing(null)}>Cancelar</Button></div>
+          <div><Button type="submit" disabled={blocked}>Guardar entrada</Button><Button disabled={blocked} onClick={finishEditing}>Cancelar</Button></div>
         </form> : <div className="timeline-entry-actions">
           <Button aria-label="Editar entrada" title="Editar entrada" disabled={blocked} onClick={() => { if (!blockedRef.current) setEditing({ id: entry.id, text: entry.text }) }}>✎</Button>
           <Button aria-label="Eliminar entrada" title="Eliminar entrada" disabled={blocked} onClick={() => {
-            if (!blockedRef.current) store.mutateDocument(document => deleteManualTimelineEntry(document, entry.id))
+            if (blockedRef.current) return
+            newEntryInput.current?.focus()
+            store.mutateDocument(document => deleteManualTimelineEntry(document, entry.id))
           }}>×</Button>
         </div> : canUndoAutomaticTimelineEntry(document, entry.id) && <div className="timeline-entry-actions"><Button disabled={blocked} onClick={() => {
           if (blockedRef.current) return
           store.mutateDocument(document => {
             const result = undoAutomaticTimelineEntry(document, entry.id)
-            if (result.success) { Object.assign(document, result.document); setError(null) }
+            if (result.success) { newEntryInput.current?.focus(); Object.assign(document, result.document); setError(null) }
             else setError(result.message)
           })
         }}>Deshacer</Button></div>}
@@ -62,7 +66,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
       store.mutateDocument(document => { addManualTimelineEntry(document, text, new Date()) })
       setText('')
     }}>
-      <Input aria-label="Acontecimiento" placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />
+      <Input ref={newEntryInput} aria-label="Acontecimiento" placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />
       <Button type="submit" aria-label="Añadir entrada" title="Añadir entrada" disabled={blocked}>+</Button>
     </form>
     {error && <p className="timeline-error" role="alert">{error}</p>}

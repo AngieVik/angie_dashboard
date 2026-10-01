@@ -32,6 +32,13 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
   const interaction = useRef(state)
   const [color, setColor] = useState('#D63A3A'), [width, setWidth] = useState(4)
   const [editor, setEditor] = useState<{ id: string | null; position: Position; text: string } | null>(null)
+  const toolbar = useRef<HTMLDivElement>(null)
+  const restoreToolFocus = useRef(false)
+  function focusTool() { toolbar.current?.querySelector<HTMLButtonElement>('[role="radio"][aria-checked="true"]')?.focus() }
+  function finishEditor() { restoreToolFocus.current = true; setEditor(null) }
+  useLayoutEffect(() => {
+    if (!editor && restoreToolFocus.current) { restoreToolFocus.current = false; focusTool() }
+  }, [editor])
   const area = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null)
   const pointer = useRef<number | null>(null)
   const emptyPointer = useRef<number | null>(null)
@@ -92,7 +99,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
   const imageScale = image ? 1000 / Math.max(image.width, image.height) : 1
   const strokes = state.draft && !blocked ? [...document.board.strokes, state.draft] : document.board.strokes
   return <div className="board-module" data-mode={state.mode}>
-    <BoardToolbar mode={state.mode} onMode={mode => { pointer.current = null; emptyPointer.current = null; setEditor(null); dispatch({ type: 'mode', mode }) }}
+    <BoardToolbar toolbarRef={toolbar} mode={state.mode} onMode={mode => { pointer.current = null; emptyPointer.current = null; setEditor(null); dispatch({ type: 'mode', mode }) }}
       background={document.board.backgroundColor} onBackground={color => { imageSession.clear(); dispatch({ type: 'background', color }) }}
       color={color} onColor={setColor} width={width} onWidth={setWidth} onImage={file => { void imageSession.load(file) }} busy={imageSession.busy} blocked={blocked} />
     <div ref={area} className="board-area">
@@ -126,7 +133,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
         <div className="board-notes" style={{ transform: `scale(${fitted.scale})` }}>
           {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
             onSelect={() => { onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
-            onEdit={() => setEditor({ id: note.id, position: note.position, text: note.text })} onDelete={() => dispatch({ type: 'delete-note', id: note.id })} />)}
+            onEdit={() => setEditor({ id: note.id, position: note.position, text: note.text })} onDelete={() => { focusTool(); dispatch({ type: 'delete-note', id: note.id }) }} />)}
         </div>
       </div>
       {imageSession.error && <div className="board-image-error" role="alert">{imageSession.error}</div>}
@@ -135,10 +142,10 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
         if (blockedRef.current) return
         if (editor.id) dispatch({ type: 'edit-note', id: editor.id, text: editor.text })
         else dispatch({ type: 'add-note', note: { id: crypto.randomUUID(), text: editor.text, position: editor.position } })
-        setEditor(null)
+        finishEditor()
       }}>
         <textarea aria-label="Texto de nota rápida" autoFocus value={editor.text} onChange={event => setEditor({ ...editor, text: event.target.value })} />
-        <div><Button type="submit">{editor.id ? 'Guardar nota' : 'Crear nota'}</Button><Button onClick={() => setEditor(null)}>Cancelar</Button></div>
+        <div><Button type="submit">{editor.id ? 'Guardar nota' : 'Crear nota'}</Button><Button onClick={finishEditor}>Cancelar</Button></div>
       </form>}
     </div>
   </div>
