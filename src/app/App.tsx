@@ -12,6 +12,7 @@ import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
+import { CalculatorModule } from '../features/calculator/CalculatorModule'
 import { getTimerStore } from '../features/clock/timerStore'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
@@ -119,7 +120,8 @@ export function App() {
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
-              id === 'coordinates' ? <CoordinatesModule /> : null} />
+              id === 'coordinates' ? <CoordinatesModule /> :
+              id === 'calculator' ? <CalculatorModule /> : null} />
         </MobileViewport>
       </main>
     </div>

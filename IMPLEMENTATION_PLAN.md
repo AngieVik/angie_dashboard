@@ -458,17 +458,17 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 
 - Produces: `evaluateExpression(expression: string): CalculationResult` sin usar `eval`.
 
-- [ ] **Step 1: Escribir pruebas para operaciones, precedencia, paréntesis, porcentajes, decimales, división por cero, retroceso y limpieza.**
+- [x] **Step 1: Escribir pruebas para operaciones, precedencia, paréntesis, porcentajes, decimales, división por cero, retroceso y limpieza.**
 
 Verificar el operador posfijo de porcentaje y su contexto comercial con `10 % = 0,1`, `200 + 10 % = 220`, `200 - 10 % = 180`, `200 × 10 % = 20`, `200 ÷ 10 % = 2000` y `80 + 12,5 % = 90`, incluidas las mismas reglas dentro de paréntesis. Dividir entre `0 %` debe devolver un error sin resultado numérico.
 
-- [ ] **Step 2: Implementar evaluador seguro y UI compacta.**
+- [x] **Step 2: Implementar evaluador seguro y UI compacta.**
 
-- [ ] **Step 3: Verificar.**
+- [x] **Step 3: Verificar.**
 
 Run: `npm test -- --run src/features/calculator`
 
-- [ ] **Step 4: Entregar la tarea para revisión.**
+- [x] **Step 4: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 
