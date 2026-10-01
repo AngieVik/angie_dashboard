@@ -489,15 +489,15 @@ Presentar archivos modificados y resultados de verificación sin ejecutar operac
 
 - Produces: comandos para añadir nota/checklist, editar, marcar, eliminar y reordenar bloques por ID.
 
-- [ ] **Step 1: Escribir pruebas para CRUD, orden, checklist y persistencia sin título separado ni formato enriquecido.**
+- [x] **Step 1: Escribir pruebas para CRUD, orden, checklist y persistencia sin título separado ni formato enriquecido.**
 
-- [ ] **Step 2: Implementar comandos y componentes; el drag táctil solo comienza desde `⠿`.**
+- [x] **Step 2: Implementar comandos y componentes; el drag táctil solo comienza desde `⠿`.**
 
-- [ ] **Step 3: Verificar.**
+- [x] **Step 3: Verificar.**
 
 Run: `npm test -- --run src/features/notebook`
 
-- [ ] **Step 4: Entregar la tarea para revisión.**
+- [x] **Step 4: Entregar la tarea para revisión.**
 
 Presentar archivos modificados y resultados de verificación sin ejecutar operaciones de escritura en Git.
 

@@ -88,7 +88,11 @@ export function useViewportGestures(state: ViewportState, size: Size, onChange: 
         if (suppressClick.current) event.stopPropagation()
         if (!event.touches.length) nativeTouches.current = []
       },
-      onClickCapture: (event: ReactMouseEvent) => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation() } },
+      onClickCapture: (event: ReactMouseEvent) => {
+        // After lifting both fingers, keyboard/Radix activation (detail=0)
+        // remains available; residual pointer clicks are still suppressed.
+        if (blockedRef.current || (suppressClick.current && event.detail !== 0)) { event.preventDefault(); event.stopPropagation() }
+      },
     },
   }
 }

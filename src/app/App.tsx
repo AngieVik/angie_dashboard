@@ -13,6 +13,7 @@ import { TimelineModule } from '../features/timeline/TimelineModule'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import { CalculatorModule } from '../features/calculator/CalculatorModule'
+import { NotebookModule } from '../features/notebook/NotebookModule'
 import { getTimerStore } from '../features/clock/timerStore'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
@@ -121,6 +122,7 @@ export function App() {
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'coordinates' ? <CoordinatesModule /> :
+              id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
               id === 'calculator' ? <CalculatorModule /> : null} />
         </MobileViewport>
       </main>

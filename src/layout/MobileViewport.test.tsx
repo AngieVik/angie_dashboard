@@ -66,4 +66,20 @@ describe('viewport lógico bajo la cabecera', () => {
     fireEvent.pointerMove(screen.getByTestId('mobile-viewport'), { pointerId: 2, clientX: 300, clientY: 100 })
     expect(change).toHaveBeenCalledWith({ scale: 1, offsetX: -100, offsetY: -100 })
   })
+  it('tras levantar dos dedos permite activar Cuaderno con teclado y sigue rechazando el clic residual táctil', () => {
+    const click = vi.fn()
+    render(<MobileViewport state={{ scale: 1, offsetX: 0, offsetY: 0 }} size={{ width: 800, height: 500 }} onChange={vi.fn()}>
+      <button onClick={click}>Añadir bloque</button>
+    </MobileViewport>)
+    const button = screen.getByRole('button')
+    fireEvent.pointerDown(button, { pointerId: 1, clientX: 100, clientY: 100, pointerType: 'touch' })
+    fireEvent.pointerDown(button, { pointerId: 2, clientX: 200, clientY: 100, pointerType: 'touch' })
+    fireEvent.pointerUp(button, { pointerId: 2 })
+    fireEvent.pointerUp(button, { pointerId: 1 })
+    fireEvent.click(button, { detail: 1 })
+    expect(click).not.toHaveBeenCalled()
+    // Keyboard activation and Radix's keyboard selection synthesize detail=0.
+    fireEvent.click(button, { detail: 0 })
+    expect(click).toHaveBeenCalledTimes(1)
+  })
 })
