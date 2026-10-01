@@ -1,6 +1,6 @@
 import { migrateDocument } from '../../domain/document/migrateDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
-import type { AngieDocumentV1 } from '../../domain/document/types'
+import type { AngieDocument } from '../../domain/document/types'
 
 export interface SaveFileHandle {
   queryPermission(options: { mode: 'readwrite' }): Promise<PermissionState>
@@ -28,7 +28,7 @@ export type SaveOutcome =
   | { status: 'error'; message: string }
 
 export type LoadOutcome =
-  | { status: 'loaded'; document: AngieDocumentV1 }
+  | { status: 'loaded'; document: AngieDocument }
   | { status: 'error'; message: string }
 
 export type DocumentFile = Pick<File, 'text'>
@@ -51,7 +51,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Error desconocido'
 }
 
-export async function saveVisibleDocument(document: AngieDocumentV1, context: FileAccessContext): Promise<SaveOutcome> {
+export async function saveVisibleDocument(document: AngieDocument, context: FileAccessContext): Promise<SaveOutcome> {
   let text: string
   try {
     text = serializeDocument(document)

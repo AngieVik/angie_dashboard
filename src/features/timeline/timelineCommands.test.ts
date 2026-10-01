@@ -7,8 +7,8 @@ import { addManualTimelineEntry, editManualTimelineEntry, deleteManualTimelineEn
 
 function setup() {
   const document = createEmptyDocument()
-  const a = createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: '' })
-  const b = createElement(document, { name: 'Tango 2', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: '' })
+  const a = createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
+  const b = createElement(document, { name: 'Tango 2', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
   const first = changeElementStatus(document, a.id, 'Asignada', new Date())
   const second = changeElementStatus(first, a.id, 'En camino', new Date())
   return { document: changeElementStatus(second, b.id, 'Inoperativa', new Date()), a, b }

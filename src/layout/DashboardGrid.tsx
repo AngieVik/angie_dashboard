@@ -14,7 +14,7 @@ import type { ModuleId, ModuleLayout } from './layoutTypes'
 import { useViewportInteraction } from './ViewportContext'
 
 export interface OpenModule { id: ModuleId; layout: ModuleLayout; exceptional: boolean }
-const unpack = (item: LayoutItem): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h })
+const unpack = (item: LayoutItem): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...WORKSPACE } })
 
 export function DashboardGrid({ modules, scale, active, onActive, onClose, onLayout, renderModule }: {
   modules: readonly OpenModule[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void

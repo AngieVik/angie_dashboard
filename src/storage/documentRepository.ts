@@ -1,12 +1,12 @@
 import type Dexie from 'dexie'
 import { migrateDocument } from '../domain/document/migrateDocument'
 import { serializeDocument } from '../domain/document/serializeDocument'
-import type { AngieDocumentV1 } from '../domain/document/types'
+import type { AngieDocument } from '../domain/document/types'
 import { createDatabase } from './db'
 
 export interface ActiveDocumentRepository {
-  loadActive(): Promise<AngieDocumentV1 | null>
-  saveActive(document: AngieDocumentV1): Promise<void>
+  loadActive(): Promise<AngieDocument | null>
+  saveActive(document: AngieDocument): Promise<void>
   clearActive(): Promise<void>
 }
 
@@ -17,7 +17,7 @@ export class DocumentRepository implements ActiveDocumentRepository {
     if (!this.db.isOpen()) await this.db.open()
   }
 
-  async loadActive(): Promise<AngieDocumentV1 | null> {
+  async loadActive(): Promise<AngieDocument | null> {
     await this.open()
     const record = await this.db.table<{ key: string; document: unknown }, string>('documents').get('active')
     if (!record) return null
@@ -26,9 +26,9 @@ export class DocumentRepository implements ActiveDocumentRepository {
     return result.document
   }
 
-  async saveActive(document: AngieDocumentV1): Promise<void> {
+  async saveActive(document: AngieDocument): Promise<void> {
     // Validate and detach before any asynchronous browser operation.
-    const copy: AngieDocumentV1 = JSON.parse(serializeDocument(document))
+    const copy: AngieDocument = JSON.parse(serializeDocument(document))
     await this.open()
     await this.db.table('documents').put({ key: 'active', document: copy })
   }

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import type { AngieDocumentV1 } from '../../src/domain/document/types'
+import type { AngieDocument } from '../../src/domain/document/types'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -11,7 +11,7 @@ async function action(page: Page, name: string) {
   await page.getByRole('button', { name: 'Configurar elementos', exact: true }).click()
   await page.getByRole('button', { name, exact: true }).click()
 }
-async function saved(page: Page): Promise<AngieDocumentV1> {
+async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('angie-dashboard')
     request.onerror = () => reject(request.error)
@@ -42,14 +42,14 @@ async function exportJson(page: Page) {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
-  return JSON.parse(await readFile((await (await download).path())!, 'utf8')) as AngieDocumentV1
+  return JSON.parse(await readFile((await (await download).path())!, 'utf8')) as AngieDocument
 }
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }) })
   await page.goto('/'); await open(page, 'Pizarra'); await open(page, 'Elementos')
 })
 
-test('CRUD, selección compartida, escala sincronizada, filtros, JSON y recuperación', async ({ page }, info) => {
+test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSON y recuperación', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await create(page, 'Tango 1', true)
   const module = page.locator('[data-module="elements"]'), board = page.locator('[data-module="board"]')
@@ -84,24 +84,23 @@ test('CRUD, selección compartida, escala sincronizada, filtros, JSON y recupera
   await expect(module.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })).toHaveAttribute('aria-pressed', 'true')
   const blank = await point(page, 100, 100); await page.mouse.click(blank.x, blank.y)
   await expect(pin).toHaveAttribute('aria-pressed', 'false')
-  await module.getByRole('button', { name: 'Disponible', exact: true }).click()
-  await expect(pin).toHaveCount(0)
-  await expect(module.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })).toHaveCount(0)
+  await expect(module.getByRole('group', { name: 'Filtrar dotaciones por estado' })).toHaveCount(0)
+  await expect(pin).toBeVisible()
+  await expect(module.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })).toBeVisible()
   await expect(board.getByRole('button', { name: 'Seleccionar Ruta', exact: true })).toBeVisible()
   const json = await exportJson(page)
   expect(json.elements[0]!.visual).toMatchObject({ type: 'asset', scale: expect.closeTo(2, 1) })
   expect(json.elements[0]!.information).toBe('Acceso norte · Canal 4')
-  expect(json.filters.visibleStatuses).not.toContain('Disponible')
+  expect(json).not.toHaveProperty('filters')
   expect(json.timeline).toEqual([])
-  expect(Object.keys(json)).toHaveLength(9)
+  expect(Object.keys(json)).toHaveLength(8)
   await page.screenshot({ path: info.outputPath('elements-desktop-mobile.png') })
   await page.reload(); await expect(page.locator('[data-module]')).toHaveCount(0)
   await open(page, 'Pizarra'); await open(page, 'Elementos')
   await expect(board.getByRole('button', { name: 'Seleccionar Ruta', exact: true })).toHaveAttribute('aria-pressed', 'false')
   expect((await saved(page)).elements).toEqual(json.elements)
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'elementos.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })
-  await expect(module.getByRole('button', { name: 'Disponible', exact: true })).toHaveAttribute('aria-pressed', 'false')
-  await module.getByRole('button', { name: 'Disponible', exact: true }).click()
+  await expect(module.getByRole('group', { name: 'Filtrar dotaciones por estado' })).toHaveCount(0)
   await expect(pin).toBeVisible()
   await expect(pin).toHaveAttribute('aria-pressed', 'false')
   expect(errors).toEqual([])

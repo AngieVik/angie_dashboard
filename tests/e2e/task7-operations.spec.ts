@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { createElement } from '../../src/features/elements/elementCommands'
-import type { AngieDocumentV1 } from '../../src/domain/document/types'
+import type { AngieDocument } from '../../src/domain/document/types'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -11,20 +11,20 @@ async function open(page: Page, name: string) {
 }
 function fixture() {
   const document = createEmptyDocument('Operativo Task 7')
-  createElement(document, { name: 'Tango 1', isUnit: true, visual: { type: 'emoji', value: '🚑' }, information: 'Canal 4\nAcceso norte', position: { x: 250, y: 250 } })
-  createElement(document, { name: 'Tango 2', isUnit: true, visual: { type: 'emoji', value: '🚗' }, information: 'Canal 5', position: { x: 500, y: 250 } })
-  const third = createElement(document, { name: 'Tango 3', isUnit: true, visual: { type: 'emoji', value: '🚙' }, information: 'Canal 6', position: { x: 750, y: 250 } })
+  createElement(document, { name: 'Tango 1', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 }, information: 'Canal 4\nAcceso norte', position: { x: 250, y: 250 } })
+  createElement(document, { name: 'Tango 2', isUnit: true, visual: { type: 'emoji', value: '🚗', scale: 1 }, information: 'Canal 5', position: { x: 500, y: 250 } })
+  const third = createElement(document, { name: 'Tango 3', isUnit: true, visual: { type: 'emoji', value: '🚙', scale: 1 }, information: 'Canal 6', position: { x: 750, y: 250 } })
   if (third.isUnit) third.operational.status = 'En destino'
-  createElement(document, { name: 'Acceso', isUnit: false, visual: { type: 'emoji', value: '📍' }, information: 'Puerta norte', position: { x: 500, y: 750 } })
-  document.moduleLayouts = { board: { x: 0, y: 0, width: 600, height: 600 }, elements: { x: 600, y: 0, width: 300, height: 420 },
-    information: { x: 900, y: 0, width: 320, height: 240 }, operations: { x: 900, y: 240, width: 340, height: 320 }, timeline: { x: 600, y: 600, width: 420, height: 320 } }
+  createElement(document, { name: 'Acceso', isUnit: false, visual: { type: 'emoji', value: '📍', scale: 1 }, information: 'Puerta norte', position: { x: 500, y: 750 } })
+  document.moduleLayouts = { board: { x: 0, y: 0, width: 600, height: 600, referenceSize: { width: 1600, height: 1000 } }, elements: { x: 600, y: 0, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } },
+    information: { x: 900, y: 0, width: 320, height: 240, referenceSize: { width: 1600, height: 1000 } }, operations: { x: 900, y: 240, width: 340, height: 320, referenceSize: { width: 1600, height: 1000 } }, timeline: { x: 600, y: 600, width: 420, height: 320, referenceSize: { width: 1600, height: 1000 } } }
   return document
 }
-async function load(page: Page, document: AngieDocumentV1) {
+async function load(page: Page, document: AngieDocument) {
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'task7.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
 }
-async function saved(page: Page): Promise<AngieDocumentV1> {
+async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('angie-dashboard')
     request.onerror = () => reject(request.error)
@@ -43,7 +43,7 @@ async function exportJson(page: Page) {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
-  return JSON.parse(await readFile((await (await download).path())!, 'utf8')) as AngieDocumentV1
+  return JSON.parse(await readFile((await (await download).path())!, 'utf8')) as AngieDocument
 }
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }) })
@@ -124,7 +124,7 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await page.screenshot({ path: info.outputPath('task7-modules.png') })
   const json = await exportJson(page)
   expect(json.elements[0]!.operational).toEqual({ status: 'Disponible', notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
-  expect(json.timeline).toHaveLength(2); expect(Object.keys(json)).toHaveLength(9)
+  expect(json.timeline).toHaveLength(2); expect(Object.keys(json)).toHaveLength(8)
   await page.reload(); await expect(page.locator('[data-module]')).toHaveCount(0)
   await open(page, 'Información'); await open(page, 'Registro cronológico')
   await expect(information.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
@@ -144,9 +144,9 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
 
 test('registro ascendente sigue el final y conserva lectura antigua; controles en tamaños mínimos sin scroll de página', async ({ page }, info) => {
   const document = fixture()
-  document.moduleLayouts.information = { x: 0, y: 0, width: 220, height: 140 }
-  document.moduleLayouts.operations = { x: 220, y: 0, width: 240, height: 200 }
-  document.moduleLayouts.timeline = { x: 460, y: 0, width: 280, height: 180 }
+  document.moduleLayouts.information = { x: 0, y: 0, width: 220, height: 140, referenceSize: { width: 1600, height: 1000 } }
+  document.moduleLayouts.operations = { x: 220, y: 0, width: 240, height: 200, referenceSize: { width: 1600, height: 1000 } }
+  document.moduleLayouts.timeline = { x: 460, y: 0, width: 280, height: 180, referenceSize: { width: 1600, height: 1000 } }
   document.timeline = Array.from({ length: 35 }, (_, index) => ({ id: crypto.randomUUID(), type: 'manual' as const, text: `Entrada ${index}`, occurredAt: new Date(Date.UTC(2026, 0, 1, 12, 0, index)).toISOString() }))
   await load(page, document)
   for (const name of ['Información', 'Operativo', 'Registro cronológico']) await open(page, name)

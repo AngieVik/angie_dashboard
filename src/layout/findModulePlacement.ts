@@ -1,7 +1,7 @@
 import { MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleLayout, PlacementRequest, PlacementResult, Size } from './layoutTypes'
 
-export function overlaps(a: ModuleLayout, b: ModuleLayout): boolean {
+export function overlaps(a: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>, b: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 }
 
@@ -20,7 +20,7 @@ export function findModulePlacement(request: PlacementRequest, occupied: readonl
   }
   const candidates: ModuleLayout[] = []
   for (const y of ys) for (const x of xs) {
-    const layout = { x, y, width, height }
+    const layout = { x, y, width, height, referenceSize: { ...bounds } }
     if (x >= 0 && y >= 0 && x + width <= bounds.width && y + height <= bounds.height && !occupied.some(item => overlaps(layout, item))) {
       candidates.push(layout)
     }
@@ -32,7 +32,7 @@ export function findModulePlacement(request: PlacementRequest, occupied: readonl
   if (candidates[0]) return { layout: candidates[0], exceptional: false, notice: null }
   const [minWidth, minHeight] = definition.minimum
   return {
-    layout: { x: Math.floor((bounds.width - minWidth) / 2), y: Math.floor((bounds.height - minHeight) / 2), width: minWidth, height: minHeight },
+    layout: { x: Math.floor((bounds.width - minWidth) / 2), y: Math.floor((bounds.height - minHeight) / 2), width: minWidth, height: minHeight, referenceSize: { ...bounds } },
     exceptional: true, notice: 'No hay espacio libre. Recoloca o cierra algún módulo.',
   }
 }

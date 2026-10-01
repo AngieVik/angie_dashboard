@@ -59,7 +59,7 @@ test('reloj, controles por teclado, normalización, pausa y mínimo con scroll i
   await expect(clock.getByRole('group', { name: 'Advisory 1', exact: true }).getByRole('button', { name: 'Desactivar' })).toBeVisible()
   await page.screenshot({ path: info.outputPath('clock.png') })
   const document = createEmptyDocument()
-  document.moduleLayouts.clock = { x: 0, y: 0, width: 320, height: 260 }
+  document.moduleLayouts.clock = { x: 0, y: 0, width: 320, height: 260, referenceSize: { width: 1600, height: 1000 } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   expect(await clock.locator('.module-content').evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
@@ -83,7 +83,7 @@ test('prueba con MP3 real en bucle se detiene al cerrar; JSON y recarga conserva
   await timer.getByLabel('Nota', { exact: true }).fill('Radio')
   await timer.getByRole('button', { name: 'Iniciar', exact: true }).click()
   const json = await save(page)
-  expect(Object.keys(json)).toHaveLength(9); expect(JSON.stringify(json)).not.toContain('Radio')
+  expect(Object.keys(json)).toHaveLength(8); expect(JSON.stringify(json)).not.toContain('Radio')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click(); await page.getByRole('menuitem', { name: 'Nuevo', exact: true }).click()
   await expect(timer.getByText('En marcha', { exact: true })).toBeVisible()
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'saved.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })

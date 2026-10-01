@@ -1,5 +1,48 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
+import { downloadDocument, openModule, savedDocument } from './acceptance-helpers'
+
+for (const origin of ['archivo', 'IndexedDB'] as const) {
+  test(`V1 real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V2`, async ({ page }) => {
+    const legacy = JSON.parse(await readFile('src/domain/document/fixtures/complete.json', 'utf8'))
+    const converted = JSON.parse(await readFile('src/domain/document/fixtures/v2-complete.json', 'utf8'))
+    const source = JSON.stringify({ ...legacy, filters: { visibleStatuses: [] } })
+    await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
+    await page.goto('/')
+    await expect.poll(async () => (await savedDocument(page))?.formatVersion).toBe(2)
+    if (origin === 'archivo') {
+      await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'legacy.json', mimeType: 'application/json', buffer: Buffer.from(source) })
+    } else {
+      await page.evaluate(async document => {
+        await new Promise<void>((resolve, reject) => {
+          const request = indexedDB.open('angie-dashboard')
+          request.onerror = () => reject(request.error)
+          request.onsuccess = () => {
+            const db = request.result
+            const transaction = db.transaction('documents', 'readwrite')
+            transaction.objectStore('documents').put({ key: 'active', document })
+            transaction.oncomplete = () => { db.close(); resolve() }
+            transaction.onerror = () => { db.close(); reject(transaction.error) }
+          }
+        })
+      }, JSON.parse(source))
+      await page.reload()
+    }
+    await expect(page.getByLabel('Título del documento')).toHaveValue(legacy.document.title)
+    await expect.poll(() => savedDocument(page)).toEqual(converted)
+    const exported = await downloadDocument(page)
+    expect(exported.document).toEqual(converted)
+    expect(JSON.parse(source)).toEqual({ ...legacy, filters: { visibleStatuses: [] } })
+    await openModule(page, 'Elementos')
+    const elements = page.getByRole('region', { name: 'Elementos', exact: true })
+    await expect(elements.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
+    await expect(elements.getByRole('group', { name: 'Filtrar dotaciones por estado' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Cerrar Elementos', exact: true }).click()
+    await openModule(page, 'Pizarra')
+    await expect(page.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Acceso norte', exact: true })).toBeVisible()
+  })
+}
 
 async function persistedTitle(page: import('@playwright/test').Page) {
   return page.evaluate(() => new Promise<string | null>((resolve, reject) => {
@@ -41,7 +84,7 @@ test('título, autoguardado real, recarga, descarga, carga segura y Nuevo', asyn
   const text = await readFile((await download.path())!, 'utf8')
   const json = JSON.parse(text)
   expect(json.document.title).toBe('Servicio áé_1<>.JSON')
-  expect(Object.keys(json)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts', 'filters'])
+  expect(Object.keys(json)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts'])
   expect(text).toContain('\n  "format"')
   expect(text.endsWith('\n')).toBe(true)
   for (const invalid of ['{', '{"format":"otro"}', '{"format":"angie-dashboard","formatVersion":2}']) {

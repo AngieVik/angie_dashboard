@@ -1,25 +1,25 @@
-import type { AngieDocumentV1, TimelineEntry } from '../../domain/document/types'
+import type { AngieDocument, TimelineEntry } from '../../domain/document/types'
 import { appendTimelineEntry } from '../../domain/operations/timelineEntries'
-export type UndoResult = { success: true; document: AngieDocumentV1 } | { success: false; message: string }
+export type UndoResult = { success: true; document: AngieDocument } | { success: false; message: string }
 
-export function addManualTimelineEntry(document: AngieDocumentV1, text: string, now: Date): TimelineEntry {
+export function addManualTimelineEntry(document: AngieDocument, text: string, now: Date): TimelineEntry {
   const entry: TimelineEntry = { id: crypto.randomUUID(), type: 'manual', occurredAt: now.toISOString(), text }
   document.timeline = appendTimelineEntry(document.timeline, entry)
   return entry
 }
-function manualEntry(document: AngieDocumentV1, id: string) {
+function manualEntry(document: AngieDocument, id: string) {
   const entry = document.timeline.find(entry => entry.id === id)
   if (entry?.type !== 'manual') throw new Error('Solo pueden editarse o eliminarse entradas manuales.')
   return entry
 }
-export function editManualTimelineEntry(document: AngieDocumentV1, id: string, text: string) {
+export function editManualTimelineEntry(document: AngieDocument, id: string, text: string) {
   manualEntry(document, id).text = text
 }
-export function deleteManualTimelineEntry(document: AngieDocumentV1, id: string) {
+export function deleteManualTimelineEntry(document: AngieDocument, id: string) {
   manualEntry(document, id)
   document.timeline = document.timeline.filter(entry => entry.id !== id)
 }
-export function canUndoAutomaticTimelineEntry(document: AngieDocumentV1, id: string) {
+export function canUndoAutomaticTimelineEntry(document: AngieDocument, id: string) {
   const entry = document.timeline.find(entry => entry.id === id)
   if (entry?.type !== 'status-change') return false
   const unitId = entry.unitId.toLowerCase()
@@ -27,7 +27,7 @@ export function canUndoAutomaticTimelineEntry(document: AngieDocumentV1, id: str
   if (!unit?.isUnit || unit.operational.status !== entry.nextStatus) return false
   return [...document.timeline].reverse().find(candidate => candidate.type === 'status-change' && candidate.unitId.toLowerCase() === unitId)?.id === id
 }
-export function undoAutomaticTimelineEntry(document: AngieDocumentV1, id: string): UndoResult {
+export function undoAutomaticTimelineEntry(document: AngieDocument, id: string): UndoResult {
   if (!canUndoAutomaticTimelineEntry(document, id)) return { success: false, message: 'No se puede deshacer este cambio de estado.' }
   const entry = document.timeline.find(entry => entry.id === id)!
   if (entry.type !== 'status-change') return { success: false, message: 'La entrada no es automática.' }

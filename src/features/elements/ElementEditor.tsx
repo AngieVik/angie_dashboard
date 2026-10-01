@@ -19,13 +19,13 @@ export function ElementEditor({ element, onSave, onCancel, onScale }: {
   const [emoji, setEmoji] = useState(element?.visual.type === 'emoji' ? element.visual.value : '')
   const [localScale, setLocalScale] = useState(1)
   const [error, setError] = useState<string | null>(null)
-  const scale = element?.visual.type === 'asset' ? element.visual.scale : localScale
+  const scale = element?.visual.scale ?? localScale
   return <form className="element-editor" aria-label={element ? 'Modificar elemento' : 'Añadir elemento'} onSubmit={event => {
     event.preventDefault()
     if (blockedRef.current) return
     if (!name.trim()) { setError('El nombre no puede estar vacío.'); return }
     if (representation === 'emoji' && !emoji.length) { setError('Escribe o pega un emoji.'); return }
-    const visual: ElementVisual = representation === 'asset' ? { type: 'asset', assetId, scale } : { type: 'emoji', value: emoji }
+    const visual: ElementVisual = representation === 'asset' ? { type: 'asset', assetId, scale } : { type: 'emoji', value: emoji, scale }
     onSave({ name, information, visual, isUnit: element?.isUnit ?? isUnit })
   }}>
     <fieldset disabled={blocked}>

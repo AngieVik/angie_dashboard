@@ -1,0 +1,19 @@
+{
+  "format": "angie-dashboard",
+  "formatVersion": 2,
+  "document": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "title": "",
+    "createdAt": "2026-09-30T18:42:15.000Z",
+    "updatedAt": "2026-09-30T18:42:15.000Z"
+  },
+  "board": {
+    "backgroundColor": "#25282B",
+    "strokes": [],
+    "quickNotes": []
+  },
+  "elements": [],
+  "notebook": [],
+  "timeline": [],
+  "moduleLayouts": {}
+}

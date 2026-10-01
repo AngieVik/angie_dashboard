@@ -1,12 +1,12 @@
 import { DOCUMENT_STATUSES } from '../document/types'
-import type { AngieDocumentV1, OperationalStatus, TimelineEntry } from '../document/types'
+import type { AngieDocument, OperationalStatus, TimelineEntry } from '../document/types'
 import { appendTimelineEntry } from './timelineEntries'
 
 function statusChangeEntry(unitId: string, unitName: string, previousStatus: OperationalStatus, nextStatus: OperationalStatus, now: Date): TimelineEntry {
   return { id: crypto.randomUUID(), type: 'status-change', occurredAt: now.toISOString(), unitId, unitName, previousStatus, nextStatus }
 }
 
-export function changeElementStatus(document: AngieDocumentV1, elementId: string, nextStatus: OperationalStatus, now: Date): AngieDocumentV1 {
+export function changeElementStatus(document: AngieDocument, elementId: string, nextStatus: OperationalStatus, now: Date): AngieDocument {
   const unit = document.elements.find(element => element.id === elementId)
   if (!unit?.isUnit) throw new Error('La dotación ya no existe.')
   if (!DOCUMENT_STATUSES.includes(nextStatus)) throw new Error('Estado operativo desconocido.')

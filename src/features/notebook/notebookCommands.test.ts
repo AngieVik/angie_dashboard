@@ -15,21 +15,21 @@ describe('comandos del Cuaderno', () => {
     const checklist = addNotebookBlock(document, 'checklist')
     const last = addNotebookBlock(document, 'note')
     expect(document.notebook).toEqual([
-      { id: note.id, type: 'note', text: '' },
-      { id: checklist.id, type: 'checklist', items: [] },
-      { id: last.id, type: 'note', text: '' },
+      { id: note.id, type: 'note', title: 'Nota', text: '' },
+      { id: checklist.id, type: 'checklist', title: 'Checklist', items: [] },
+      { id: last.id, type: 'note', title: 'Nota', text: '' },
     ])
     expect(new Set(document.notebook.map(block => block.id)).size).toBe(3)
     expect(validateDocument(document).success).toBe(true)
   })
 
-  it('edita texto multilínea, símbolos y emojis sin recortarlo ni añadir título o formato', () => {
+  it('edita texto multilínea, símbolos y emojis sin recortarlo ni modificar su título o formato', () => {
     const document = createEmptyDocument()
     const note = addNotebookBlock(document, 'note')
     editNotebookNote(document, note.id, '  Preparación\n⚠ Acceso norte → sur\n📻 Radio  ')
-    expect(document.notebook).toEqual([{ id: note.id, type: 'note', text: '  Preparación\n⚠ Acceso norte → sur\n📻 Radio  ' }])
+    expect(document.notebook).toEqual([{ id: note.id, type: 'note', title: 'Nota', text: '  Preparación\n⚠ Acceso norte → sur\n📻 Radio  ' }])
     editNotebookNote(document, note.id, '')
-    expect(document.notebook[0]).toEqual({ id: note.id, type: 'note', text: '' })
+    expect(document.notebook[0]).toEqual({ id: note.id, type: 'note', title: 'Nota', text: '' })
   })
 
   it('añade, edita, marca, desmarca y elimina ítems por ID conservando el orden', () => {
@@ -42,16 +42,16 @@ describe('comandos del Cuaderno', () => {
     editChecklistItem(document, block.id, a.id, '📻 Comprobar radio')
     editChecklistItem(document, block.id, b.id, 'Acceso norte')
     setChecklistItemChecked(document, block.id, b.id, true)
-    expect(document.notebook[0]).toEqual({ id: block.id, type: 'checklist', items: [
+    expect(document.notebook[0]).toEqual({ id: block.id, type: 'checklist', title: 'Checklist', items: [
       { id: a.id, text: '📻 Comprobar radio', checked: false },
       { id: b.id, text: 'Acceso norte', checked: true },
     ] })
     setChecklistItemChecked(document, block.id, b.id, false)
     deleteChecklistItem(document, block.id, a.id)
-    expect(document.notebook[0]).toEqual({ id: block.id, type: 'checklist', items: [{ id: b.id, text: 'Acceso norte', checked: false }] })
+    expect(document.notebook[0]).toEqual({ id: block.id, type: 'checklist', title: 'Checklist', items: [{ id: b.id, text: 'Acceso norte', checked: false }] })
     editChecklistItem(document, block.id, b.id, '')
     deleteChecklistItem(document, block.id, b.id)
-    expect(document.notebook[0]).toEqual({ id: block.id, type: 'checklist', items: [] })
+    expect(document.notebook[0]).toEqual({ id: block.id, type: 'checklist', title: 'Checklist', items: [] })
   })
 
   it('reordena por ID en ambos sentidos, conserva contenido y elimina solo el bloque elegido', () => {
@@ -66,7 +66,7 @@ describe('comandos del Cuaderno', () => {
     expect(document.notebook.map(block => block.id)).toEqual([a.id, b.id, c.id])
     reorderNotebookBlock(document, b.id, b.id)
     deleteNotebookBlock(document, c.id)
-    expect(document.notebook).toEqual([{ id: a.id, type: 'note', text: 'Conservar' }, { id: b.id, type: 'checklist', items: [{ id: item.id, text: '', checked: true }] }])
+    expect(document.notebook).toEqual([{ id: a.id, type: 'note', title: 'Nota', text: 'Conservar' }, { id: b.id, type: 'checklist', title: 'Checklist', items: [{ id: item.id, text: '', checked: true }] }])
   })
 
   it('rechaza IDs y tipos incorrectos sin mutación parcial', () => {
@@ -110,10 +110,10 @@ describe('comandos del Cuaderno', () => {
       await recovered.initialize()
       const exported = JSON.parse(serializeDocument(recovered.getSnapshot().document))
       expect(exported.notebook).toEqual([
-        { id: b, type: 'checklist', items: [{ id: item, text: '📻 Comprobar radio', checked: true }] },
-        { id: a, type: 'note', text: 'Preparación\n⚠ Acceso norte' },
+        { id: b, type: 'checklist', title: 'Checklist', items: [{ id: item, text: '📻 Comprobar radio', checked: true }] },
+        { id: a, type: 'note', title: 'Nota', text: 'Preparación\n⚠ Acceso norte' },
       ])
-      expect(Object.keys(exported)).toHaveLength(9)
+      expect(Object.keys(exported)).toHaveLength(8)
       const unchanged = recovered.getSnapshot().document
       recovered.mutateDocument(document => reorderNotebookBlock(document, a, a))
       expect(recovered.getSnapshot().document).toBe(unchanged)

@@ -54,8 +54,8 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
   const jsonText = await readFile((await (await download).path())!, 'utf8')
   const json = JSON.parse(jsonText)
-  expect(Object.keys(json)).toHaveLength(9)
-  expect(json.moduleLayouts.coordinates).toEqual({ x: 0, y: 0, width: 360, height: 280 })
+  expect(Object.keys(json)).toHaveLength(8)
+  expect(json.moduleLayouts.coordinates).toEqual({ x: 0, y: 0, width: 360, height: 280, referenceSize: { width: 1600, height: 1000 } })
   for (const temporary of ['37.060234', '-2.002295', 'google.com/maps', 'normalizedInput', 'conversions']) expect(jsonText).not.toContain(temporary)
   const saved = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -71,7 +71,7 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
       })
     } finally { db.close() }
   })
-  expect(Object.keys(JSON.parse(saved))).toHaveLength(9)
+  expect(Object.keys(JSON.parse(saved))).toHaveLength(8)
   for (const temporary of ['37.060234', '-2.002295', 'google.com/maps', 'normalizedInput', 'conversions']) expect(saved).not.toContain(temporary)
   await page.reload()
   await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Coordenadas Task 9')
@@ -85,7 +85,7 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
 
 test('tamaño mínimo, error de portapapeles y scroll interno conservan el acceso a controles', async ({ page }, info) => {
   const document = createEmptyDocument('Mínimo Coordenadas')
-  document.moduleLayouts.coordinates = { x: 0, y: 0, width: 260, height: 180 }
+  document.moduleLayouts.coordinates = { x: 0, y: 0, width: 260, height: 180, referenceSize: { width: 1600, height: 1000 } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   const module = page.getByRole('region', { name: 'Coordenadas', exact: true })
   await module.getByRole('textbox', { name: 'Coordenadas' }).fill('30S 588700 4101800')

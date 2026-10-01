@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import type { AngieDocumentV1, NotebookBlock } from '../../domain/document/types'
+import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -16,7 +16,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const list = useRef<HTMLOListElement>(null)
   const addControl = useRef<HTMLButtonElement>(null)
-  function mutate(command: (document: AngieDocumentV1) => void) {
+  function mutate(command: (document: AngieDocument) => void) {
     if (!blockedRef.current) store.mutateDocument(command)
   }
   const reorder = useNotebookReorder(document.notebook, list, (id, targetId) => mutate(document => reorderNotebookBlock(document, id, targetId)))

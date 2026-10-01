@@ -2,6 +2,8 @@
 
 > Este documento es la fuente de verdad funcional y visual de Angie Dashboard. Recoge únicamente las decisiones aprobadas para la V1; cualquier nota auxiliar anterior se considera sustituida cuando exista una definición equivalente en este esquema.
 
+> Revisión adaptativa aprobada el 2026-10-02: espacio principal adaptable con superposición, pizarra rectangular y ajustes de módulos. El contrato vigente definido aquí es el formato JSON 2; el V1 real se conserva como formato de importación reconocido. La actualización documental no demuestra que el producto ya implemente estos cambios. Diseño: `docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md`. Plan activo: `docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md`.
+
 ## 1. Propósito
 
 Angie Dashboard será una herramienta operativa configurable para una sola persona. Permitirá preparar los recursos antes de un servicio y utilizar durante este una pizarra, elementos móviles y distintos módulos de apoyo.
@@ -74,7 +76,6 @@ El JSON incluirá:
 - Texto y posición de las notas rápidas.
 - Elementos: nombre, identificador del archivo de icono o emoji, información, posición y valor del checkbox `Dotación`.
 - Estado operativo, anotaciones y etiquetas de las dotaciones.
-- Filtros activos del Módulo de elementos.
 - Cuaderno: notas, checklist, elementos marcados y orden de los bloques.
 - Registro cronológico completo.
 - Posición y tamaño de los módulos.
@@ -91,14 +92,14 @@ El JSON no incluirá:
 - La visibilidad momentánea de los módulos; cada sesión comenzará con todos cerrados.
 - Modales, menús, herramientas u otros estados momentáneos de la interfaz.
 
-### Contrato JSON V1
+### Contrato JSON vigente: formato 2
 
-El documento tendrá exactamente nueve propiedades raíz. El documento vacío utilizará esta estructura completa:
+El documento tendrá exactamente ocho propiedades raíz. El documento vacío utilizará esta estructura completa:
 
 ```json
 {
   "format": "angie-dashboard",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "document": {
     "id": "00000000-0000-4000-8000-000000000000",
     "title": "",
@@ -113,24 +114,12 @@ El documento tendrá exactamente nueve propiedades raíz. El documento vacío ut
   "elements": [],
   "notebook": [],
   "timeline": [],
-  "moduleLayouts": {},
-  "filters": {
-    "visibleStatuses": [
-      "Disponible",
-      "Asignada",
-      "En camino",
-      "En el lugar",
-      "En traslado",
-      "En destino",
-      "Operativa",
-      "Inoperativa"
-    ]
-  }
+  "moduleLayouts": {}
 }
 ```
 
 - `format` tendrá siempre el valor literal `angie-dashboard`.
-- `formatVersion` tendrá el valor entero `1` para este contrato.
+- `formatVersion` tendrá el valor entero `2` para este contrato.
 - Todos los objetos utilizarán validación estricta y rechazarán propiedades desconocidas mediante `additionalProperties: false`.
 - Todos los campos de cada objeto presente serán obligatorios, aunque su valor sea `""`, `[]` o `null`; la única excepción serán las nueve claves conocidas y opcionales de `moduleLayouts`, donde la ausencia de una clave significará que ese módulo aún no tiene distribución guardada.
 - Los identificadores se generarán mediante `crypto.randomUUID()` y se validarán como UUID.
@@ -148,7 +137,7 @@ El documento tendrá exactamente nueve propiedades raíz. El documento vacío ut
 
 #### `board`
 
-La pizarra utilizará un lienzo lógico fijo de `1000 × 1000`. Redimensionar el módulo solo modificará la escala visual del lienzo: nunca sus coordenadas internas. El lienzo completo se mostrará centrado, conservando su proporción cuadrada y sin recortarse; cuando el módulo sea rectangular, el espacio sobrante quedará como bandas vacías.
+La pizarra mostrará una región rectangular que ocupa todo el módulo bajo su barra de herramientas, sobre una escena de coordenadas estables. Redimensionar el módulo cambiará el área visible sin reescalar ni modificar trazos, posiciones o dimensiones de los objetos. El desplazamiento y el zoom propios permitirán recuperar el contenido fuera de vista; el color de fondo cubrirá toda el área útil. No habrá un cuadrado interior obligatorio ni un máximo de coordenadas de `1000` para contenido nuevo.
 
 `board` contendrá exactamente `backgroundColor`, `strokes` y `quickNotes`. El color inicial será `#25282B`.
 
@@ -171,7 +160,7 @@ Un trazo de goma utilizará los mismos campos con `tool: "eraser"` y `color: nul
 - `tool` solo admitirá `pen` o `eraser`.
 - `width` será un número positivo.
 - `points` contendrá uno o más objetos con exactamente `x` e `y`.
-- Las coordenadas de cada punto estarán comprendidas entre `0` y `1000`, ambos inclusive.
+- Las coordenadas de cada punto serán números finitos no negativos, sin el máximo cuadrado obligatorio de `1000`.
 
 Una nota rápida utilizará:
 
@@ -179,12 +168,16 @@ Una nota rápida utilizará:
 {
   "id": "UUID",
   "text": "Acceso norte",
-  "position": { "x": 500, "y": 350 }
+  "position": { "x": 500, "y": 350 },
+  "width": 220,
+  "height": 96
 }
 ```
 
 - `position` representará el centro de la nota.
-- Sus coordenadas estarán comprendidas entre `0` y `1000`, ambos inclusive.
+- Sus coordenadas serán números finitos no negativos.
+- Cada nota contendrá exactamente `id`, `text`, `position`, `width` y `height`. Sus dimensiones serán números finitos, con mínimos `width: 120` y `height: 64`; las nuevas comenzarán en `220 × 96`.
+- Las notas importadas del formato V1 recibirán `180 × 80`, sin alterar el texto ni el centro.
 
 #### `elements`
 
@@ -212,7 +205,7 @@ Cada elemento utilizará exactamente:
 
 - `name` contendrá al menos un carácter que no sea un espacio.
 - `information` será una cadena libre y podrá estar vacía.
-- `position` será `null` mientras el pin no tenga ubicación o un objeto con exactamente `x` e `y` entre `0` y `1000`; representará el centro del pin.
+- `position` será `null` mientras el pin no tenga ubicación o un objeto con exactamente `x` e `y`, números finitos no negativos; representará el centro del pin. El contenido nuevo no tendrá el máximo cuadrado obligatorio de `1000`.
 - `isUnit` corresponderá al checkbox visible `Dotación`.
 - `isUnit` se decidirá al crear el elemento y será inmutable: una dotación no podrá convertirse en general y un elemento general no podrá convertirse en dotación.
 - Si `isUnit` es `false`, `operational` será obligatoriamente `null`.
@@ -240,11 +233,13 @@ La representación mediante emoji utilizará exactamente:
 ```json
 {
   "type": "emoji",
-  "value": "🚑"
+  "value": "🚑",
+  "scale": 1
 }
 ```
 
 - `value` será una cadena no vacía.
+- `scale` estará entre `0.25` y `3`, igual que para los PNG. La caja base del emoji será `64 × 64`, con glifo base de `48`; el nombre base será de `16` y se escalará conjuntamente.
 - Las variantes `asset` y `emoji` solo admitirán sus campos respectivos.
 
 #### `notebook`
@@ -255,6 +250,7 @@ Un bloque de nota utilizará exactamente:
 {
   "id": "UUID",
   "type": "note",
+  "title": "Nota",
   "text": "Acceso norte cerrado"
 }
 ```
@@ -265,6 +261,7 @@ Un bloque de checklist utilizará exactamente:
 {
   "id": "UUID",
   "type": "checklist",
+  "title": "Checklist",
   "items": [
     {
       "id": "UUID",
@@ -277,6 +274,7 @@ Un bloque de checklist utilizará exactamente:
 
 - El orden de los bloques y de los ítems será el orden de sus arrays; no se añadirá un campo `order` redundante.
 - Los textos podrán estar vacíos mientras se editan.
+- Cada bloque tendrá un `title` editable que podrá estar vacío durante edición. Los valores iniciales serán `Nota` y `Checklist`; no se extraerá la primera línea del contenido para generarlos.
 - Las variantes `note` y `checklist` solo admitirán sus campos respectivos.
 
 #### `timeline`
@@ -325,25 +323,31 @@ Cada distribución contendrá exactamente:
   "x": 40,
   "y": 30,
   "width": 720,
-  "height": 480
+  "height": 480,
+  "referenceSize": { "width": 1600, "height": 1000 }
 }
 ```
 
-- Los cuatro valores serán enteros expresados en el espacio lógico general `1600 × 1000`.
-- La posición y las dimensiones deberán mantener el módulo dentro de ese espacio y respetar su tamaño mínimo correspondiente.
+- `x`, `y`, `width` y `height` serán enteros expresados en el área de trabajo en la que el usuario colocó o redimensionó la ventana. La geometría contendrá también `referenceSize`, con exactamente `width` y `height`, enteros positivos.
+- La posición será no negativa y, junto con las dimensiones, mantendrá el módulo dentro de su `referenceSize`, respetando el tamaño mínimo correspondiente. La referencia incluye una extensión virtual mínima cuando el área física es menor que ese mínimo.
+- En otra pantalla se presentará la geometría adaptada conforme al apartado 12, sin reescribirla por una medición o cambio de orientación. Un gesto explícito de colocación o redimensión sí guardará geometría y referencia actuales.
+- En el ejemplo, `1600 × 1000` representa la referencia añadida a una geometría importada de V1, no un tamaño obligatorio del espacio principal vigente.
 - No se guardarán la visibilidad, el orden de apilamiento ni el estado activo.
 
-#### `filters`
+#### Compatibilidad con el formato V1 real
 
-`filters` contendrá exactamente `visibleStatuses`, una lista sin duplicados formada exclusivamente por los ocho valores de estado definidos.
-
-- Un documento nuevo incluirá los ocho estados y mostrará todas las dotaciones.
-- Una lista vacía ocultará todas las dotaciones mediante el filtro sin eliminar ni modificar sus datos.
+- El contrato de importación V1 conserva sus nueve propiedades raíz, incluido `filters`, notas sin dimensiones, emojis sin escala, bloques de Cuaderno sin título y geometrías sin referencia. Sus límites originales son `1000 × 1000` para pizarra y `1600 × 1000` para módulos.
+- Se validará íntegramente con el esquema V1 existente y sus reglas semánticas antes de convertirlo. Un V1 dañado se rechazará, no se reparará durante la conversión.
+- La conversión reconocida `1 → 2` trabajará sobre una copia, conservará UUID, fechas, textos, estados, etiquetas, trazos, posiciones y orden, y añadirá dimensiones de nota `180 × 80`, escala de emoji `1`, títulos `Nota`/`Checklist` y referencias de módulo `1600 × 1000`.
+- Se eliminará únicamente `filters`, la configuración de una función retirada. Todas las dotaciones, incluidas las antes ocultas, se conservarán y mostrarán.
+- El resultado se validará como formato 2 antes de reemplazar el documento activo. La carga JSON y la recuperación de IndexedDB usarán la misma conversión; no se borrará ni recreará la base local ni se modificará la de temporizadores.
+- La conversión no modificará el archivo importado ni `updatedAt`. El autoguardado posterior podrá guardar el formato 2 validado y `Guardar` exportará únicamente ese formato.
+- Una aplicación antigua que solo conozca V1 rechazará los JSON 2 como versión futura. No se añadirá exportación hacia V1 ni una conversión para V0 u otras versiones desconocidas.
 
 #### Validación, migración y serialización
 
 - Se mantendrá un esquema independiente basado en JSON Schema 2020-12.
-- Los tipos discriminados `visual`, `notebook` y `timeline` se validarán como uniones estrictas.
+- Los tipos discriminados `visual`, `notebook` y `timeline` se validarán como uniones estrictas; el formato vigente no admitirá `filters` ni otros campos desconocidos.
 - También se validarán las relaciones `isUnit`/`operational` y `tool`/`color`, los límites de coordenadas y escala, los tamaños de módulos y el orden cronológico.
 - La aplicación analizará y validará completamente un archivo antes de sustituir el documento activo.
 - Un archivo dañado, ajeno a Angie Dashboard, con propiedades desconocidas o con relaciones incoherentes se rechazará completo y no se corregirá ni sobrescribirá automáticamente.
@@ -384,10 +388,18 @@ En una PWA, la escritura sobre un archivo visible elegido por el usuario depende
 
 ## 5. Pizarra
 
+- El área útil ocupará todo el rectángulo bajo la barra de herramientas. La escena conservará coordenadas y proporciones al cambiar el tamaño del módulo.
+- La navegación propia tendrá escala inicial `1` y límites `0.25–4`. Al abrir con contenido se centrará en sus cajas a escala `1`; una pizarra vacía comenzará en el origen.
+- Los límites de navegación tendrán en cuenta el contenido, sus cajas completas y el área visible, para recuperar objetos fuera de vista después de reducir el módulo.
+- En escritorio, la rueda desplazará verticalmente, Mayús+rueda horizontalmente, Ctrl+rueda ampliará/reducirá alrededor del puntero y el botón central permitirá arrastrar la vista. En móvil, dos dedos dentro de la pizarra manejarán únicamente su navegación.
+- Dos dedos fuera del área de dibujo manejarán únicamente la vista principal. Un gesto que cruce ambas superficies se cancelará hasta levantar los dedos; no se confirmará ningún trazo, movimiento o resize accidental.
+- Su cámara será temporal y no se guardará en JSON ni en el autoguardado del documento.
+
 - Será el espacio visual principal del dashboard.
 - Permitirá elegir un color de fondo o cargar una imagen JPG o PNG.
 - El color podrá recuperarse con el documento; la imagen cargada se mantendrá únicamente durante la sesión actual y deberá volver a elegirse cuando sea necesaria.
 - La imagen se procesará localmente en el dispositivo y no se subirá a ningún servicio.
+- La imagen se colocará proporcionalmente, centrada en un marco lógico de referencia `1000 × 1000`, estable al redimensionar y compatible con las anotaciones antiguas. Ese marco no limita el área de dibujo; el espacio libre utiliza el color de fondo. La navegación podrá dejar parte de la imagen fuera de vista, recuperable al desplazarse.
 - Si su lado más largo supera `4096 px`, se creará en memoria una versión reducida de alta calidad que mantendrá la proporción original.
 - El archivo JPG o PNG original no se modificará ni se sobrescribirá.
 - Como protección frente a bloqueos por archivos excepcionales, la V1 rechazará imágenes superiores a `50 MiB` con un mensaje claro.
@@ -398,8 +410,9 @@ En una PWA, la escritura sobre un archivo visible elegido por el usuario depende
 - Sobre la pizarra se mostrarán y moverán los pines de los elementos.
 - Permitirá añadir notas rápidas de texto breve que permanecerán visibles sobre la pizarra.
 - Cada nota rápida podrá moverse como un pin, editarse y eliminarse.
-- En la V1 tendrá un tamaño visual fijo y no incluirá formato avanzado ni colores configurables.
+- La nota rápida tendrá caja redimensionable por tirador: inicio `220 × 96`, mínimo `120 × 64`. Redimensionar mantendrá el centro y el tamaño base legible del texto; este se distribuirá en líneas y utilizará desplazamiento interno si supera la caja. No se añadirá formato avanzado ni colores configurables.
 - La barra de herramientas de la pizarra tendrá cuatro modos explícitos: `Seleccionar/mover`, `Lápiz`, `Goma` y `Nota rápida`.
+- La barra tendrá una sola fila compacta: iconos Lucide de selección, lápiz, goma y nota, seguidos de grosor sin esa palabra visible, color del lápiz y grupo `Fondo` con color y `JPG/PNG`. Mantendrá nombres accesibles, ayudas y navegación por teclado; en tamaño mínimo podrá desplazarse horizontalmente dentro del módulo.
 - `Seleccionar/mover` será el modo predeterminado. Permitirá seleccionar elementos, mover pines y notas rápidas mediante pulsación mantenida, y deseleccionar tocando un espacio vacío.
 - En modo `Lápiz`, los gestos dibujarán sobre el canvas y no seleccionarán ni moverán pines o notas rápidas.
 - En modo `Goma`, los gestos borrarán exclusivamente trazos del lápiz y no manipularán pines o notas rápidas.
@@ -414,7 +427,7 @@ En una PWA, la escritura sobre un archivo visible elegido por el usuario depende
 - Cada elemento se representará mediante su icono o emoji y su nombre.
 - Un clic o toque seleccionará el pin.
 - El pin deberá poder moverse tanto con ratón como con interacción táctil.
-- El movimiento se iniciará mediante un arrastre mantenido, con un margen de entre 200 y 300 milisegundos para diferenciarlo de la selección.
+- El movimiento se iniciará mediante un arrastre mantenido de `250 ms` para diferenciarlo de la selección.
 - Seleccionar un elemento actualizará los módulos relacionados con él.
 
 ### Catálogo técnico de iconos PNG
@@ -433,19 +446,19 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 | `warning` | Advertencia | `icon_peligro.png` | Cuadrado | `100 × 100` |
 | `pushpin` | Chincheta | `icon_chincheta.png` | Cuadrado | `100 × 100` |
 
-- Los tamaños del catálogo se expresarán en las coordenadas del lienzo lógico `1000 × 1000` de la pizarra; no describirán ni alterarán la resolución física de los archivos PNG.
+- Los tamaños del catálogo se expresarán en las unidades estables de la escena de pizarra; no describirán ni alterarán la resolución física de los archivos PNG.
 - El catálogo utilizará exclusivamente tres clases visuales y sus cajas máximas: `Horizontal` con `150 × 100`, `Vertical` con `100 × 150` y `Cuadrado` con `100 × 100`.
 - Cada entrada declarará explícitamente una de esas tres clases. Para añadir un icono nuevo se le asignará una clase existente y no se introducirán dimensiones iniciales particulares.
 - El PNG se encajará mediante `contain`, centrado horizontal y verticalmente dentro de su caja máxima y conservando su proporción; nunca se deformará ni recortará, aunque no ocupe exactamente ambos lados.
 - La posición del elemento representará siempre el centro de la caja lógica, con independencia del espacio transparente o de las dimensiones físicas del PNG.
 - El tamaño inicial de cada icono corresponderá a una escala `1` o `100 %`.
-- Cada pin que utilice un icono PNG podrá redimensionarse entre `0.25` y `3`, equivalentes al `25 %` y al `300 %` de su tamaño inicial.
-- La redimensión utilizará un único valor de escala proporcional aplicado conjuntamente a la caja y al PNG, por lo que la relación de aspecto original nunca podrá deformarse.
-- La colocación y los límites del lienzo se calcularán con la caja escalada completa para impedir que una parte del pin quede fuera del lienzo `1000 × 1000`.
+- Cada pin PNG o emoji podrá redimensionarse entre `0.25` y `3`, equivalentes al `25 %` y al `300 %` de su tamaño inicial.
+- La redimensión utilizará un único valor de escala proporcional aplicado conjuntamente a caja, PNG o emoji y nombre; la relación de aspecto de la representación no se deformará.
+- La navegación considerará la caja escalada completa y el nombre para poder recuperarlos fuera de vista. Desaparece la colocación limitada al cuadrado `1000 × 1000`.
 - El mismo valor de escala podrá modificarse mediante un tirador visible al seleccionar el pin y mediante un control deslizante en la configuración del elemento.
 - Ambos controles permanecerán sincronizados y actualizarán el mismo valor.
 - La escala elegida se guardará dentro de la representación visual del elemento en el JSON.
-- El nombre visible del elemento conservará un tamaño de texto independiente y no aumentará ni disminuirá junto con el icono.
+- El nombre visible tendrá tamaño base `16` multiplicado por la escala del elemento y crecerá o disminuirá junto con su representación.
 
 ### Modelo visual aprobado: ambulancia
 
@@ -530,17 +543,17 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 - El valor de `Dotación` será inmutable después de crear el elemento. El editor posterior mostrará `Dotación` o `General` como dato de solo lectura y no incluirá ese checkbox.
 - Dispondrá de un campo de texto amplio para introducir información libre.
 - Después de configurarse, el elemento aparecerá como pin movible en la pizarra.
-- La configuración común de cualquier elemento estará formada por nombre, representación visual e información libre. Las dotaciones dispondrán además, dentro del Módulo operativo, de los campos estructurados `status`, `notes` y `tags` definidos en el contrato JSON V1.
-- Incluirá un botón de configuración `⚙` desde el que se podrán añadir, quitar, duplicar y modificar elementos.
+- La configuración común de cualquier elemento estará formada por nombre, representación visual, escala e información libre. Las dotaciones dispondrán además, dentro del Módulo operativo, de los campos estructurados `status`, `notes` y `tags` del contrato vigente.
+- Las acciones `Añadir`, `Modificar`, `Duplicar` y `Quitar` estarán siempre visibles, sin botón de tuerca. Las tres últimas estarán deshabilitadas sin selección.
+- El editor mostrará una previsualización conjunta de icono o emoji y nombre, que responderá inmediatamente al deslizador sin reencajar cada tamaño y ocultar el cambio visual.
+- El editor trabajará con un borrador; `Cancelar` descartará todos sus cambios, incluida la escala, y `Guardar elemento` los aplicará conjuntamente. El tirador del pin modificará directamente el elemento y estará sincronizado con su escala guardada.
+- Crear con la pizarra abierta colocará el pin en el centro lógico visible sin cambiar su vista ni mover otros objetos. Con la pizarra cerrada se conservará la posición inicial `{ x: 500, y: 500 }`; el centrado inicial al abrir permite encontrar el contenido. El centro de cámara usado para crear será temporal y se descartará al cambiar de documento.
 - Eliminar una dotación conservará sus entradas cronológicas existentes, identificadas mediante el `unitName` guardado, pero ninguna de ellas podrá deshacerse una vez eliminado el elemento.
 - `Duplicar` generará un elemento nuevo con otro UUID y el nombre `<nombre original> copia`.
 - La copia conservará la representación visual, la escala, la información libre y el tipo inmutable `Dotación` o `General`.
 - Una dotación duplicada comenzará como `Disponible`, con `notes: ""` y `tags: []`; no copiará el estado, las anotaciones, las etiquetas ni las entradas cronológicas del original.
-- Si el original tiene posición, la copia se colocará `24` unidades a la derecha y `24` hacia abajo, ajustando su centro para que el pin completo permanezca dentro del lienzo `1000 × 1000`. Si el original tiene `position: null`, la copia también comenzará sin posición.
-- Incluirá un filtro visual para mostrar u ocultar dotaciones según su estado exacto.
-- El filtro representará la secuencia `🟢`, `🟡`, `🔵`, `🔴`, `💠`, `🟠`, `🟢` y `⚫`, sin letras añadidas.
-- Los dos controles verdes comparten el significado operativo de que la unidad está lista para recibir un aviso: `Disponible` en su punto de cobertura u `Operativa` mientras regresa hacia él.
-- Cada control del filtro mostrará su nombre completo como ayuda al mantener pulsado o pasar el cursor.
+- Si el original tiene posición, la copia se colocará `24` unidades a la derecha y `24` hacia abajo en la escena estable. Si el original tiene `position: null`, la copia también comenzará sin posición.
+- Se elimina por completo la fila de colores y el filtro por estado, tanto en la lista como en la pizarra. Todas las dotaciones se mostrarán sin alterar sus estados ni los contadores de Operativo.
 
 Ejemplo de contenido del módulo:
 
@@ -551,7 +564,6 @@ Dotaciones:
 🚑 Tango 3
 🚁 Charlie 3
 🚗 Papa 4
-[filtro 🟢 🟡 🔵 🔴 💠 🟠 🟢 ⚫]
 
 Generales:
 🏥 H. Vithas
@@ -561,7 +573,7 @@ Generales:
 ⚠ OJO CUIDAO
 ⚕ PSA
 
-[⚙]
+[Añadir] [Modificar] [Duplicar] [Quitar]
 ```
 
 Ejemplo de una dotación:
@@ -580,11 +592,11 @@ Médico: Juan Antonio
 
 - Mostrará la información de cualquier elemento seleccionado, tanto si es una dotación como si no.
 - La información procederá del texto introducido al configurar el elemento.
-- Cuando se seleccione una dotación, mostrará también la fase asociada a su estado.
+- Cuando se seleccione una dotación, mostrará el nombre exacto de su estado con su badge de color, además de la fase asociada.
 - Cuando se seleccione una dotación, mostrará sus etiquetas como información asociada, pero no permitirá colocarlas ni moverlas sobre la pizarra.
 - Cuando se seleccione un elemento general, mostrará únicamente su información libre.
 - Cuando no haya ningún elemento seleccionado, mostrará únicamente una lista con los nombres de todas las dotaciones, sin estado, fase, contador, agrupación ni checkbox.
-- Hacer clic o tocar el nombre de una dotación en esa lista la seleccionará globalmente y el módulo pasará a mostrar su información libre, su fase y sus etiquetas.
+- Hacer clic o tocar el nombre de una dotación en esa lista la seleccionará globalmente y el módulo pasará a mostrar su información libre, estado con badge, fase y etiquetas.
 - Si no existen dotaciones, la vista sin selección mostrará `Sin dotaciones`.
 - Al hacer clic o tocar un espacio vacío de la pizarra se deseleccionará el elemento y el módulo volverá a mostrar la lista de dotaciones.
 
@@ -661,7 +673,9 @@ Ejemplo sin selección y con `En el lugar` desplegado:
 - Después del identificador UTM aparecerán siempre las coordenadas Este y Norte, en ese orden.
 - Una zona, banda o estructura UTM inválida impedirá la conversión y conservará íntegramente el texto introducido.
 - Generará un enlace de Google Maps.
-- La acción principal sobre el enlace será copiarlo para enviarlo a otra persona.
+- Pulsar el enlace lo abrirá como un hipervínculo en otra pestaña. Se conservará `Copiar enlace` para enviarlo a otra persona.
+- Se eliminarán la etiqueta visible repetida `Coordenadas` y la indicación redundante `DD · DMS · DMM · UTM`, conservando el nombre accesible del campo y los prefijos de cada resultado.
+- Pulsar o activar por teclado una fila válida copiará únicamente su valor canónico, sin el prefijo de formato y sin añadir botones ni textos visibles. Un resultado no disponible no se copiará; un fallo podrá anunciarse a tecnologías de asistencia sin ocupar espacio visible.
 - Solo se corregirán automáticamente los espacios y los errores de separación mediante puntos o comas.
 - La corrección nunca modificará, añadirá ni eliminará números.
 - Por ejemplo, `37.060234. -2.002295` se normalizará como `37.060234, -2.002295`.
@@ -680,9 +694,10 @@ Reunirá en un único módulo el reloj, los cronómetros, las cuentas regresivas
 
 - Mostrará un reloj digital de estética táctica con la hora local de España.
 - La hora española se ajustará automáticamente al horario de verano (`UTC+2`) o al horario de invierno (`UTC+1`); el usuario no tendrá que cambiarlo manualmente.
-- La interfaz mostrará las referencias `UTC+2 [ST]`, `UTC+1 [WT]` y `ESP` como parte de la estética táctica del reloj.
+- La franja decorativa superior mostrará exactamente `Digital Watch | UTC+2 [ST] | UTC+1 [WT] ESP`; se podrá distinguir la referencia estacional vigente sin alterar ese texto.
 - Estas referencias no serán selectores ni modos de funcionamiento y no implicarán añadir temática, personajes o adornos ajenos al reloj.
-- Mostrará también la hora Zulu, es decir, UTC, como referencia secundaria.
+- La hora principal española utilizará `HH:MM:SS`. Debajo aparecerá `Zulu Time HH:MM`, como referencia UTC con cifras menores; su separador se alineará verticalmente con el separador de horas/minutos del reloj principal mediante columnas compartidas.
+- Una sola fila mostrará `T-Zero`, `T-Minus` y `Advisories`, sin prefijos `+`, y `▶ Sonido` alineado a la derecha. El acabado táctico respetará Titan, datos legibles, superficies y bordes, sin fuentes externas ni adornos que interfieran con las alertas.
 
 #### Formato y límites temporales
 
@@ -695,7 +710,7 @@ Reunirá en un único módulo el reloj, los cronómetros, las cuentas regresivas
 
 #### T-Zero
 
-- El botón `[+] T-Zero` añadirá un cronómetro nuevo.
+- El botón `T-Zero` añadirá un cronómetro nuevo.
 - Se podrán añadir varios cronómetros.
 - Cada cronómetro mostrará el tiempo en formato `HH:MM:SS`.
 - Cada cronómetro podrá tener una nota libre asociada.
@@ -711,7 +726,7 @@ Representación conceptual:
 
 #### T-Minus
 
-- El botón `[+] T-Minus` añadirá una cuenta regresiva nueva.
+- El botón `T-Minus` añadirá una cuenta regresiva nueva.
 - Se podrán añadir varias cuentas regresivas.
 - El usuario introducirá la duración inicial en formato `HH:MM:SS`.
 - Cada cuenta regresiva podrá tener una nota libre asociada.
@@ -728,7 +743,7 @@ Representación conceptual:
 
 #### Advisories
 
-- El botón `[+] Advisories` añadirá un aviso temporizado nuevo.
+- El botón `Advisories` añadirá un aviso temporizado nuevo.
 - Se podrán añadir varios avisos.
 - El usuario configurará la duración del aviso en formato `HH:MM:SS`; por ejemplo, `00:15:00` establecerá un ciclo de quince minutos.
 - El contador comenzará en `00:00:00` y avanzará hacia delante hasta alcanzar la duración configurada.
@@ -748,11 +763,11 @@ Representación conceptual:
 
 #### Finalización y alertas de T-Minus y Advisories
 
-- El Módulo Reloj incluirá un único botón común `▶ Probar sonido`, compartido por todos los `T-Minus` y `Advisories`; no se añadirá un control de prueba dentro de cada temporizador.
-- Al pulsarlo, reproducirá `public/assets/audio/alarm.mp3` en bucle. El texto permanecerá como `Probar sonido` y solo cambiará el icono del botón de `▶` a `⏸`; una segunda pulsación detendrá únicamente esa reproducción de prueba y restaurará el icono `▶`.
+- El Módulo Reloj incluirá un único botón común `▶ Sonido`, compartido por todos los `T-Minus` y `Advisories`, en la fila de acciones y alineado a la derecha; no se añadirá un control de prueba dentro de cada temporizador.
+- Al pulsarlo, reproducirá `public/assets/audio/alarm.mp3` en bucle. El texto permanecerá como `Sonido` y solo cambiará el icono de `▶` a `⏸`; una segunda pulsación detendrá únicamente esa reproducción de prueba y restaurará `▶`. Su nombre accesible distinguirá reproducir y detener la prueba.
 - La prueba no modificará el estado, el tiempo, la nota ni la alerta de ningún temporizador y no se persistirá.
 - Cerrar el Módulo Reloj detendrá la prueba de sonido. Si comienza una alarma real durante la prueba, esta finalizará inmediatamente y la alarma tendrá prioridad.
-- Mientras exista una alarma real activa, el control `Probar sonido` permanecerá deshabilitado para evitar confundir la prueba con el timbre operativo.
+- Mientras exista una alarma real activa, el control `Sonido` permanecerá deshabilitado para evitar confundir la prueba con el timbre operativo.
 - Cuando un `T-Minus` o un `Advisory` complete su ciclo, activará simultáneamente una alerta visual y una alerta sonora.
 - La alerta visual afectará al temporizador correspondiente mediante un destello rojo intenso con resplandor marcado y un borde exterior blanco claramente visible.
 - El valor inicial será de dos destellos por segundo.
@@ -783,6 +798,7 @@ Representación conceptual:
 ### Calculadora
 
 - Incluirá una calculadora básica.
+- El campo conservará su nombre accesible, pero no mostrará la etiqueta redundante `Operación`. Botones y cifras responderán a la superficie disponible con la jerarquía tipográfica común.
 - Permitirá suma, resta, multiplicación, división, decimales, porcentajes y paréntesis.
 - `%` será un operador posfijo de prioridad alta. Aplicado de forma aislada, dividirá su operando entre cien; por ejemplo, `10 %` dará `0,1`.
 - En una suma o resta, el porcentaje se calculará respecto al valor situado a su izquierda: `200 + 10 %` dará `220` y `200 - 10 %` dará `180`.
@@ -796,16 +812,19 @@ Representación conceptual:
 
 - Será un módulo de trabajo para tomar y organizar apuntes durante el servicio.
 - Su contenido se organizará como una lista desplazable de bloques independientes.
-- Un botón `+` permitirá elegir el tipo de bloque que se quiere añadir.
+- Los botones directos `Nota` y `Checklist` añadirán el tipo correspondiente; no habrá un menú de añadir con `+`.
 - Permitirá añadir, como tipos diferenciados, una nota libre o un checklist.
 - Cada nota o checklist constituirá un bloque independiente dentro de la lista.
-- Los bloques no tendrán un campo de título independiente.
-- Si el usuario necesita un título, lo escribirá como primera línea del propio contenido.
+- Cada bloque tendrá un título editable en línea, inicialmente `Nota` o `Checklist`, que se guardará en `title` y podrá estar vacío durante edición.
+- El contenido anterior se conservará íntegro; la conversión no extraerá su primera línea para generar el título.
 - Los elementos de un checklist se podrán marcar y desmarcar.
 - Los bloques nuevos se añadirán al final de la lista.
-- Los bloques podrán reordenarse manualmente mediante un tirador dedicado `⠿`.
+- Los bloques podrán reordenarse mediante una barra lateral dedicada con dos líneas finas, estilizada y con nombre accesible.
 - En interacción táctil, el movimiento solo se iniciará desde ese tirador para no interferir con el desplazamiento vertical de la lista.
 - Las notas utilizarán texto sencillo multilínea, con saltos de línea, símbolos y emojis.
+- Notas e ítems de checklist comenzarán con una fila y ajustarán su altura al contenido, también al borrar, cargar o cambiar la anchura. La lista mantendrá el desplazamiento interno.
+- Cada ítem tendrá checkbox, texto y `+` y `×` a la derecha. `+` insertará un ítem inmediatamente después; `×` eliminará solo ese ítem. Un checklist vacío conservará un `+` para crear el primero.
+- El cierre de bloque eliminará únicamente ese bloque; sus acciones y las de ítems mantendrán recuperación de foco en un control válido.
 - La V1 no incluirá un editor de negritas, cursivas, tamaños ni otros formatos especiales.
 - Cualquier otro tipo de entrada que pudiera añadirse al Cuaderno queda fuera de lo definido para la V1.
 
@@ -855,26 +874,26 @@ Ejemplo:
 - La organización se resolverá mediante una cuadrícula invisible sobre el espacio de trabajo virtual.
 - Los módulos podrán moverse y redimensionarse sobre esa cuadrícula.
 - Se permitirán huecos entre módulos.
-- Los módulos no podrán solaparse entre sí durante su colocación normal; solo se permitirá la excepción temporal definida para abrir un módulo cuando no exista ningún hueco libre.
+- Los módulos podrán superponerse al abrirse, moverse y redimensionarse. Pulsar o enfocar uno lo colocará delante, conservando el orden relativo de los demás; el apilamiento y el módulo activo serán temporales.
 - El empaquetado y la recolocación automáticos permanecerán desactivados: mover o redimensionar un módulo no deberá reorganizar por sí solo los demás.
 - No se utilizará un docking completo basado en grupos de pestañas, divisiones de pantalla o paneles propios de un IDE.
 - La solución técnica seleccionada para esta función es `React Grid Layout`.
-- El espacio de trabajo utilizará `1600 × 1000` como sistema lógico general de coordenadas, con proporción `16:10`, y se ajustará visualmente al espacio disponible en cada pantalla.
+- El espacio principal ocupará todo el ancho y alto disponibles bajo la cabecera, sin proporción fija ni encaje automático de un tablero `1600 × 1000`. Esa medida solo será referencia de geometrías importadas de V1.
 - La cabecera permanecerá fija, siempre visible y fuera del área afectada por el desplazamiento o el zoom.
 - Los módulos ocuparán el espacio de trabajo situado bajo la cabecera.
-- El dashboard no crecerá verticalmente ni obligará a utilizar scroll de página para acceder a módulos.
+- La página no tendrá scroll. Si el área física es menor que un tamaño mínimo, la superficie de navegación se extenderá solo lo necesario para satisfacerlo, sin reducir toda la interfaz.
 - Al abrir un módulo, recuperará su última posición y tamaño guardados cuando existan.
 - Si un módulo todavía no tiene posición o tamaño guardados, aparecerá con un tamaño inicial válido dentro del dashboard.
 - Abrir o cerrar módulos no moverá ni redimensionará automáticamente los demás.
 - La visibilidad de los módulos será temporal para la sesión y no se restaurará desde el JSON.
-- El dashboard será un único espacio de trabajo virtual con la misma distribución, posiciones y tamaños en Windows y Android; se ajustará al espacio disponible sin crear una composición distinta para cada dispositivo.
+- El dashboard conservará una única distribución guardada para Windows y Android; adaptará la posición y el tamaño presentado de cada ventana al área disponible, sin crear una composición móvil independiente ni reducir en bloque los textos y controles.
 - Los módulos no se reorganizarán automáticamente en columnas, pestañas o una interfaz móvil diferente.
 - La distribución de módulos guardada en el JSON será común para todos los dispositivos.
-- La posición y el tamaño de cada módulo se serializarán para poder restaurar la distribución.
+- La posición, el tamaño y el área de referencia de cada módulo se serializarán para restaurar su distribución adaptada.
 
 ### Apertura, tamaño y colocación de módulos
 
-Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las coordenadas lógicas del espacio general `1600 × 1000`:
+Cada módulo tendrá un tamaño inicial y un tamaño mínimo en unidades de interfaz a escala `1`, conservando los valores aprobados:
 
 | Módulo | Tamaño inicial | Tamaño mínimo |
 | --- | --- | --- |
@@ -890,21 +909,25 @@ Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las c
 
 - El usuario podrá ampliar cualquier módulo hasta ocupar como máximo el espacio lógico disponible, pero no podrá reducirlo por debajo de su tamaño mínimo.
 - En el tamaño mínimo permanecerán visibles la cabecera y los controles esenciales; el contenido que no quepa utilizará desplazamiento interno sin provocar scroll de página.
-- Si un módulo tiene una posición y un tamaño guardados que no colisionan con los módulos abiertos, recuperará exactamente esa distribución.
-- Si su distribución guardada está ocupada, buscará el hueco libre más cercano manteniendo el tamaño guardado.
-- Si el módulo nunca tuvo una distribución guardada, buscará un hueco para su tamaño inicial desde la esquina superior izquierda, avanzando de izquierda a derecha y después hacia abajo sobre la cuadrícula invisible.
+- Una geometría guardada se abrirá en su posición adaptada aunque esté ocupada. Dentro de su área de referencia original se recuperarán los valores guardados.
+- Si el módulo nunca tuvo una distribución guardada, buscará un hueco para su tamaño inicial adaptado desde la esquina superior izquierda, avanzando de izquierda a derecha y después hacia abajo sobre la cuadrícula invisible.
 - La búsqueda de espacio nunca moverá ni redimensionará los módulos que ya estén abiertos.
-- Si no existe ningún hueco válido, el módulo se abrirá centrado con su tamaño mínimo, activo y por encima de los demás.
-- La apertura sin espacio será la única situación en la que un módulo podrá solaparse temporalmente con otros.
-- En ese caso se mostrará el aviso breve y no bloqueante `No hay espacio libre. Recoloca o cierra algún módulo.`
-- El módulo dejará automáticamente la situación excepcional cuando el usuario lo coloque sin solapamientos o lo cierre.
-- La posición final y el tamaño utilizado se conservarán en `moduleLayouts`.
+- Si no existe hueco válido, el módulo se abrirá con su tamaño inicial adaptado en una posición accesible, activo y por encima de los demás. No se reducirá por una colisión ni existirá un estado excepcional o un aviso de falta de hueco.
+- La posición final, el tamaño y `referenceSize` se conservarán en `moduleLayouts` después de un gesto explícito del usuario.
+
+### Adaptación de geometrías entre pantallas
+
+- Cada geometría guardará `referenceSize: { width, height }`, el área de trabajo en la que se colocó, incluida la extensión mínima si resulta necesaria.
+- Se conservarán las dimensiones guardadas cuando quepan; cuando no quepan se limitarán al área disponible respetando los mínimos. Si el área física es menor que el mínimo, se utilizará la extensión de navegación definida, no una escala automática reductora.
+- El anclaje horizontal se calculará como `p = x / (referenceWidth - savedWidth)` cuando el denominador sea positivo, o `p = 0` en caso contrario. La posición presentada será `round(clamp(p, 0, 1) * (availableWidth - displayedWidth))`. La regla vertical será equivalente.
+- Adaptar por una medición, cambio de pantalla u orientación no reescribirá la distribución persistente ni reorganizará otras ventanas. Un arrastre o resize explícito guardará los valores nuevos y la referencia actual.
+- Al regresar al área de referencia sin gestos de colocación intermedios se recuperará la geometría original. El apilamiento, la visibilidad y las cámaras seguirán siendo temporales.
 
 ### Navegación en pantallas móviles
 
-- El espacio lógico general `1600 × 1000` se recorrerá en pantallas móviles mediante gestos directos, sin utilizar barras de desplazamiento de página, una miniatura de navegación ni un modo de desplazamiento separado.
-- Pellizcar con dos dedos ampliará o reducirá la vista y mantendrá como centro del zoom el punto situado entre ambos dedos.
-- Arrastrar con dos dedos desplazará la vista del dashboard.
+- El espacio principal adaptativo se recorrerá mediante gestos directos, sin barras de desplazamiento de página, miniatura de navegación ni modo de desplazamiento separado.
+- Pellizcar con dos dedos fuera del área de dibujo ampliará o reducirá la vista principal y mantendrá como centro del zoom el punto situado entre ambos dedos.
+- Arrastrar con dos dedos fuera del área de dibujo desplazará la vista del dashboard. Dos dedos dentro de la pizarra pertenecerán únicamente a su navegación; un gesto entre ambas superficies se cancelará hasta levantar los dedos.
 - Los gestos realizados con un solo dedo se reservarán para manejar los módulos, pines, controles y herramientas de la pizarra.
 - Un dedo sobre la cabecera de un módulo permitirá moverlo.
 - Un dedo sobre un borde o tirador permitirá redimensionar el módulo o el pin correspondiente.
@@ -912,13 +935,11 @@ Cada módulo tendrá un tamaño inicial y un tamaño mínimo expresados en las c
 - Un dedo sobre la pizarra seleccionará, moverá, dibujará, borrará o creará notas según la herramienta que esté activa.
 - Mientras haya dos dedos interactuando con el dashboard, se suspenderán temporalmente las acciones de módulos, pines y dibujo para evitar movimientos o trazos accidentales.
 - La cabecera principal permanecerá fija, fuera del área afectada por el desplazamiento y el zoom.
-- La escala de encaje se calculará como el menor valor entre `ancho disponible / 1600` y `alto disponible / 1000`, utilizando únicamente el área situada bajo la cabecera. De este modo, el espacio `1600 × 1000` quedará completo, centrado y ocupará la mayor superficie posible sin recortarse.
-- El zoom mínimo será esa escala dinámica de encaje.
-- El zoom máximo habitual será `400 %`. Si la escala de encaje de una pantalla excepcionalmente grande supera ese valor, el máximo efectivo será la propia escala de encaje; formalmente, `máximo = max(400 %, escala de encaje)`.
+- La escala inicial y mínima de la vista principal será `1`, equivalente al `100 %`; el máximo será `4`, equivalente al `400 %`. No se aplicará el antiguo cálculo de encaje por proporción fija.
 - El desplazamiento se limitará para impedir que el espacio de trabajo desaparezca completamente fuera de la pantalla; el margen elástico fuera de cada borde no superará el `10 %` de la dimensión visible correspondiente.
-- La cabecera incluirá un botón `Encajar` que centrará el dashboard y aplicará el mayor nivel de zoom con el que pueda verse completo.
+- La cabecera incluirá `Encajar`, que restablecerá la vista adaptada al `100 %` y la centrará cuando exista extensión virtual por mínimos. No modificará geometrías guardadas ni reducirá textos y controles para mostrar un tablero fijo completo.
 - Junto al botón `Encajar` se mostrará el porcentaje de zoom actual únicamente como información.
-- Cada sesión nueva comenzará con la vista completa en modo `Encajar`.
+- Cada sesión nueva comenzará con la vista adaptada al `100 %`.
 - El zoom y la posición de la vista se conservarán mientras la aplicación permanezca abierta.
 - Abrir, cerrar, mover o redimensionar módulos no modificará automáticamente el zoom ni la posición de la vista.
 - Al cambiar la orientación del dispositivo se conservará el mismo punto lógico central y solo se reajustarán el zoom y los límites cuando resulte necesario para mantener una vista válida.
@@ -938,6 +959,8 @@ La V1 utilizará:
 - `IndexedDB`, mediante `Dexie`, para el autoguardado interno y la recuperación local.
 - `Proj4` para las conversiones relacionadas con coordenadas UTM.
 - `Netlify` para alojar y distribuir los archivos estáticos de la PWA.
+
+La revisión adaptativa prevé `lucide-react` para los iconos solicitados de pizarra, mediante importaciones concretas. Su instalación requiere autorización en la entrega correspondiente; aprobar este documento no afirma que esté instalada.
 
 Netlify no almacenará los documentos JSON ni el autoguardado del usuario. Esos datos permanecerán en el dispositivo, salvo cuando el usuario exporte o importe manualmente un archivo.
 
@@ -1009,6 +1032,8 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 - Los estados operativos conservarán sus colores y una forma visual reconocible para no confundirse con los acentos decorativos.
 - Roboto Condensed será la tipografía principal de la interfaz general, incluidas cabeceras, menús, botones, etiquetas y nombres de módulos, utilizando según la jerarquía los pesos variables disponibles entre `100` y `900` y la cursiva cuando corresponda.
 - El reloj, los tiempos, las coordenadas, los contadores y otros datos técnicos utilizarán una tipografía monoespaciada.
+- La tipografía usará tokens comunes por función según el espacio disponible: cuerpo y controles `13–16 px`, títulos `15–18 px`, datos técnicos compactos `12–16 px`; la cabecera seguirá la misma jerarquía según ancho de pantalla. El display del reloj y las cifras de calculadora conservarán una jerarquía mayor adaptable a su superficie.
+- La misma función tendrá el mismo criterio de tamaño en todos los módulos. El texto de objetos de pizarra pertenecerá a su escena: el nombre escalará con el pin y el texto de nota mantendrá su base al cambiar la caja; redimensionar un módulo no alterará esos datos.
 - Las animaciones serán rápidas y precisas: cambios de brillo, encendido de líneas, pulsaciones mecánicas y transiciones cortas.
 - Se permitirá un resplandor controlado en elementos activos; los destellos intensos quedarán reservados para alarmas.
 - El área vacía del dashboard conservará presencia visual mediante degradado, viñeta o trama sutil.
@@ -1029,7 +1054,7 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 
 - Todos los controles interactivos tendrán un nombre accesible. Los controles representados únicamente mediante un icono proporcionarán un nombre que describa su acción sin depender de la interpretación visual del símbolo.
 - El foco de teclado será siempre visible y seguirá un orden lógico por la cabecera y los módulos abiertos, sin detenerse en módulos cerrados ni en elementos meramente decorativos.
-- En Windows podrán utilizarse mediante teclado los menús `Archivo` y `Ver`, la edición del título, la apertura y el cierre de módulos y todos los botones, formularios, listas, filtros, selectores de estado, etiquetas, controles de temporizadores, calculadora y Cuaderno.
+- En Windows podrán utilizarse mediante teclado los menús `Archivo` y `Ver`, la edición del título, la apertura y el cierre de módulos y todos los botones, formularios, listas, selectores de estado, etiquetas, controles de temporizadores, calculadora, filas copiables de coordenadas y títulos del Cuaderno.
 - Los elementos y las dotaciones podrán seleccionarse mediante teclado desde sus módulos correspondientes, de modo que sus acciones e información no dependan de acertar sobre un pin en la pizarra.
 - Los estados operativos se identificarán mediante su nombre o icono además del color; ningún significado operativo dependerá exclusivamente de una diferencia cromática.
 - Mover o redimensionar módulos, pines y notas rápidas, así como dibujar o borrar sobre la pizarra, seguirán siendo interacciones espaciales de ratón o tacto y no requerirán una alternativa equivalente mediante teclado en la V1.
@@ -1038,8 +1063,8 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 
 - `ESQUEMA_CONCEPTUAL.md` es la especificación funcional y visual de referencia.
 - `AGENTS.md` contiene las instrucciones de ejecución y los límites de alcance para Codex.
-- `IMPLEMENTATION_PLAN.md` divide la construcción en entregas verificables.
+- `IMPLEMENTATION_PLAN.md` enlaza el plan activo de la revisión adaptativa y conserva la construcción original como historia, sin alterar sus checks.
 - `ACCEPTANCE_CRITERIA.md` reúne las comprobaciones necesarias para considerar terminada la V1.
 - Las notas históricas anteriores al esquema se conservan únicamente en `docs/archive` y no constituyen requisitos vigentes.
-- No quedan decisiones imprescindibles pendientes para comenzar la construcción de la V1.
+- El usuario ha aprobado el diseño y el plan adaptativo. La entrega documental fija estos requisitos; las entregas de producto todavía deben implementarse y verificarse, una a la vez y con revisión expresa antes de comenzar la siguiente.
 - El despliegue, la publicación y cualquier cambio en producción continúan fuera de alcance hasta recibir autorización expresa.

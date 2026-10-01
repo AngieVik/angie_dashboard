@@ -60,8 +60,8 @@ test('operación y resultado no se exportan ni se autoguardan; recarga y reapert
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
   const jsonText = await readFile((await (await downloading).path())!, 'utf8')
   const exported = JSON.parse(jsonText)
-  expect(Object.keys(exported)).toHaveLength(9)
-  expect(exported.moduleLayouts.calculator).toEqual({ x: 0, y: 0, width: 280, height: 360 })
+  expect(Object.keys(exported)).toHaveLength(8)
+  expect(exported.moduleLayouts.calculator).toEqual({ x: 0, y: 0, width: 280, height: 360, referenceSize: { width: 1600, height: 1000 } })
   for (const temporary of ['987654', '987975', 'expression', 'calculation']) expect(jsonText).not.toContain(temporary)
   await expect.poll(async () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -92,7 +92,7 @@ test('operación y resultado no se exportan ni se autoguardan; recarga y reapert
 
 test('tamaño mínimo sin scroll de página, controles accesibles y foco visible', async ({ page }, info) => {
   const document = createEmptyDocument('Mínimo Calculadora')
-  document.moduleLayouts.calculator = { x: 0, y: 0, width: 220, height: 280 }
+  document.moduleLayouts.calculator = { x: 0, y: 0, width: 220, height: 280, referenceSize: { width: 1600, height: 1000 } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   const module = page.getByRole('region', { name: 'Calculadora', exact: true })
   await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Mínimo Calculadora')

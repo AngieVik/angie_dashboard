@@ -120,7 +120,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
           <Layer listening={false}>{strokes.map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
         </Stage>
         <div className="board-notes board-pins" style={{ transform: `scale(${fitted.scale})` }}>
-          {document.elements.filter(element => !element.isUnit || document.filters.visibleStatuses.includes(element.operational.status)).map(element =>
+          {document.elements.map(element =>
             <BoardPin key={element.id} element={element} surface={surface} selected={selectedId === element.id} enabled={state.mode === 'select'}
               onSelect={() => { dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
               onMove={position => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { position })) }}
@@ -141,7 +141,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
         event.preventDefault()
         if (blockedRef.current) return
         if (editor.id) dispatch({ type: 'edit-note', id: editor.id, text: editor.text })
-        else dispatch({ type: 'add-note', note: { id: crypto.randomUUID(), text: editor.text, position: editor.position } })
+        else dispatch({ type: 'add-note', note: { id: crypto.randomUUID(), text: editor.text, position: editor.position, width: 220, height: 96 } })
         finishEditor()
       }}>
         <textarea aria-label="Texto de nota rápida" autoFocus value={editor.text} onChange={event => setEditor({ ...editor, text: event.target.value })} />

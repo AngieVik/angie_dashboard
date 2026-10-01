@@ -1,5 +1,7 @@
 import { validateDocument } from './validateDocument'
-import type { AngieDocumentV1, MigrationFailureCode, MigrationResult, ValidationResult } from './types'
+import { validateDocumentV1 } from './validateDocumentV1'
+import type { AngieDocumentV1 } from './v1Types'
+import type { AngieDocumentV2, MigrationFailureCode, MigrationResult, ValidationResult } from './types'
 
 interface DocumentMigration {
   targetVersion: number
@@ -7,10 +9,26 @@ interface DocumentMigration {
   migrate: (input: unknown) => unknown
 }
 
-// Register a step only when its source contract and conversion are approved.
-// V1 is currently the sole recognized contract: there are no legacy steps.
-const recognizedMigrations: ReadonlyMap<number, DocumentMigration> = new Map()
-const currentVersion = 1
+function convertV1(input: unknown): AngieDocumentV2 {
+  const { filters, ...source } = input as AngieDocumentV1
+  void filters
+  return {
+    ...source,
+    formatVersion: 2,
+    board: { ...source.board, quickNotes: source.board.quickNotes.map(note => ({ ...note, width: 180, height: 80 })) },
+    elements: source.elements.map(element => ({ ...element, visual: element.visual.type === 'emoji' ? { ...element.visual, scale: 1 } : element.visual })),
+    notebook: source.notebook.map(block => ({ ...block, title: block.type === 'note' ? 'Nota' : 'Checklist' })),
+    moduleLayouts: Object.fromEntries(Object.entries(source.moduleLayouts).map(([id, layout]) => [id, {
+      ...layout, referenceSize: { width: 1600, height: 1000 },
+    }])),
+  }
+}
+
+// Only the real, validated V1 contract has an approved conversion.
+const recognizedMigrations: ReadonlyMap<number, DocumentMigration> = new Map([
+  [1, { targetVersion: 2, validateSource: validateDocumentV1, migrate: convertV1 }],
+])
+const currentVersion = 2
 
 function reject(code: MigrationFailureCode, path: string, message: string): MigrationResult<never> {
   return { success: false, code, errors: [{ path, message: `${path} ${message}` }] }
@@ -21,7 +39,7 @@ function isEnvelope(input: unknown): input is { format: unknown; formatVersion?:
     && Object.hasOwn(input, 'format') && 'format' in input
 }
 
-export function migrateDocument(input: unknown): MigrationResult<AngieDocumentV1> {
+export function migrateDocument(input: unknown): MigrationResult<AngieDocumentV2> {
   if (!isEnvelope(input) || input.format !== 'angie-dashboard') {
     return reject('invalid-format', 'format', 'no identifica un documento Angie Dashboard')
   }

@@ -2,7 +2,9 @@
 
 Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` conserva el detalle normativo y prevalece ante cualquier duda.
 
-Los checks de esta entrega se refieren al alcance demostrado en la sección 10: navegador de escritorio y emulación Pixel 7, con las simulaciones y límites indicados. La instalación nativa continúa pendiente y la V1 no se declara completamente aceptada.
+La revisión adaptativa aprobada el 2026-10-02 se verifica con los criterios de la **sección 11**, inicialmente sin marcar. Su orden de implementación está en el plan activo enlazado desde `IMPLEMENTATION_PLAN.md`.
+
+Las **secciones 1–10 son evidencia histórica de la V1 original**: sus checks se refieren al alcance demostrado en la sección 10, con navegador de escritorio, emulación Pixel 7, simulaciones y límites indicados. Se conservan íntegros; sus reglas sustituidas, como espacio fijo, ausencia normal de solapamiento, filtro, notas fijas o nombre independiente, no son requisitos de la revisión vigente. Ningún check histórico acredita por sí solo el nuevo comportamiento. La instalación nativa continúa pendiente en esa evidencia y la actualización documental no la demuestra.
 
 ## 1. Arranque, cabecera y documentos
 
@@ -198,3 +200,96 @@ Durante una ejecución completa apareció una carrera de la prueba entre Escape 
 - Evidencia local ignorada por Git: `.vite/task12-verification`, resultados Playwright en `.vite/task12-verified-results` e informe HTML en `playwright-report/index.html`.
 - Dependencias instaladas: ninguna.
 - Sin escrituras sobre Git, despliegues ni publicaciones. La siguiente actuación requiere aprobación expresa.
+
+## 11. Criterios vigentes de la revisión adaptativa — 2026-10-02
+
+Estos criterios corresponden al esquema actualizado y al diseño aprobado. Su implementación y sus pruebas se realizan en las entregas 2–9 del plan activo. La entrega 1 es documental: no marca ninguno como verificado. La aceptación de la revisión también exige comprobar de nuevo los comportamientos conservados de la V1 que dependan del producto integrado.
+
+### 11.1. Contrato y continuidad del trabajo
+
+- [ ] El formato vigente es `angie-dashboard`, versión `2`, con las ocho propiedades raíz aprobadas y sin `filters`, validación estricta y serialización de dos espacios con salto final.
+- [ ] Notas rápidas guardan dimensiones, emojis guardan escala, bloques de Cuaderno guardan título y geometrías de módulos guardan `referenceSize`, con tipos, valores y límites exactos del esquema.
+- [ ] Las coordenadas nuevas de pizarra admiten valores finitos no negativos superiores a `1000`; se rechazan negativos, no finitos y propiedades desconocidas.
+- [ ] Un V1 real se valida íntegramente antes de convertirlo a V2 y el resultado se valida antes de sustituir el documento activo.
+- [ ] La conversión conserva UUID, fechas, textos, estados, etiquetas, trazos, posiciones y orden; añade notas `180 × 80`, emojis a escala `1`, títulos predeterminados y referencias de módulo `1600 × 1000`.
+- [ ] La retirada del filtro conserva y muestra todas las dotaciones, incluidas las ocultas en el documento V1.
+- [ ] Carga JSON y recuperación IndexedDB reconocen V1; el archivo original no se modifica, la base local no se borra/recrea y los temporizadores conservan su repositorio independiente.
+- [ ] Un documento dañado, ajeno, desconocido o futuro conserva intacto el documento activo al rechazarse; no existe una conversión ficticia para V0.
+- [ ] Guardar exporta V2 validado y se documenta que una app antigua que solo conozca V1 lo rechaza como versión futura; no existe exportación hacia V1.
+- [ ] El JSON y el autoguardado del documento mantienen sus exclusiones: imagen temporal, temporizadores, selección, visibilidad, apilamiento, cámaras y otros estados transitorios.
+
+### 11.2. Dashboard y adaptación entre dispositivos
+
+- [ ] El espacio principal llena el área bajo la cabecera sin proporción fija, bandas reservadas ni reducción automática de toda la interfaz; no aparece scroll de página.
+- [ ] Los nueve módulos comienzan cerrados, se abren desde Ver, respetan sus nombres/mínimos y conservan desplazamiento interno cuando sea necesario.
+- [ ] Abrir, mover y redimensionar permite superposición sin empujar, mover ni redimensionar otros módulos.
+- [ ] Pulsar o enfocar una ventana la lleva al frente y conserva el orden relativo de las restantes; el apilamiento no se persiste.
+- [ ] Una posición guardada ocupada se restaura adaptada; una ventana nueva sin hueco abre con tamaño inicial adaptado y accesible, sin estado excepcional ni aviso de falta de espacio.
+- [ ] La adaptación conserva tamaño cuando cabe y el anclaje proporcional definido; limita dimensiones cuando no caben, respetando mínimos y usando extensión virtual únicamente si el área física es menor que ellos.
+- [ ] Medir, girar o cambiar pantalla no reescribe geometrías persistentes; volver al área de referencia recupera los valores guardados si no hubo gestos explícitos intermedios.
+- [ ] Un arrastre o resize explícito guarda geometría y referencia actuales, sin guardar distribución móvil independiente.
+- [ ] La vista principal empieza a `100 %`, permite `100–400 %` y Encajar restaura esa vista adaptada sin cambiar geometrías ni aplicar el antiguo encaje de `1600 × 1000`.
+- [ ] La cabecera queda fuera de zoom/desplazamiento y los gestos principales mantienen una vista válida sin acciones accidentales ni scroll de página.
+
+### 11.3. Pizarra, notas y gestos
+
+- [ ] El viewport de pizarra llena el rectángulo bajo la barra de herramientas; dibujar, colocar pines o notas puede utilizar toda la región visible sin cuadrado interior obligatorio.
+- [ ] Redimensionar el módulo conserva trazos, posiciones, tamaños y proporciones del contenido; los límites permiten recuperar las cajas completas fuera de vista.
+- [ ] La pizarra empieza a escala `1`, centrada en las cajas del contenido existente o en el origen si está vacía; su vista temporal admite zoom `0.25–4` y transformaciones uniformes para Konva y objetos HTML.
+- [ ] Rueda, Mayús+rueda, Ctrl+rueda y botón central manejan desplazamiento/zoom de pizarra conforme al esquema, sin modificar datos persistentes por navegar.
+- [ ] Dos dedos dentro de pizarra afectan solo su navegación y fuera afectan solo el dashboard; un gesto entre superficies se cancela y nunca confirma trazos, movimientos o resize residuales.
+- [ ] Los cuatro modos conservan selección y pulsación mantenida `250 ms`, la goma afecta solo trazos y crear una nota retorna a Seleccionar/mover.
+- [ ] La barra usa una fila de iconos y controles en el orden aprobado, sin las etiquetas visibles redundantes, con ayudas/nombres accesibles y desplazamiento horizontal interno en tamaño mínimo.
+- [ ] Las notas nuevas comienzan `220 × 96`, se redimensionan hasta un mínimo `120 × 64` y guardan dimensiones, texto y centro; el resize conserva el centro y no escala el texto.
+- [ ] Las notas permiten mover, editar y eliminar; su texto es legible, se distribuye en líneas y puede desplazarse internamente si supera la caja.
+- [ ] La imagen de fondo mantiene proporción y marco lógico de referencia estable `1000 × 1000` sin limitar el dibujo, y sigue siendo temporal/local; límites de `50 MiB`/`4096 px` y conservación ante fallo siguen funcionando.
+
+### 11.4. Elementos e Información
+
+- [ ] No existe la tuerca; Añadir, Modificar, Duplicar y Quitar son siempre visibles y las tres últimas están deshabilitadas sin selección.
+- [ ] La previsualización conjunta de icono/emoji y nombre cambia visualmente al mover el deslizador antes de crear o guardar, sin reencajar cada tamaño y ocultar su efecto.
+- [ ] Cancelar descarta todo el borrador, incluida escala, sin mutar ni autoguardar el elemento; Guardar elemento aplica conjuntamente su configuración.
+- [ ] PNG y emoji usan escala común `0.25–3`, con tirador/deslizador sincronizados; el nombre base `16` escala con su representación y los tamaños se conservan al duplicar y recargar.
+- [ ] Los PNG conservan catálogo, cajas, proporción, transparencia y contain; los emojis utilizan caja base `64 × 64` y glifo base `48`.
+- [ ] Crear con pizarra abierta coloca en su centro visible sin mover objetos ni cambiar zoom; cerrada conserva posición inicial `500,500`, y cambiar documento descarta la cámara temporal anterior.
+- [ ] Lista y pizarra muestran todas las dotaciones sin filtro de estados; Dotación sigue siendo inmutable y duplicar/eliminar conservan las reglas operativas y cronológicas aprobadas.
+- [ ] Información muestra el estado exacto con badge de color, información libre, fase y etiquetas de la dotación seleccionada; sin selección/general mantiene el comportamiento correspondiente.
+
+### 11.5. Coordenadas y Calculadora
+
+- [ ] Coordenadas elimina las dos indicaciones redundantes, conservando nombre accesible del campo, prefijos de resultados, entrada, validación y conversiones DD/DMS/DMM/UTM.
+- [ ] Pulsar o activar por teclado una fila válida copia solo el valor canónico, sin prefijo, nuevos botones ni texto visible; una fila no disponible no copia.
+- [ ] Maps es un hipervínculo real que abre en otra pestaña y Copiar enlace sigue copiando su URL; comprobar la acción con navegación interceptada no se presenta como acceso real a Google Maps.
+- [ ] Calculadora elimina la etiqueta visible Operación, conserva el nombre accesible y todas sus operaciones, precedencias, porcentajes y errores; cifras y botones se adaptan con los roles tipográficos comunes.
+
+### 11.6. Reloj
+
+- [ ] La franja superior muestra exactamente `Digital Watch | UTC+2 [ST] | UTC+1 [WT] ESP`, con referencias informativas y cambio estacional automático de la hora española.
+- [ ] La hora principal usa `HH:MM:SS` y debajo aparece `Zulu Time HH:MM` con cifras menores; sus separadores HH/MM difieren horizontalmente como máximo `1 px` en los tamaños mínimo, inicial y ampliado.
+- [ ] T-Zero, T-Minus y Advisories aparecen sin prefijos `+`, en una fila con `▶ Sonido` a la derecha; durante la prueba se muestra `⏸ Sonido` y su nombre accesible expresa la acción.
+- [ ] El único control de prueba mantiene bucle, parada al cerrar, prioridad de alarma real, deshabilitación durante alertas y tratamiento de bloqueo/error; temporizadores, normalización y alertas conservan sus reglas.
+- [ ] El acabado táctico y su tipografía adaptable mantienen legibles cifras y alarmas, sin nuevas fuentes externas.
+
+### 11.7. Cuaderno
+
+- [ ] Nota y Checklist son botones directos; cada bloque tiene título editable y persistente con su valor inicial correspondiente, sin extraer o perder contenido anterior.
+- [ ] Notas e ítems vacíos comienzan con una fila; su altura crece y se contrae según contenido y se recalcula al cargar o cambiar anchura.
+- [ ] El tirador es una barra lateral de dos líneas finas, con nombre accesible; reordenar por tacto solo empieza allí y no interfiere con edición o desplazamiento de la lista.
+- [ ] Cada ítem tiene `+` y `×` junto al texto: añadir inserta inmediatamente después, eliminar retira solo ese ítem y el checklist vacío permite crear el primero.
+- [ ] El cierre de bloque elimina solo ese bloque, conserva foco válido y no se confunde con eliminar ítem; títulos vacíos/largos, checklist y orden se conservan en autoguardado/recarga.
+
+### 11.8. Integración, tipografía y evidencia final
+
+- [ ] Todos los módulos aplican tokens comunes por función y espacio: cuerpo/controles `13–16 px`, títulos `15–18 px`, datos compactos `12–16 px`, con jerarquía mayor adaptable para reloj/calculadora y reglas propias de la escena.
+- [ ] Roboto Condensed sigue cargando localmente, los datos técnicos mantienen monoespaciada y los controles de icono tienen nombres accesibles, foco visible y manejo por teclado.
+- [ ] Los flujos conservados de documento, selección compartida, Operativo, anotaciones, etiquetas, registro y Deshacer siguen funcionando después de los cambios integrados.
+- [ ] Nuevo/Cargar/Guardar conservan temporizadores; recarga, autoguardado y offline funcionan con V1 convertido y V2, sin transferencias de datos a servidores.
+- [ ] Los SHA-256 de PNG, MP3 y fuentes originales coinciden con el registro previo a cambios de producto; la única dependencia nueva es la autorizada para Lucide.
+- [ ] Pruebas unitarias/de componentes, lint, tipos, build y E2E del producto revisado terminan correctamente con evidencia fresca; se informa el número real de casos y skips.
+- [ ] Se inspeccionan visualmente build/caché vigentes, escritorio, móvil vertical/horizontal y ventanas mínimas/iniciales/ampliadas, sin confundir capturas o emulación con prueba física.
+- [ ] Instalación PWA, dispositivo real, selector nativo, suspensión Android y audición en altavoces se registran solo si se comprueban; la revisión no hereda una aceptación manual no demostrada.
+- [ ] El diff final corresponde únicamente al alcance aprobado, sin escrituras Git, modificaciones de originales, despliegues ni publicaciones no autorizadas.
+
+### 11.9. Evidencia de la revisión
+
+Pendiente de las entregas de producto y de aceptación integrada. La sincronización documental de la entrega 1 no aporta resultados de ejecución de la aplicación ni habilita checks de esta sección.

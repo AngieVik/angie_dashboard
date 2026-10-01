@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import type { AngieDocumentV1 } from '../../src/domain/document/types'
+import type { AngieDocument } from '../../src/domain/document/types'
 
 async function openBoard(page: Page) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Pizarra', exact: true }).click()
   await expect(page.getByTestId('board-surface')).toBeVisible()
 }
-async function saved(page: Page): Promise<AngieDocumentV1> {
+async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('angie-dashboard')
     request.onerror = () => reject(request.error)
@@ -40,7 +40,7 @@ async function exportDocument(page: Page) {
   const downloading = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
-  return JSON.parse(await readFile((await (await downloading).path())!, 'utf8')) as AngieDocumentV1
+  return JSON.parse(await readFile((await (await downloading).path())!, 'utf8')) as AngieDocument
 }
 async function localImage(page: Page, width: number, height: number, type = 'image/png') {
   const data = await page.evaluate(async ({ width, height, type }) => {

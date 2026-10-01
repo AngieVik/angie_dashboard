@@ -155,7 +155,7 @@ describe('Módulo Reloj', () => {
       await documents.loadDocument({ text: async () => JSON.stringify(createEmptyDocument('Otro')) })
     })
     expect(store.getSnapshot().timers).toEqual(timers)
-    expect(Object.keys(exported!)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts', 'filters'])
+    expect(Object.keys(exported!)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts'])
     expect(JSON.stringify(exported)).not.toContain('Radio')
   })
   it('recupera un ciclo vencido y una alerta reconocida sin reactivarla', async () => {

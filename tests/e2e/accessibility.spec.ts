@@ -6,12 +6,12 @@ import { createElement, loadDocument, noPageScroll, openModule } from './accepta
 const modules = ['Pizarra', 'Elementos', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']
 function fixture() {
   const document = createEmptyDocument('Accesibilidad V1')
-  addElement(document, { name: 'Tango teclado', isUnit: true, visual: { type: 'emoji', value: '🚑' }, information: 'Radio · Canal 4', position: { x: 500, y: 500 } })
+  addElement(document, { name: 'Tango teclado', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 }, information: 'Radio · Canal 4', position: { x: 500, y: 500 } })
   document.notebook = [
-    { id: crypto.randomUUID(), type: 'note', text: 'Preparación\n📻' },
-    { id: crypto.randomUUID(), type: 'checklist', items: [{ id: crypto.randomUUID(), text: 'Revisar radio', checked: false }] },
+    { id: crypto.randomUUID(), type: 'note', title: 'Nota', text: 'Preparación\n📻' },
+    { id: crypto.randomUUID(), type: 'checklist', title: 'Checklist', items: [{ id: crypto.randomUUID(), text: 'Revisar radio', checked: false }] },
   ]
-  document.board.quickNotes = [{ id: crypto.randomUUID(), text: 'Acceso norte', position: { x: 250, y: 250 } }]
+  document.board.quickNotes = [{ id: crypto.randomUUID(), text: 'Acceso norte', position: { x: 250, y: 250 }, width: 220, height: 96 }]
   document.timeline = [{ id: crypto.randomUUID(), type: 'manual', text: 'Preparación', occurredAt: '2026-01-01T12:00:00Z' }]
   return document
 }
@@ -100,15 +100,14 @@ test('todos los módulos: nombres accesibles y Tab con foco visible sin controle
   }
 })
 
-test('teclado: filtros, selección, estados con texto, etiquetas, calculadora y checklist', async ({ page }) => {
+test('teclado: selección, estados con texto, etiquetas, calculadora y checklist', async ({ page }) => {
   await page.goto('/'); await loadDocument(page, fixture())
   await openModule(page, 'Elementos'); await openModule(page, 'Operativo')
   const elements = page.getByRole('region', { name: 'Elementos', exact: true })
   const selected = elements.getByRole('button', { name: 'Seleccionar Tango teclado' })
   await selected.press('Enter'); await expect(selected).toHaveAttribute('aria-pressed', 'true')
-  const filter = elements.getByRole('button', { name: 'Disponible', exact: true })
-  await filter.press('Space'); await expect(selected).toHaveCount(0)
-  await filter.press('Space'); await expect(selected).toHaveCount(1)
+  await expect(elements.getByRole('group', { name: 'Filtrar por estado' })).toHaveCount(0)
+  await expect(selected).toBeVisible()
   const ops = page.getByRole('region', { name: 'Operativo', exact: true })
   for (const name of ['Disponible', 'Asignada', 'En camino', 'En el lugar', 'En traslado', 'En destino', 'Operativa', 'Inoperativa']) {
     const button = ops.getByRole('button', { name, exact: true })

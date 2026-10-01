@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import type { AngieDocumentV1 } from '../../src/domain/document/types'
+import type { AngieDocument } from '../../src/domain/document/types'
 
 export async function openModule(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -16,13 +16,13 @@ export async function downloadDocument(page: Page) {
   await fileCommand(page, 'Guardar')
   const download = await pending
   const text = await readFile((await download.path())!, 'utf8')
-  return { download, text, document: JSON.parse(text) as AngieDocumentV1 }
+  return { download, text, document: JSON.parse(text) as AngieDocument }
 }
-export async function loadDocument(page: Page, document: AngieDocumentV1) {
+export async function loadDocument(page: Page, document: AngieDocument) {
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'aceptacion.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
 }
-export async function savedDocument(page: Page): Promise<AngieDocumentV1 | null> {
+export async function savedDocument(page: Page): Promise<AngieDocument | null> {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const open = indexedDB.open('angie-dashboard')
     open.onerror = () => reject(open.error)

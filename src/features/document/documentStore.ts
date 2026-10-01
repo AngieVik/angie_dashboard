@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
-import type { AngieDocumentV1 } from '../../domain/document/types'
+import type { AngieDocument } from '../../domain/document/types'
 import { createBrowserFilePlatform, loadVisibleDocument, saveVisibleDocument } from '../../platform/files/fileAccess'
 import type { DocumentFile, FileAccessContext, SaveOutcome } from '../../platform/files/fileAccess'
 import { DocumentRepository } from '../../storage/documentRepository'
@@ -9,7 +9,7 @@ import type { ActiveDocumentRepository } from '../../storage/documentRepository'
 import { createAutosave } from '../../storage/autosave'
 
 export interface DocumentSnapshot {
-  document: AngieDocumentV1
+  document: AngieDocument
   documentGeneration: number
   autosaveUnavailable: boolean
   recoveryPending: boolean
@@ -26,7 +26,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
   let revision = 0
   let fileOperation = 0
   let needsRecovery = true
-  let recoveryCandidate: AngieDocumentV1 | null = null
+  let recoveryCandidate: AngieDocument | null = null
   let initialization: Promise<void> | undefined
   let recoveryOperation: Promise<void> | undefined
   let fileContext = { ...initialContext }
@@ -57,7 +57,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       update({ autosaveUnavailable: true })
     }
   }
-  function mutateDocument(mutate: (document: AngieDocumentV1) => void) {
+  function mutateDocument(mutate: (document: AngieDocument) => void) {
     const candidate = structuredClone(state.document)
     mutate(candidate)
     // A mutation cannot change document identity or creation time.

@@ -9,8 +9,8 @@ import { addUnitTag, editUnitTag, removeUnitTag, setUnitNotes } from './unitAnno
 
 function setup() {
   const document = createEmptyDocument()
-  const unit = createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: 'Canal 4' })
-  const general = createElement(document, { name: 'Acceso', visual: { type: 'emoji', value: '📍' }, isUnit: false, information: '' })
+  const unit = createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: 'Canal 4' })
+  const general = createElement(document, { name: 'Acceso', visual: { type: 'emoji', value: '📍', scale: 1 }, isUnit: false, information: '' })
   return { document, unit, general }
 }
 describe('Estados y anotaciones operativas', () => {

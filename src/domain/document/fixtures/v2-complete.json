@@ -1,0 +1,227 @@
+{
+  "format": "angie-dashboard",
+  "formatVersion": 2,
+  "document": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "title": "Servicio de apoyo — acceso norte 🚩",
+    "createdAt": "2026-09-30T18:42:15.000Z",
+    "updatedAt": "2026-09-30T18:45:10.000Z"
+  },
+  "board": {
+    "backgroundColor": "#25282B",
+    "strokes": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "tool": "pen",
+        "color": "#D63A3A",
+        "width": 4,
+        "points": [
+          {
+            "x": 0,
+            "y": 1000
+          },
+          {
+            "x": 120.5,
+            "y": 340.25
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "tool": "eraser",
+        "color": null,
+        "width": 12,
+        "points": [
+          {
+            "x": 120.5,
+            "y": 340.25
+          }
+        ]
+      }
+    ],
+    "quickNotes": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "text": "Acceso norte",
+        "position": {
+          "x": 500,
+          "y": 350
+        },
+        "width": 180,
+        "height": 80
+      }
+    ]
+  },
+  "elements": [
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "name": "Tango 1",
+      "visual": {
+        "type": "asset",
+        "assetId": "ambulance",
+        "scale": 1
+      },
+      "information": "Canal de radio 2",
+      "position": {
+        "x": 420,
+        "y": 610
+      },
+      "isUnit": true,
+      "operational": {
+        "status": "En camino",
+        "notes": "Acceso por el norte",
+        "tags": [
+          "Apoyo",
+          "Canal 2"
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "name": "Acceso",
+      "visual": {
+        "type": "emoji",
+        "value": "🚩",
+        "scale": 1
+      },
+      "information": "",
+      "position": null,
+      "isUnit": false,
+      "operational": null
+    }
+  ],
+  "notebook": [
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "type": "note",
+      "text": "Acceso norte\nComprobar radio 📻",
+      "title": "Nota"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000008",
+      "type": "checklist",
+      "items": [
+        {
+          "id": "00000000-0000-4000-8000-000000000009",
+          "text": "Comprobar canal",
+          "checked": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "text": "",
+          "checked": false
+        }
+      ],
+      "title": "Checklist"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "type": "manual",
+      "occurredAt": "2026-09-30T18:42:15.000Z",
+      "text": "Acceso norte cerrado"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "type": "status-change",
+      "occurredAt": "2026-09-30T18:45:10.000Z",
+      "unitId": "00000000-0000-4000-8000-000000000005",
+      "unitName": "Tango 1",
+      "previousStatus": "Asignada",
+      "nextStatus": "En camino"
+    }
+  ],
+  "moduleLayouts": {
+    "board": {
+      "x": 40,
+      "y": 30,
+      "width": 720,
+      "height": 480,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "elements": {
+      "x": 0,
+      "y": 0,
+      "width": 300,
+      "height": 420,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "information": {
+      "x": 0,
+      "y": 0,
+      "width": 320,
+      "height": 240,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "operations": {
+      "x": 0,
+      "y": 0,
+      "width": 340,
+      "height": 320,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "coordinates": {
+      "x": 0,
+      "y": 0,
+      "width": 360,
+      "height": 280,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "clock": {
+      "x": 0,
+      "y": 0,
+      "width": 440,
+      "height": 480,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "calculator": {
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 360,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "notebook": {
+      "x": 0,
+      "y": 0,
+      "width": 360,
+      "height": 420,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    "timeline": {
+      "x": 0,
+      "y": 0,
+      "width": 420,
+      "height": 320,
+      "referenceSize": {
+        "width": 1600,
+        "height": 1000
+      }
+    }
+  }
+}

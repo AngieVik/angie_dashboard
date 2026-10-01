@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
-import type { AngieDocumentV1 } from '../../src/domain/document/types'
+import type { AngieDocument } from '../../src/domain/document/types'
 
 async function open(page: Page) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -12,14 +12,14 @@ async function add(page: Page, type: 'Nota' | 'Checklist') {
   await page.getByRole('button', { name: 'Añadir bloque', exact: true }).click()
   await page.getByRole('menuitem', { name: type, exact: true }).click()
 }
-async function saved(page: Page): Promise<AngieDocumentV1> {
+async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('angie-dashboard')
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error)
     })
     try {
-      return await new Promise<AngieDocumentV1>((resolve, reject) => {
+      return await new Promise<AngieDocument>((resolve, reject) => {
         const request = db.transaction('documents', 'readonly').objectStore('documents').get('active')
         request.onsuccess = () => resolve(request.result.document); request.onerror = () => reject(request.error)
       })
@@ -84,12 +84,12 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
   const jsonText = await readFile((await (await downloading).path())!, 'utf8')
-  const exported: AngieDocumentV1 = JSON.parse(jsonText)
+  const exported: AngieDocument = JSON.parse(jsonText)
   expect(exported.notebook).toEqual([
-    { id: expect.any(String), type: 'checklist', items: [{ id: expect.any(String), text: 'Comprobar canal 📻', checked: true }] },
-    { id: expect.any(String), type: 'note', text: 'Preparación\n⚠ Acceso norte → sur\n📻 Radio' },
+    { id: expect.any(String), type: 'checklist', title: 'Checklist', items: [{ id: expect.any(String), text: 'Comprobar canal 📻', checked: true }] },
+    { id: expect.any(String), type: 'note', title: 'Nota', text: 'Preparación\n⚠ Acceso norte → sur\n📻 Radio' },
   ])
-  expect(Object.keys(exported)).toHaveLength(9)
+  expect(Object.keys(exported)).toHaveLength(8)
   await expect.poll(async () => (await saved(page)).notebook).toEqual(exported.notebook)
   await page.screenshot({ path: info.outputPath('notebook.png') })
   await module.screenshot({ path: info.outputPath('notebook-detail.png') })
@@ -143,8 +143,8 @@ test('reordena con ratón o tacto solo desde el tirador sin mover el módulo', a
 
 test('tamaño mínimo, lista con scroll interno, nombres accesibles y foco visible', async ({ page, context, isMobile }, info) => {
   const document = createEmptyDocument('Mínimo Cuaderno')
-  document.moduleLayouts.notebook = { x: 0, y: 0, width: 260, height: 220 }
-  document.notebook = Array.from({ length: 8 }, (_, index) => ({ id: crypto.randomUUID(), type: 'note', text: `Bloque ${index + 1}\n📻 Preparación` }))
+  document.moduleLayouts.notebook = { x: 0, y: 0, width: 260, height: 220, referenceSize: { width: 1600, height: 1000 } }
+  document.notebook = Array.from({ length: 8 }, (_, index) => ({ id: crypto.randomUUID(), type: 'note', title: 'Nota', text: `Bloque ${index + 1}\n📻 Preparación` }))
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Mínimo Cuaderno')
   const module = page.getByRole('region', { name: 'Cuaderno', exact: true }), list = module.getByRole('list', { name: 'Bloques del Cuaderno' })

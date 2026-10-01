@@ -5,7 +5,7 @@ import { createElement, loadDocument, openModule, savedDocument } from './accept
 test('estados libres, selección compartida, historial cerrado y Deshacer por dotación', async ({ page }) => {
   await page.goto('/')
   const document = createEmptyDocument('Aceptación operativa')
-  document.moduleLayouts = { elements: { x: 0, y: 0, width: 300, height: 420 }, information: { x: 300, y: 0, width: 320, height: 240 }, operations: { x: 620, y: 0, width: 340, height: 320 }, timeline: { x: 960, y: 0, width: 420, height: 320 } }
+  document.moduleLayouts = { elements: { x: 0, y: 0, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } }, information: { x: 300, y: 0, width: 320, height: 240, referenceSize: { width: 1600, height: 1000 } }, operations: { x: 620, y: 0, width: 340, height: 320, referenceSize: { width: 1600, height: 1000 } }, timeline: { x: 960, y: 0, width: 420, height: 320, referenceSize: { width: 1600, height: 1000 } } }
   await loadDocument(page, document)
   for (const name of ['Elementos', 'Información', 'Operativo']) await openModule(page, name)
   await createElement(page, 'Tango A', true)

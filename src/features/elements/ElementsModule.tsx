@@ -6,7 +6,6 @@ import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { createElement, updateElement, duplicateElement, deleteElement } from './elementCommands'
 import { ElementEditor } from './ElementEditor'
-import { StateFilter } from './StateFilter'
 import { ICON_CATALOG } from './iconCatalog'
 import './elements.css'
 export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void }
@@ -60,9 +59,8 @@ export function ElementsModule({ store, selectedId, onSelect }: ElementsModulePr
         onSelect(id); setEditor(null)
       }} /> : <div className="elements-list">
       <section aria-label="Dotaciones"><h3>Dotaciones</h3>
-        <div className="element-rows">{list(document.elements.filter(element => element.isUnit && document.filters.visibleStatuses.includes(element.operational.status)))}</div>
+        <div className="element-rows">{list(document.elements.filter(element => element.isUnit))}</div>
       </section>
-      <StateFilter visible={document.filters.visibleStatuses} onChange={visibleStatuses => store.mutateDocument(document => { document.filters.visibleStatuses = visibleStatuses })} />
       <section aria-label="Generales"><h3>Generales</h3><div className="element-rows">{list(document.elements.filter(element => !element.isUnit))}</div></section>
     </div>}
   </div>

@@ -1,8 +1,9 @@
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject } from 'ajv'
-import schema from './schema/angie-document-v2.schema.json'
-import type { AngieDocumentV2, ValidationIssue, ValidationResult } from './types'
+import schema from './schema/angie-document-v1.schema.json'
+import type { AngieDocumentV1 } from './v1Types'
+import type { ValidationIssue, ValidationResult } from './types'
 
 const ajv = new Ajv2020({
   strict: true,
@@ -14,7 +15,7 @@ const ajv = new Ajv2020({
   ownProperties: true,
 })
 addFormats(ajv)
-const validateSchema = ajv.compile<AngieDocumentV2>(schema)
+const validateSchema = ajv.compile<AngieDocumentV1>(schema)
 
 function issueFromSchema(error: ErrorObject): ValidationIssue {
   const parts = error.instancePath.split('/').slice(1).map(part => part.replace(/~1/g, '/').replace(/~0/g, '~'))
@@ -40,7 +41,7 @@ function issueFromSchema(error: ErrorObject): ValidationIssue {
     oneOf: 'debe coincidir con una única variante permitida',
     if: 'no cumple la relación condicional requerida',
   }
-  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V2'}` }
+  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V1'}` }
 }
 
 // Compare the complete UTC instant, including fractions finer than milliseconds.
@@ -57,7 +58,7 @@ function compareUtcDates(left: string, right: string): number {
   return a === b ? 0 : a < b ? -1 : 1
 }
 
-export function validateDocument(input: unknown): ValidationResult<AngieDocumentV2> {
+export function validateDocumentV1(input: unknown): ValidationResult<AngieDocumentV1> {
   if (!validateSchema(input)) {
     return { success: false, errors: (validateSchema.errors ?? []).map(issueFromSchema) }
   }
@@ -99,8 +100,8 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
     }
   })
   for (const [id, layout] of Object.entries(input.moduleLayouts)) {
-    if (layout.x + layout.width > layout.referenceSize.width) add(`moduleLayouts.${id}.x`, 'junto con width debe quedar dentro de referenceSize.width')
-    if (layout.y + layout.height > layout.referenceSize.height) add(`moduleLayouts.${id}.y`, 'junto con height debe quedar dentro de referenceSize.height')
+    if (layout.x + layout.width > 1600) add(`moduleLayouts.${id}.x`, 'junto con width debe quedar dentro de 1600')
+    if (layout.y + layout.height > 1000) add(`moduleLayouts.${id}.y`, 'junto con height debe quedar dentro de 1000')
   }
   return errors.length ? { success: false, errors } : { success: true, document: input }
 }

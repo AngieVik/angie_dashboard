@@ -74,7 +74,7 @@ test('arrastra y redimensiona sin packing, limita tamaños y colisiones', async 
 
 test('abre excepcionalmente sin hueco, mantiene el resto y termina la excepción al recolocar', async ({ page }) => {
   const document = createEmptyDocument('Distribución completa')
-  document.moduleLayouts.board = { x: 0, y: 0, width: 1600, height: 1000 }
+  document.moduleLayouts.board = { x: 0, y: 0, width: 1600, height: 1000, referenceSize: { width: 1600, height: 1000 } }
   await page.goto('/')
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'layout.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
@@ -100,18 +100,19 @@ test('cargar geometrías guardadas ocupadas mantiene colocación válida y expor
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }) })
   await page.goto('/'); await toggle(page, 'Pizarra'); await toggle(page, 'Elementos')
   const document = createEmptyDocument('Distribución importada')
-  document.moduleLayouts = { board: { x: 0, y: 0, width: 720, height: 480 }, elements: { x: 0, y: 0, width: 300, height: 420 } }
+  document.moduleLayouts = { board: { x: 0, y: 0, width: 720, height: 480, referenceSize: { width: 1600, height: 1000 } }, elements: { x: 0, y: 0, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'layout.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
-  expect(await geometry(page, 'board')).toEqual(document.moduleLayouts.board)
+  expect(document.moduleLayouts.board).toMatchObject(await geometry(page, 'board'))
   expect(await geometry(page, 'elements')).toEqual({ x: 0, y: 480, width: 300, height: 420 })
   const downloading = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click(); await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
   const downloaded = await downloading
   const json = JSON.parse(await readFile((await downloaded.path())!, 'utf8'))
-  expect(json.moduleLayouts.elements).toEqual(await geometry(page, 'elements'))
-  expect(Object.keys(json)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts', 'filters'])
-  for (const layout of Object.values(json.moduleLayouts)) expect(Object.keys(layout as object)).toEqual(['x', 'y', 'width', 'height'])
+  expect(json.moduleLayouts.elements).toMatchObject(await geometry(page, 'elements'))
+  expect(json.moduleLayouts.elements.referenceSize).toEqual({ width: 1600, height: 1000 })
+  expect(Object.keys(json)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts'])
+  for (const layout of Object.values(json.moduleLayouts)) expect(Object.keys(layout as object)).toEqual(['x', 'y', 'width', 'height', 'referenceSize'])
 })
 
 test('abre y cierra con teclado y conserva el título y el foco accesible', async ({ page }) => {

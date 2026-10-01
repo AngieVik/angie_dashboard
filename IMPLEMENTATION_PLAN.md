@@ -1,5 +1,17 @@
 # Angie Dashboard V1 Implementation Plan
 
+## Fase activa: revisión adaptativa aprobada — 2026-10-02
+
+El usuario ha aprobado el [diseño adaptativo](docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md) y su [plan de implementación](docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md). Ese plan es el orden de trabajo vigente y contiene nueve entregas: documentación, formato 2 y compatibilidad V1, dashboard/tipografía, pizarra, Elementos, ajustes compactos, reloj, Cuaderno y aceptación integrada.
+
+Ejecutar una entrega a la vez, con revisión expresa antes de iniciar la siguiente. No escribir en Git, desplegar, instalar dependencias no autorizadas ni modificar recursos originales. `ESQUEMA_CONCEPTUAL.md` conserva la autoridad normativa y `ACCEPTANCE_CRITERIA.md`, sección 11, contiene los criterios nuevos todavía por demostrar.
+
+La entrega 1 actualiza exclusivamente documentos; las entregas de producto y sus verificaciones continúan pendientes. La instalación nativa/PWA no se declara comprobada por esta actualización.
+
+## Construcción original V1 — contenido histórico
+
+Todo el contenido que sigue, incluidas sus restricciones, firmas, comandos y checkboxes, corresponde al contrato y comportamiento anteriores. Se conserva sin modificar para mantener la historia; no sustituye ni debe ejecutarse como plan de la revisión adaptativa. Las diferencias con requisitos actuales se resuelven con el esquema actualizado y el plan activo enlazado arriba. Task 12 mantiene sus pasos sin marcar y su evidencia parcial está documentada en los criterios históricos.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Construir una PWA local-first para Windows y Android que implemente íntegramente la V1 aprobada de Angie Dashboard.

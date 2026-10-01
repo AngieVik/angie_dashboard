@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
-import type { AngieDocumentV1 } from '../../domain/document/types'
+import type { AngieDocument } from '../../domain/document/types'
 import type { ActiveDocumentRepository } from '../../storage/documentRepository'
 import { createDocumentStore } from './documentStore'
+import legacy from '../../domain/document/fixtures/complete.json'
 
-function setup(saved: AngieDocumentV1 | null = null) {
+function setup(saved: AngieDocument | null = null) {
   let local = saved
   const repository: ActiveDocumentRepository = {
     loadActive: vi.fn(async () => local),
@@ -17,6 +18,27 @@ function setup(saved: AngieDocumentV1 | null = null) {
 }
 
 describe('documento activo y autoguardado', () => {
+  it('carga V1 sin modificar el archivo y exporta V2; rechaza V1 dañado sin reemplazo', async () => {
+    const { store, download, local } = setup()
+    await store.initialize()
+    const source = JSON.stringify({ ...legacy, filters: { visibleStatuses: [] } })
+    await store.loadDocument({ text: async () => source })
+    expect(store.getSnapshot().document.formatVersion).toBe(2)
+    expect(store.getSnapshot().document.elements).toHaveLength(legacy.elements.length)
+    expect(store.getSnapshot().document.document.updatedAt).toBe(legacy.document.updatedAt)
+    await store.saveDocument()
+    const exported = JSON.parse(download.mock.calls[0]![0])
+    expect(exported).toEqual(store.getSnapshot().document)
+    expect(exported).not.toHaveProperty('filters')
+    expect(local()).toEqual(exported)
+    const before = structuredClone(store.getSnapshot().document)
+    const damaged = structuredClone(legacy)
+    damaged.elements[0]!.id = damaged.document.id
+    await store.loadDocument({ text: async () => JSON.stringify(damaged) })
+    expect(store.getSnapshot().document).toEqual(before)
+    expect(store.getSnapshot().fileMessage).toContain('UUID')
+    expect(JSON.parse(source).formatVersion).toBe(1)
+  })
   it('distingue reemplazos del documento para descartar recursos temporales incluso al cargar el mismo JSON', async () => {
     const { store } = setup()
     await store.initialize()
@@ -162,7 +184,7 @@ describe('documento activo y autoguardado', () => {
   it('protege cambios que llegan mientras se lee el autoguardado inicial', async () => {
     const recovered = createEmptyDocument('Disco')
     const { store, repository } = setup()
-    let finish!: (document: AngieDocumentV1) => void
+    let finish!: (document: AngieDocument) => void
     vi.mocked(repository.loadActive).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
     const initialization = store.initialize()
     store.setTitle('Editado durante lectura')

@@ -27,7 +27,7 @@ describe('pin coordinado con la pizarra', () => {
     view.rerender(<BoardPin {...props} element={{ ...element, visual: { ...element.visual, type: 'asset', assetId: 'ambulance', scale: 3 } }} />)
     expect(screen.getByRole('button', { name: 'Seleccionar Tango 1' })).toHaveStyle({ width: '450px', height: '300px' })
     expect(name).toHaveStyle({ fontSize: '16px' })
-    view.rerender(<BoardPin {...props} element={{ ...element, visual: { type: 'emoji', value: '🚴🏽‍♂️' } }} />)
+    view.rerender(<BoardPin {...props} element={{ ...element, visual: { type: 'emoji', value: '🚴🏽‍♂️', scale: 1 } }} />)
     expect(screen.getByText('🚴🏽‍♂️')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Redimensionar Tango 1' })).not.toBeInTheDocument()
   })

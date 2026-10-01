@@ -19,9 +19,9 @@ describe('Información y selección compartida', () => {
     const store = createDocumentStore({ loadActive: async () => null, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })
     await store.initialize()
     store.mutateDocument(document => {
-      const a = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: 'Canal 4\nAcceso norte' })
+      const a = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: 'Canal 4\nAcceso norte' })
       if (a.isUnit) a.operational.tags = ['Sector norte']
-      createElement(document, { name: 'Ruta', visual: { type: 'emoji', value: '📍' }, isUnit: false, information: 'Acceso sur' })
+      createElement(document, { name: 'Ruta', visual: { type: 'emoji', value: '📍', scale: 1 }, isUnit: false, information: 'Acceso sur' })
     })
     function Harness() {
       const [selectedId, onSelect] = useState<string | null>(null)

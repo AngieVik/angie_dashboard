@@ -1,7 +1,8 @@
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createEmptyDocument } from '../domain/document/defaultDocument'
-import complete from '../domain/document/fixtures/complete.json'
+import legacy from '../domain/document/fixtures/complete.json'
+import complete from '../domain/document/fixtures/v2-complete.json'
 import { validateDocument } from '../domain/document/validateDocument'
 import { createDatabase } from './db'
 import { DocumentRepository } from './documentRepository'
@@ -15,6 +16,21 @@ function setup(indexedDB = new IDBFactory()) {
 }
 
 describe('repositorio del documento activo', () => {
+  it('recupera V1 como V2 sin cambiar el registro hasta el autoguardado posterior', async () => {
+    const { repository, db } = setup()
+    const source = structuredClone(legacy)
+    source.filters.visibleStatuses = []
+    await db.table('documents').put({ key: 'active', document: source })
+    const recovered = await repository.loadActive()
+    expect(recovered?.formatVersion).toBe(2)
+    expect(recovered?.elements).toHaveLength(source.elements.length)
+    expect(recovered).not.toHaveProperty('filters')
+    expect(await db.table('documents').get('active')).toEqual({ key: 'active', document: source })
+    if (!recovered) throw new Error('No se recuperó el documento')
+    await repository.saveActive(recovered)
+    expect((await db.table('documents').get('active')).document).toEqual(recovered)
+    expect(await db.table('documents').count()).toBe(1)
+  })
   it('guarda todo el contrato, recupera al reabrir y conserva un único documento activo', async () => {
     const { db, repository, indexedDB } = setup()
     expect(await repository.loadActive()).toBeNull()

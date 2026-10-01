@@ -10,10 +10,10 @@ async function setup() {
   const store = createDocumentStore({ loadActive: async () => null, saveActive: async document => { saved = structuredClone(document) }, clearActive: async () => {} }, { platform: { download: () => {} } })
   await store.initialize()
   store.mutateDocument(document => {
-    createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: '' })
-    const b = createElement(document, { name: 'Tango 2', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: '' })
+    createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
+    const b = createElement(document, { name: 'Tango 2', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
     if (b.isUnit) b.operational.status = 'En destino'
-    createElement(document, { name: 'Ruta', visual: { type: 'emoji', value: '📍' }, isUnit: false, information: '' })
+    createElement(document, { name: 'Ruta', visual: { type: 'emoji', value: '📍', scale: 1 }, isUnit: false, information: '' })
   })
   function Harness() {
     const [selectedId, onSelect] = useState<string | null>(null)

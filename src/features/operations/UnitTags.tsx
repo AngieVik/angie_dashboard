@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { DocumentStore } from '../document/documentStore'
 import { addUnitTag, editUnitTag, removeUnitTag } from '../../domain/operations/unitAnnotations'
-import type { AngieDocumentV1 } from '../../domain/document/types'
+import type { AngieDocument } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -13,7 +13,7 @@ export function UnitTags({ store, unitId, tags }: { store: DocumentStore; unitId
   const [error, setError] = useState<string | null>(null)
   const newTagInput = useRef<HTMLInputElement>(null)
   function finishEditing() { newTagInput.current?.focus(); setEditing(null) }
-  function mutate(action: (document: AngieDocumentV1) => void, success: () => void) {
+  function mutate(action: (document: AngieDocument) => void, success: () => void) {
     if (blockedRef.current) return
     try { store.mutateDocument(action); setError(null); success() }
     catch (error) { setError(error instanceof Error ? error.message : 'No se pudo modificar la etiqueta.') }

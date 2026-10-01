@@ -1,6 +1,6 @@
-import type { AngieDocumentV1, BoardStroke, Position, QuickNote } from '../../domain/document/types'
+import type { AngieDocument, BoardStroke, Position, QuickNote } from '../../domain/document/types'
 
-export type Board = AngieDocumentV1['board']
+export type Board = AngieDocument['board']
 export type BoardMode = 'select' | 'pen' | 'eraser' | 'note'
 export interface BoardState { board: Board; mode: BoardMode; draft: BoardStroke | null; selectedNoteId: string | null }
 export type BoardAction =

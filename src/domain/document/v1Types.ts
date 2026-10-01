@@ -10,7 +10,7 @@ export type DocumentModuleId = 'board' | 'elements' | 'information' | 'operation
 export interface Position { x: number; y: number }
 export type ElementVisual =
   | { type: 'asset'; assetId: AssetId; scale: number }
-  | { type: 'emoji'; value: string; scale: number }
+  | { type: 'emoji'; value: string }
 
 export type BoardStroke = {
   id: string
@@ -18,7 +18,7 @@ export type BoardStroke = {
   points: Position[]
 } & ({ tool: 'pen'; color: string } | { tool: 'eraser'; color: null })
 
-export interface QuickNote { id: string; text: string; position: Position; width: number; height: number }
+export interface QuickNote { id: string; text: string; position: Position }
 export interface UnitOperational { status: OperationalStatus; notes: string; tags: string[] }
 export type DocumentElement = {
   id: string
@@ -34,8 +34,8 @@ export type DocumentElement = {
 
 export interface ChecklistItem { id: string; text: string; checked: boolean }
 export type NotebookBlock =
-  | { id: string; type: 'note'; title: string; text: string }
-  | { id: string; type: 'checklist'; title: string; items: ChecklistItem[] }
+  | { id: string; type: 'note'; text: string }
+  | { id: string; type: 'checklist'; items: ChecklistItem[] }
 
 export type TimelineEntry =
   | { id: string; type: 'manual'; occurredAt: string; text: string }
@@ -49,20 +49,19 @@ export type TimelineEntry =
     nextStatus: OperationalStatus
   }
 
-export interface ModuleLayout { x: number; y: number; width: number; height: number; referenceSize: { width: number; height: number } }
+export interface ModuleLayout { x: number; y: number; width: number; height: number }
 
-export interface AngieDocumentV2 {
+export interface AngieDocumentV1 {
   format: 'angie-dashboard'
-  formatVersion: 2
+  formatVersion: 1
   document: { readonly id: string; title: string; readonly createdAt: string; updatedAt: string }
   board: { backgroundColor: string; strokes: BoardStroke[]; quickNotes: QuickNote[] }
   elements: DocumentElement[]
   notebook: NotebookBlock[]
   timeline: TimelineEntry[]
   moduleLayouts: Partial<Record<DocumentModuleId, ModuleLayout>>
+  filters: { visibleStatuses: OperationalStatus[] }
 }
-
-export type AngieDocument = AngieDocumentV2
 
 export interface ValidationIssue { path: string; message: string }
 export type ValidationResult<T> =

@@ -30,7 +30,7 @@ describe('Interfaz del registro', () => {
   it('ofrece Deshacer solo en la última entrada elegible y conserva el nombre histórico', async () => {
     const store = await setup()
     let id = ''
-    act(() => store.mutateDocument(document => { id = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑' }, isUnit: true, information: '' }).id }))
+    act(() => store.mutateDocument(document => { id = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' }).id }))
     act(() => store.mutateDocument(document => Object.assign(document, changeElementStatus(document, id, 'Asignada', new Date()))))
     act(() => store.mutateDocument(document => Object.assign(document, changeElementStatus(document, id, 'En camino', new Date()))))
     expect(screen.getAllByRole('button', { name: 'Deshacer' })).toHaveLength(1)
