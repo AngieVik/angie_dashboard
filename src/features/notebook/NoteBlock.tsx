@@ -1,8 +1,10 @@
 import type { NotebookBlock } from '../../domain/document/types'
+import { useAutoGrowingTextarea } from './useAutoGrowingTextarea'
 
 export function NoteBlock({ block, disabled, onEdit }: {
   block: Extract<NotebookBlock, { type: 'note' }>; disabled: boolean; onEdit: (text: string) => void
 }) {
-  return <textarea className="notebook-note" aria-label="Texto de nota" rows={4} value={block.text}
+  const ref = useAutoGrowingTextarea(block.text)
+  return <textarea ref={ref} className="notebook-note" aria-label="Texto de nota" rows={1} value={block.text}
     disabled={disabled} onChange={event => onEdit(event.target.value)} />
 }

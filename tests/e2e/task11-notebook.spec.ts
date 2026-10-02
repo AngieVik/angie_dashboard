@@ -9,8 +9,7 @@ async function open(page: Page) {
   await page.getByRole('menuitemcheckbox', { name: 'Cuaderno', exact: true }).click()
 }
 async function add(page: Page, type: 'Nota' | 'Checklist') {
-  await page.getByRole('button', { name: 'Añadir bloque', exact: true }).click()
-  await page.getByRole('menuitem', { name: type, exact: true }).click()
+  await page.getByRole('button', { name: type, exact: true }).click()
 }
 async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(async () => {
@@ -47,21 +46,116 @@ test.beforeEach(async ({ page, context, isMobile }) => {
   }
 })
 
+test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll de página', async ({ page, isMobile }, info) => {
+  const document = createEmptyDocument('Alturas Cuaderno')
+  document.moduleLayouts.notebook = { x: 0, y: 0, width: 360, height: 420, referenceSize: { width: 1440, height: 900 } }
+  document.notebook = [
+    { id: crypto.randomUUID(), type: 'note', title: '', text: '' },
+    { id: crypto.randomUUID(), type: 'checklist', title: 'Radio 📻 '.repeat(30), items: [{ id: crypto.randomUUID(), text: '', checked: false }] },
+  ]
+  await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'heights.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
+  const module = page.getByRole('region', { name: 'Cuaderno', exact: true })
+  const note = module.locator('[data-block-id]').first().getByRole('textbox', { name: 'Texto de nota' }), item = module.getByRole('textbox', { name: 'Texto del elemento 1' })
+  const height = () => note.evaluate(node => node.clientHeight)
+  for (const textarea of [note, item]) {
+    expect(await textarea.evaluate(node => {
+      const style = getComputedStyle(node)
+      return node.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - parseFloat(style.lineHeight)
+    })).toBeLessThanOrEqual(2)
+  }
+  const initial = await height()
+  await note.fill('Primera\nSegunda\nTercera 📻')
+  await expect.poll(height).toBeGreaterThan(initial * 2)
+  await note.fill('')
+  await expect.poll(height).toBe(initial)
+  await item.fill('Primera\nSegunda\nTercera 📻')
+  expect(await item.evaluate(node => node.clientHeight)).toBeGreaterThan(initial * 2)
+  await item.fill('')
+  await expect.poll(() => item.evaluate(node => node.clientHeight)).toBe(initial)
+  // A loaded paragraph wraps again on the same textarea when the viewport narrows.
+  const paragraph = 'Preparación de radio en el acceso norte. '.repeat(16)
+  document.notebook[0] = { ...document.notebook[0]!, type: 'note', text: paragraph }
+  await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'loaded.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
+  await expect(note).toHaveValue(paragraph)
+  const wideHeight = await height()
+  await page.setViewportSize({ width: 280, height: 800 })
+  await expect.poll(height).toBeGreaterThan(wideHeight)
+  expect(await note.evaluate(node => node.scrollHeight <= node.clientHeight + 1)).toBe(true)
+  expect(await module.getByRole('list', { name: 'Bloques del Cuaderno' }).evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect.poll(height).toBe(wideHeight)
+  expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual([1440, 900])
+  await page.screenshot({ path: info.outputPath('notebook-loaded-wide.png') })
+  expect(await module.getByRole('button', { name: 'Reordenar bloque 1' }).evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(30)
+  document.notebook = [
+    { id: crypto.randomUUID(), type: 'note', title: '', text: 'Preparación\n📻 Revisar canal' },
+    { id: crypto.randomUUID(), type: 'checklist', title: 'Radio 📻 '.repeat(30), items: [
+      { id: crypto.randomUUID(), text: 'Comprobar canal', checked: true },
+      { id: crypto.randomUUID(), text: 'Acceso norte\nConfirmar enlace', checked: false },
+    ] },
+    ...Array.from({ length: 6 }, (_, index) => ({ id: crypto.randomUUID(), type: 'note' as const, title: `Nota ${index + 3}`, text: 'Preparación de radio. '.repeat(12) })),
+  ]
+  for (const [label, width, height] of [['minimum', 260, 220], ['initial', 360, 420], ['large', 640, 640]] as const) {
+    await page.setViewportSize(isMobile ? label === 'large' ? { width: 915, height: 412 } : { width: 412, height: 915 } : { width: 1440, height: 900 })
+    document.moduleLayouts.notebook = { x: 0, y: 0, width, height, referenceSize: { width: 1440, height: 900 } }
+    await page.getByLabel('Cargar documento JSON').setInputFiles({ name: `${label}.json`, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
+    await page.getByRole('button', { name: 'Encajar', exact: true }).click()
+    await expect(module.getByLabel('Título del bloque 1')).toHaveValue('')
+    await expect(module.getByLabel('Título del bloque 2')).toHaveValue('Radio 📻 '.repeat(30))
+    const typography = await note.evaluate(node => ({ body: parseFloat(getComputedStyle(node).fontSize), title: parseFloat(getComputedStyle(node.parentElement!.querySelector('.notebook-title')!).fontSize) }))
+    expect(typography.body).toBeGreaterThanOrEqual(13); expect(typography.body).toBeLessThanOrEqual(16)
+    expect(typography.title).toBeGreaterThanOrEqual(15); expect(typography.title).toBeLessThanOrEqual(18)
+    expect(await module.locator('.module-content').evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true)
+    const bounds = (await module.boundingBox())!, viewport = page.viewportSize()!
+    expect(bounds.x).toBeGreaterThanOrEqual(-1)
+    expect(bounds.y).toBeGreaterThanOrEqual(0)
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1)
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height + 1)
+    expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
+    await page.screenshot({ path: info.outputPath(`notebook-${label}-layout.png`) })
+  }
+})
+
+test('inserción entre filas y eliminación recuperan foco sin perder el resto del checklist', async ({ page }) => {
+  await add(page, 'Checklist')
+  const module = page.getByRole('region', { name: 'Cuaderno', exact: true })
+  await module.getByRole('button', { name: 'Añadir elemento', exact: true }).press('Enter')
+  await expect(module.getByLabel('Texto del elemento 1')).toBeFocused()
+  await module.getByLabel('Texto del elemento 1').fill('A')
+  await module.getByRole('button', { name: 'Añadir elemento después de 1' }).press('Enter')
+  await module.getByLabel('Texto del elemento 2').fill('B')
+  await module.getByRole('checkbox', { name: 'Marcar elemento 2' }).check()
+  const ids = await module.locator('[data-item-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-item-id')))
+  await module.getByRole('button', { name: 'Añadir elemento después de 1' }).press('Enter')
+  await expect(module.getByLabel('Texto del elemento 2')).toBeFocused()
+  await module.getByLabel('Texto del elemento 2').fill('Entre A y B')
+  expect(await module.locator('[data-item-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-item-id')))).toEqual([ids[0], expect.any(String), ids[1]])
+  await expect(module.getByRole('checkbox', { name: 'Marcar elemento 3' })).toBeChecked()
+  await module.getByRole('button', { name: 'Eliminar elemento 2' }).press('Enter')
+  await expect(module.getByLabel('Texto del elemento 2')).toBeFocused()
+  await expect(module.getByLabel('Texto del elemento 2')).toHaveValue('B')
+  await module.getByRole('button', { name: 'Eliminar elemento 2' }).press('Enter')
+  await expect(module.getByLabel('Texto del elemento 1')).toBeFocused()
+  await module.getByRole('button', { name: 'Eliminar elemento 1' }).press('Enter')
+  await expect(module.getByRole('button', { name: 'Añadir elemento', exact: true })).toBeFocused()
+  await module.getByRole('button', { name: 'Eliminar bloque' }).press('Enter')
+  await expect(module.getByRole('button', { name: 'Checklist', exact: true })).toBeFocused()
+})
+
 test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga conservan texto y marcas', async ({ page, context }, info) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   await context.setOffline(true)
   const module = page.getByRole('region', { name: 'Cuaderno', exact: true })
-  await module.getByRole('button', { name: 'Añadir bloque' }).focus()
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('menuitem')).toHaveText(['Nota', 'Checklist'])
-  await page.getByRole('menuitem', { name: 'Nota', exact: true }).focus()
-  await expect(page.getByRole('menuitem', { name: 'Nota', exact: true })).toBeFocused()
+  await module.getByRole('button', { name: 'Nota', exact: true }).focus()
+  await expect(module.getByRole('button', { name: 'Checklist', exact: true })).toBeVisible()
   await page.keyboard.press('Enter')
   await module.getByRole('textbox', { name: 'Texto de nota' }).fill('Preparación\n⚠ Acceso norte → sur\n📻 Radio')
+  await module.getByRole('textbox', { name: 'Título del bloque 1' }).fill('')
   await add(page, 'Checklist')
   const checklist = module.locator('[data-block-type="checklist"]')
+  await checklist.getByRole('textbox', { name: 'Título del bloque 2' }).fill('Radio 📻 '.repeat(30))
   await checklist.getByRole('button', { name: 'Añadir elemento' }).focus(); await page.keyboard.press('Enter')
   await checklist.getByRole('textbox', { name: 'Texto del elemento 1' }).fill('Comprobar canal 📻')
   const checkbox = checklist.getByRole('checkbox', { name: 'Marcar elemento 1' })
@@ -69,7 +163,7 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   await expect(checkbox).toBeChecked()
   await page.keyboard.press('Space'); await expect(checkbox).not.toBeChecked()
   await page.keyboard.press('Space')
-  await checklist.getByRole('button', { name: 'Añadir elemento' }).click()
+  await checklist.getByRole('button', { name: 'Añadir elemento después de 1' }).click()
   await checklist.getByRole('textbox', { name: 'Texto del elemento 2' }).fill('Borrar este elemento')
   await checklist.getByRole('button', { name: 'Eliminar elemento 2' }).click()
   await module.getByRole('button', { name: 'Reordenar bloque 2' }).focus()
@@ -86,8 +180,8 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   const jsonText = await readFile((await (await downloading).path())!, 'utf8')
   const exported: AngieDocument = JSON.parse(jsonText)
   expect(exported.notebook).toEqual([
-    { id: expect.any(String), type: 'checklist', title: 'Checklist', items: [{ id: expect.any(String), text: 'Comprobar canal 📻', checked: true }] },
-    { id: expect.any(String), type: 'note', title: 'Nota', text: 'Preparación\n⚠ Acceso norte → sur\n📻 Radio' },
+    { id: expect.any(String), type: 'checklist', title: 'Radio 📻 '.repeat(30), items: [{ id: expect.any(String), text: 'Comprobar canal 📻', checked: true }] },
+    { id: expect.any(String), type: 'note', title: '', text: 'Preparación\n⚠ Acceso norte → sur\n📻 Radio' },
   ])
   expect(Object.keys(exported)).toHaveLength(8)
   await expect.poll(async () => (await saved(page)).notebook).toEqual(exported.notebook)
@@ -101,6 +195,8 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Cuaderno Task 11')
   await open(page)
   await expect(checkbox).toBeChecked()
+  await expect(module.getByRole('textbox', { name: 'Título del bloque 1' })).toHaveValue('Radio 📻 '.repeat(30))
+  await expect(module.getByRole('textbox', { name: 'Título del bloque 2' })).toHaveValue('')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Nuevo', exact: true }).click()
   await expect(module.locator('[data-block-id]')).toHaveCount(0)
@@ -150,14 +246,14 @@ test('tamaño mínimo, lista con scroll interno, nombres accesibles y foco visib
   const module = page.getByRole('region', { name: 'Cuaderno', exact: true }), list = module.getByRole('list', { name: 'Bloques del Cuaderno' })
   expect(await list.evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await module.locator('.module-content').evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true)
-  for (const control of await module.locator('button,textarea').all()) await expect(control).toHaveAccessibleName(/.+/)
-  const addButton = module.getByRole('button', { name: 'Añadir bloque' })
+  for (const control of await module.locator('button,textarea,input').all()) await expect(control).toHaveAccessibleName(/.+/)
+  const addButton = module.getByRole('button', { name: 'Nota', exact: true })
   await expect(addButton).toBeInViewport()
   await addButton.focus()
   expect(await addButton.evaluate(node => getComputedStyle(node).outlineStyle)).not.toBe('none')
   const ids = document.notebook.map(block => block.id)
   if (isMobile) {
-    const rect = await list.locator('.notebook-kind').first().boundingBox(), session = await context.newCDPSession(page)
+    const rect = await list.locator('.notebook-title').first().boundingBox(), session = await context.newCDPSession(page)
     // Scroll from block content, away from block and module resize handles.
     const x = rect!.x + rect!.width / 2, y = rect!.y + rect!.height / 2
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] })

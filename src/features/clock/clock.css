@@ -1,30 +1,37 @@
-.clock-module { padding: 8px; min-width: 0; }
+.clock-module { padding: 8px; min-width: 0; font-size: var(--font-size-body); }
 .tactical-clock { padding: 9px 12px; border: 1px solid #555B60; border-top: 2px solid #D63A3A; border-radius: 2px; background: radial-gradient(ellipse at 50% 0%, #293036 0%, #101315 75%); box-shadow: inset 0 1px 0 #62676B, inset 0 -2px 6px #080A0B, 0 3px 8px #08090A; }
-.clock-reference { display: flex; align-items: center; justify-content: space-between; gap: 7px; font-size: 11px; color: #7E868B; letter-spacing: .06em; }
-.clock-reference b { color: var(--color-text); font-size: 13px; }
+.clock-reference { padding-bottom: 7px; border-bottom: 1px solid #343B3F; white-space: nowrap; font-size: var(--font-size-technical); color: var(--color-text-secondary); }
+.clock-reference > span:first-child { color: var(--color-text); font-weight: 650; }
 .clock-reference .clock-season-active { color: var(--color-accent-yellow); }
-.clock-esp { display: block; text-align: center; font-size: 38px; line-height: 1.4; letter-spacing: .04em; font-weight: 600; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
-.clock-zulu { display: flex; align-items: center; justify-content: space-between; gap: 7px; padding-top: 4px; border-top: 1px solid #343B3F; color: var(--color-text-secondary); font-size: 12px; }
-.clock-zulu output { font-size: 18px; }
-.clock-add-controls { display: flex; flex-wrap: wrap; gap: 4px; margin: 9px 0 5px; }
-.clock-module .document-button { padding: 4px 7px; font-size: 12px; }
-.clock-preview { margin-bottom: 7px; }
-.clock-module [role="alert"] { margin: 5px 0; font-size: 12px; }
+.clock-face { display: grid; grid-template-columns: minmax(0, 1fr) 2ch 1ch 2ch 1ch 2ch minmax(0, 1fr); padding: 6px 0 4px; font-size: clamp(28px, 10cqi, 64px); font-variant-numeric: tabular-nums; background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / 6%) 3px 4px); }
+.clock-separator { display: flex; justify-content: center; }
+.clock-esp, .clock-zulu { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
+.clock-esp { line-height: 1.25; text-align: center; font-size: inherit; font-weight: 600; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
+.clock-esp > span:first-child { grid-column: 2; }
+.clock-zulu { align-items: center; padding-top: 4px; color: var(--color-text-secondary); font-size: clamp(16px, 5cqi, 30px); }
+.clock-zulu-label { justify-self: end; padding-right: 6px; font-size: var(--font-size-technical); white-space: nowrap; }
+.clock-zulu output { display: grid; grid-template-columns: subgrid; grid-column: 2 / 5; text-align: center; }
+.clock-add-controls { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin: 9px 0 7px; }
+.clock-module .document-button { padding: 4px 7px; font-size: var(--font-size-body); }
+.clock-add-controls .document-button { flex-shrink: 0; padding-inline: 5px; }
+.clock-preview { margin-left: auto; }
+.clock-module [role="alert"] { margin: 5px 0; font-size: var(--font-size-body); }
 .clock-module [role="alert"] .document-button { margin-left: 5px; }
 .timer-list { display: flex; flex-direction: column; gap: 8px; padding: 3px; }
 .timer-row { min-width: 0; border: 1px solid #4A5054; border-radius: 2px; padding: 5px 7px; background: linear-gradient(180deg, #292E32, #191C1F); box-shadow: inset 0 1px 0 #464C50, 0 2px 4px #0A0B0C; }
-.timer-heading { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 650; }
-.timer-status { margin-left: auto; color: var(--color-text-secondary); font-size: 11px; font-weight: 400; }
+.timer-heading { display: flex; align-items: center; gap: 5px; font-size: var(--font-size-body); font-weight: 650; }
+.timer-status { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-body); font-weight: 400; }
 .timer-heading .document-button { padding: 0 5px; }
 .timer-main { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin: 4px 0; }
-.timer-value { font-size: 23px; white-space: nowrap; }
+.timer-value { font-size: clamp(20px, 6cqi, 30px); white-space: nowrap; }
 .timer-controls { display: flex; gap: 3px; }
 .timer-controls .document-button { min-width: 26px; padding: 3px 4px; }
-.timer-duration { display: flex; align-items: center; gap: 4px; margin: 5px 0; color: var(--color-text-secondary); font-size: 11px; }
+.timer-duration { display: flex; align-items: center; gap: 4px; margin: 5px 0; color: var(--color-text-secondary); font-size: var(--font-size-body); }
 .timer-duration-part { display: flex; align-items: center; gap: 4px; }
-.timer-digit { width: 37px; min-width: 0; padding: 2px 3px; border: 1px solid #555B60; border-radius: 2px; background: #0F1214; color: var(--color-text); text-align: center; font-size: 13px; }
+.timer-digit { width: 37px; min-width: 0; padding: 2px 3px; border: 1px solid #555B60; border-radius: 2px; background: #0F1214; color: var(--color-text); text-align: center; }
+.logical-workspace .module-frame .module-content .clock-module input.timer-digit { font-size: var(--font-size-technical); }
 .timer-digit:disabled { color: var(--color-text-secondary); opacity: .8; }
-.timer-note { width: 100%; min-width: 0; padding: 4px 5px; border: 1px solid #42494E; border-radius: 2px; background: #131719; color: var(--color-text); font-size: 12px; }
+.timer-note { width: 100%; min-width: 0; padding: 4px 5px; border: 1px solid #42494E; border-radius: 2px; background: #131719; color: var(--color-text); font-size: var(--font-size-body); }
 .timer-acknowledge { padding: 0; border: none; background: transparent; color: var(--color-text); cursor: pointer; }
 .timer-row[data-alert="true"] { border-color: #FFF; outline: 1px solid #FFF; animation: timer-alarm var(--alarm-cycle) steps(1, end) infinite; cursor: pointer; }
 @keyframes timer-alarm {

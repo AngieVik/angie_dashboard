@@ -27,6 +27,45 @@ async function advance(ms: number) { await act(async () => { vi.advanceTimersByT
 function row(name: string) { return within(screen.getByRole('group', { name })) }
 
 describe('Módulo Reloj', () => {
+  it.each([
+    ['2026-01-01T12:04:05Z', '13:04:05', 'WT'],
+    ['2026-07-01T12:04:05Z', '14:04:05', 'ST'],
+  ])('presenta referencias informativas y horas española/UTC en %s', async (instant, esp, season) => {
+    vi.setSystemTime(new Date(instant)); await setup()
+    expect(screen.getByText('Digital Watch', { exact: false }).closest('.clock-reference')).toHaveTextContent(/^Digital Watch \| UTC\+2 \[ST\] \| UTC\+1 \[WT\] ESP$/)
+    expect(screen.getByLabelText('Hora española')).toHaveTextContent(new RegExp(`^${esp}$`))
+    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent(/^12:04$/)
+    expect(screen.getByText('Zulu Time')).toBeInTheDocument()
+    expect(screen.getByText(season === 'ST' ? 'UTC+2 [ST]' : 'UTC+1 [WT]')).toHaveClass('clock-season-active')
+    for (const name of ['T-Zero', 'T-Minus', 'Advisories']) expect(screen.getByRole('button', { name })).toHaveTextContent(new RegExp(`^${name}$`))
+    expect(screen.getByRole('button', { name: 'Reproducir prueba de sonido' })).toHaveTextContent(/^▶ Sonido$/)
+    expect(screen.getAllByRole('button')).toHaveLength(4)
+  })
+  it('la alarma real sustituye la prueba y deshabilita Sonido hasta reconocerla', async () => {
+    const timer = createTimer('tminus', 1), { store, alarm } = await setup([timer])
+    const preview = screen.getByRole('button', { name: 'Reproducir prueba de sonido' })
+    await act(async () => fireEvent.click(preview))
+    expect(preview).toHaveAccessibleName('Detener prueba de sonido')
+    expect(preview).toHaveTextContent(/^⏸ Sonido$/)
+    act(() => store.start(timer.id)); await advance(1000)
+    expect(alarm.getSnapshot()).toMatchObject({ preview: false, activeCount: 1, error: null })
+    expect(preview).toHaveAccessibleName('Reproducir prueba de sonido')
+    expect(preview).toHaveTextContent(/^▶ Sonido$/); expect(preview).toBeDisabled()
+    fireEvent.click(row('T-Minus 1').getByRole('button', { name: 'Reconocer alerta' }))
+    expect(preview).toBeEnabled(); expect(alarm.getSnapshot().activeCount).toBe(0)
+  })
+  it('Sonido bloqueado permite reintentar la prueba sin cambiar temporizadores', async () => {
+    const { store, audio, alarm } = await setup([createTimer('advisory', 10)])
+    const timers = structuredClone(store.getSnapshot().timers)
+    audio.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Reproducir prueba de sonido' })))
+    expect(screen.getByRole('alert')).toHaveTextContent('Sonido bloqueado')
+    expect(screen.getByRole('button', { name: 'Detener prueba de sonido' })).toHaveTextContent(/^⏸ Sonido$/)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Activar sonido' })))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(alarm.getSnapshot()).toMatchObject({ preview: true, activeCount: 0, error: null })
+    expect(store.getSnapshot().timers).toEqual(timers)
+  })
   it('dos reintentos simultáneos no resucitan un temporizador cerrado tras recuperar', async () => {
     const timer = startTimer(createTimer('tminus', 1), Date.now() - 2000)
     let resolveFirst!: (value: TimerRecord[]) => void, resolveSecond!: (value: TimerRecord[]) => void
@@ -59,9 +98,9 @@ describe('Módulo Reloj', () => {
   it('muestra España, referencias tácticas y Zulu; crea múltiples tipos con notas y controles', async () => {
     await setup()
     expect(screen.getByLabelText('Hora española')).toHaveTextContent('13:00:00')
-    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent('12:00:00')
+    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent(/^12:00$/)
     expect(screen.getByText('UTC+2 [ST]')).toBeInTheDocument(); expect(screen.getByText('UTC+1 [WT]')).toBeInTheDocument()
-    for (const name of ['[+] T-Zero', '[+] T-Zero', '[+] T-Minus', '[+] Advisories']) fireEvent.click(screen.getByRole('button', { name }))
+    for (const name of ['T-Zero', 'T-Zero', 'T-Minus', 'Advisories']) fireEvent.click(screen.getByRole('button', { name }))
     expect(screen.getAllByRole('group', { name: /^T-Zero / })).toHaveLength(2)
     const advisory = row('Advisory 1')
     expect(advisory.queryByRole('button', { name: 'Pausar' })).not.toBeInTheDocument()
@@ -77,7 +116,7 @@ describe('Módulo Reloj', () => {
     expect(row('T-Zero 1').getByRole('textbox', { name: 'Nota' })).toHaveValue('Canal 4')
   })
   it('tres campos de dígitos con teclado numérico, separadores fijos y normalización al salir/iniciar', async () => {
-    await setup(); fireEvent.click(screen.getByRole('button', { name: '[+] T-Minus' }))
+    await setup(); fireEvent.click(screen.getByRole('button', { name: 'T-Minus' }))
     const timer = row('T-Minus 1'), fields = ['Horas', 'Minutos', 'Segundos'].map(name => timer.getByRole('textbox', { name }))
     fields.forEach(field => { expect(field).toHaveAttribute('inputmode', 'numeric'); expect(field).toHaveAttribute('pattern', '[0-9]*') })
     expect(timer.getAllByText(':', { exact: true })).toHaveLength(2)
@@ -99,7 +138,7 @@ describe('Módulo Reloj', () => {
     await advance(1000)
     expect(screen.getAllByRole('button', { name: 'Reconocer alerta' })).toHaveLength(3)
     expect(audio.play).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Probar sonido' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Reproducir prueba de sonido' })).toBeDisabled()
     fireEvent.click(row('T-Minus 1').getByRole('button', { name: 'Reconocer alerta' }))
     expect(row('T-Minus 1').getByText('Finalizado')).toBeInTheDocument()
     fireEvent.click(row('T-Minus 1').getByRole('button', { name: 'Reiniciar' }))
@@ -113,11 +152,14 @@ describe('Módulo Reloj', () => {
   it('prueba común conserva los temporizadores y se detiene al desmontar el módulo', async () => {
     const { store, view, audio } = await setup([createTimer('advisory', 10)])
     const timers = store.getSnapshot().timers
-    const button = screen.getByRole('button', { name: 'Probar sonido' })
+    const button = screen.getByRole('button', { name: 'Reproducir prueba de sonido' })
     await act(async () => fireEvent.click(button))
-    expect(button).toHaveTextContent('⏸'); expect(button).toHaveTextContent('Probar sonido')
+    expect(button).toHaveTextContent('⏸'); expect(button).toHaveTextContent('Sonido')
+    expect(button).toHaveAccessibleName('Detener prueba de sonido')
+    expect(button).toHaveAttribute('aria-pressed', 'true')
     expect(store.getSnapshot().timers).toEqual(timers)
     await act(async () => fireEvent.click(button)); expect(button).toHaveTextContent('▶')
+    expect(button).toHaveAccessibleName('Reproducir prueba de sonido')
     await act(async () => fireEvent.click(button)); view.unmount()
     expect(audio.pause).toHaveBeenCalledTimes(2)
   })
@@ -168,7 +210,7 @@ describe('Módulo Reloj', () => {
   it('fallo de persistencia conserva controles y reintenta el estado más reciente', async () => {
     const { repository, store } = await setup()
     repository.saveTimers.mockRejectedValueOnce(new Error('write'))
-    fireEvent.click(screen.getByRole('button', { name: '[+] T-Zero' }))
+    fireEvent.click(screen.getByRole('button', { name: 'T-Zero' }))
     await act(async () => store.flush())
     expect(screen.getByRole('alert')).toHaveTextContent('Autoguardado no disponible')
     fireEvent.change(row('T-Zero 1').getByRole('textbox', { name: 'Nota' }), { target: { value: 'Radio' } })

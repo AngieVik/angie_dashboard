@@ -6,9 +6,32 @@ import { validateDocument } from '../../domain/document/validateDocument'
 import { createDatabase } from '../../storage/db'
 import { DocumentRepository } from '../../storage/documentRepository'
 import { createDocumentStore } from '../document/documentStore'
-import { addNotebookBlock, editNotebookNote, deleteNotebookBlock, reorderNotebookBlock, addChecklistItem, editChecklistItem, setChecklistItemChecked, deleteChecklistItem } from './notebookCommands'
+import { addNotebookBlock, editNotebookTitle, editNotebookNote, deleteNotebookBlock, reorderNotebookBlock, addChecklistItem, editChecklistItem, setChecklistItemChecked, deleteChecklistItem } from './notebookCommands'
 
 describe('comandos del Cuaderno', () => {
+  it('edita títulos independientes, incluidos vacíos y largos, sin derivarlos del texto', () => {
+    const document = createEmptyDocument()
+    const note = addNotebookBlock(document, 'note'), checklist = addNotebookBlock(document, 'checklist')
+    editNotebookNote(document, note.id, 'Contenido conservado')
+    const title = '  Preparación 📻 '.repeat(40)
+    editNotebookTitle(document, checklist.id, title)
+    editNotebookTitle(document, note.id, '')
+    expect(document.notebook).toEqual([
+      { id: note.id, type: 'note', title: '', text: 'Contenido conservado' },
+      { id: checklist.id, type: 'checklist', title, items: [] },
+    ])
+    expect(validateDocument(document).success).toBe(true)
+  })
+
+  it('inserta después del ítem elegido conservando IDs, texto, marcas y orden ajenos', () => {
+    const document = createEmptyDocument(), block = addNotebookBlock(document, 'checklist')
+    const a = addChecklistItem(document, block.id), b = addChecklistItem(document, block.id), c = addChecklistItem(document, block.id)
+    editChecklistItem(document, block.id, b.id, 'Conservar 📻')
+    setChecklistItemChecked(document, block.id, b.id, true)
+    const inserted = addChecklistItem(document, block.id, b.id)
+    expect(document.notebook[0]).toMatchObject({ items: [a, { id: b.id, text: 'Conservar 📻', checked: true }, { id: inserted.id, text: '', checked: false }, c] })
+    expect(new Set([a.id, b.id, c.id, inserted.id]).size).toBe(4)
+  })
   it('añade bloques vacíos independientes al final con UUID y solo los campos aprobados', () => {
     const document = createEmptyDocument()
     const note = addNotebookBlock(document, 'note')
@@ -75,6 +98,8 @@ describe('comandos del Cuaderno', () => {
     const item = addChecklistItem(document, b.id), before = structuredClone(document)
     for (const action of [
       () => editNotebookNote(document, b.id, 'No'),
+      () => editNotebookTitle(document, 'missing', 'No'),
+      () => addChecklistItem(document, b.id, 'missing'),
       () => addChecklistItem(document, a.id),
       () => editChecklistItem(document, b.id, a.id, 'No'),
       () => setChecklistItemChecked(document, a.id, item.id, true),
@@ -99,6 +124,8 @@ describe('comandos del Cuaderno', () => {
         a = addNotebookBlock(document, 'note').id
         b = addNotebookBlock(document, 'checklist').id
         editNotebookNote(document, a, 'Preparación\n⚠ Acceso norte')
+        editNotebookTitle(document, a, '')
+        editNotebookTitle(document, b, '  Radio 📻  ')
         item = addChecklistItem(document, b).id
         editChecklistItem(document, b, item, '📻 Comprobar radio')
         setChecklistItemChecked(document, b, item, true)
@@ -110,8 +137,8 @@ describe('comandos del Cuaderno', () => {
       await recovered.initialize()
       const exported = JSON.parse(serializeDocument(recovered.getSnapshot().document))
       expect(exported.notebook).toEqual([
-        { id: b, type: 'checklist', title: 'Checklist', items: [{ id: item, text: '📻 Comprobar radio', checked: true }] },
-        { id: a, type: 'note', title: 'Nota', text: 'Preparación\n⚠ Acceso norte' },
+        { id: b, type: 'checklist', title: '  Radio 📻  ', items: [{ id: item, text: '📻 Comprobar radio', checked: true }] },
+        { id: a, type: 'note', title: '', text: 'Preparación\n⚠ Acceso norte' },
       ])
       expect(Object.keys(exported)).toHaveLength(8)
       const unchanged = recovered.getSnapshot().document

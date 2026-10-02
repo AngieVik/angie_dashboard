@@ -60,7 +60,7 @@ test('todos los módulos: nombres accesibles y Tab con foco visible sin controle
       await module.getByRole('button', { name: 'Seleccionar Tango teclado' }).press('Enter')
     }
     if (name === 'Reloj') {
-      for (const label of ['[+] T-Zero', '[+] T-Minus', '[+] Advisories']) await module.getByRole('button', { name: label, exact: true }).press('Enter')
+      for (const label of ['T-Zero', 'T-Minus', 'Advisories']) await module.getByRole('button', { name: label, exact: true }).press('Enter')
     }
     for (const control of await module.locator('button,input:not([hidden]),select,textarea').all()) {
       if (!await control.isVisible()) continue
@@ -182,7 +182,7 @@ test('Cuaderno: eliminar bloque e ítem conserva foco en Añadir', async ({ page
   await checklist.getByRole('button', { name: 'Eliminar elemento 1' }).press('Enter')
   await expect(checklist.getByRole('button', { name: 'Añadir elemento' })).toBeFocused()
   await checklist.getByRole('button', { name: 'Eliminar bloque' }).press('Enter')
-  await expect(module.getByRole('button', { name: 'Añadir bloque' })).toBeFocused()
+  await expect(module.getByRole('button', { name: 'Checklist', exact: true })).toBeFocused()
 })
 
 test('Registro: guardar, cancelar, eliminar y Deshacer conservan foco en Acontecimiento', async ({ page }) => {

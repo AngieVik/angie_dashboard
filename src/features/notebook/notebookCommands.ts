@@ -26,6 +26,9 @@ export function editNotebookNote(document: AngieDocument, id: string, text: stri
   if (block.type !== 'note') throw new Error('El bloque no es una nota.')
   block.text = text
 }
+export function editNotebookTitle(document: AngieDocument, id: string, title: string): void {
+  findBlock(document, id).title = title
+}
 export function deleteNotebookBlock(document: AngieDocument, id: string) {
   findBlock(document, id)
   document.notebook = document.notebook.filter(block => block.id !== id)
@@ -40,10 +43,15 @@ export function reorderNotebookBlock(document: AngieDocument, id: string, target
   document.notebook.splice(from, 1)
   document.notebook.splice(to, 0, block)
 }
-export function addChecklistItem(document: AngieDocument, blockId: string): ChecklistItem {
+export function addChecklistItem(document: AngieDocument, blockId: string, afterItemId?: string): ChecklistItem {
   const block = findChecklist(document, blockId)
+  let index = block.items.length
+  if (afterItemId !== undefined) {
+    findItem(document, blockId, afterItemId)
+    index = block.items.findIndex(item => item.id === afterItemId) + 1
+  }
   const item = { id: crypto.randomUUID(), text: '', checked: false }
-  block.items.push(item)
+  block.items.splice(index, 0, item)
   return item
 }
 export function editChecklistItem(document: AngieDocument, blockId: string, itemId: string, text: string) {
