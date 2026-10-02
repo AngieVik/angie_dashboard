@@ -1,10 +1,11 @@
-.calculator-module { display: flex; flex-direction: column; gap: 4px; height: 100%; min-height: 236px; padding: 7px; }
-.calculator-module label { font-size: 12px; line-height: 14px; color: var(--color-text-secondary); }
-.calculator-module .document-title { flex: 0 0 28px; width: 100%; text-align: right; font-size: 15px; }
+.calculator-module { --calculator-display-size: clamp(18px, 7cqi, 36px); display: flex; flex-direction: column; gap: 4px; height: 100%; min-height: 236px; padding: 7px; }
+.calculator-module .document-title { flex: 0 0 max(28px, calc(var(--calculator-display-size) * 1.5)); width: 100%; text-align: right; }
+.logical-workspace .module-frame .module-content .calculator-module input.document-title { font-size: var(--calculator-display-size); }
 .calculator-module [aria-invalid="true"] { border-color: var(--color-accent-red); }
 .calculator-readout { flex: 0 0 auto; min-height: 20px; text-align: right; overflow-wrap: anywhere; }
-.calculator-readout output { font-size: 17px; line-height: 20px; color: var(--color-text); }
-.calculator-readout [role="alert"] { display: block; font-size: 12px; line-height: 16px; color: var(--color-accent-yellow); }
-.calculator-keypad { display: grid; flex: 1; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(22px, 1fr)); gap: 4px; }
-.calculator-keypad .document-button { min-width: 0; padding: 1px 4px; font-size: 15px; }
+.calculator-readout output { font-size: var(--calculator-display-size); line-height: 1.25; color: var(--color-text); }
+.calculator-readout [role="alert"] { display: block; font-size: var(--font-size-body); line-height: 1.25; color: var(--color-accent-yellow); }
+.calculator-keypad { container-type: size; display: grid; flex: 1; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(22px, 1fr)); gap: 4px; }
+.calculator-keypad .document-button { min-width: 0; padding: 1px 4px; }
+.logical-workspace .module-frame .module-content .calculator-module .calculator-keypad button.document-button { font-size: clamp(15px, min(7cqi, 12cqb), 28px); }
 .calculator-keypad .calculator-equals { grid-column: 1 / -1; border-color: var(--color-accent-red); background: linear-gradient(180deg, #71302F, #3D2021); }

@@ -29,8 +29,7 @@ export function CalculatorModule() {
   }
 
   return <form className="calculator-module" onSubmit={event => { event.preventDefault(); calculate() }}>
-    <label htmlFor={`${id}-expression`}>Operación</label>
-    <Input id={`${id}-expression`} className="document-title technical-data" value={expression} disabled={blocked}
+    <Input id={`${id}-expression`} aria-label="Operación" className="document-title technical-data" value={expression} disabled={blocked}
       autoComplete="off" spellCheck={false} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
       onChange={event => edit(event.target.value)} onKeyDown={event => {
         if (event.key === '=') { event.preventDefault(); calculate() }

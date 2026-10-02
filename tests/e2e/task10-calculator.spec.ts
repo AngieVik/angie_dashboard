@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
+import { noPageScroll } from './acceptance-helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
@@ -48,6 +49,29 @@ test('operaciones y porcentajes con teclado, errores y botones sin conexión', a
   await expect(module.getByLabel('Resultado', { exact: true })).toHaveText('90')
   await page.screenshot({ path: info.outputPath('calculator.png') })
   expect(errors).toEqual([])
+})
+
+test('cifras adaptables y etiqueta compacta en tamaños mínimo, inicial y ampliado', async ({ page }, info) => {
+  const module = page.getByRole('region', { name: 'Calculadora', exact: true })
+  const fonts: { input: number; result: number; key: number }[] = []
+  for (const [width, height] of [[220, 280], [280, 360], [380, 540]]) {
+    const document = createEmptyDocument('Calculadora adaptable')
+    document.moduleLayouts.calculator = { x: 0, y: 0, width: width!, height: height!, referenceSize: { width: 1440, height: 900 } }
+    await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'calculator.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
+    const input = module.getByRole('textbox', { name: 'Operación', exact: true })
+    await expect(module.getByText('Operación', { exact: true })).toHaveCount(0)
+    await input.fill('200 + 10 %'); await input.press('Enter')
+    const result = module.getByLabel('Resultado', { exact: true }), key = module.getByRole('button', { name: '7', exact: true })
+    await expect(result).toHaveText('220')
+    fonts.push({ input: await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize)), result: await result.evaluate(el => parseFloat(getComputedStyle(el).fontSize)), key: await key.evaluate(el => parseFloat(getComputedStyle(el).fontSize)) })
+    for (const button of await module.getByRole('button').all()) await expect(button).toBeInViewport()
+    await noPageScroll(page)
+    await page.screenshot({ path: info.outputPath(`calculator-${width}.png`) })
+  }
+  for (const role of ['input', 'result', 'key'] as const) {
+    expect(fonts[2]![role]).toBeGreaterThan(fonts[1]![role])
+    expect(fonts[1]![role]).toBeGreaterThan(fonts[0]![role])
+  }
 })
 
 test('operación y resultado no se exportan ni se autoguardan; recarga y reapertura vacías', async ({ page }) => {

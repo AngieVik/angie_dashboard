@@ -11,6 +11,13 @@ function calculate(expression: string) {
 }
 
 describe('Calculadora', () => {
+  it('conserva el campo accesible sin etiqueta visible redundante', () => {
+    render(<CalculatorModule />)
+    expect(input()).toBeInTheDocument()
+    expect(screen.queryByText('Operación')).not.toBeInTheDocument()
+    calculate('200 + 10 %')
+    expect(screen.getByLabelText('Resultado')).toHaveTextContent(/^220$/)
+  })
   it('comienza vacía y permite operaciones con el teclado de botones', () => {
     render(<CalculatorModule />)
     expect(input()).toHaveValue('')

@@ -20,7 +20,7 @@ test('sin red: documento, selección, estados, coordenadas, calculadora, Cuadern
   await coordinates.getByRole('textbox', { name: 'Coordenadas', exact: true }).fill('30S 588700 4101800')
   await coordinates.getByRole('button', { name: 'Convertir' }).press('Enter')
   await expect(coordinates.getByLabel('Resultado DD')).toHaveText(/^37\./)
-  const link = new URL(await coordinates.getByLabel('Enlace de Google Maps').inputValue())
+  const link = new URL((await coordinates.getByRole('link', { name: 'Enlace de Google Maps' }).getAttribute('href'))!)
   expect(link.origin).toBe('https://www.google.com')
   expect(link.searchParams.get('query')).toMatch(/^37\.\d+,-2\./)
   await coordinates.getByRole('textbox', { name: 'Coordenadas', exact: true }).fill('30I 588700 4101800')

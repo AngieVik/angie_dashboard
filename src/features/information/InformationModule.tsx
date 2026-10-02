@@ -10,13 +10,15 @@ export function InformationModule({ store, selectedId, onSelect }: { store: Docu
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const selected = document.elements.find(element => element.id === selectedId)
+  const status = selected?.isUnit ? OPERATIONAL_STATUSES.find(item => item.status === selected.operational.status)! : null
   const units = document.elements.filter(element => element.isUnit)
   const root = useRef<HTMLDivElement>(null)
   return <div ref={root} className="information-module">
     {selected ? <>
       <div className="information-text">{selected.information}</div>
       {selected.isUnit && <>
-        <p className="information-phase">Fase: <span>{OPERATIONAL_STATUSES.find(item => item.status === selected.operational.status)!.phase}</span></p>
+        <p className="information-status" aria-label="Estado operativo"><span aria-hidden="true">{status!.icon}</span> {status!.status}</p>
+        <p className="information-phase">Fase: <span>{status!.phase}</span></p>
         <div className="information-tags" aria-label="Etiquetas">{selected.operational.tags.map(tag => <span key={tag} className="unit-tag">{tag}</span>)}</div>
       </>}
     </> : units.length ? <div className="information-units">{units.map(unit => <Button key={unit.id} aria-label={`Seleccionar ${unit.name}`} disabled={blocked}

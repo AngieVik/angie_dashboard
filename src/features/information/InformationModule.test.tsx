@@ -8,6 +8,26 @@ import { OperationsModule } from '../operations/OperationsModule'
 import { InformationModule } from './InformationModule'
 
 describe('Información y selección compartida', () => {
+  it.each([
+    ['Disponible', 'Espera', '🟢'], ['Asignada', 'Activación', '🟡'], ['En camino', 'Aproximación', '🔵'],
+    ['En el lugar', 'Intervención', '🔴'], ['En traslado', 'Evacuación', '💠'], ['En destino', 'Transferencia', '🟠'],
+    ['Operativa', 'Retorno', '🟢'], ['Inoperativa', 'Bloqueo', '⚫'],
+  ] as const)('dotación %s muestra su estado con color y fase %s', async (status, phase, icon) => {
+    const store = createDocumentStore({ loadActive: async () => null, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })
+    await store.initialize()
+    let id = ''
+    store.mutateDocument(document => {
+      const element = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: 'Canal 4' })
+      id = element.id
+      if (element.isUnit) element.operational.status = status
+    })
+    render(<InformationModule store={store} selectedId={id} onSelect={() => {}} />)
+    const state = screen.getByLabelText('Estado operativo')
+    expect(state).toHaveTextContent(status)
+    expect(within(state).getByText(icon)).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText(phase)).toBeInTheDocument()
+    expect(screen.getByText('Canal 4')).toBeInTheDocument()
+  })
   it('sin dotaciones muestra solamente Sin dotaciones', async () => {
     const store = createDocumentStore({ loadActive: async () => null, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })
     await store.initialize()
@@ -33,6 +53,7 @@ describe('Información y selección compartida', () => {
     render(<Harness />)
     const info = within(screen.getByRole('region', { name: 'Info' })), ops = within(screen.getByRole('region', { name: 'Ops' })), elements = within(screen.getByRole('region', { name: 'Elements' }))
     expect(info.getAllByRole('button').map(node => node.textContent)).toEqual(['Tango'])
+    expect(info.queryByLabelText('Estado operativo')).not.toBeInTheDocument()
     expect(info.queryByText('Espera')).not.toBeInTheDocument()
     expect(info.queryByRole('checkbox')).not.toBeInTheDocument()
     fireEvent.click(info.getByRole('button', { name: 'Seleccionar Tango' }))
@@ -44,6 +65,7 @@ describe('Información y selección compartida', () => {
     expect(info.getByText('Transferencia')).toBeInTheDocument()
     fireEvent.click(elements.getByRole('button', { name: 'Seleccionar Ruta' }))
     expect(info.getByText('Acceso sur')).toBeInTheDocument()
+    expect(info.queryByLabelText('Estado operativo')).not.toBeInTheDocument()
     expect(info.queryByText('Transferencia')).not.toBeInTheDocument()
     expect(info.queryByText('Sector norte')).not.toBeInTheDocument()
     fireEvent.click(ops.getByRole('button', { name: '🟠 1 En destino' }))

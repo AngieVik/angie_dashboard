@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { createElement } from '../../src/features/elements/elementCommands'
 import type { AngieDocument } from '../../src/domain/document/types'
-import { bringModuleToFront } from './acceptance-helpers'
+import { bringModuleToFront, noPageScroll } from './acceptance-helpers'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -55,6 +55,33 @@ test.beforeEach(async ({ page }) => {
 test('sin selección Información muestra Sin dotaciones', async ({ page }) => {
   await open(page, 'Información')
   await expect(page.locator('[data-module="information"]').getByText('Sin dotaciones')).toBeVisible()
+})
+
+test('Información: ocho estados con color y fase, tamaños mínimo, inicial y ampliado', async ({ page }, info) => {
+  const states = [
+    ['Disponible', 'Espera', '🟢'], ['Asignada', 'Activación', '🟡'], ['En camino', 'Aproximación', '🔵'],
+    ['En el lugar', 'Intervención', '🔴'], ['En traslado', 'Evacuación', '💠'], ['En destino', 'Transferencia', '🟠'],
+    ['Operativa', 'Retorno', '🟢'], ['Inoperativa', 'Bloqueo', '⚫'],
+  ] as const
+  await open(page, 'Información')
+  const information = page.locator('[data-module="information"]')
+  for (const [width, height] of [[220, 140], [320, 240], [380, 360]]) {
+    for (const [status, phase, icon] of states) {
+      const document = fixture()
+      document.elements = document.elements.slice(0, 1)
+      const unit = document.elements[0]!
+      if (unit.isUnit) { unit.operational.status = status; unit.operational.tags = ['Sector norte', 'Radio'] }
+      document.moduleLayouts.information = { x: 0, y: 0, width: width!, height: height!, referenceSize: { width: 1440, height: 900 } }
+      await load(page, document)
+      await expect(information.getByLabel('Estado operativo')).toHaveCount(0)
+      await information.getByRole('button', { name: 'Seleccionar Tango 1', exact: true }).click()
+      await expect(information.getByLabel('Estado operativo')).toHaveText(`${icon} ${status}`)
+      await expect(information.getByText(phase, { exact: true })).toBeVisible()
+      await expect(information.getByText('Sector norte', { exact: true })).toHaveCount(1)
+      if (status === 'En traslado') await page.screenshot({ path: info.outputPath(`information-${width}.png`) })
+      await noPageScroll(page)
+    }
+  }
 })
 
 test('selección compartida, ocho estados, etiquetas y registro cerrado con recuperación/JSON/deshacer', async ({ page }, info) => {
