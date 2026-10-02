@@ -141,7 +141,7 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await expect.poll(async () => (await saved(page)).timeline.length).toBe(1)
   await open(page, 'Elementos')
   await elements.getByRole('button', { name: 'Seleccionar Tango 2' }).click()
-  await page.getByRole('button', { name: 'Configurar elementos' }).click(); await page.getByRole('button', { name: 'Quitar', exact: true }).click()
+  await page.getByRole('button', { name: 'Quitar', exact: true }).click()
   await expect(timeline.getByText(/Tango 2/)).toBeVisible()
   await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(0)
   await expect.poll(async () => (await saved(page)).timeline.length).toBe(1)

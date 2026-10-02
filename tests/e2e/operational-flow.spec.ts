@@ -29,7 +29,6 @@ test('estados libres, selección compartida, historial cerrado y Deshacer por do
   await timeline.locator('li').filter({ hasText: 'Disponible 🟢 → Inoperativa ⚫' }).getByRole('button', { name: 'Deshacer' }).press('Enter')
   await expect.poll(async () => (await savedDocument(page))?.elements.map(item => item.operational?.status)).toEqual(['Disponible', 'Operativa'])
   await bringModuleToFront(page, 'Elementos')
-  await elements.getByRole('button', { name: 'Configurar elementos' }).click()
   await elements.getByRole('button', { name: 'Quitar', exact: true }).click()
   await expect(timeline.getByText(/Tango B/)).toBeVisible()
   await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(0)

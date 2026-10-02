@@ -19,7 +19,7 @@ export const ICON_CATALOG: Record<AssetId, IconEntry> = {
 }
 
 export function getPinBox(visual: ElementVisual) {
-  if (visual.type === 'emoji') return { width: 64, height: 64 }
+  if (visual.type === 'emoji') return { width: 64 * visual.scale, height: 64 * visual.scale }
   const box = ICON_BOXES[ICON_CATALOG[visual.assetId].visualClass]
   return { width: box.width * visual.scale, height: box.height * visual.scale }
 }

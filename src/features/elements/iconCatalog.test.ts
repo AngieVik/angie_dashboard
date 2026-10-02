@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { ICON_CATALOG, ICON_BOXES, getPinBox } from './iconCatalog'
 
 describe('catálogo aprobado', () => {
+  it.each([[.5, 32], [2, 128], [3, 192]])('emoji escala %s conserva caja proporcional', (scale, side) => {
+    expect(getPinBox({ type: 'emoji', value: '📍', scale })).toEqual({ width: side, height: side })
+  })
   const entries = [
     ['ambulance', 'Ambulancia', 'icon_medical.png', 'Horizontal', 150, 100],
     ['pathfinder', 'Pathfinder', 'icon_vir.png', 'Horizontal', 150, 100],

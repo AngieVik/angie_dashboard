@@ -13,6 +13,7 @@ test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga
   await page.getByLabel('Título del documento').fill('Integración áé<>.JSON')
   for (const name of ['Pizarra', 'Elementos', 'Operativo', 'Cuaderno']) await openModule(page, name)
   await createElement(page, 'Tango integración', true)
+  const initialPosition = (await savedDocument(page))!.elements[0]!.position!
   await bringModuleToFront(page, 'Pizarra')
   await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await openModule(page, 'Pizarra')
   const surface = page.getByTestId('board-surface'), pin = page.locator('.board-pin-visual')
@@ -22,7 +23,7 @@ test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga
   await page.mouse.move(before.x + before.width / 2 - square.width * .15, before.y + before.height / 2 + square.height * .1, { steps: 8 })
   await page.mouse.up()
   const spatialScale = Number(await surface.getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
-  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.position?.x ?? 1000).toBeCloseTo(500 - square.width * .15 / spatialScale, 1)
+  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.position?.x ?? 1000).toBeCloseTo(initialPosition.x - square.width * .15 / spatialScale, 1)
   const ops = page.getByRole('region', { name: 'Operativo', exact: true })
   await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'En camino', exact: true }).click()

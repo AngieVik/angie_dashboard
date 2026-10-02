@@ -150,7 +150,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
               onSelect={() => { dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
               onMove={position => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { position })) }}
               onScale={scale => {
-                if (blockedRef.current || element.visual.type !== 'asset') return
+                if (blockedRef.current) return
                 const visual = { ...element.visual, scale }
                 store.mutateDocument(document => updateElement(document, element.id, { visual }))
               }} />)}

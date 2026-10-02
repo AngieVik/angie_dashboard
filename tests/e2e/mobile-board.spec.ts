@@ -10,13 +10,14 @@ test('pizarra integrada: tacto de un dedo, prioridad de dos dedos y recuperació
   await page.getByRole('button', { name: 'Cerrar Pizarra' }).click()
   await openModule(page, 'Pizarra')
   await bringModuleToFront(page, 'Pizarra')
+  const initialPosition = (await savedDocument(page))!.elements[0]!.position!
   const session = await context.newCDPSession(page)
   const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', touchPoints: { x: number; y: number; id: number }[]) => session.send('Input.dispatchTouchEvent', { type, touchPoints })
   const rect = (await page.locator('.board-pin-visual').boundingBox())!
   const finger = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, id: 1 }
   await touch('touchStart', [finger]); await page.waitForTimeout(280)
   await touch('touchMove', [{ ...finger, x: finger.x + 10, y: finger.y + 5 }]); await touch('touchEnd', [])
-  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.position?.x ?? 0).toBeGreaterThan(500)
+  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.position?.x ?? 0).toBeGreaterThan(initialPosition.x)
   await page.getByRole('radio', { name: 'Lápiz', exact: true }).click()
   const board = (await page.getByTestId('board-surface').boundingBox())!
   const a = { x: board.x + board.width * .2, y: board.y + board.height * .2, id: 1 }

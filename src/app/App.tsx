@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
@@ -34,8 +34,10 @@ export function App() {
   useEffect(() => { void store.initialize() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const viewTrigger = useRef<HTMLButtonElement>(null)
-  const boardCenter = useRef<{ generation: number; center: Position } | null>(null)
-  useLayoutEffect(() => { boardCenter.current = null }, [documentGeneration])
+  const [boardCenter, setBoardCenter] = useState<{ generation: number; center: Position } | null>(null)
+  const updateBoardCenter = useCallback((center: Position) => {
+    setBoardCenter(previous => previous?.generation === documentGeneration && previous.center.x === center.x && previous.center.y === center.y ? previous : { generation: documentGeneration, center })
+  }, [documentGeneration])
   const [viewport, setViewport] = useState(() => {
     const size = { width: window.innerWidth, height: window.innerHeight }
     return { size, state: fit(size), measured: false }
@@ -75,7 +77,7 @@ export function App() {
     setModules(previous => previous.map(module => module.id === id ? { ...module, layout } : module))
   }
   function close(id: ModuleId) {
-    if (id === 'board') boardCenter.current = null
+    if (id === 'board') setBoardCenter(null)
     viewTrigger.current?.focus()
     setModules(previous => previous.filter(module => module.id !== id))
     setLayers(previous => previous.filter(other => other !== id))
@@ -105,8 +107,9 @@ export function App() {
         <MobileViewport state={viewport.state} size={viewport.size} bounds={bounds} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid modules={open} bounds={bounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout}
             renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
-              onViewChange={center => { boardCenter.current = { generation: documentGeneration, center } }} /> :
-              id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
+              onViewChange={updateBoardCenter} /> :
+              id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
+                placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :

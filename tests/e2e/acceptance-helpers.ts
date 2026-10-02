@@ -43,7 +43,6 @@ export async function savedDocument(page: Page): Promise<AngieDocument | null> {
 export async function createElement(page: Page, name: string, isUnit: boolean, emoji?: string) {
   const module = page.getByRole('region', { name: 'Elementos', exact: true })
   await bringModuleToFront(page, 'Elementos')
-  await module.getByRole('button', { name: 'Configurar elementos' }).click()
   await module.getByRole('button', { name: 'Añadir', exact: true }).click()
   await module.getByLabel('Nombre', { exact: true }).fill(name)
   if (isUnit) await module.getByRole('checkbox', { name: 'Dotación', exact: true }).check()

@@ -16,8 +16,8 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
   for (const note of board.quickNotes) include(note.position.x, note.position.y, note.width / 2, note.height / 2)
   for (const element of elements) if (element.position) {
     const box = getPinBox(element.visual)
-    // The current name has a CSS maximum of 200 px, independent of the icon.
-    include(element.position.x, element.position.y, Math.max(box.width, 200) / 2, box.height / 2)
+    // Include the name's scaled CSS maximum so it remains recoverable.
+    include(element.position.x, element.position.y, Math.max(box.width, 200 * element.visual.scale) / 2, box.height / 2)
   }
   return bounds
 }

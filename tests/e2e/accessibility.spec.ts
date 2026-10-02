@@ -137,20 +137,20 @@ test('teclado: selección, estados con texto, etiquetas, calculadora y checklist
   await expect(notebook.locator('[data-block-type]').first()).toHaveAttribute('data-block-type', 'checklist')
 })
 
-test('editores de elementos: crear, guardar, cancelar, duplicar y quitar conservan foco en Configurar', async ({ page }) => {
+test('editores de elementos: acciones directas recuperan foco tras guardar, cancelar, duplicar y quitar', async ({ page }) => {
   await page.goto('/'); await openModule(page, 'Elementos')
   await createElement(page, 'Tango foco', true)
   const module = page.getByRole('region', { name: 'Elementos', exact: true })
-  const configure = module.getByRole('button', { name: 'Configurar elementos' })
-  await expect(configure).toBeFocused()
+  const add = module.getByRole('button', { name: 'Añadir', exact: true })
+  await expect(add).toBeFocused()
   for (const action of ['Modificar', 'Añadir']) {
-    await configure.press('Enter'); await module.getByRole('button', { name: action, exact: true }).press('Enter')
+    await module.getByRole('button', { name: action, exact: true }).press('Enter')
     await module.getByRole('button', { name: action === 'Modificar' ? 'Guardar elemento' : 'Cancelar', exact: true }).press('Enter')
-    await expect(configure).toBeFocused()
+    await expect(module.getByRole('button', { name: action, exact: true })).toBeFocused()
   }
   for (const action of ['Duplicar', 'Quitar']) {
-    await configure.press('Enter'); await module.getByRole('button', { name: action, exact: true }).press('Enter')
-    await expect(configure).toBeFocused()
+    await module.getByRole('button', { name: action, exact: true }).press('Enter')
+    await expect(add).toBeFocused()
   }
 })
 

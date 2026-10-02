@@ -3,6 +3,12 @@ import { createEmptyDocument } from '../../domain/document/defaultDocument'
 import { getBoardBounds, initialBoardView, panBoard, toBoardPosition, zoomBoardAt } from './boardViewport'
 
 describe('cámara rectangular de pizarra', () => {
+  it('recupera el ancho del nombre escalado aunque exceda la caja del emoji', () => {
+    const document = createEmptyDocument()
+    document.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Nombre largo', information: '', isUnit: false, operational: null,
+      visual: { type: 'emoji', value: '📍', scale: 3 }, position: { x: 1500, y: 1500 } })
+    expect(getBoardBounds({ width: 300, height: 300 }, document.board, document.elements)).toEqual({ left: 0, top: 0, right: 1800, bottom: 1596 })
+  })
   it.each([{ width: 700, height: 300 }, { width: 300, height: 700 }])('usa píxeles estables en $width × $height', size => {
     const view = { scale: 1, offsetX: 0, offsetY: 0 }
     expect(toBoardPosition({ x: 100 + size.width, y: 50 + size.height }, { left: 100, top: 50, ...size }, view, size)).toEqual({ x: size.width, y: size.height })

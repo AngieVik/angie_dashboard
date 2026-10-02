@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { AngieDocument } from '../../src/domain/document/types'
-import { bringModuleToFront } from './acceptance-helpers'
+import { bringModuleToFront, createElement as createVisibleElement, fileCommand, loadDocument, noPageScroll } from './acceptance-helpers'
+import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -10,7 +11,6 @@ async function open(page: Page, name: string) {
 }
 async function action(page: Page, name: string) {
   await bringModuleToFront(page, 'Elementos')
-  await page.getByRole('button', { name: 'Configurar elementos', exact: true }).click()
   await page.getByRole('button', { name, exact: true }).click()
 }
 async function saved(page: Page): Promise<AngieDocument> {
@@ -26,6 +26,9 @@ async function saved(page: Page): Promise<AngieDocument> {
   }))
 }
 async function create(page: Page, name: string, isUnit = false, icon = 'ambulance', emoji?: string) {
+  // Historical movement cases keep their known position via the closed-board rule.
+  await bringModuleToFront(page, 'Pizarra')
+  await page.getByRole('button', { name: 'Cerrar Pizarra' }).click()
   await action(page, 'Añadir')
   await page.getByLabel('Nombre', { exact: true }).fill(name)
   if (isUnit) await page.getByRole('checkbox', { name: 'Dotación', exact: true }).check()
@@ -35,8 +38,7 @@ async function create(page: Page, name: string, isUnit = false, icon = 'ambulanc
   } else await page.getByLabel('Icono', { exact: true }).selectOption(icon)
   await page.getByLabel('Información', { exact: true }).fill('Acceso norte · Canal 4')
   await page.getByRole('button', { name: 'Crear elemento', exact: true }).click()
-  await bringModuleToFront(page, 'Pizarra')
-  await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await open(page, 'Pizarra')
+  await open(page, 'Pizarra')
 }
 async function point(page: Page, x: number, y: number) {
   await bringModuleToFront(page, 'Pizarra')
@@ -57,6 +59,148 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/'); await open(page, 'Pizarra'); await open(page, 'Elementos')
 })
 
+test('borrador, preview estable y acciones visibles en tamaños mínimo, inicial y ampliado', async ({ page, isMobile }, info) => {
+  const module = page.locator('[data-module="elements"]')
+  await bringModuleToFront(page, 'Elementos')
+  await expect(module.getByRole('button', { name: 'Añadir', exact: true })).toBeEnabled()
+  for (const name of ['Modificar', 'Duplicar', 'Quitar']) await expect(module.getByRole('button', { name, exact: true })).toBeDisabled()
+  await expect(module.getByRole('button', { name: 'Configurar elementos' })).toHaveCount(0)
+  await create(page, 'Nombre largo de punto de cobertura norte', false, 'hydration')
+  await expect.poll(async () => (await saved(page)).elements.length).toBe(1)
+  const before = await saved(page)
+  await action(page, 'Modificar')
+  await page.getByLabel('Nombre', { exact: true }).fill('Borrador descartado')
+  await page.getByLabel('Información', { exact: true }).fill('Texto descartado')
+  await page.getByLabel('Escala del icono').fill('2')
+  const preview = module.getByRole('img', { name: 'Previsualización del elemento' })
+  await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', '200px')
+  await expect(preview.locator('.element-preview-pin')).toHaveCSS('height', '300px')
+  await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
+  await page.getByLabel('Representación').selectOption('emoji'); await page.getByLabel('Emoji', { exact: true }).fill('📍')
+  await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', '128px')
+  await expect(preview.locator('.board-pin-emoji')).toHaveCSS('font-size', '96px')
+  await page.waitForTimeout(400)
+  expect((await saved(page)).elements).toEqual(before.elements)
+  expect((await saved(page)).document.updatedAt).toBe(before.document.updatedAt)
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  expect((await saved(page)).elements).toEqual(before.elements)
+  await action(page, 'Modificar')
+  const states = [{ width: 220, height: 240, scale: .5 }, { width: 300, height: 420, scale: 1 }, { width: isMobile ? 340 : 380, height: 600, scale: 3 }]
+  for (const mode of ['edit', 'create']) {
+    if (mode === 'create') {
+      await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+      await action(page, 'Añadir')
+      await page.getByLabel('Nombre', { exact: true }).fill('Nombre largo de punto de cobertura norte')
+      await page.getByLabel('Icono', { exact: true }).selectOption('hydration')
+    }
+  for (const state of states) {
+    const handle = (await module.locator('.react-resizable-handle-se').boundingBox())!
+    const currentWidth = Number(await module.getAttribute('data-width')), currentHeight = Number(await module.getAttribute('data-height'))
+    const mainScale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down()
+    await page.mouse.move(handle.x + handle.width / 2 + (state.width - currentWidth) * mainScale,
+      handle.y + handle.height / 2 + (state.height - currentHeight) * mainScale, { steps: 8 }); await page.mouse.up()
+    await expect(module).toHaveAttribute('data-width', String(state.width))
+    await page.getByLabel('Escala del icono').fill(String(state.scale))
+    await preview.scrollIntoViewIfNeeded()
+    await expect(preview).toHaveCSS('height', '180px')
+    await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', `${100 * state.scale}px`)
+    await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', `${16 * state.scale}px`)
+    await expect(module.getByRole('button', { name: 'Añadir', exact: true })).toBeVisible()
+    await noPageScroll(page)
+    await page.screenshot({ path: info.outputPath(`element-${mode}-png-${state.width}.png`) })
+    await page.getByLabel('Representación').selectOption('emoji')
+    await page.getByLabel('Emoji', { exact: true }).fill('📍')
+    await preview.scrollIntoViewIfNeeded()
+    await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', `${64 * state.scale}px`)
+    await expect(preview.locator('.board-pin-emoji')).toHaveCSS('font-size', `${48 * state.scale}px`)
+    await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', `${16 * state.scale}px`)
+    await page.screenshot({ path: info.outputPath(`element-${mode}-emoji-${state.width}.png`) })
+    await page.getByLabel('Representación').selectOption('asset')
+  }
+  }
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  expect((await saved(page)).elements).toEqual(before.elements)
+})
+
+test('crear usa cámara actual sin navegar; cerrar o cambiar documento descarta su centro', async ({ page }) => {
+  const surface = page.getByTestId('board-surface')
+  await bringModuleToFront(page, 'Pizarra')
+  const box = (await surface.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.wheel(0, 180)
+  await expect.poll(async () => Number(await surface.getAttribute('data-offset-y'))).toBeLessThan(0)
+  await page.keyboard.down('Control'); await page.mouse.wheel(0, -200); await page.keyboard.up('Control')
+  await expect.poll(async () => Number(await surface.getAttribute('data-scale'))).toBeGreaterThan(1)
+  const camera = await surface.evaluate(el => ({ scale: Number(el.getAttribute('data-scale')), x: Number(el.getAttribute('data-offset-x')), y: Number(el.getAttribute('data-offset-y')), width: el.clientWidth, height: el.clientHeight }))
+  const expected = { x: Math.max(0, (camera.width / 2 - camera.x) / camera.scale), y: Math.max(0, (camera.height / 2 - camera.y) / camera.scale) }
+  await createVisibleElement(page, 'Centro visible', false, '📍')
+  await expect.poll(async () => (await saved(page)).elements[0]?.position).toEqual(expected)
+  expect(await surface.evaluate(el => [Number(el.getAttribute('data-scale')), Number(el.getAttribute('data-offset-x')), Number(el.getAttribute('data-offset-y'))])).toEqual([camera.scale, camera.x, camera.y])
+  await bringModuleToFront(page, 'Pizarra'); await page.getByRole('button', { name: 'Cerrar Pizarra' }).click()
+  await createVisibleElement(page, 'Cerrada', false, '📍')
+  await expect.poll(async () => (await saved(page)).elements[1]?.position).toEqual({ x: 500, y: 500 })
+  await open(page, 'Pizarra')
+  const original = (await saved(page)).elements
+  await createVisibleElement(page, 'No mover anteriores', false, '📍')
+  expect((await saved(page)).elements.slice(0, 2)).toEqual(original)
+  await fileCommand(page, 'Nuevo')
+  await expect(page.locator('.board-pin')).toHaveCount(0)
+  await createVisibleElement(page, 'Documento vacío', false, '📍')
+  const emptyCenter = await surface.evaluate(el => ({ x: el.clientWidth / 2, y: el.clientHeight / 2 }))
+  await expect.poll(async () => (await saved(page)).elements[0]?.position).toEqual(emptyCenter)
+  const loaded = createEmptyDocument('Centro nuevo')
+  loaded.board.quickNotes = [{ id: crypto.randomUUID(), text: 'Referencia', position: { x: 2000, y: 1600 }, width: 220, height: 96 }]
+  await loadDocument(page, loaded)
+  await expect(surface).toHaveAttribute('data-scale', '1')
+  await createVisibleElement(page, 'Documento cargado', false, '📍')
+  await expect.poll(async () => (await saved(page)).elements[0]?.position).toEqual({ x: 2000, y: 1600 })
+})
+
+test('emoji: tirador y editor sincronizados, nombre proporcional, duplicación y JSON/recarga', async ({ page, context, isMobile }, info) => {
+  await create(page, 'Referencia emoji con nombre largo', false, 'ambulance', '📍')
+  await action(page, 'Modificar'); await page.getByLabel('Escala del icono').fill('0.5')
+  await page.getByRole('button', { name: 'Guardar elemento' }).click()
+  await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBe(.5)
+  await action(page, 'Modificar')
+  await bringModuleToFront(page, 'Pizarra')
+  const pin = page.locator('.board-pin'), handle = page.getByRole('button', { name: 'Redimensionar Referencia emoji con nombre largo' })
+  await expect(pin).toHaveCSS('width', '32px'); await expect(pin.locator('.board-pin-name')).toHaveCSS('font-size', '8px')
+  const box = (await handle.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2
+  const scale = Number(await page.getByTestId('board-surface').getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
+  if (isMobile) {
+    const session = await context.newCDPSession(page)
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] })
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 48 * scale, y: y + 48 * scale, id: 1 }] })
+    await expect(pin).toHaveCSS('width', '128px')
+    expect((await saved(page)).elements[0]!.visual.scale).toBe(.5)
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await session.detach()
+  } else {
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 48 * scale, y + 48 * scale, { steps: 6 })
+    await expect(pin).toHaveCSS('width', '128px')
+    expect((await saved(page)).elements[0]!.visual.scale).toBe(.5)
+    await page.mouse.up()
+  }
+  await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBeCloseTo(2, 5)
+  await expect(pin.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
+  await expect(pin.locator('.board-pin-emoji')).toHaveCSS('font-size', '96px')
+  expect((await saved(page)).elements[0]!.position).toEqual({ x: 500, y: 500 })
+  await page.screenshot({ path: info.outputPath('emoji-scaled.png') })
+  await bringModuleToFront(page, 'Elementos'); await expect(page.getByLabel('Escala del icono')).toHaveValue('2')
+  await page.getByRole('button', { name: 'Cancelar' }).click(); await action(page, 'Duplicar')
+  await expect.poll(async () => (await saved(page)).elements.length).toBe(2)
+  expect((await saved(page)).elements[1]).toMatchObject({ visual: { type: 'emoji', value: '📍', scale: 2 }, position: { x: 524, y: 524 } })
+  const json = await exportJson(page)
+  await page.reload(); await open(page, 'Pizarra'); await open(page, 'Elementos')
+  expect((await saved(page)).elements).toEqual(json.elements)
+  await expect(page.locator('.board-pin').first()).toHaveCSS('width', '128px')
+  await expect(page.locator('.board-pin-name').first()).toHaveCSS('font-size', '32px')
+  await loadDocument(page, json)
+  await expect(page.locator('.board-pin').first()).toHaveCSS('width', '128px')
+  await noPageScroll(page)
+})
+
 test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSON y recuperación', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await create(page, 'Tango 1', true)
@@ -66,6 +210,7 @@ test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSO
   await expect(page.getByText('Tipo: Dotación', { exact: true })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: 'Dotación' })).toHaveCount(0)
   await page.getByLabel('Escala del icono').fill('1.5')
+  await page.getByRole('button', { name: 'Guardar elemento' }).click()
   await expect.poll(async () => (await saved(page)).elements[0]?.visual).toEqual({ type: 'asset', assetId: 'ambulance', scale: 1.5 })
   const beforeSize = await board.locator('.board-pin-visual').evaluate(el => ({ w: (el as HTMLElement).offsetWidth, h: (el as HTMLElement).offsetHeight }))
   expect(beforeSize).toEqual({ w: 225, h: 150 })
@@ -74,10 +219,11 @@ test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSO
   const physicalScale = Number(await page.getByTestId('board-surface').getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down()
   await page.mouse.move(box.x + box.width / 2 + 37.5 * physicalScale, box.y + box.height / 2 + 25 * physicalScale, { steps: 6 }); await page.mouse.up()
-  await expect.poll(async () => Number(await page.getByLabel('Escala del icono').inputValue())).toBeCloseTo(2, 1)
-  await expect(board.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
+  await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBeCloseTo(2, 1)
+  await expect(board.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
   await expect(board.locator('.board-pin-visual img')).toHaveCSS('object-fit', 'contain')
-  await bringModuleToFront(page, 'Elementos')
+  await action(page, 'Modificar')
+  await expect.poll(async () => Number(await page.getByLabel('Escala del icono').inputValue())).toBeCloseTo(2, 1)
   await page.getByRole('button', { name: 'Guardar elemento' }).click()
   await action(page, 'Duplicar')
   await expect(module.getByRole('button', { name: 'Seleccionar Tango 1 copia', exact: true })).toHaveAttribute('aria-pressed', 'true')
