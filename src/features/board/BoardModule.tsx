@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Image, Line, Circle } from 'react-konva'
+import { Stage, Layer, Rect, Image, Line, Circle, Group } from 'react-konva'
 import type { PointerEvent } from 'react'
 import type { BoardStroke, Position } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
-import { boardReducer, createBoardState, fitBoard, toBoardPosition } from './boardReducer'
+import { boardReducer, createBoardState } from './boardReducer'
+import { getBoardBounds, initialBoardView, panBoard, toBoardPosition } from './boardViewport'
+import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { BoardToolbar } from './BoardToolbar'
 import { QuickNote } from './QuickNote'
 import { BoardPin } from '../elements/BoardPin'
@@ -23,8 +25,9 @@ function Stroke({ stroke }: { stroke: BoardStroke }) {
     lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
 }
 
-export function BoardModule({ store, imageSession, selectedId = null, onSelect }: {
+export function BoardModule({ store, imageSession, selectedId = null, onSelect, onViewChange }: {
   store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
+  onViewChange?: (center: Position) => void
 }) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
@@ -43,14 +46,32 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
   const pointer = useRef<number | null>(null)
   const emptyPointer = useRef<number | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
-  const fitted = fitBoard(size.width, size.height)
+  const [view, setView] = useState({ scale: 1, offsetX: 0, offsetY: 0 })
+  const previousSize = useRef({ width: 0, height: 0 })
+  const bounds = getBoardBounds(size, document.board, document.elements, Boolean(imageSession.image))
+  const navigation = useBoardViewportGestures(view, size, bounds, setView, surface)
+  useEffect(() => {
+    if (size.width && size.height) onViewChange?.({ x: Math.max(0, (size.width / 2 - view.offsetX) / view.scale), y: Math.max(0, (size.height / 2 - view.offsetY) / view.scale) })
+  }, [view, size, onViewChange])
   useLayoutEffect(() => {
-    if (!area.current || typeof ResizeObserver === 'undefined') return
+    if (!area.current) return
     const node = area.current
-    const observer = new ResizeObserver(() => setSize({ width: node.clientWidth, height: node.clientHeight }))
+    function measure() {
+      const next = { width: node.clientWidth, height: node.clientHeight }, previous = previousSize.current
+      if (!next.width || !next.height || (previous.width === next.width && previous.height === next.height)) return
+      const document = store.getSnapshot().document
+      setSize(next)
+      setView(current => previous.width ? panBoard({ ...current,
+        offsetX: current.offsetX + (next.width - previous.width) / 2, offsetY: current.offsetY + (next.height - previous.height) / 2,
+      }, 0, 0, next, getBoardBounds(next, document.board, document.elements)) : initialBoardView(next, document.board, document.elements))
+      previousSize.current = next
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [])
+  }, [store])
   const dispatch = useCallback((action: BoardAction) => {
     const board = store.getSnapshot().document.board
     const next = boardReducer({ ...interaction.current, board }, action)
@@ -66,8 +87,9 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
   function point(event: PointerEvent, clamp = false) {
     const rect = surface.current?.getBoundingClientRect()
     if (!rect?.width) return null
-    if (clamp) return { x: (event.clientX - rect.left) * 1000 / rect.width, y: (event.clientY - rect.top) * 1000 / rect.height }
-    return toBoardPosition({ x: event.clientX, y: event.clientY }, rect)
+    const position = { x: clamp ? Math.max(rect.left, Math.min(rect.right, event.clientX)) : event.clientX,
+      y: clamp ? Math.max(rect.top, Math.min(rect.bottom, event.clientY)) : event.clientY }
+    return toBoardPosition(position, rect, view, size)
   }
   function start(event: PointerEvent<HTMLDivElement>) {
     if (blockedRef.current || event.button !== 0 || editor) return
@@ -104,24 +126,27 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
       color={color} onColor={setColor} width={width} onWidth={setWidth} onImage={file => { void imageSession.load(file) }} busy={imageSession.busy} blocked={blocked} />
     <div ref={area} className="board-area">
       <div ref={surface} className="board-surface" data-testid="board-surface" data-image-width={image?.width ?? 0} data-image-height={image?.height ?? 0}
-        style={{ width: fitted.size, height: fitted.size, left: fitted.left, top: fitted.top }}
+        data-scale={view.scale} data-offset-x={view.offsetX} data-offset-y={view.offsetY} data-viewport-width={size.width} data-viewport-height={size.height}
+        {...navigation}
         onPointerDown={start} onPointerMove={event => {
           if (blockedRef.current || pointer.current !== event.pointerId) return
           const position = point(event, true)
           if (position) dispatch({ type: 'point', point: position })
         }} onPointerUp={finish} onPointerCancel={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
         onLostPointerCapture={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
-        <Stage width={fitted.size} height={fitted.size} scaleX={fitted.scale} scaleY={fitted.scale} listening={false}>
+        <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
-            <Rect width={1000} height={1000} fill={document.board.backgroundColor} />
-            {image && <Image image={image.image} width={image.width * imageScale} height={image.height * imageScale}
-              x={(1000 - image.width * imageScale) / 2} y={(1000 - image.height * imageScale) / 2} />}
+            <Rect width={size.width} height={size.height} fill={document.board.backgroundColor} />
+            <Group x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>
+              {image && <Image image={image.image} width={image.width * imageScale} height={image.height * imageScale}
+                x={(1000 - image.width * imageScale) / 2} y={(1000 - image.height * imageScale) / 2} />}
+            </Group>
           </Layer>
-          <Layer listening={false}>{strokes.map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
+          <Layer listening={false} x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>{strokes.map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
         </Stage>
-        <div className="board-notes board-pins" style={{ transform: `scale(${fitted.scale})` }}>
+        <div className="board-notes board-pins" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
           {document.elements.map(element =>
-            <BoardPin key={element.id} element={element} surface={surface} selected={selectedId === element.id} enabled={state.mode === 'select'}
+            <BoardPin key={element.id} element={element} surface={surface} view={view} viewportSize={size} selected={selectedId === element.id} enabled={state.mode === 'select'}
               onSelect={() => { dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
               onMove={position => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { position })) }}
               onScale={scale => {
@@ -130,9 +155,10 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect }
                 store.mutateDocument(document => updateElement(document, element.id, { visual }))
               }} />)}
         </div>
-        <div className="board-notes" style={{ transform: `scale(${fitted.scale})` }}>
-          {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
+        <div className="board-notes" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
+          {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} view={view} viewportSize={size} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
             onSelect={() => { onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
+            onResize={size => dispatch({ type: 'resize-note', id: note.id, size })}
             onEdit={() => setEditor({ id: note.id, position: note.position, text: note.text })} onDelete={() => { focusTool(); dispatch({ type: 'delete-note', id: note.id }) }} />)}
         </div>
       </div>

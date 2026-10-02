@@ -19,6 +19,7 @@
     "ajv-formats": "^3.0.1",
     "dexie": "^4.4.6",
     "konva": "^10.7.0",
+    "lucide-react": "^1.49.0",
     "proj4": "^2.22.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

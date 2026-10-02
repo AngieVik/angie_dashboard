@@ -6,7 +6,7 @@ export function createBoardState(board: Board): BoardState {
 }
 
 const finitePoint = (point: Position) => Number.isFinite(point.x) && Number.isFinite(point.y)
-export const clampBoardPosition = (point: Position): Position => ({ x: Math.max(0, Math.min(1000, point.x)), y: Math.max(0, Math.min(1000, point.y)) })
+export const clampBoardPosition = (point: Position): Position => ({ x: Math.max(0, point.x), y: Math.max(0, point.y) })
 const colorPattern = /^#[\da-f]{6}$/i
 
 export function boardReducer(state: BoardState, action: BoardAction): BoardState {
@@ -31,6 +31,9 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case 'move-note': return state.mode === 'select' && finitePoint(action.position) ? {
       ...state, board: { ...board, quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note, position: clampBoardPosition(action.position) } : note) },
     } : state
+    case 'resize-note': return state.mode === 'select' && Number.isFinite(action.size.width) && Number.isFinite(action.size.height) ? { ...state, board: { ...board,
+      quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note, width: Math.max(120, action.size.width), height: Math.max(64, action.size.height) } : note),
+    } } : state
     case 'edit-note': return state.mode === 'select' ? { ...state, board: { ...board,
       quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note, text: action.text } : note),
     } } : state
@@ -38,15 +41,4 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       board: { ...board, quickNotes: board.quickNotes.filter(note => note.id !== action.id) },
     } : state
   }
-}
-
-export function fitBoard(width: number, height: number) {
-  const size = Math.max(0, Math.min(width, height))
-  return { size, scale: size / 1000, left: (width - size) / 2, top: (height - size) / 2 }
-}
-
-export function toBoardPosition(point: Position, rect: { left: number; top: number; width: number; height: number }): Position | null {
-  if (rect.width <= 0 || rect.height <= 0 || !finitePoint(point)) return null
-  const x = (point.x - rect.left) * 1000 / rect.width, y = (point.y - rect.top) * 1000 / rect.height
-  return x < 0 || y < 0 || x > 1000 || y > 1000 ? null : { x, y }
 }

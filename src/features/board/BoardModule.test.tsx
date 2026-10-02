@@ -1,37 +1,80 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
-import { createDocumentStore } from '../document/documentStore'
+import { createDocumentStore, useDocumentStore } from '../document/documentStore'
 import { BoardModule } from './BoardModule'
 import { useBoardImage } from './useBoardImage'
 import { ViewportContext } from '../../layout/ViewportContext'
 import { createElement } from '../elements/elementCommands'
 
 // jsdom has no canvas renderer; actual Konva pixels are covered by browser tests.
-vi.mock('react-konva', () => ({ Stage: () => null, Layer: () => null, Rect: () => null, Image: () => null, Line: () => null, Circle: () => null }))
+vi.mock('react-konva', () => ({ Stage: () => null, Layer: () => null, Rect: () => null, Image: () => null, Line: () => null, Circle: () => null, Group: () => null }))
 afterEach(() => vi.unstubAllGlobals())
 
 async function setup() {
+  const measurements: { node: HTMLElement; callback: () => void }[] = []
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(private callback: () => void) {}
+    observe(node: HTMLElement) {
+      Object.defineProperties(node, { clientWidth: { value: 400, configurable: true }, clientHeight: { value: 400, configurable: true } })
+      measurements.push({ node, callback: this.callback })
+      this.callback()
+    }
+    disconnect() {}
+  })
   let local = createEmptyDocument()
   const store = createDocumentStore({ loadActive: async () => null, saveActive: async document => { local = document }, clearActive: async () => {} }, { platform: { download: () => {} } })
   await store.initialize()
   const blockedRef = { current: false }
   const onSelect = vi.fn()
+  const onViewChange = vi.fn()
   function Harness({ visible = true, blocked = false }: { visible?: boolean; blocked?: boolean }) {
     blockedRef.current = blocked
     const imageSession = useBoardImage(store)
+    const { documentGeneration } = useDocumentStore(store)
     return <ViewportContext.Provider value={{ blocked, blockedRef }}>
       <output aria-label="Imagen temporal">{imageSession.image ? `${imageSession.image.width}x${imageSession.image.height}` : 'Sin imagen'}</output>
-      {visible && <BoardModule store={store} imageSession={imageSession} onSelect={onSelect} />}
+      {visible && <BoardModule key={documentGeneration} store={store} imageSession={imageSession} onSelect={onSelect} onViewChange={onViewChange} />}
     </ViewportContext.Provider>
   }
   const view = render(<Harness />)
   const surface = screen.getByTestId('board-surface')
   vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 100, width: 400, height: 400, right: 500, bottom: 500, x: 100, y: 100, toJSON: () => ({}) })
-  return { store, view, Harness, onSelect, local: () => local }
+  const resize = (width: number, height: number) => act(() => {
+    for (const { node, callback } of measurements) if (node.isConnected) {
+      Object.defineProperties(node, { clientWidth: { value: width, configurable: true }, clientHeight: { value: height, configurable: true } }); callback()
+    }
+  })
+  return { store, view, Harness, onSelect, onViewChange, resize, local: () => local }
 }
 
 describe('módulo Pizarra', () => {
+  it('centra cajas al abrir, mantiene escena al cambiar forma y descarta cámara al cambiar documento', async () => {
+    const { store, view, Harness, resize, onViewChange } = await setup()
+    act(() => store.mutateDocument(document => { document.board.quickNotes.push({ id: crypto.randomUUID(), text: 'Ruta', position: { x: 1200, y: 1600 }, width: 180, height: 80 }) }))
+    view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
+    const before = structuredClone(store.getSnapshot().document)
+    expect(screen.getByTestId('board-surface')).toHaveAttribute('data-scale', '1')
+    expect(onViewChange).toHaveBeenLastCalledWith({ x: 1200, y: 1600 })
+    resize(700, 300); resize(300, 700)
+    expect(onViewChange).toHaveBeenLastCalledWith({ x: 1200, y: 1600 })
+    expect(store.getSnapshot().document).toEqual(before)
+    act(() => store.newDocument())
+    expect(screen.getByTestId('board-surface')).toHaveAttribute('data-offset-x', '0')
+    expect(screen.getByTestId('board-surface')).toHaveAttribute('data-offset-y', '0')
+    expect(onViewChange).toHaveBeenLastCalledWith({ x: 200, y: 200 })
+  })
+  it('rueda y Ctrl+rueda cambian solo cámara; el trazo puede guardar puntos más allá de 1000', async () => {
+    const { store } = await setup(), surface = screen.getByTestId('board-surface')
+    const before = structuredClone(store.getSnapshot().document)
+    fireEvent.wheel(surface, { clientX: 100, clientY: 100, deltaY: 1000, ctrlKey: true })
+    expect(surface).toHaveAttribute('data-scale', '0.25')
+    expect(store.getSnapshot().document).toEqual(before)
+    fireEvent.click(screen.getByRole('radio', { name: 'Lápiz' }))
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 400, clientY: 400 })
+    fireEvent.pointerUp(surface, { pointerId: 1 })
+    expect(store.getSnapshot().document.board.strokes[0]?.points).toEqual([{ x: 1200, y: 1200 }])
+  })
   it('deselecciona al terminar un toque vacío y cancela esa acción cuando aparece otro dedo', async () => {
     const { view, Harness, onSelect } = await setup()
     const surface = screen.getByTestId('board-surface')
@@ -78,7 +121,7 @@ describe('módulo Pizarra', () => {
     fireEvent.change(screen.getByLabelText('Texto de nota rápida'), { target: { value: 'Acceso norte' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear nota' }))
     await store.flushAutosave()
-    expect(local().board.quickNotes[0]).toMatchObject({ text: 'Acceso norte', position: { x: 500, y: 350 }, width: 220, height: 96 })
+    expect(local().board.quickNotes[0]).toMatchObject({ text: 'Acceso norte', position: { x: 200, y: 140 }, width: 220, height: 96 })
     expect(screen.getByRole('radio', { name: 'Seleccionar/mover' })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Editar nota' }))
     fireEvent.change(screen.getByLabelText('Texto de nota rápida'), { target: { value: 'Acceso sur' } })

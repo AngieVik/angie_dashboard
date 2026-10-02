@@ -61,7 +61,8 @@ test('operación y resultado no se exportan ni se autoguardan; recarga y reapert
   const jsonText = await readFile((await (await downloading).path())!, 'utf8')
   const exported = JSON.parse(jsonText)
   expect(Object.keys(exported)).toHaveLength(8)
-  expect(exported.moduleLayouts.calculator).toEqual({ x: 0, y: 0, width: 280, height: 360, referenceSize: { width: 1600, height: 1000 } })
+  const referenceSize = await page.locator('.logical-workspace').evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }))
+  expect(exported.moduleLayouts.calculator).toEqual({ x: 0, y: 0, width: 280, height: 360, referenceSize })
   for (const temporary of ['987654', '987975', 'expression', 'calculation']) expect(jsonText).not.toContain(temporary)
   await expect.poll(async () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {

@@ -16,6 +16,17 @@ function setup() {
   return { onSelect, onMove, onScale, view, props, blockedRef }
 }
 describe('pin coordinado con la pizarra', () => {
+  it('mover invierte zoom propio y principal sin cambiar el centro al escalar', () => {
+    vi.useFakeTimers()
+    const { view, props, onMove } = setup()
+    view.rerender(<BoardPin {...props} view={{ scale: 2, offsetX: -100, offsetY: -200 }} viewportSize={{ width: 500, height: 500 }} />)
+    const pin = screen.getByRole('button', { name: 'Seleccionar Tango 1' })
+    fireEvent.pointerDown(pin, { pointerId: 1, button: 0, clientX: 500, clientY: 500 })
+    act(() => vi.advanceTimersByTime(250))
+    fireEvent.pointerMove(pin, { pointerId: 1, clientX: 540, clientY: 520 })
+    fireEvent.pointerUp(pin, { pointerId: 1 })
+    expect(onMove).toHaveBeenCalledExactlyOnceWith({ x: 510, y: 505 })
+  })
   it('muestra PNG contain centrado y nombre independiente; emoji no tiene redimensión', () => {
     const { view, props } = setup()
     const image = screen.getByRole('img', { name: 'Ambulancia' })
@@ -31,7 +42,7 @@ describe('pin coordinado con la pizarra', () => {
     expect(screen.getByText('🚴🏽‍♂️')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Redimensionar Tango 1' })).not.toBeInTheDocument()
   })
-  it('clic selecciona; arrastre requiere 250 ms y conserva la caja dentro del lienzo', () => {
+  it('clic selecciona; arrastre requiere 250 ms y permite centros más allá de 1000', () => {
     vi.useFakeTimers()
     const { onSelect, onMove } = setup()
     const pin = screen.getByRole('button', { name: 'Seleccionar Tango 1' })
@@ -43,7 +54,7 @@ describe('pin coordinado con la pizarra', () => {
     act(() => vi.advanceTimersByTime(250))
     fireEvent.pointerMove(pin, { pointerId: 2, clientX: 1100, clientY: 1100 })
     fireEvent.pointerUp(pin, { pointerId: 2 })
-    expect(onMove).toHaveBeenCalledWith({ x: 925, y: 950 })
+    expect(onMove).toHaveBeenCalledWith({ x: 1100, y: 1100 })
   })
   it('tirador modifica una sola escala proporcional y cancela si aparece el segundo dedo', () => {
     const { onScale, view, props, blockedRef } = setup()

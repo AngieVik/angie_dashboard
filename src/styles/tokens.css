@@ -10,4 +10,7 @@
   --color-accent-yellow: #E3B52F;
   --font-interface: "Roboto Condensed", "Arial Narrow", sans-serif;
   --font-technical: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-size-body: clamp(13px, calc(12px + 0.25vw), 16px);
+  --font-size-title: clamp(15px, calc(14px + 0.25vw), 18px);
+  --font-size-technical: clamp(12px, calc(11px + 0.25vw), 16px);
 }

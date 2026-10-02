@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
-import { boardReducer, createBoardState, fitBoard, toBoardPosition } from './boardReducer'
+import { boardReducer, createBoardState } from './boardReducer'
 
 const strokeId = '00000000-0000-4000-8000-000000000001'
 const noteId = '00000000-0000-4000-8000-000000000002'
@@ -29,7 +29,7 @@ describe('pizarra: modos y documento', () => {
     state = boardReducer(state, { type: 'point', point: { x: 1100, y: -30 } })
     state = boardReducer(state, { type: 'finish' })
     expect(state.board.strokes).toEqual([{ id: strokeId, tool: 'pen', color: '#D63A3A', width: 4,
-      points: [{ x: 120.5, y: 340.25 }, { x: 1000, y: 0 }] }])
+      points: [{ x: 120.5, y: 340.25 }, { x: 1100, y: 0 }] }])
     expect(state.draft).toBeNull()
     const document = createEmptyDocument(); document.board = state.board
     expect(JSON.parse(serializeDocument(document)).board).toEqual(state.board)
@@ -53,7 +53,7 @@ describe('pizarra: modos y documento', () => {
     state = boardReducer(state, { type: 'add-note', note: { id: noteId, text: 'Acceso norte', position: { x: 500, y: 350 }, width: 220, height: 96 } })
     expect(state.mode).toBe('select')
     state = boardReducer(state, { type: 'move-note', id: noteId, position: { x: -10, y: 1100 } })
-    expect(state.board.quickNotes[0]?.position).toEqual({ x: 0, y: 1000 })
+    expect(state.board.quickNotes[0]?.position).toEqual({ x: 0, y: 1100 })
     state = boardReducer(state, { type: 'edit-note', id: noteId, text: 'Acceso sur' })
     expect(state.board.quickNotes[0]?.text).toBe('Acceso sur')
     const before = state.board
@@ -70,15 +70,15 @@ describe('pizarra: modos y documento', () => {
     expect(boardReducer(state, { type: 'start', id: strokeId, point: { x: NaN, y: 0 }, color: '#D63A3A', width: 4 }).draft).toBeNull()
     expect(boardReducer(state, { type: 'start', id: strokeId, point: { x: 0, y: 0 }, color: '#D63A3A', width: 0 }).draft).toBeNull()
   })
-})
-
-describe('coordenadas de lienzo', () => {
-  it('encaja el cuadrado centrado con bandas sin modificar coordenadas del documento', () => {
-    expect(fitBoard(700, 400)).toEqual({ size: 400, scale: 0.4, left: 150, top: 0 })
-    expect(fitBoard(300, 500)).toEqual({ size: 300, scale: 0.3, left: 0, top: 100 })
-    expect(toBoardPosition({ x: 300, y: 250 }, { left: 100, top: 50, width: 400, height: 400 })).toEqual({ x: 500, y: 500 })
-    expect(toBoardPosition({ x: 99, y: 250 }, { left: 100, top: 50, width: 400, height: 400 })).toBeNull()
-    expect(toBoardPosition({ x: 500, y: 450 }, { left: 100, top: 50, width: 400, height: 400 })).toEqual({ x: 1000, y: 1000 })
-    expect(toBoardPosition({ x: 0, y: 0 }, { left: 0, top: 0, width: 0, height: 0 })).toBeNull()
+  it('redimensiona solo la caja de una nota seleccionable, conserva centro y texto y serializa sus dimensiones', () => {
+    let state = boardReducer(initial(), { type: 'mode', mode: 'note' })
+    state = boardReducer(state, { type: 'add-note', note: { id: noteId, text: 'Ruta', position: { x: 1500, y: 1200 }, width: 220, height: 96 } })
+    state = boardReducer(state, { type: 'resize-note', id: noteId, size: { width: 80, height: 40 } })
+    expect(state.board.quickNotes[0]).toEqual({ id: noteId, text: 'Ruta', position: { x: 1500, y: 1200 }, width: 120, height: 64 })
+    const document = createEmptyDocument(); document.board = state.board
+    expect(JSON.parse(serializeDocument(document)).board.quickNotes).toEqual(state.board.quickNotes)
+    expect(boardReducer(state, { type: 'resize-note', id: noteId, size: { width: NaN, height: 100 } })).toBe(state)
+    state = boardReducer(state, { type: 'mode', mode: 'pen' })
+    expect(boardReducer(state, { type: 'resize-note', id: noteId, size: { width: 300, height: 100 } }).board).toBe(state.board)
   })
 })

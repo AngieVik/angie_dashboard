@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { createElement } from '../../src/features/elements/elementCommands'
 import type { AngieDocument } from '../../src/domain/document/types'
+import { bringModuleToFront } from './acceptance-helpers'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -36,6 +37,7 @@ async function saved(page: Page): Promise<AngieDocument> {
   }))
 }
 async function blankBoard(page: Page) {
+  await bringModuleToFront(page, 'Pizarra')
   const rect = (await page.getByTestId('board-surface').boundingBox())!
   await page.mouse.click(rect.x + rect.width * .1, rect.y + rect.height * .8)
 }
@@ -75,6 +77,7 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await expect(board.getByRole('button', { name: 'Seleccionar Tango 1' })).toHaveAttribute('aria-pressed', 'true')
   await expect(information.getByText('Espera', { exact: true })).toBeVisible()
   await expect(ops.getByRole('group', { name: 'Estado operativo' }).getByRole('button')).toHaveCount(8)
+  await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'Disponible', exact: true }).click()
   await expect.poll(async () => (await saved(page)).timeline.length).toBe(0)
   await ops.getByRole('button', { name: 'Asignada', exact: true }).click()
@@ -99,11 +102,14 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await ops.getByRole('button', { name: 'Eliminar etiqueta Radio' }).click()
   await expect(information.getByText('Radio', { exact: true })).toHaveCount(0)
   await expect(board.getByText('Sector sur', { exact: true })).toHaveCount(0)
+  await bringModuleToFront(page, 'Elementos')
   await elements.getByRole('button', { name: 'Seleccionar Acceso' }).click()
   await expect(information.locator('.information-module')).toHaveText('Puerta norte')
   await expect(ops.locator('.operations-counter')).toHaveText(['🟢 1 Disponible', '🔵 1 En camino', '🟠 1 En destino'])
+  await bringModuleToFront(page, 'Pizarra')
   await board.getByRole('button', { name: 'Seleccionar Tango 2' }).click()
   await expect(elements.getByRole('button', { name: 'Seleccionar Tango 2' })).toHaveAttribute('aria-pressed', 'true')
+  await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'Inoperativa', exact: true }).click()
   await open(page, 'Registro cronológico')
   const timeline = page.locator('[data-module="timeline"]')
@@ -161,6 +167,7 @@ test('registro ascendente sigue el final y conserva lectura antigua; controles e
   await timeline.getByRole('textbox', { name: 'Acontecimiento' }).fill('Sin mover lectura')
   await timeline.getByRole('button', { name: 'Añadir entrada' }).click()
   await expect.poll(() => log.evaluate(node => node.scrollTop)).toBe(12)
+  await bringModuleToFront(page, 'Información')
   await page.locator('[data-module="information"]').getByRole('button', { name: 'Seleccionar Tango 1' }).click()
   const ops = page.locator('[data-module="operations"]')
   await ops.getByRole('button', { name: 'En traslado', exact: true }).focus()

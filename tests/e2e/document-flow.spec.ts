@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
-import { createElement, downloadDocument, fileCommand, loadDocument, noPageScroll, openModule, savedDocument } from './acceptance-helpers'
+import { bringModuleToFront, createElement, downloadDocument, fileCommand, loadDocument, noPageScroll, openModule, savedDocument } from './acceptance-helpers'
 
 test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga', async ({ page }, info) => {
   const errors: string[] = []
@@ -13,20 +13,25 @@ test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga
   await page.getByLabel('Título del documento').fill('Integración áé<>.JSON')
   for (const name of ['Pizarra', 'Elementos', 'Operativo', 'Cuaderno']) await openModule(page, name)
   await createElement(page, 'Tango integración', true)
+  await bringModuleToFront(page, 'Pizarra')
+  await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await openModule(page, 'Pizarra')
   const surface = page.getByTestId('board-surface'), pin = page.locator('.board-pin-visual')
   const before = (await pin.boundingBox())!, square = (await surface.boundingBox())!
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
   await page.mouse.down(); await page.waitForTimeout(280)
   await page.mouse.move(before.x + before.width / 2 - square.width * .15, before.y + before.height / 2 + square.height * .1, { steps: 8 })
   await page.mouse.up()
-  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.position?.x ?? 1000).toBeLessThan(400)
+  const spatialScale = Number(await surface.getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
+  await expect.poll(async () => (await savedDocument(page))?.elements[0]?.position?.x ?? 1000).toBeCloseTo(500 - square.width * .15 / spatialScale, 1)
   const ops = page.getByRole('region', { name: 'Operativo', exact: true })
+  await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'En camino', exact: true }).click()
   await ops.getByLabel('Anotación').fill('Comprobar radio')
   await ops.getByRole('textbox', { name: 'Nueva etiqueta' }).fill('Sector norte')
   await ops.getByRole('textbox', { name: 'Nueva etiqueta' }).press('Enter')
   await createElement(page, 'Acceso integración', false, '📍')
   const notebook = page.getByRole('region', { name: 'Cuaderno', exact: true })
+  await bringModuleToFront(page, 'Cuaderno')
   await notebook.getByRole('button', { name: 'Añadir bloque' }).click()
   await page.getByRole('menuitem', { name: 'Nota', exact: true }).click()
   await notebook.getByLabel('Texto de nota').fill('Preparación\n📻 Revisar canal')

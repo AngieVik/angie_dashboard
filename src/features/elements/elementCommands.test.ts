@@ -34,16 +34,16 @@ describe('comandos de elementos', () => {
     expect(() => updateElement(document, general.id, { isUnit: true } as never)).toThrow()
     expect(document.elements.map(element => element.isUnit)).toEqual([true, false])
   })
-  it('limita escala y recoloca el centro utilizando la caja completa escalada', () => {
+  it('limita escala y conserva centros finitos en la escena abierta', () => {
     expect(clampAssetScale(0.1)).toBe(0.25)
     expect(clampAssetScale(4)).toBe(3)
     expect(clampAssetScale(1.75)).toBe(1.75)
     expect(() => clampAssetScale(NaN)).toThrow()
-    expect(clampPinPosition({ x: 999, y: -10 }, { type: 'asset', assetId: 'ambulance', scale: 3 })).toEqual({ x: 775, y: 150 })
+    expect(clampPinPosition({ x: 999, y: -10 }, { type: 'asset', assetId: 'ambulance', scale: 3 })).toEqual({ x: 999, y: 0 })
     const document = createEmptyDocument()
     const unit = createElement(document, { ...input, position: { x: 925, y: 950 } })
     updateElement(document, unit.id, { visual: { type: 'asset', assetId: 'ambulance', scale: 3 } })
-    expect(document.elements[0]?.position).toEqual({ x: 775, y: 850 })
+    expect(document.elements[0]?.position).toEqual({ x: 925, y: 950 })
     expect(JSON.parse(serializeDocument(document)).elements[0].visual.scale).toBe(3)
   })
   it('duplica con UUID y nombre nuevos, desplaza 24 y reinicia la operación sin copiar historial', () => {
@@ -62,11 +62,11 @@ describe('comandos de elementos', () => {
     expect(document.timeline).toEqual(history)
     expect(validateDocument(document).success).toBe(true)
   })
-  it('duplica generales, conserva null y limita la copia en los bordes', () => {
+  it('duplica generales, conserva null y desplaza la copia también más allá de 1000', () => {
     const document = createEmptyDocument()
     const general = createElement(document, { ...input, isUnit: false, position: null })
     expect(duplicateElement(document, general.id)).toMatchObject({ isUnit: false, operational: null, position: null })
     updateElement(document, general.id, { position: { x: 999, y: 999 } })
-    expect(duplicateElement(document, general.id).position).toEqual({ x: 925, y: 950 })
+    expect(duplicateElement(document, general.id).position).toEqual({ x: 1023, y: 1023 })
   })
 })

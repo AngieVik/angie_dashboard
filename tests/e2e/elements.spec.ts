@@ -2,12 +2,14 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { AngieDocument } from '../../src/domain/document/types'
+import { bringModuleToFront } from './acceptance-helpers'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name, exact: true }).click()
 }
 async function action(page: Page, name: string) {
+  await bringModuleToFront(page, 'Elementos')
   await page.getByRole('button', { name: 'Configurar elementos', exact: true }).click()
   await page.getByRole('button', { name, exact: true }).click()
 }
@@ -33,10 +35,16 @@ async function create(page: Page, name: string, isUnit = false, icon = 'ambulanc
   } else await page.getByLabel('Icono', { exact: true }).selectOption(icon)
   await page.getByLabel('Información', { exact: true }).fill('Acceso norte · Canal 4')
   await page.getByRole('button', { name: 'Crear elemento', exact: true }).click()
+  await bringModuleToFront(page, 'Pizarra')
+  await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await open(page, 'Pizarra')
 }
 async function point(page: Page, x: number, y: number) {
-  const rect = (await page.getByTestId('board-surface').boundingBox())!
-  return { x: rect.x + x * rect.width / 1000, y: rect.y + y * rect.height / 1000 }
+  await bringModuleToFront(page, 'Pizarra')
+  return page.getByTestId('board-surface').evaluate((el, point) => {
+    const rect = el.getBoundingClientRect(), scale = Number(el.getAttribute('data-scale'))
+    return { x: rect.x + (point.x * scale + Number(el.getAttribute('data-offset-x'))) * rect.width / el.clientWidth,
+      y: rect.y + (point.y * scale + Number(el.getAttribute('data-offset-y'))) * rect.height / el.clientHeight }
+  }, { x, y })
 }
 async function exportJson(page: Page) {
   const download = page.waitForEvent('download')
@@ -61,13 +69,15 @@ test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSO
   await expect.poll(async () => (await saved(page)).elements[0]?.visual).toEqual({ type: 'asset', assetId: 'ambulance', scale: 1.5 })
   const beforeSize = await board.locator('.board-pin-visual').evaluate(el => ({ w: (el as HTMLElement).offsetWidth, h: (el as HTMLElement).offsetHeight }))
   expect(beforeSize).toEqual({ w: 225, h: 150 })
+  await bringModuleToFront(page, 'Pizarra')
   const handle = board.getByRole('button', { name: 'Redimensionar Tango 1' }), box = (await handle.boundingBox())!
-  const surface = (await page.getByTestId('board-surface').boundingBox())!
+  const physicalScale = Number(await page.getByTestId('board-surface').getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down()
-  await page.mouse.move(box.x + box.width / 2 + 37.5 * surface.width / 1000, box.y + box.height / 2 + 25 * surface.height / 1000, { steps: 6 }); await page.mouse.up()
+  await page.mouse.move(box.x + box.width / 2 + 37.5 * physicalScale, box.y + box.height / 2 + 25 * physicalScale, { steps: 6 }); await page.mouse.up()
   await expect.poll(async () => Number(await page.getByLabel('Escala del icono').inputValue())).toBeCloseTo(2, 1)
   await expect(board.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
   await expect(board.locator('.board-pin-visual img')).toHaveCSS('object-fit', 'contain')
+  await bringModuleToFront(page, 'Elementos')
   await page.getByRole('button', { name: 'Guardar elemento' }).click()
   await action(page, 'Duplicar')
   await expect(module.getByRole('button', { name: 'Seleccionar Tango 1 copia', exact: true })).toHaveAttribute('aria-pressed', 'true')
@@ -80,9 +90,11 @@ test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSO
   await create(page, 'Ruta', false, 'ambulance', '🚴🏽‍♂️')
   const pin = board.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })
   // The new emoji shares the initial center. Select the exposed corner of the PNG.
+  await bringModuleToFront(page, 'Pizarra')
   await pin.click({ position: { x: 2, y: 2 } })
   await expect(module.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  const blank = await point(page, 100, 100); await page.mouse.click(blank.x, blank.y)
+  const blankSurface = (await page.getByTestId('board-surface').boundingBox())!
+  await page.mouse.click(blankSurface.x + 20, blankSurface.y + 20)
   await expect(pin).toHaveAttribute('aria-pressed', 'false')
   await expect(module.getByRole('group', { name: 'Filtrar dotaciones por estado' })).toHaveCount(0)
   await expect(pin).toBeVisible()
@@ -113,19 +125,26 @@ test('ratón: clic breve no mueve, arrastre mantenido y escala máxima respetan 
   await page.mouse.move(center.x, center.y); await page.mouse.down(); await page.mouse.move(center.x + 5, center.y + 5); await page.mouse.up()
   expect((await saved(page)).elements[0]!.position).toEqual({ x: 500, y: 500 })
   await page.mouse.move(center.x, center.y); await page.mouse.down(); await page.waitForTimeout(280); await page.mouse.move(end.x, end.y, { steps: 8 }); await page.mouse.up()
-  await expect.poll(async () => (await saved(page)).elements[0]!.position).toEqual({ x: 925, y: 950 })
+  await expect.poll(async () => (await saved(page)).elements[0]!.position).toEqual({ x: 990, y: 990 })
   await action(page, 'Modificar'); await page.getByLabel('Escala del icono').fill('3')
-  await expect.poll(async () => (await saved(page)).elements[0]!.position).toEqual({ x: 775, y: 850 })
+  await expect.poll(async () => (await saved(page)).elements[0]!.position).toEqual({ x: 990, y: 990 })
   await page.getByRole('button', { name: 'Guardar elemento' }).click()
+  await bringModuleToFront(page, 'Pizarra')
+  await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await open(page, 'Pizarra')
   const before = (await saved(page)).elements
   for (const mode of ['Lápiz', 'Goma']) {
     await page.getByRole('radio', { name: mode, exact: true }).click()
-    const p = await point(page, 775, 800), q = await point(page, 500, 600)
+    const p = await point(page, 990, 990), q = await point(page, 950, 900)
     await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.waitForTimeout(280); await page.mouse.move(q.x, q.y, { steps: 6 }); await page.mouse.up()
     await expect(pin).toBeVisible(); expect((await saved(page)).elements).toEqual(before)
   }
   await expect.poll(async () => (await saved(page)).board.strokes.length).toBe(2)
   await page.getByRole('radio', { name: 'Seleccionar/mover', exact: true }).click()
+  const zoomPoint = await point(page, 990, 990)
+  await page.mouse.move(zoomPoint.x, zoomPoint.y); await page.keyboard.down('Control')
+  for (let step = 0; step < 3; step++) await page.mouse.wheel(0, 350)
+  await page.keyboard.up('Control')
+  await expect.poll(async () => Number(await page.getByTestId('board-surface').getAttribute('data-scale'))).toBeLessThan(.6)
   const surface = (await page.getByTestId('board-surface').boundingBox())!, pinBox = (await page.locator('.board-pin').boundingBox())!
   expect(pinBox.x).toBeGreaterThanOrEqual(surface.x - 1); expect(pinBox.y).toBeGreaterThanOrEqual(surface.y - 1)
   expect(pinBox.x + pinBox.width).toBeLessThanOrEqual(surface.x + surface.width + 1)
@@ -160,7 +179,8 @@ test('tacto: mueve y redimensiona con un dedo; dos dedos cancelan cambios y sele
   const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', touchPoints: { x: number; y: number; id: number }[]) => session.send('Input.dispatchTouchEvent', { type, touchPoints })
   const center = await point(page, 500, 500), finger = { ...center, id: 1 }
   await touch('touchStart', [finger]); await page.waitForTimeout(280); await touch('touchMove', [{ ...finger, x: finger.x + 12 }]); await touch('touchEnd', [])
-  await expect.poll(async () => (await saved(page)).elements[0]!.position!.x).toBeGreaterThan(550)
+  const physicalScale = Number(await page.getByTestId('board-surface').getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
+  await expect.poll(async () => (await saved(page)).elements[0]!.position!.x).toBeCloseTo(500 + 12 / physicalScale, 1)
   let handle = (await page.getByRole('button', { name: 'Redimensionar Tango' }).boundingBox())!
   const resize = { x: handle.x + handle.width / 2, y: handle.y + handle.height / 2, id: 1 }
   await touch('touchStart', [resize]); await touch('touchMove', [{ ...resize, x: resize.x + 8, y: resize.y + 5 }]); await touch('touchEnd', [])
@@ -178,7 +198,8 @@ test('tacto: mueve y redimensiona con un dedo; dos dedos cancelan cambios y sele
   }
   handle = (await page.getByRole('button', { name: 'Redimensionar Tango' }).boundingBox())!
   expect(handle.width).toBeGreaterThan(0)
-  const blankA = { ...await point(page, 100, 100), id: 1 }, blankB = { ...await point(page, 300, 100), id: 2 }
+  const blankSurface = (await page.getByTestId('board-surface').boundingBox())!
+  const blankA = { x: blankSurface.x + 20, y: blankSurface.y + 20, id: 1 }, blankB = { x: blankSurface.x + 80, y: blankSurface.y + 20, id: 2 }
   await touch('touchStart', [blankA]); await touch('touchStart', [blankA, blankB])
   await touch('touchMove', [{ ...blankA, x: blankA.x - 5 }, { ...blankB, x: blankB.x + 5 }]); await touch('touchEnd', [])
   await expect(page.locator('.board-pin-visual')).toHaveAttribute('aria-pressed', 'true')

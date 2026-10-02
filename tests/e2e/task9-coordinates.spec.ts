@@ -55,7 +55,8 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
   const jsonText = await readFile((await (await download).path())!, 'utf8')
   const json = JSON.parse(jsonText)
   expect(Object.keys(json)).toHaveLength(8)
-  expect(json.moduleLayouts.coordinates).toEqual({ x: 0, y: 0, width: 360, height: 280, referenceSize: { width: 1600, height: 1000 } })
+  const referenceSize = await page.locator('.logical-workspace').evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }))
+  expect(json.moduleLayouts.coordinates).toEqual({ x: 0, y: 0, width: 360, height: 280, referenceSize })
   for (const temporary of ['37.060234', '-2.002295', 'google.com/maps', 'normalizedInput', 'conversions']) expect(jsonText).not.toContain(temporary)
   const saved = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {

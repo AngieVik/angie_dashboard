@@ -15,7 +15,7 @@ describe('colocación de los nueve módulos', () => {
   })
   it('recupera exactamente una distribución guardada libre, incluso fuera de múltiplos de 20', () => {
     const saved = { x: 37, y: 53, width: 723, height: 487, referenceSize: { width: 1600, height: 1000 } }
-    expect(findModulePlacement({ id: 'board', saved }, [], bounds)).toEqual({ layout: saved, exceptional: false, notice: null })
+    expect(findModulePlacement({ id: 'board', saved }, [], bounds)).toEqual({ layout: saved })
   })
   it('busca de izquierda a derecha y luego abajo sin mutar los ocupados', () => {
     const occupied = [{ x: 0, y: 0, width: 1300, height: 480, referenceSize: { width: 1600, height: 1000 } }]
@@ -24,20 +24,22 @@ describe('colocación de los nueve módulos', () => {
     expect(findModulePlacement({ id: 'board' }, occupied, bounds).layout).toEqual({ x: 0, y: 480, width: 720, height: 480, referenceSize: { width: 1600, height: 1000 } })
     expect(occupied).toEqual(before)
   })
-  it('elige el hueco más cercano manteniendo el tamaño guardado', () => {
+  it('restaura la posición guardada incluso cuando está ocupada', () => {
     const saved = { x: 500, y: 400, width: 320, height: 240, referenceSize: { width: 1600, height: 1000 } }
     const occupied = [{ x: 490, y: 390, width: 340, height: 260, referenceSize: { width: 1600, height: 1000 } }]
-    expect(findModulePlacement({ id: 'information', saved }, occupied, bounds).layout).toEqual({ ...saved, y: 150 })
+    expect(findModulePlacement({ id: 'information', saved }, occupied, bounds).layout).toEqual(saved)
   })
-  it('solo sin hueco abre al mínimo centrado, con el aviso exacto', () => {
+  it('sin hueco abre al tamaño inicial adaptado y sin excepción ni aviso', () => {
     const occupied = [{ x: 0, y: 0, ...bounds, referenceSize: { ...bounds } }]
     const result = findModulePlacement({ id: 'board' }, occupied, bounds)
-    expect(result).toEqual({ layout: { x: 640, y: 390, width: 320, height: 220, referenceSize: { width: 1600, height: 1000 } }, exceptional: true,
-      notice: 'No hay espacio libre. Recoloca o cierra algún módulo.' })
+    expect(result).toEqual({ layout: { x: 440, y: 260, width: 720, height: 480, referenceSize: { width: 1600, height: 1000 } } })
     expect(overlaps(result.layout, occupied[0]!)).toBe(true)
     expect(overlaps({ x: 0, y: 0, width: 100, height: 100 }, { x: 100, y: 0, width: 100, height: 100 })).toBe(false)
   })
-  it('mantiene el tamaño solicitado: un hueco solo apto para el mínimo no evita la excepción', () => {
-    expect(findModulePlacement({ id: 'board' }, [{ x: 0, y: 0, width: 1250, height: 1000, referenceSize: { width: 1600, height: 1000 } }], bounds).exceptional).toBe(true)
+  it('una colisión no reduce el tamaño inicial y una pantalla estrecha sí lo adapta', () => {
+    expect(findModulePlacement({ id: 'board' }, [{ x: 0, y: 0, width: 1250, height: 1000, referenceSize: { width: 1600, height: 1000 } }], bounds).layout.width).toBe(720)
+    expect(findModulePlacement({ id: 'board' }, [], { width: 412, height: 871 }).layout).toEqual({
+      x: 0, y: 0, width: 412, height: 480, referenceSize: { width: 412, height: 871 },
+    })
   })
 })

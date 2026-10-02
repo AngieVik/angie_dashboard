@@ -1,4 +1,5 @@
 import type { AngieDocument, BoardStroke, Position, QuickNote } from '../../domain/document/types'
+import type { Size } from '../../layout/layoutTypes'
 
 export type Board = AngieDocument['board']
 export type BoardMode = 'select' | 'pen' | 'eraser' | 'note'
@@ -12,6 +13,7 @@ export type BoardAction =
   | { type: 'select-note'; id: string | null }
   | { type: 'add-note'; note: QuickNote }
   | { type: 'move-note'; id: string; position: Position }
+  | { type: 'resize-note'; id: string; size: Size }
   | { type: 'edit-note'; id: string; text: string }
   | { type: 'delete-note'; id: string }
 

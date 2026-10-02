@@ -1,16 +1,16 @@
 import type { AngieDocument, DocumentElement, ElementVisual, Position } from '../../domain/document/types'
 import type { CreateElementInput, ElementPatch } from './elementTypes'
-import { getPinBox, ICON_CATALOG } from './iconCatalog'
+import { ICON_CATALOG } from './iconCatalog'
 
 export function clampAssetScale(value: number) {
   if (!Number.isFinite(value)) throw new Error('La escala debe ser un número finito.')
   return Math.max(0.25, Math.min(3, value))
 }
-export function clampPinPosition(position: Position, visual: ElementVisual) {
+export function clampPinPosition(position: Position, _visual: ElementVisual) {
+  // Keep the command's existing interface; a stable center no longer depends on its box.
+  void _visual
   if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) throw new Error('La posición debe contener números finitos.')
-  const box = getPinBox(visual)
-  return { x: Math.max(box.width / 2, Math.min(1000 - box.width / 2, position.x)),
-    y: Math.max(box.height / 2, Math.min(1000 - box.height / 2, position.y)) }
+  return { x: Math.max(0, position.x), y: Math.max(0, position.y) }
 }
 function normalizeVisual(visual: ElementVisual): ElementVisual {
   if (visual.type === 'asset') {

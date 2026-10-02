@@ -7,6 +7,9 @@ export async function openModule(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name, exact: true }).click()
 }
+export async function bringModuleToFront(page: Page, name: string) {
+  await page.getByRole('button', { name: `Cerrar ${name}`, exact: true }).focus()
+}
 export async function fileCommand(page: Page, name: string) {
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name, exact: true }).click()
@@ -39,6 +42,7 @@ export async function savedDocument(page: Page): Promise<AngieDocument | null> {
 }
 export async function createElement(page: Page, name: string, isUnit: boolean, emoji?: string) {
   const module = page.getByRole('region', { name: 'Elementos', exact: true })
+  await bringModuleToFront(page, 'Elementos')
   await module.getByRole('button', { name: 'Configurar elementos' }).click()
   await module.getByRole('button', { name: 'Añadir', exact: true }).click()
   await module.getByLabel('Nombre', { exact: true }).fill(name)

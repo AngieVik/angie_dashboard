@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../components/ui/button'
-import { Alert } from '../components/ui/alert'
 import { Input } from '../components/ui/input'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
@@ -19,14 +18,12 @@ import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
 import { MobileViewport } from '../layout/MobileViewport'
-import { findModulePlacement, overlaps } from '../layout/findModulePlacement'
-import { WORKSPACE } from '../layout/layoutTypes'
+import { findModulePlacement } from '../layout/findModulePlacement'
+import { adaptModuleLayout, getWorkspaceBounds } from '../layout/adaptiveLayout'
+import { MODULE_REGISTRY } from '../layout/moduleRegistry'
 import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
 import { fit, resizeViewport } from '../layout/viewportMath'
-
-function sameLayout(a: ModuleLayout | undefined, b: ModuleLayout) {
-  return a?.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
-}
+import type { Position } from '../domain/document/types'
 
 export function App() {
   const store = getDocumentStore()
@@ -37,70 +34,61 @@ export function App() {
   useEffect(() => { void store.initialize() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const viewTrigger = useRef<HTMLButtonElement>(null)
-  const [viewport, setViewport] = useState(() => ({ size: WORKSPACE, state: fit(WORKSPACE) }))
+  const boardCenter = useRef<{ generation: number; center: Position } | null>(null)
+  useLayoutEffect(() => { boardCenter.current = null }, [documentGeneration])
+  const [viewport, setViewport] = useState(() => {
+    const size = { width: window.innerWidth, height: window.innerHeight }
+    return { size, state: fit(size), measured: false }
+  })
   const [modules, setModules] = useState<OpenModule[]>([])
   const [active, setActive] = useState<ModuleId | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [layers, setLayers] = useState<ModuleId[]>([])
+  const bounds = useMemo(() => getWorkspaceBounds(viewport.size, modules.map(module => module.id)), [viewport.size, modules])
   const [selection, setSelection] = useState<{ generation: number; id: string | null }>({ generation: documentGeneration, id: null })
   const selectedId = selection.generation === documentGeneration && document.elements.some(element => element.id === selection.id) ? selection.id : null
   const selectElement = (id: string | null) => setSelection({ generation: documentGeneration, id })
   useLayoutEffect(() => {
     const node = workspace.current
     if (!node || typeof ResizeObserver === 'undefined') return
-    let measured = false
     const observer = new ResizeObserver(() => {
       const size = { width: node.clientWidth, height: node.clientHeight }
       if (size.width <= 0 || size.height <= 0) return
-      const firstMeasurement = !measured
-      measured = true
-      setViewport(previous => ({ size, state: firstMeasurement ? fit(size) : resizeViewport(previous.state, previous.size, size) }))
+      const nextBounds = getWorkspaceBounds(size, modules.map(module => module.id))
+      setViewport(previous => ({ size, measured: true, state: !previous.measured ? fit(size, nextBounds) : resizeViewport(previous.state, previous.size, size, nextBounds) }))
     })
     observer.observe(node)
     return () => observer.disconnect()
-  }, [])
+  }, [modules])
   // Module visibility and viewport belong to the running app. Document changes
   // only replace the persistent geometry; neither state is exported.
-  const open = useMemo(() => modules.reduce<OpenModule[]>((placed, module) => {
+  const open = useMemo(() => modules.map(module => {
     const saved = document.moduleLayouts[module.id] ?? module.layout
-    const keepException = module.exceptional && sameLayout(saved, module.layout)
-    const placement = keepException ? { layout: saved, exceptional: true } :
-      findModulePlacement({ id: module.id, saved }, placed.map(other => other.layout), WORKSPACE)
-    return [...placed, { id: module.id, layout: placement.layout, exceptional: placement.exceptional }]
-  }, []), [modules, document.moduleLayouts])
-  useEffect(() => {
-    if (!open.some(module => !sameLayout(document.moduleLayouts[module.id], module.layout))) return
-    // Imported geometries may share occupied positions. Apply the same opening
-    // rules and persist the actual placement atomically, retaining the viewport.
-    store.mutateDocument(document => {
-      for (const module of open) document.moduleLayouts[module.id] = module.layout
-    })
-  }, [open, document.moduleLayouts, store])
+    const [width, height] = MODULE_REGISTRY[module.id].minimum
+    return { id: module.id, layout: adaptModuleLayout(saved, bounds, { width, height }) }
+  }), [modules, document.moduleLayouts, bounds])
+  function activate(id: ModuleId) {
+    setActive(id)
+    setLayers(previous => previous.at(-1) === id ? previous : [...previous.filter(other => other !== id), id])
+  }
   function saveLayout(id: ModuleId, layout: ModuleLayout) {
     store.mutateDocument(document => { document.moduleLayouts[id] = layout })
-    setModules(previous => previous.map(module => module.id === id ? {
-      ...module, layout, exceptional: Boolean(open.find(other => other.id === id)?.exceptional) && open.some(other => other.id !== id && overlaps(layout, other.layout)),
-    } : module))
+    setModules(previous => previous.map(module => module.id === id ? { ...module, layout } : module))
   }
   function close(id: ModuleId) {
+    if (id === 'board') boardCenter.current = null
     viewTrigger.current?.focus()
     setModules(previous => previous.filter(module => module.id !== id))
+    setLayers(previous => previous.filter(other => other !== id))
     if (active === id) setActive(null)
   }
   function toggle(id: ModuleId) {
     if (open.some(module => module.id === id)) { close(id); return }
-    const placement = findModulePlacement({ id, saved: document.moduleLayouts[id] }, open.map(module => module.layout), WORKSPACE)
-    store.mutateDocument(document => { document.moduleLayouts[id] = placement.layout })
-    setModules(previous => [...previous, { id, layout: placement.layout, exceptional: placement.exceptional }])
-    setActive(id)
-    if (placement.notice) {
-      setNotice(placement.notice)
-    }
+    const nextBounds = getWorkspaceBounds(viewport.size, [...modules.map(module => module.id), id])
+    const placement = findModulePlacement({ id, saved: document.moduleLayouts[id] }, open.map(module => module.layout), nextBounds)
+    if (!document.moduleLayouts[id]) store.mutateDocument(document => { document.moduleLayouts[id] = placement.layout })
+    setModules(previous => [...previous, { id, layout: document.moduleLayouts[id] ?? placement.layout }])
+    activate(id)
   }
-  useEffect(() => {
-    if (!notice) return
-    const timeout = setTimeout(() => setNotice(null), 5000)
-    return () => clearTimeout(timeout)
-  }, [notice])
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -109,15 +97,15 @@ export function App() {
         <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} triggerRef={viewTrigger} />
         <Input aria-label="Título del documento" placeholder="Título del documento"
           value={document.document.title} onChange={event => store.setTitle(event.target.value)} />
-        <Button onClick={() => setViewport(previous => ({ ...previous, state: fit(previous.size) }))}>Encajar</Button>
+        <Button onClick={() => setViewport(previous => ({ ...previous, state: fit(previous.size, bounds) }))}>Encajar</Button>
         <output className="technical-data zoom-percentage" aria-label="Zoom actual">{Math.round(viewport.state.scale * 100)} %</output>
       </header>
-      {notice && <div className="layout-notice"><Alert>{notice}</Alert></div>}
       <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo">
         <DocumentNotices store={store} />
-        <MobileViewport state={viewport.state} size={viewport.size} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid modules={open} scale={viewport.state.scale} active={active} onActive={setActive} onClose={close} onLayout={saveLayout}
-            renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement} /> :
+        <MobileViewport state={viewport.state} size={viewport.size} bounds={bounds} onChange={state => setViewport(previous => ({ ...previous, state }))}>
+          <DashboardGrid modules={open} bounds={bounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout}
+            renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
+              onViewChange={center => { boardCenter.current = { generation: documentGeneration, center } }} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :

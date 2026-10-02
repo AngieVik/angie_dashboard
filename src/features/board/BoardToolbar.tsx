@@ -2,11 +2,12 @@ import { useRef } from 'react'
 import type { Ref } from 'react'
 import { Button } from '../../components/ui/button'
 import type { BoardMode } from './boardTypes'
+import { MousePointer2, Pencil, Eraser, StickyNote } from 'lucide-react'
 
-const modes: { id: BoardMode; name: string }[] = [
-  { id: 'select', name: 'Seleccionar/mover' }, { id: 'pen', name: 'Lápiz' },
-  { id: 'eraser', name: 'Goma' }, { id: 'note', name: 'Nota rápida' },
-]
+const modes = [
+  { id: 'select', name: 'Seleccionar/mover', icon: MousePointer2 }, { id: 'pen', name: 'Lápiz', icon: Pencil },
+  { id: 'eraser', name: 'Goma', icon: Eraser }, { id: 'note', name: 'Nota rápida', icon: StickyNote },
+] as const
 
 export function BoardToolbar({ mode, onMode, background, onBackground, color, onColor, width, onWidth, onImage, busy, blocked, toolbarRef }: {
   mode: BoardMode; onMode: (mode: BoardMode) => void; background: string; onBackground: (color: string) => void
@@ -25,9 +26,12 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
       event.currentTarget.querySelectorAll<HTMLButtonElement>('button')[next]?.focus()
     }}>
       {modes.map(item => <Button key={item.id} role="radio" aria-checked={mode === item.id} tabIndex={mode === item.id ? 0 : -1}
-        disabled={blocked} title={item.name} onClick={() => onMode(item.id)}>{item.name}</Button>)}
+        disabled={blocked} title={item.name} aria-label={item.name} onClick={() => onMode(item.id)}><item.icon size={18} aria-hidden="true" /></Button>)}
     </div>
     <div className="board-options">
+      <label title="Grosor"><input type="range" aria-label="Grosor" min="1" max="40" step="1" value={width} disabled={blocked} onChange={event => onWidth(Number(event.target.value))} /><output className="technical-data">{width}</output></label>
+      <label title="Color del lápiz"><input type="color" aria-label="Color del lápiz" value={color} disabled={blocked} onChange={event => onColor(event.target.value)} /></label>
+      <div className="board-background">
       <label title="Color de fondo">Fondo<input type="color" aria-label="Color de fondo" value={background} disabled={blocked} onChange={event => onBackground(event.target.value)} /></label>
       <Button title="Cargar imagen JPG o PNG" aria-label="Elegir imagen de fondo" disabled={blocked || busy} onClick={() => file.current?.click()}>JPG/PNG</Button>
       <input ref={file} type="file" aria-label="Cargar imagen de fondo" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden onChange={event => {
@@ -35,8 +39,7 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
         event.target.value = ''
         if (selected && !blocked) onImage(selected)
       }} />
-      <label title="Color del lápiz">Lápiz<input type="color" aria-label="Color del lápiz" value={color} disabled={blocked} onChange={event => onColor(event.target.value)} /></label>
-      <label title="Grosor">Grosor<input type="range" aria-label="Grosor" min="1" max="40" step="1" value={width} disabled={blocked} onChange={event => onWidth(Number(event.target.value))} /><output className="technical-data">{width}</output></label>
+      </div>
     </div>
   </div>
 }

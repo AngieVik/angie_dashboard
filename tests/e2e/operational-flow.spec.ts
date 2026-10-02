@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
-import { createElement, loadDocument, openModule, savedDocument } from './acceptance-helpers'
+import { bringModuleToFront, createElement, loadDocument, openModule, savedDocument } from './acceptance-helpers'
 
 test('estados libres, selección compartida, historial cerrado y Deshacer por dotación', async ({ page }) => {
   await page.goto('/')
@@ -28,6 +28,7 @@ test('estados libres, selección compartida, historial cerrado y Deshacer por do
   await expect.poll(async () => (await savedDocument(page))?.elements[0]?.operational?.status).toBe('Inoperativa')
   await timeline.locator('li').filter({ hasText: 'Disponible 🟢 → Inoperativa ⚫' }).getByRole('button', { name: 'Deshacer' }).press('Enter')
   await expect.poll(async () => (await savedDocument(page))?.elements.map(item => item.operational?.status)).toEqual(['Disponible', 'Operativa'])
+  await bringModuleToFront(page, 'Elementos')
   await elements.getByRole('button', { name: 'Configurar elementos' }).click()
   await elements.getByRole('button', { name: 'Quitar', exact: true }).click()
   await expect(timeline.getByText(/Tango B/)).toBeVisible()

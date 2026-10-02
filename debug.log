@@ -1,2 +1,32 @@
 [0930/134322.808:WARNING:net\extras\sqlite\sqlite_persistent_store_backend_base.cc:181] Failed to post task from operator()@net\extras\sqlite\sqlite_persistent_shared_dictionary_store.cc:259 to client_task_runner_.
 [0930/134827.634:WARNING:net\extras\sqlite\sqlite_persistent_store_backend_base.cc:181] Failed to post task from operator()@net\extras\sqlite\sqlite_persistent_shared_dictionary_store.cc:259 to client_task_runner_.
+[1002/020323.172:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/020348.813:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/020910.089:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/021016.991:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/021110.641:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/024921.563:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/025829.984:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/030518.848:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/030518.849:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031504.511:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)
+[1002/031538.835:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031538.835:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031538.835:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031538.835:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031557.351:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031557.352:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1002/031628.121:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Se está cerrando la canalización. (0xE8)

@@ -4,11 +4,15 @@ import type { DocumentElement, Position } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { clampAssetScale, clampPinPosition } from './elementCommands'
 import { getPinBox, ICON_CATALOG } from './iconCatalog'
+import { boardDelta } from '../board/boardViewport'
+import type { BoardViewportState } from '../board/boardViewport'
+import type { Size } from '../../layout/layoutTypes'
 export interface BoardPinProps {
   element: DocumentElement; selected: boolean; enabled: boolean; surface: RefObject<HTMLDivElement | null>
   onSelect: () => void; onMove: (position: Position) => void; onScale: (scale: number) => void
+  view?: BoardViewportState; viewportSize?: Size
 }
-export function BoardPin({ element, selected, enabled, surface, onSelect, onMove, onScale }: BoardPinProps) {
+export function BoardPin({ element, selected, enabled, surface, onSelect, onMove, onScale, view = { scale: 1, offsetX: 0, offsetY: 0 }, viewportSize }: BoardPinProps) {
   const { blocked, blockedRef } = useViewportInteraction()
   const [preview, setPreview] = useState<{ position: Position; scale: number } | null>(null)
   const gesture = useRef<{ kind: 'move' | 'resize'; pointerId: number; x: number; y: number; origin: Position; scale: number; ready: boolean; next: { position: Position; scale: number } | null } | null>(null)
@@ -39,7 +43,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onMove
     const current = gesture.current, rect = surface.current?.getBoundingClientRect()
     if (!current || current.pointerId !== event.pointerId || !current.ready || blockedRef.current || !rect?.width) return
     event.stopPropagation()
-    const dx = (event.clientX - current.x) * 1000 / rect.width, dy = (event.clientY - current.y) * 1000 / rect.height
+    const { x: dx, y: dy } = boardDelta({ x: event.clientX - current.x, y: event.clientY - current.y }, rect, view, viewportSize ?? { width: surface.current!.clientWidth || rect.width, height: surface.current!.clientHeight || rect.height })
     if (current.kind === 'move') current.next = { position: clampPinPosition({ x: current.origin.x + dx, y: current.origin.y + dy }, element.visual), scale: current.scale }
     else if (element.visual.type === 'asset') {
       const base = getPinBox({ ...element.visual, scale: 1 })
