@@ -1,16 +1,16 @@
 
 - Estados / Fase
 
-| Estado      | Fase          | UI  | Información                                                          |
-| ----------- | ------------- | --- | -------------------------------------------------------------------- |
-| Disponible  | Espera        | 🟢   | Unidad posicionada en su punto de cobertura.                         |
-| Asignada    | Activación    | 🟡   | Se ha transmitido por radio un aviso prioritario.                    |
-| En camino   | Aproximación  | 🔵   | Unidad movilizada.                                                   |
-| En el lugar | Intervención  | 🔴   | Unidad en asistencia sanitaria.                                      |
-| En traslado | Evacuación    | 💠   | Traslado de paciente.                                                |
-| En destino  | Transferencia | 🟠   | Transferencia en el destino objetivo.                                |
-| Operativa   | Retorno       | 🟢   | Unidad regresando a su punto de cobertura asignado por el recorrido. |
-| Inoperativa | Bloqueo       | ⚫   | Unidad inmovilizada.                                                 |
+| Estado        | Fase          | Abrev | UI  | Información                                                    |
+| ------------- | ------------- | ----- | --- | -------------------------------------------------------------- |
+| Disponible    | Alerta        | DISP  | 🟢   | En su punto de cobertura, preparada para activación.           |
+| Activada      | Alarma        | ACT   | 🟡   | Recurso activado ante un aviso prioritario.                    |
+| Aproximandose | Aproximación  | RUTA  | 🔵   | En ruta al lugar del incidente.                                |
+| Interviniendo | Asistencia    | ASIS  | 🔴   | Aislamiento y control, triaje, soporte vital y estabilización. |
+| Trasladando   | Transporte    | TRAS  | 💠   | Paciente en traslado al centro sanitario de destino.           |
+| Transfiriendo | Transferencia | ENTR  | 🟠   | Transferencia del paciente al equipo receptor.                 |
+| Operativa     | Reactivación  | REAC  | 🟢   | Reactivación del recurso y retorno a su punto de cobertura.    |
+| Inoperativa   | Bloqueo       | BLK   | ⚫   | Recurso temporalmente fuera de servicio.                       |
 
 ---
 
