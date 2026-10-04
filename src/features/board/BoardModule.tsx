@@ -14,6 +14,7 @@ import { QuickNote } from './QuickNote'
 import { BoardPin } from '../elements/BoardPin'
 import { updateElement } from '../elements/elementCommands'
 import { Button } from '../../components/ui/button'
+import { WindowResize } from '../../layout/WindowResize'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import './board.css'
 
@@ -171,7 +172,8 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
         finishEditor()
       }}>
         <textarea aria-label="Texto de nota rápida" autoFocus value={editor.text} onChange={event => setEditor({ ...editor, text: event.target.value })} />
-        <div><Button type="submit">{editor.id ? 'Guardar nota' : 'Crear nota'}</Button><Button onClick={finishEditor}>Cancelar</Button></div>
+        <div><Button type="submit" aria-label={editor.id ? 'Guardar nota' : 'Crear nota'} title={editor.id ? 'Guardar nota' : 'Crear nota'}>✔</Button><Button aria-label="Cancelar" title="Cancelar" onClick={finishEditor}>✖</Button></div>
+        <WindowResize label="Redimensionar editor de nota" />
       </form>}
     </div>
   </div>

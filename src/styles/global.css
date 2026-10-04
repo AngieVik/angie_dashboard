@@ -226,8 +226,20 @@ textarea {
   .app-header h1 { letter-spacing: 0; }
 }
 
-.app-header { flex-wrap: wrap; flex-basis: auto; min-height: 44px; padding-top: 6px; padding-bottom: 6px; }
-.app-header .document-title { min-width: 100px; }
+.app-header { flex-wrap: nowrap; flex: 0 0 34px; height: 34px; min-height: 34px; padding: 3px 8px; gap: 6px; overflow-x: auto; overflow-y: hidden; }
+.app-header .document-title { width: 0; min-width: 36px; height: 26px; padding: 2px 5px; }
+.app-header .document-button { height: 26px; padding: 2px 6px; line-height: 20px; white-space: nowrap; }
+.app-header .fit-button { display: grid; place-items: center; padding: 3px; }
+.app-header::before { display: none; }
+.app-logo { display: block; width: 24px; height: 24px; object-fit: contain; }
+.zoom-control { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 2px; margin: 0; color: var(--color-text-secondary); font-size: 12px; }
+.zoom-control input { appearance: textfield; width: 4ch; min-width: 0; padding: 1px 0; border: 0; border-bottom: 1px solid #555B60; background: transparent; color: var(--color-text); text-align: right; font: inherit; }
+.zoom-control input::-webkit-inner-spin-button, .zoom-control input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.module-controls { display: flex; flex: 0 0 20px; align-items: center; gap: 6px; padding: 0 22px 0 5px; overflow-x: auto; overflow-y: hidden; background: #17191B; border-top: 1px solid #34393D; }
+.module-controls .module-close { flex-shrink: 0; margin-left: auto; width: 18px; height: 18px; font-size: 16px; line-height: 14px; }
+.module-scaled-content { container-type: inline-size; }
+.module-scaled-content .document-button { white-space: nowrap; }
+.module-content, .module-controls, .app-header, .element-preview, .notebook-list { scrollbar-width: thin; scrollbar-color: #555B60 #17191B; }
 .zoom-percentage { flex-shrink: 0; min-width: 48px; color: var(--color-text-secondary); text-align: right; }
 .view-menu-item { display: flex; gap: 8px; align-items: center; }
 .view-menu-check { width: 14px; color: var(--color-accent-red); }
@@ -243,11 +255,11 @@ textarea {
   background: linear-gradient(155deg, var(--color-module-header), var(--color-module) 35%);
   box-shadow: inset 0 0 0 1px rgb(242 242 240 / 4%), 0 5px 16px rgb(0 0 0 / 60%); }
 .module-frame[data-active="true"] { border-color: var(--color-accent-red); box-shadow: inset 0 0 0 1px rgb(242 242 240 / 14%), 0 0 6px rgb(214 58 58 / 25%), 0 8px 20px rgb(0 0 0 / 65%); }
-.module-header { display: flex; flex: 0 0 32px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 0 10px;
+.module-header { display: flex; flex: 0 0 21px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 5px;
   border-bottom: 1px solid var(--color-border); background: linear-gradient(180deg, #35393C, var(--color-module-header) 50%, var(--color-module));
   box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); cursor: move; touch-action: none; user-select: none; }
 .module-header::before { content: ''; flex: 0 0 3px; height: 12px; background: var(--color-accent-red); }
-.module-header h2 { flex: 1; margin: 0; font-size: var(--font-size-title); font-weight: 650; letter-spacing: 0.025em; }
+.module-header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.025em; }
 .module-close { width: 24px; height: 24px; padding: 0; border: 1px solid var(--color-border); border-radius: 2px; color: var(--color-text-secondary); background: var(--color-module); cursor: pointer; font-size: 20px; line-height: 1; }
 .module-close:hover { color: var(--color-text); border-color: var(--color-accent-red); }
 .module-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; font-size: var(--font-size-body); }
@@ -269,6 +281,11 @@ textarea {
 .mobile-viewport[data-gesturing="true"] .module-content { pointer-events: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle { background-image: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle-se { opacity: 1; }
+.logical-workspace .react-grid-item > .react-resizable-handle-se, .quick-note-resize, .window-resize {
+  position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; padding: 0; border: 0; border-radius: 0;
+  background: repeating-linear-gradient(135deg, transparent 0 3px, #A7ADB1 3px 4px); cursor: se-resize; touch-action: none;
+}
+.logical-workspace .react-grid-item > .react-resizable-handle-se::after { display: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle::after { border-color: var(--color-text-secondary); }
 .logical-workspace .react-grid-item > .react-resizable-handle-n,
 .logical-workspace .react-grid-item > .react-resizable-handle-s { width: calc(100% - 40px); height: 6px; left: 20px; margin: 0; transform: none; }

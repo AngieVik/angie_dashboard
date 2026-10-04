@@ -5,8 +5,9 @@ import { pan, zoomAt } from './viewportMath'
 import type { BoardNavigation } from './ViewportContext'
 
 interface Point { x: number; y: number }
-export function useViewportGestures(state: ViewportState, size: Size, bounds: Size, onChange: (state: ViewportState) => void, element: RefObject<HTMLDivElement | null>) {
+export function useViewportGestures(state: ViewportState, size: Size, bounds: Size, onChange: (state: ViewportState) => void, element: RefObject<HTMLDivElement | null>, headerHeight = 0) {
   const pointers = useRef(new Map<number, Point>())
+  const origin = useRef({ left: 0, top: 0 })
   const origins = useRef(new Map<number, boolean>())
   const boardNavigationRef = useRef<BoardNavigation | null>(null)
   const gestureOwner = useRef<'main' | 'board' | 'cancel' | null>(null)
@@ -16,21 +17,22 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   const [blocked, setBlocked] = useState(false)
   const current = useRef(state)
   const previous = useRef<{ midpoint: Point; distance: number } | null>(null)
-  // Event handlers read the latest committed state; intermediate pointer moves
-  // use current.current so two events in one frame do not lose a delta.
-  const config = useRef({ state, size, bounds, onChange })
+  // Both fingers use one reference, so transient clamping between their events
+  // cannot change the final scale of a translation.
+  const config = useRef({ state, size, bounds, onChange, headerHeight })
   function pair() {
     const [a, b] = [...pointers.current.values()]
     return a && b ? { midpoint: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, distance: Math.hypot(a.x - b.x, a.y - b.y) } : null
   }
   function point(event: PointerEvent): Point {
-    const rect = element.current?.getBoundingClientRect()
-    return { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) }
+    return { x: event.clientX - origin.current.left, y: event.clientY - origin.current.top }
   }
   function start(event: PointerEvent) {
     if (!pointers.current.size) {
+      const rect = element.current?.getBoundingClientRect()
+      origin.current = { left: rect?.left ?? 0, top: rect?.top ?? 0 }
       current.current = state
-      config.current = { state, size, bounds, onChange }
+      config.current = { state, size, bounds, onChange, headerHeight }
       suppressClick.current = false
       gestureOwner.current = null
     }
@@ -45,7 +47,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
         const surfaces = [...origins.current.values()]
         gestureOwner.current = surfaces.every(Boolean) ? 'board' : surfaces.some(Boolean) ? 'cancel' : 'main'
         if (gestureOwner.current === 'board') boardNavigationRef.current?.gesture(boardPair())
-      } else if ([...origins.current.values()].some(inside => inside !== (gestureOwner.current === 'board'))) {
+      } else {
         gestureOwner.current = 'cancel'
         boardNavigationRef.current?.gesture(null)
       }
@@ -65,8 +67,8 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     }
   }
   function boardPair(): [Point, Point] | null {
-    const [a, b] = [...pointers.current.values()], rect = element.current?.getBoundingClientRect()
-    return a && b ? [{ x: a.x + (rect?.left ?? 0), y: a.y + (rect?.top ?? 0) }, { x: b.x + (rect?.left ?? 0), y: b.y + (rect?.top ?? 0) }] : null
+    const [a, b] = [...pointers.current.values()], rect = origin.current
+    return a && b ? [{ x: a.x + rect.left, y: a.y + rect.top }, { x: b.x + rect.left, y: b.y + rect.top }] : null
   }
   function move(event: PointerEvent) {
     if (!pointers.current.has(event.pointerId)) return
@@ -89,18 +91,19 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     const next = pair(), old = previous.current
     if (next && old && old.distance > 0) {
       const settings = config.current
-      const zoomed = zoomAt(current.current, current.current.scale * next.distance / old.distance, old.midpoint, settings.size, settings.bounds)
-      current.current = pan(zoomed, next.midpoint.x - old.midpoint.x, next.midpoint.y - old.midpoint.y, settings.size, settings.bounds)
+      const zoomed = zoomAt(settings.state, settings.state.scale * next.distance / old.distance, old.midpoint, settings.size, settings.bounds)
+      const headerDelta = settings.headerHeight * (zoomed.scale - settings.state.scale)
+      const visible = { ...settings.size, height: Math.max(1, settings.size.height - headerDelta) }
+      current.current = pan(zoomed, next.midpoint.x - old.midpoint.x, next.midpoint.y - old.midpoint.y - headerDelta, visible, settings.bounds)
       settings.onChange(current.current)
     }
-    previous.current = next
   }
   function end(event: PointerEvent) {
     pointers.current.delete(event.pointerId)
     origins.current.delete(event.pointerId)
     if (blockedRef.current) { event.preventDefault(); event.stopPropagation() }
     previous.current = pair()
-    if (pointers.current.size < 2) boardNavigationRef.current?.gesture(null)
+    if (pointers.current.size < 2) { boardNavigationRef.current?.gesture(null); if (blockedRef.current) gestureOwner.current = 'cancel' }
     if (!pointers.current.size) { blockedRef.current = false; setBlocked(false); gestureOwner.current = null }
   }
   return {

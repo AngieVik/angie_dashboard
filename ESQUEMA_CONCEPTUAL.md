@@ -4,6 +4,9 @@
 
 > Revisión adaptativa aprobada el 2026-10-02: espacio principal adaptable con superposición, pizarra rectangular y ajustes de módulos. El contrato vigente definido aquí es el formato JSON 2; el V1 real se conserva como formato de importación reconocido. La actualización documental no demuestra que el producto ya implemente estos cambios. Diseño: `docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md`. Plan activo: `docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md`.
 
+
+> Corrección aprobada 2026-10-03: [interfaz compacta y zoom](docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md), [plan](docs/superpowers/plans/2026-10-03-interfaz-compacta.md). Sustituye las reglas previas de cabecera fuera del zoom, escala mínima 100 %, margen elástico, mínimos particulares de ventanas y composición del reloj. El resto del contrato se conserva.
+
 ## 1. Propósito
 
 Angie Dashboard será una herramienta operativa configurable para una sola persona. Permitirá preparar los recursos antes de un servicio y utilizar durante este una pizarra, elementos móviles y distintos módulos de apoyo.
@@ -409,7 +412,7 @@ En una PWA, la escritura sobre un archivo visible elegido por el usuario depende
 - Se utilizará para anotaciones y trazos sencillos, no para dibujo avanzado.
 - Sobre la pizarra se mostrarán y moverán los pines de los elementos.
 - Permitirá añadir notas rápidas de texto breve que permanecerán visibles sobre la pizarra.
-- Cada nota rápida podrá moverse como un pin, editarse y eliminarse.
+- Cada nota rápida podrá moverse como un pin, editarse y eliminarse. Confirmar y cancelar utilizarán ✔ y ✖ con nombres accesibles; editar y eliminar estarán juntos a la izquierda, separados del tirador inferior derecho.
 - La nota rápida tendrá caja redimensionable por tirador: inicio `220 × 96`, mínimo `120 × 64`. Redimensionar mantendrá el centro y el tamaño base legible del texto; este se distribuirá en líneas y utilizará desplazamiento interno si supera la caja. No se añadirá formato avanzado ni colores configurables.
 - La barra de herramientas de la pizarra tendrá cuatro modos explícitos: `Seleccionar/mover`, `Lápiz`, `Goma` y `Nota rápida`.
 - La barra tendrá una sola fila compacta: iconos Lucide de selección, lápiz, goma y nota, seguidos de grosor sin esa palabra visible, color del lápiz y grupo `Fondo` con color y `JPG/PNG`. Mantendrá nombres accesibles, ayudas y navegación por teclado; en tamaño mínimo podrá desplazarse horizontalmente dentro del módulo.
@@ -532,6 +535,8 @@ Los nueve archivos originales permanecerán en la carpeta `public/assets/element
 - Mantendrá el mismo acabado de dibujo o boceto recortado, trazos visibles, coloreado tipo rotulador, contorno exterior de cartulina crema y fondo transparente de los modelos anteriores.
 
 ## 7. Módulo de elementos
+
+- El formulario no mostrará Añadir elemento como leyenda; Nombre y Dotación compartirán fila, con el campo de nombre debajo. Representación e Icono estarán junto a sus selectores. Información empezará con una fila y crecerá/se contraerá con el texto. La previsualización ajustará su caja al tamaño representado con margen pequeño y scroll solo por desbordamiento, sin reencajar automáticamente la representación.
 
 - Permitirá crear elementos antes de comenzar el servicio.
 - Un elemento podrá representar una dotación o cualquier otro objeto, posición, aviso o referencia que deba aparecer en la pizarra.
@@ -675,6 +680,7 @@ Ejemplo sin selección y con `En el lugar` desplegado:
 - Generará un enlace de Google Maps.
 - Pulsar el enlace lo abrirá como un hipervínculo en otra pestaña. Se conservará `Copiar enlace` para enviarlo a otra persona.
 - Se eliminarán la etiqueta visible repetida `Coordenadas` y la indicación redundante `DD · DMS · DMM · UTM`, conservando el nombre accesible del campo y los prefijos de cada resultado.
+- DD, DMS, DMM y UTM permanecerán visibles siempre, con valores vacíos cuando no haya resultado.
 - Pulsar o activar por teclado una fila válida copiará únicamente su valor canónico, sin el prefijo de formato y sin añadir botones ni textos visibles. Un resultado no disponible no se copiará; un fallo podrá anunciarse a tecnologías de asistencia sin ocupar espacio visible.
 - Solo se corregirán automáticamente los espacios y los errores de separación mediante puntos o comas.
 - La corrección nunca modificará, añadirá ni eliminará números.
@@ -694,9 +700,9 @@ Reunirá en un único módulo el reloj, los cronómetros, las cuentas regresivas
 
 - Mostrará un reloj digital de estética táctica con la hora local de España.
 - La hora española se ajustará automáticamente al horario de verano (`UTC+2`) o al horario de invierno (`UTC+1`); el usuario no tendrá que cambiarlo manualmente.
-- La franja decorativa superior mostrará exactamente `Digital Watch | UTC+2 [ST] | UTC+1 [WT] ESP`; se podrá distinguir la referencia estacional vigente sin alterar ese texto.
+- La franja superior mostrará Digital Watch a izquierda, UTC+2 [ST] - UTC+1 [WT] centrado y ESP a derecha, sin barras verticales ni línea inferior; la estación vigente podrá destacarse.
 - Estas referencias no serán selectores ni modos de funcionamiento y no implicarán añadir temática, personajes o adornos ajenos al reloj.
-- La hora principal española utilizará `HH:MM:SS`. Debajo aparecerá `Zulu Time HH:MM`, como referencia UTC con cifras menores; su separador se alineará verticalmente con el separador de horas/minutos del reloj principal mediante columnas compartidas.
+- La hora española utilizará HH:MM:SS con cifras mayores y peso ligero; debajo, Zulu Time HH:MM:SS compacto, con etiqueta y cifras del mismo tamaño, sin espaciado artificial ni alineación forzada con separadores de la hora principal.
 - Una sola fila mostrará `T-Zero`, `T-Minus` y `Advisories`, sin prefijos `+`, y `▶ Sonido` alineado a la derecha. El acabado táctico respetará Titan, datos legibles, superficies y bordes, sin fuentes externas ni adornos que interfieran con las alertas.
 
 #### Formato y límites temporales
@@ -879,7 +885,7 @@ Ejemplo:
 - No se utilizará un docking completo basado en grupos de pestañas, divisiones de pantalla o paneles propios de un IDE.
 - La solución técnica seleccionada para esta función es `React Grid Layout`.
 - El espacio principal ocupará todo el ancho y alto disponibles bajo la cabecera, sin proporción fija ni encaje automático de un tablero `1600 × 1000`. Esa medida solo será referencia de geometrías importadas de V1.
-- La cabecera permanecerá fija, siempre visible y fuera del área afectada por el desplazamiento o el zoom.
+- La cabecera permanecerá visible y compartirá el zoom general; no se desplazará junto al dashboard. Una sola fila mostrará chincheta original, Archivo, Ver, campo Título flexible, Puzzle y porcentaje editable.
 - Los módulos ocuparán el espacio de trabajo situado bajo la cabecera.
 - La página no tendrá scroll. Si el área física es menor que un tamaño mínimo, la superficie de navegación se extenderá solo lo necesario para satisfacerlo, sin reducir toda la interfaz.
 - Al abrir un módulo, recuperará su última posición y tamaño guardados cuando existan.
@@ -893,22 +899,22 @@ Ejemplo:
 
 ### Apertura, tamaño y colocación de módulos
 
-Cada módulo tendrá un tamaño inicial y un tamaño mínimo en unidades de interfaz a escala `1`, conservando los valores aprobados:
+Cada módulo conserva su tamaño inicial. Se retiran los mínimos particulares de las ventanas: dimensiones enteras positivas (mínimo técnico 1). La superficie de contenido conserva espacio utilizable y scroll interno:
 
-| Módulo | Tamaño inicial | Tamaño mínimo |
+| Módulo | Tamaño inicial | Mínimo técnico |
 | --- | --- | --- |
-| Pizarra | `720 × 480` | `320 × 220` |
-| Elementos | `300 × 420` | `220 × 240` |
-| Información | `320 × 240` | `220 × 140` |
-| Operativo | `340 × 320` | `240 × 200` |
-| Coordenadas | `360 × 280` | `260 × 180` |
-| Reloj | `440 × 480` | `320 × 260` |
-| Calculadora | `280 × 360` | `220 × 280` |
-| Cuaderno | `360 × 420` | `260 × 220` |
-| Registro cronológico | `420 × 320` | `280 × 180` |
+| Pizarra | `720 × 480` | `1 × 1` |
+| Elementos | `300 × 420` | `1 × 1` |
+| Información | `320 × 240` | `1 × 1` |
+| Operativo | `340 × 320` | `1 × 1` |
+| Coordenadas | `360 × 280` | `1 × 1` |
+| Reloj | `440 × 480` | `1 × 1` |
+| Calculadora | `280 × 360` | `1 × 1` |
+| Cuaderno | `360 × 420` | `1 × 1` |
+| Registro cronológico | `420 × 320` | `1 × 1` |
 
-- El usuario podrá ampliar cualquier módulo hasta ocupar como máximo el espacio lógico disponible, pero no podrá reducirlo por debajo de su tamaño mínimo.
-- En el tamaño mínimo permanecerán visibles la cabecera y los controles esenciales; el contenido que no quepa utilizará desplazamiento interno sin provocar scroll de página.
+- El usuario podrá ampliar hasta el espacio lógico disponible y reducir sin los antiguos mínimos particulares; las dimensiones no serán cero.
+- Cuando el contenido no quepa habrá barras internas; las barras de herramientas no se amontonarán ni saltarán de fila. Ver permite recuperar o cerrar ventanas extremadamente pequeñas.
 - Una geometría guardada se abrirá en su posición adaptada aunque esté ocupada. Dentro de su área de referencia original se recuperarán los valores guardados.
 - Si el módulo nunca tuvo una distribución guardada, buscará un hueco para su tamaño inicial adaptado desde la esquina superior izquierda, avanzando de izquierda a derecha y después hacia abajo sobre la cuadrícula invisible.
 - La búsqueda de espacio nunca moverá ni redimensionará los módulos que ya estén abiertos.
@@ -934,15 +940,15 @@ Cada módulo tendrá un tamaño inicial y un tamaño mínimo en unidades de inte
 - Un dedo sobre controles o listas permitirá accionarlos o desplazar su contenido normalmente.
 - Un dedo sobre la pizarra seleccionará, moverá, dibujará, borrará o creará notas según la herramienta que esté activa.
 - Mientras haya dos dedos interactuando con el dashboard, se suspenderán temporalmente las acciones de módulos, pines y dibujo para evitar movimientos o trazos accidentales.
-- La cabecera principal permanecerá fija, fuera del área afectada por el desplazamiento y el zoom.
-- La escala inicial y mínima de la vista principal será `1`, equivalente al `100 %`; el máximo será `4`, equivalente al `400 %`. No se aplicará el antiguo cálculo de encaje por proporción fija.
-- El desplazamiento se limitará para impedir que el espacio de trabajo desaparezca completamente fuera de la pantalla; el margen elástico fuera de cada borde no superará el `10 %` de la dimensión visible correspondiente.
-- La cabecera incluirá `Encajar`, que restablecerá la vista adaptada al `100 %` y la centrará cuando exista extensión virtual por mínimos. No modificará geometrías guardadas ni reducirá textos y controles para mostrar un tablero fijo completo.
-- Junto al botón `Encajar` se mostrará el porcentaje de zoom actual únicamente como información.
+- La cabecera principal compartirá el zoom general y permanecerá fuera del desplazamiento del dashboard.
+- La escala inicial será 1 (100 %); el zoom general editable admitirá 0.25–4 (25–400 %), aplicado también a la cabecera. Vacío o inválido conserva el zoom anterior; Enter o salir del campo confirma y Escape descarta.
+- El origen quedará anclado arriba a la izquierda, sin desplazamientos positivos ni margen elástico. Reducir el zoom ampliará la región lógica disponible, sin recentrar ni modificar distribuciones guardadas.
+- La cabecera incluirá Puzzle, con nombre accesible Encajar, que restablece 100 % y el origen sin cambiar geometrías guardadas.
+- El porcentaje junto a Puzzle será editable mediante teclado numérico.
 - Cada sesión nueva comenzará con la vista adaptada al `100 %`.
 - El zoom y la posición de la vista se conservarán mientras la aplicación permanezca abierta.
 - Abrir, cerrar, mover o redimensionar módulos no modificará automáticamente el zoom ni la posición de la vista.
-- Al cambiar la orientación del dispositivo se conservará el mismo punto lógico central y solo se reajustarán el zoom y los límites cuando resulte necesario para mantener una vista válida.
+- Al cambiar orientación o área visible se conservarán escala y desplazamiento válido, limitándolo sin recentrar.
 - El zoom y la posición serán estados locales y temporales: no se incluirán en el JSON ni se trasladarán entre dispositivos.
 
 ## 13. Stack tecnológico definitivo
@@ -1044,8 +1050,8 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 - Cada módulo utilizará una cabecera compacta como zona de arrastre.
 - La cabecera incluirá un pequeño detalle de acento rojo o amarillo.
 - El nombre del módulo aparecerá a la izquierda.
-- Un botón `×` situado a la derecha permitirá cerrar el módulo.
-- Los módulos podrán redimensionarse desde sus bordes y esquinas.
+- Cierre y zoom individual 25–400 % estarán fuera de la barra de título, que será fina y exclusiva para arrastrar. La escala individual es temporal y afecta contenido y herramientas, no geometría exterior ni datos persistentes.
+- Los módulos se redimensionarán mediante el tirador diagonal común abajo a la derecha, igual al de notas y ventanas de diálogo.
 - La esquina inferior derecha mostrará un tirador de redimensionado discreto.
 - El módulo activo se distinguirá mediante un borde iluminado y una profundidad ligeramente mayor.
 - La V1 no incluirá controles comunes de minimizar o maximizar; el menú `Ver` y el botón `×` cubrirán la apertura y el cierre.

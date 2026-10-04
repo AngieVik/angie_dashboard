@@ -5,10 +5,11 @@ import { findModulePlacement, overlaps } from './findModulePlacement'
 const bounds = { width: 1600, height: 1000 }
 describe('colocación de los nueve módulos', () => {
   it('declara exactamente nombres, tamaños iniciales y mínimos aprobados', () => {
-    expect(Object.values(MODULE_REGISTRY).map(m => [m.name, m.initial, m.minimum])).toEqual([
+    expect(Object.values(MODULE_REGISTRY).map(m => m.minimum)).toEqual(Array.from({ length: 9 }, () => [1, 1]))
+    expect(Object.values(MODULE_REGISTRY).map(m => [m.name, m.initial, m.contentMinimum])).toEqual([
       ['Pizarra', [720, 480], [320, 220]], ['Elementos', [300, 420], [220, 240]],
       ['Información', [320, 240], [220, 140]], ['Operativo', [340, 320], [240, 200]],
-      ['Coordenadas', [360, 280], [260, 180]], ['Reloj', [440, 480], [320, 260]],
+      ['Coordenadas', [360, 280], [260, 180]], ['Reloj', [440, 480], [360, 260]],
       ['Calculadora', [280, 360], [220, 280]], ['Cuaderno', [360, 420], [260, 220]],
       ['Registro cronológico', [420, 320], [280, 180]],
     ])

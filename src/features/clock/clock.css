@@ -1,16 +1,16 @@
 .clock-module { padding: 8px; min-width: 0; font-size: var(--font-size-body); }
 .tactical-clock { padding: 9px 12px; border: 1px solid #555B60; border-top: 2px solid #D63A3A; border-radius: 2px; background: radial-gradient(ellipse at 50% 0%, #293036 0%, #101315 75%); box-shadow: inset 0 1px 0 #62676B, inset 0 -2px 6px #080A0B, 0 3px 8px #08090A; }
-.clock-reference { padding-bottom: 7px; border-bottom: 1px solid #343B3F; white-space: nowrap; font-size: var(--font-size-technical); color: var(--color-text-secondary); }
+.clock-reference { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; white-space: nowrap; font-size: 11px; color: var(--color-text-secondary); }
+.clock-reference > span:last-child { justify-self: end; }
+.clock-seasons { text-align: center; }
 .clock-reference > span:first-child { color: var(--color-text); font-weight: 650; }
 .clock-reference .clock-season-active { color: var(--color-accent-yellow); }
-.clock-face { display: grid; grid-template-columns: minmax(0, 1fr) 2ch 1ch 2ch 1ch 2ch minmax(0, 1fr); padding: 6px 0 4px; font-size: clamp(28px, 10cqi, 64px); font-variant-numeric: tabular-nums; background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / 6%) 3px 4px); }
+.clock-face { display: flex; flex-direction: column; align-items: center; padding: 3px 0; font-size: clamp(32px, 13cqi, 84px); font-variant-numeric: tabular-nums; background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / 6%) 3px 4px); }
 .clock-separator { display: flex; justify-content: center; }
-.clock-esp, .clock-zulu { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
-.clock-esp { line-height: 1.25; text-align: center; font-size: inherit; font-weight: 600; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
-.clock-esp > span:first-child { grid-column: 2; }
-.clock-zulu { align-items: center; padding-top: 4px; color: var(--color-text-secondary); font-size: clamp(16px, 5cqi, 30px); }
-.clock-zulu-label { justify-self: end; padding-right: 6px; font-size: var(--font-size-technical); white-space: nowrap; }
-.clock-zulu output { display: grid; grid-template-columns: subgrid; grid-column: 2 / 5; text-align: center; }
+.clock-esp { display: flex; line-height: 1.15; text-align: center; font-size: inherit; font-weight: 400; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
+.clock-zulu { display: flex; align-items: baseline; gap: 6px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.4; }
+.clock-zulu-label { font-size: inherit; white-space: nowrap; }
+.clock-zulu output { font-size: inherit; }
 .clock-add-controls { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; margin: 9px 0 7px; }
 .clock-module .document-button { padding: 4px 7px; font-size: var(--font-size-body); }
 .clock-add-controls .document-button { flex-shrink: 0; padding-inline: 5px; }

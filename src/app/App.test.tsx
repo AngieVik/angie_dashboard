@@ -44,7 +44,7 @@ describe('base de Angie Dashboard', () => {
       const module = workspace.querySelector('[data-module="information"]')!
       expect(module).toHaveAttribute('data-x', '520')
       expect(module).toHaveAttribute('data-y', '280')
-      expect(screen.getByLabelText('Zoom actual')).toHaveTextContent('100 %')
+      expect(screen.getByLabelText('Zoom actual')).toHaveValue(100)
       resize(412, 871)
       expect(module).toHaveAttribute('data-x', '46')
       resize(1600, 1000)

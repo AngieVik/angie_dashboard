@@ -152,7 +152,7 @@ test('imagen local: reducción real, fondo anterior ante errores y descarte al c
   await centerCamera(page, 500, 500)
   const handle = (await page.locator('[data-module="board"] .react-resizable-handle-se').boundingBox())!
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down()
-  await page.mouse.move(handle.x + handle.width / 2 - 400, handle.y + handle.height / 2 + 200); await page.mouse.up()
+  await page.mouse.move(handle.x + handle.width / 2 + 320 - Number(await page.locator('[data-module="board"]').getAttribute('data-width')), handle.y + handle.height / 2 + 200); await page.mouse.up()
   await expect(page.locator('[data-module="board"]')).toHaveAttribute('data-width', '320')
   expect(await pixel(page, 0, 500, 400)).toEqual([54, 128, 160, 255])
   expect(await pixel(page, 0, 500, 230)).toEqual([37, 40, 43, 255])
@@ -209,7 +209,7 @@ test('notas: pulsación mantenida, edición, borrado y lienzo centrado al redime
   const scale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
   const handle = (await page.locator('[data-module="board"] .react-resizable-handle-se').boundingBox())!
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
-  await page.mouse.down(); await page.mouse.move(handle.x - 500 * scale, handle.y - 400 * scale, { steps: 10 }); await page.mouse.up()
+  await page.mouse.down(); await page.mouse.move(handle.x + handle.width / 2 + (320 - Number(await page.locator('[data-module="board"]').getAttribute('data-width'))) * scale, handle.y + handle.height / 2 + (220 - Number(await page.locator('[data-module="board"]').getAttribute('data-height'))) * scale, { steps: 10 }); await page.mouse.up()
   const frame = page.locator('[data-module="board"]')
   await expect(frame).toHaveAttribute('data-width', '320'); await expect(frame).toHaveAttribute('data-height', '220')
   expect((await saved(page)).board.quickNotes[0]!.position).toEqual(moved.position)

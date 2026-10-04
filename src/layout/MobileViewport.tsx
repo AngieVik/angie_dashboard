@@ -4,11 +4,11 @@ import type { Size, ViewportState } from './layoutTypes'
 import { useViewportGestures } from './useViewportGestures'
 import { ViewportContext } from './ViewportContext'
 
-export function MobileViewport({ children, state, size, bounds = size, onChange }: {
-  children: ReactNode; state: ViewportState; size: Size; bounds?: Size; onChange: (state: ViewportState) => void
+export function MobileViewport({ children, state, size, bounds = size, headerHeight = 0, onChange }: {
+  children: ReactNode; state: ViewportState; size: Size; bounds?: Size; headerHeight?: number; onChange: (state: ViewportState) => void
 }) {
   const element = useRef<HTMLDivElement>(null)
-  const { blocked, blockedRef, boardNavigationRef, handlers } = useViewportGestures(state, size, bounds, onChange, element)
+  const { blocked, blockedRef, boardNavigationRef, handlers } = useViewportGestures(state, size, bounds, onChange, element, headerHeight)
   return (
     <div ref={element} className="mobile-viewport" data-testid="mobile-viewport" data-gesturing={blocked}
       data-scale={state.scale} data-offset-x={state.offsetX} data-offset-y={state.offsetY} {...handlers}>

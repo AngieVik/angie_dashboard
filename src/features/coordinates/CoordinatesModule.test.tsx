@@ -104,7 +104,7 @@ describe('Módulo de coordenadas', () => {
     const input = screen.getByRole('textbox', { name: 'Coordenadas' })
     const invalid = ' 30I. 588700, 4101800 '
     fireEvent.change(input, { target: { value: invalid } })
-    expect(screen.queryByLabelText('Resultado DD')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Resultado DD')).toBeEmptyDOMElement()
     expect(screen.queryByRole('link', { name: 'Enlace de Google Maps' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Convertir' }))
@@ -150,6 +150,6 @@ describe('Módulo de coordenadas', () => {
     const view = render(<CoordinatesModule />); enter('37, -2'); view.unmount()
     render(<CoordinatesModule />)
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveValue('')
-    expect(screen.queryByLabelText('Resultado DD')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Resultado DD')).toBeEmptyDOMElement()
   })
 })

@@ -100,11 +100,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 320
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 220
+              "minimum": 1
             }
           }
         },
@@ -114,11 +114,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 220
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 240
+              "minimum": 1
             }
           }
         },
@@ -128,11 +128,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 220
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 140
+              "minimum": 1
             }
           }
         },
@@ -142,11 +142,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 240
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 200
+              "minimum": 1
             }
           }
         },
@@ -156,11 +156,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 260
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 180
+              "minimum": 1
             }
           }
         },
@@ -170,11 +170,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 320
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 260
+              "minimum": 1
             }
           }
         },
@@ -184,11 +184,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 220
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 280
+              "minimum": 1
             }
           }
         },
@@ -198,11 +198,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 260
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 220
+              "minimum": 1
             }
           }
         },
@@ -212,11 +212,11 @@
           "properties": {
             "width": {
               "type": "integer",
-              "minimum": 280
+              "minimum": 1
             },
             "height": {
               "type": "integer",
-              "minimum": 180
+              "minimum": 1
             }
           }
         }

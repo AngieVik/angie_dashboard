@@ -3,7 +3,7 @@
 .notebook-toolbar { display: flex; gap: 5px; }
 .notebook-toolbar .document-button { padding: 1px 9px; font-size: var(--font-size-body); }
 .notebook-list { flex: 1; min-height: 0; margin: 0; padding: 7px 9px 18px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; list-style: none; overflow-anchor: none; }
-.notebook-block { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px 6px; margin-bottom: 8px; padding: 6px; border: 1px solid #454B50; border-radius: 2px; background: linear-gradient(145deg, #25292C, #17191B); box-shadow: inset 0 1px 0 rgb(242 242 240 / 7%), 0 2px 5px rgb(0 0 0 / 30%); }
+.notebook-block { display: grid; grid-template-columns: 9px minmax(0, 1fr); gap: 3px 4px; margin-bottom: 6px; padding: 4px; border: 1px solid #343A3E; border-radius: 3px; background: linear-gradient(145deg, #212528, #17191B); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
 .notebook-block[data-dragging="true"] { opacity: 0.65; }
 .notebook-block[data-drop-target="true"] { border-color: var(--color-accent-yellow); box-shadow: inset 0 0 0 1px var(--color-accent-yellow); }
 .notebook-block-controls { grid-column: 2; display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -12,7 +12,7 @@
 .notebook-title:focus { border-color: var(--color-border); }
 .notebook-block-controls .document-button, .notebook-checklist .document-button { padding: 1px 5px; font-size: var(--font-size-body); }
 .notebook-block > .notebook-handle { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: stretch; justify-content: center; min-width: 0; padding: 4px 2px; border: 0; background: transparent; box-shadow: none; touch-action: none; cursor: grab; user-select: none; }
-.notebook-grip { display: flex; gap: 3px; min-height: 12px; }
+.notebook-grip { display: flex; gap: 2px; height: 24px; align-self: center; }
 .notebook-grip::before, .notebook-grip::after { content: ''; width: 1px; background: var(--color-text-secondary); opacity: .65; }
 .notebook-handle:active { cursor: grabbing; }
 .notebook-note, .notebook-checklist textarea { display: block; width: 100%; min-width: 0; min-height: 0; padding: 4px 5px; border: 1px solid var(--color-border); border-radius: 2px; background: #141719; color: var(--color-text); box-shadow: inset 0 1px 4px rgb(0 0 0 / 40%); resize: none; overflow: hidden; font-size: var(--font-size-body); line-height: 1.4; }

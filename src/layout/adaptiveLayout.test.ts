@@ -21,7 +21,7 @@ describe('geometrías adaptadas sin reescribir su referencia', () => {
   })
   it('extiende únicamente los ejes que necesitan mínimos de módulos abiertos', () => {
     expect(getWorkspaceBounds({ width: 200, height: 150 }, [])).toEqual({ width: 200, height: 150 })
-    expect(getWorkspaceBounds({ width: 200, height: 150 }, ['board', 'calculator'])).toEqual({ width: 320, height: 280 })
+    expect(getWorkspaceBounds({ width: 200, height: 150 }, ['board', 'calculator'])).toEqual({ width: 200, height: 150 })
     expect(getWorkspaceBounds({ width: 1920, height: 1036 }, ['board', 'clock'])).toEqual({ width: 1920, height: 1036 })
   })
   it('no divide por cero cuando una ventana llena su referencia', () => {

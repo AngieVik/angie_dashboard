@@ -32,9 +32,9 @@ describe('Módulo Reloj', () => {
     ['2026-07-01T12:04:05Z', '14:04:05', 'ST'],
   ])('presenta referencias informativas y horas española/UTC en %s', async (instant, esp, season) => {
     vi.setSystemTime(new Date(instant)); await setup()
-    expect(screen.getByText('Digital Watch', { exact: false }).closest('.clock-reference')).toHaveTextContent(/^Digital Watch \| UTC\+2 \[ST\] \| UTC\+1 \[WT\] ESP$/)
+    expect(screen.getByText('Digital Watch', { exact: false }).closest('.clock-reference')).toHaveTextContent(/^Digital WatchUTC\+2 \[ST\] - UTC\+1 \[WT\]ESP$/)
     expect(screen.getByLabelText('Hora española')).toHaveTextContent(new RegExp(`^${esp}$`))
-    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent(/^12:04$/)
+    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent(/^12:04:05$/)
     expect(screen.getByText('Zulu Time')).toBeInTheDocument()
     expect(screen.getByText(season === 'ST' ? 'UTC+2 [ST]' : 'UTC+1 [WT]')).toHaveClass('clock-season-active')
     for (const name of ['T-Zero', 'T-Minus', 'Advisories']) expect(screen.getByRole('button', { name })).toHaveTextContent(new RegExp(`^${name}$`))
@@ -98,7 +98,7 @@ describe('Módulo Reloj', () => {
   it('muestra España, referencias tácticas y Zulu; crea múltiples tipos con notas y controles', async () => {
     await setup()
     expect(screen.getByLabelText('Hora española')).toHaveTextContent('13:00:00')
-    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent(/^12:00$/)
+    expect(screen.getByLabelText('Hora Zulu')).toHaveTextContent(/^12:00:00$/)
     expect(screen.getByText('UTC+2 [ST]')).toBeInTheDocument(); expect(screen.getByText('UTC+1 [WT]')).toBeInTheDocument()
     for (const name of ['T-Zero', 'T-Zero', 'T-Minus', 'Advisories']) fireEvent.click(screen.getByRole('button', { name }))
     expect(screen.getAllByRole('group', { name: /^T-Zero / })).toHaveLength(2)

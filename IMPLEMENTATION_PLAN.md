@@ -1,12 +1,16 @@
 # Angie Dashboard V1 Implementation Plan
 
-## Fase activa: revisión adaptativa aprobada — 2026-10-02
+## Corrección activa aprobada — 2026-10-03
 
-El usuario ha aprobado el [diseño adaptativo](docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md) y su [plan de implementación](docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md). Ese plan es el orden de trabajo vigente y contiene nueve entregas: documentación, formato 2 y compatibilidad V1, dashboard/tipografía, pizarra, Elementos, ajustes compactos, reloj, Cuaderno y aceptación integrada.
+Ejecutar la entrega integrada de [interfaz compacta](docs/superpowers/plans/2026-10-03-interfaz-compacta.md), según su [diseño aprobado](docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md). El usuario ha autorizado esta corrección completa; no cierra ni ejecuta automáticamente la aceptación integrada anterior.
+
+## Fase anterior: revisión adaptativa aprobada — 2026-10-02
+
+El usuario aprobó el [diseño adaptativo](docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md) y su [plan de implementación](docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md). Sus entregas 1–8 preceden esta corrección; la entrega 9 de aceptación integrada sigue pendiente y no se inicia con este cierre.
 
 Ejecutar una entrega a la vez, con revisión expresa antes de iniciar la siguiente. No escribir en Git, desplegar, instalar dependencias no autorizadas ni modificar recursos originales. `ESQUEMA_CONCEPTUAL.md` conserva la autoridad normativa y `ACCEPTANCE_CRITERIA.md`, sección 11, contiene los criterios nuevos todavía por demostrar.
 
-La entrega 1 actualiza exclusivamente documentos; las entregas de producto y sus verificaciones continúan pendientes. La instalación nativa/PWA no se declara comprobada por esta actualización.
+La evidencia histórica permanece en ese plan. La instalación nativa/PWA no se declara comprobada por esta corrección.
 
 ## Construcción original V1 — contenido histórico
 

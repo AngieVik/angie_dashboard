@@ -51,7 +51,7 @@ export function DashboardGrid({ modules, bounds, layers, scale, active, onActive
       constraints={[gridBounds, minMaxSize, sizeBounds]}
       positionStrategy={{ ...transformStrategy, scale }}
       dragConfig={{ enabled: !blocked, bounded: true, handle: '.module-header', cancel: 'button,input,textarea,select' }}
-      resizeConfig={{ enabled: !blocked, handles: ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] }}
+      resizeConfig={{ enabled: !blocked, handles: ['se'] }}
       onDragStop={commit} onResizeStop={commit}>
       {modules.map(({ id, layout }) => (
         <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}

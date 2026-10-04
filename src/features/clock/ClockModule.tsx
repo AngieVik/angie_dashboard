@@ -16,13 +16,13 @@ export function ClockModule({ store }: { store: TimerStore }) {
   useEffect(() => () => store.alarm.stopPreview(), [store])
   return <div className="clock-module" style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
     <div className="tactical-clock">
-      <div className="clock-reference"><span>Digital Watch</span> | <span className={clock.season === 'ST' ? 'clock-season-active' : ''}>UTC+2 [ST]</span> | <span className={clock.season === 'WT' ? 'clock-season-active' : ''}>UTC+1 [WT]</span> ESP</div>
+      <div className="clock-reference"><span>Digital Watch</span><span className="clock-seasons"><span className={clock.season === 'ST' ? 'clock-season-active' : ''}>UTC+2 [ST]</span> - <span className={clock.season === 'WT' ? 'clock-season-active' : ''}>UTC+1 [WT]</span></span><span>ESP</span></div>
       <div className="clock-face technical-data">
         <output className="clock-esp" aria-label="Hora española">
           <span>{clock.esp.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(3, 5)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(6, 8)}</span>
         </output>
         <div className="clock-zulu"><span className="clock-zulu-label">Zulu Time</span>{' '}
-          <output aria-label="Hora Zulu"><span>{clock.zulu.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.zulu.slice(3, 5)}</span></output>
+          <output aria-label="Hora Zulu">{clock.zulu}</output>
         </div>
       </div>
     </div>

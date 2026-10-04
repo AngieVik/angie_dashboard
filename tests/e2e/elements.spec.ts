@@ -103,7 +103,7 @@ test('borrador, preview estable y acciones visibles en tamaños mínimo, inicial
     await expect(module).toHaveAttribute('data-width', String(state.width))
     await page.getByLabel('Escala del icono').fill(String(state.scale))
     await preview.scrollIntoViewIfNeeded()
-    await expect(preview).toHaveCSS('height', '180px')
+    await expect(preview.locator('.element-preview-scene')).toHaveCSS('height', `${150 * state.scale + 12}px`)
     await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', `${100 * state.scale}px`)
     await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', `${16 * state.scale}px`)
     await expect(module.getByRole('button', { name: 'Añadir', exact: true })).toBeVisible()
@@ -311,7 +311,7 @@ test('catálogo real carga los nueve PNG, teclado selecciona y el tamaño mínim
   const scale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
   const handle = (await module.locator('.react-resizable-handle-se').boundingBox())!
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down()
-  await page.mouse.move(handle.x - 90 * scale, handle.y - 190 * scale, { steps: 8 }); await page.mouse.up()
+  await page.mouse.move(handle.x + handle.width / 2 + (220 - Number(await module.getAttribute('data-width'))) * scale, handle.y + handle.height / 2 + (240 - Number(await module.getAttribute('data-height'))) * scale, { steps: 8 }); await page.mouse.up()
   await expect(module).toHaveAttribute('data-width', '220'); await expect(module).toHaveAttribute('data-height', '240')
   expect(await module.locator('.elements-list').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
   expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))).toEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))

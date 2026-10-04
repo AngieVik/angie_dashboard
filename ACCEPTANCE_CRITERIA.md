@@ -293,3 +293,20 @@ Estos criterios corresponden al esquema actualizado y al diseño aprobado. Su im
 ### 11.9. Evidencia de la revisión
 
 Pendiente de las entregas de producto y de aceptación integrada. La sincronización documental de la entrega 1 no aporta resultados de ejecución de la aplicación ni habilita checks de esta sección.
+
+## 12. Corrección de interfaz compacta — 2026-10-03
+
+Los criterios 11 afectados por mínimos particulares, escala 100–400 %, cabecera fuera del zoom, composición HH:MM de Zulu y copia solo tras mostrar resultados quedan sustituidos por estos; no se modifica evidencia histórica.
+
+- [x] Cabecera de una fila con chincheta, Título flexible, Puzzle y zoom editable 25–400 % aplicado a cabecera/dashboard.
+- [x] Dashboard sin huecos superiores/izquierdos, zoom y cambios de tamaño sin recentrado ni mutación de geometrías guardadas.
+- [x] Marcos con título fino exclusivo de arrastre, zoom propio de contenido/herramientas y cierre separado.
+- [x] Tirador diagonal común, ventanas menores que antiguos mínimos, scroll y controles sin saltos; guardar/cargar preserva dimensiones.
+- [x] Notas rápidas con ✔/✖, editar/eliminar a izquierda y resize separado.
+- [x] Elementos compacto, información autoajustable desde una fila y preview sin altura vacía forzada.
+- [x] Reloj con tres grupos alineados, hora principal mayor/ligera y Zulu Time HH:MM:SS compacto.
+- [x] DD/DMS/DMM/UTM siempre visibles sin copiar valores ausentes.
+- [x] Cuaderno estilizado conserva edición, autoaltura, reordenación y foco.
+- [x] Unitarias, lint, tipos, build, navegador y revisión visual verificados con evidencia fresca; originales intactos.
+
+Evidencia del 2026-10-04: [informe de cierre](docs/superpowers/plans/2026-10-03-interfaz-compacta.md). 595 unitarias; E2E 159 aprobados y 9 skips de tacto en escritorio; lint, tipos y build con salida 0. Móvil emulado, sin aceptación de dispositivo físico ni instalación PWA. La revisión expresa del usuario permanece pendiente.

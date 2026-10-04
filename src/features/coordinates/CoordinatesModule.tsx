@@ -63,9 +63,8 @@ export function CoordinatesModule() {
       </div>
       {error && <p role="alert" id={`${id}-error`} className="coordinates-error">{error}</p>}
     </form>
-    {result && <>
       <dl className="coordinates-results">
-        {result.conversions.map(conversion => <div key={conversion.format} role={conversion.ok ? 'button' : undefined}
+        {(result?.conversions ?? (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => ({ format, ok: false as const, error: '' }))).map(conversion => <div key={conversion.format} role={conversion.ok ? 'button' : undefined}
           tabIndex={conversion.ok && !blocked ? 0 : undefined} aria-label={conversion.ok ? `Copiar ${conversion.format}` : undefined}
           aria-disabled={conversion.ok ? blocked : undefined} onClick={() => { void copyCoordinate(conversion) }}
           onKeyDown={event => {
@@ -75,6 +74,7 @@ export function CoordinatesModule() {
           <dd className="technical-data" aria-label={`Resultado ${conversion.format}`}>{conversion.ok ? conversion.text : conversion.error}</dd>
         </div>)}
       </dl>
+    {result && <>
       <div className="coordinates-link"><span>Enlace de Google Maps</span>
         <a className="technical-data" aria-label="Enlace de Google Maps" href={result.link} target="_blank" rel="noopener noreferrer"
           aria-disabled={blocked} tabIndex={blocked ? -1 : undefined} onClick={event => { if (blockedRef.current) event.preventDefault() }}>{result.link}</a>

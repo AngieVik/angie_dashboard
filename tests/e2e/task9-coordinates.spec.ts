@@ -35,7 +35,7 @@ test('cuatro formatos, teclado, error sin alterar entrada y copia real incluso s
   for (const invalid of [' 30I. 588700, 4101800 ', '37.12', '30N 500000.1']) {
     await input.fill(invalid)
     await expect(copy).toBeDisabled()
-    await expect(module.getByLabel('Resultado DD')).toHaveCount(0)
+    await expect(module.getByLabel('Resultado DD')).toHaveText('')
     await input.press('Enter')
     await expect(input).toHaveValue(invalid)
     await expect(input).toHaveAttribute('aria-invalid', 'true')
@@ -81,7 +81,7 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Coordenadas', exact: true }).click()
   await expect(input).toHaveValue('')
-  await expect(page.getByLabel('Resultado DD')).toHaveCount(0)
+  await expect(page.getByLabel('Resultado DD')).toHaveText('')
   await expect(page.getByRole('button', { name: 'Copiar enlace' })).toBeDisabled()
 })
 

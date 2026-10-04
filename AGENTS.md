@@ -8,7 +8,7 @@ Antes de modificar código, lee completos y en este orden:
 2. `ACCEPTANCE_CRITERIA.md`: condiciones verificables de finalización.
 3. `IMPLEMENTATION_PLAN.md`: orden de implementación y pruebas.
 
-La fase activa aprobada es la revisión adaptativa de 2026-10-02. `IMPLEMENTATION_PLAN.md` enlaza su diseño y plan; lee también completos esos dos documentos antes de ejecutar sus entregas. Las tareas de construcción anteriores conservadas allí son históricas.
+La fase activa es la corrección de interfaz compacta aprobada el 2026-10-03 (docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md y docs/superpowers/plans/2026-10-03-interfaz-compacta.md), una entrega integrada. La revisión adaptativa de 2026-10-02 conserva su aceptación final pendiente. `IMPLEMENTATION_PLAN.md` enlaza su diseño y plan; lee también completos esos dos documentos antes de ejecutar sus entregas. Las tareas de construcción anteriores conservadas allí son históricas.
 
 `docs/archive` contiene notas históricas sustituidas por el esquema y no debe utilizarse como fuente de requisitos.
 

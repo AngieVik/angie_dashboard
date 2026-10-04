@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-test('composición táctica y separadores alineados en tamaños mínimo, inicial y ampliado', async ({ page, isMobile }, info) => {
+test('composición compacta y jerarquía horaria en tamaños reducido, inicial y ampliado', async ({ page, isMobile }, info) => {
   await page.clock.install({ time: new Date('2026-01-01T12:04:05Z') })
   await page.clock.pauseAt(new Date('2026-01-01T12:04:06Z'))
   await openClock(page)
@@ -51,25 +51,21 @@ test('composición táctica y separadores alineados en tamaños mínimo, inicial
       const clockDocument = createEmptyDocument('Reloj adaptable')
       clockDocument.moduleLayouts.clock = { x: 0, y: 0, width, height, referenceSize: { width: 1440, height: 900 } }
       await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'clock.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(clockDocument)) })
-      await expect(clock.locator('.clock-reference')).toHaveText('Digital Watch | UTC+2 [ST] | UTC+1 [WT] ESP')
+      await expect(clock.locator('.clock-reference')).toHaveText('Digital WatchUTC+2 [ST] - UTC+1 [WT]ESP')
       await expect(clock.getByLabel('Hora española')).toHaveText('13:04:06')
-      await expect(clock.getByLabel('Hora Zulu')).toHaveText('12:04')
+      await expect(clock.getByLabel('Hora Zulu')).toHaveText('12:04:06')
       await expect(clock.getByText('Zulu Time', { exact: true })).toBeVisible()
       await expect(clock.getByText('UTC+1 [WT]', { exact: true })).toHaveClass('clock-season-active')
       await page.evaluate(() => document.fonts.ready)
       const measure = await clock.evaluate(node => {
         const esp = node.querySelector('.clock-esp')!, zulu = node.querySelector('.clock-zulu output')!
-        const center = (separator: Element) => {
-          const range = document.createRange(); range.selectNodeContents(separator)
-          const rect = range.getBoundingClientRect(); return rect.x + rect.width / 2
-        }
         const actions = Array.from(node.querySelectorAll('.clock-add-controls button')).map(button => {
           const box = button.getBoundingClientRect(); return { x: box.x, right: box.right, top: box.top, bottom: box.bottom }
         })
         const reference = node.querySelector('.clock-reference')!
-        return { difference: Math.abs(center(esp.querySelector('.clock-separator')!) - center(zulu.querySelector('.clock-separator')!)), espFont: parseFloat(getComputedStyle(esp).fontSize), zuluFont: parseFloat(getComputedStyle(zulu).fontSize), actions, referenceFits: reference.scrollWidth <= reference.clientWidth, technicalFont: getComputedStyle(esp).fontFamily }
+        return { zuluLabelFont: parseFloat(getComputedStyle(node.querySelector('.clock-zulu span')!).fontSize), espFont: parseFloat(getComputedStyle(esp).fontSize), zuluFont: parseFloat(getComputedStyle(zulu).fontSize), actions, referenceFits: reference.scrollWidth <= reference.clientWidth, technicalFont: getComputedStyle(esp).fontFamily }
       })
-      expect(measure.difference).toBeLessThanOrEqual(1)
+      expect(measure.zuluLabelFont).toBe(measure.zuluFont)
       expect(measure.zuluFont).toBeLessThan(measure.espFont)
       expect(measure.technicalFont).toContain('monospace')
       expect(measure.referenceFits).toBe(true)
@@ -92,7 +88,7 @@ test('composición táctica y separadores alineados en tamaños mínimo, inicial
   await page.clock.setSystemTime(new Date('2026-07-01T12:04:06Z'))
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
   await expect(clock.getByLabel('Hora española')).toHaveText('14:04:06')
-  await expect(clock.getByLabel('Hora Zulu')).toHaveText('12:04')
+  await expect(clock.getByLabel('Hora Zulu')).toHaveText('12:04:06')
   await expect(clock.getByText('UTC+2 [ST]', { exact: true })).toHaveClass('clock-season-active')
   await info.attach('clock-measurements.json', { body: JSON.stringify(observations, null, 2), contentType: 'application/json' })
 })
@@ -124,7 +120,7 @@ test('reloj, controles por teclado, normalización, pausa y mínimo con scroll i
   await openClock(page)
   const clock = page.locator('[data-module="clock"]')
   await expect(clock.getByLabel('Hora española')).toHaveText(/\d{2}:\d{2}:\d{2}/)
-  await expect(clock.getByLabel('Hora Zulu')).toHaveText(/^\d{2}:\d{2}$/)
+  await expect(clock.getByLabel('Hora Zulu')).toHaveText(/^\d{2}:\d{2}:\d{2}$/)
   await clock.getByRole('button', { name: 'T-Zero', exact: true }).focus(); await page.keyboard.press('Enter')
   const zero = clock.getByRole('group', { name: 'T-Zero 1', exact: true })
   await zero.getByRole('button', { name: 'Iniciar', exact: true }).click()

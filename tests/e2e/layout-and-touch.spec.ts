@@ -70,9 +70,9 @@ test('arrastra y amplía sobre otro módulo sin modificarlo; conserva mínimos y
   expect(await geometry(page, 'elements')).toEqual(unchanged)
   const handle = await page.locator('[data-module="board"] .react-resizable-handle-se').boundingBox()
   await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2)
-  await page.mouse.down(); await page.mouse.move(handle!.x - 500 * scale, handle!.y - 400 * scale, { steps: 10 }); await page.mouse.up()
+  await page.mouse.down(); await page.mouse.move(handle!.x + handle!.width / 2 - 170 * scale, handle!.y + handle!.height / 2 - 150 * scale, { steps: 10 }); await page.mouse.up()
   const shrunk = await geometry(page, 'board')
-  expect(shrunk.width).toBe(320); expect(shrunk.height).toBe(220)
+  expect(shrunk.width).toBe(180); expect(shrunk.height).toBe(120)
   expect(await geometry(page, 'elements')).toEqual(unchanged)
   await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await toggle(page, 'Pizarra')
   expect(await geometry(page, 'board')).toEqual(shrunk)
@@ -147,7 +147,7 @@ test('cambiar pantalla y orientación conserva el JSON y volver recupera los anc
   await page.goto('/')
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'anchors.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fixture)) })
   await toggle(page, 'Información')
-  for (const size of [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }, { width: 412, height: 915 }, { width: 915, height: 412 }, { width: 1600, height: 1044 }]) {
+  for (const size of [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }, { width: 412, height: 915 }, { width: 915, height: 412 }, { width: 1600, height: 1034 }]) {
     await page.setViewportSize(size)
     const logical = page.locator('.logical-workspace')
     await expect.poll(() => logical.evaluate(el => el.clientWidth)).toBe(size.width)
@@ -156,7 +156,7 @@ test('cambiar pantalla y orientación conserva el JSON y volver recupera los anc
     expect(presented.x).toBe(Math.round((size.width - 320) / 2))
     await page.getByRole('button', { name: 'Encajar' }).click()
     await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', '1')
-    await expect(page.getByLabel('Zoom actual')).toHaveText('100 %')
+    await expect(page.getByLabel('Zoom actual')).toHaveValue('100')
     expect(await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight])).toEqual([size.width, size.height])
     await page.screenshot({ path: info.outputPath(`adaptive-${size.width}x${size.height}.png`) })
   }
@@ -183,7 +183,7 @@ test('controles y títulos usan criterios tipográficos comunes y crecen con el 
   expect(before).toBeGreaterThanOrEqual(13); expect(before).toBeLessThanOrEqual(16)
   expect(await controlFont('coordinates')).toBe(before)
   expect(await titleFont('coordinates')).toBe(await titleFont('elements'))
-  expect(await titleFont('elements')).toBeGreaterThanOrEqual(15)
+  expect(await titleFont('elements')).toBe(13)
   const handle = await page.locator('[data-module="elements"] .react-resizable-handle-se').boundingBox()
   await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2)
   await page.mouse.down(); await page.mouse.move(handle!.x + handle!.width / 2 + 280, handle!.y + handle!.height / 2 + 30, { steps: 8 }); await page.mouse.up()
