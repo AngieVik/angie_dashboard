@@ -1,11 +1,32 @@
 # Angie Dashboard — esquema conceptual
 
-> Este documento es la fuente de verdad funcional y visual de Angie Dashboard. Recoge únicamente las decisiones aprobadas para la V1; cualquier nota auxiliar anterior se considera sustituida cuando exista una definición equivalente en este esquema.
+> Este documento es la referencia del comportamiento funcional y visual aprobado de Angie Dashboard. Distingue el contrato base actual V1/V2, los cambios aprobados para la nueva revisión y las decisiones de implementación todavía pendientes.
 
-> Revisión adaptativa aprobada el 2026-10-02: espacio principal adaptable con superposición, pizarra rectangular y ajustes de módulos. El contrato vigente definido aquí es el formato JSON 2; el V1 real se conserva como formato de importación reconocido. La actualización documental no demuestra que el producto ya implemente estos cambios. Diseño: `docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md`. Plan activo: `docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md`.
+> Antecedente de 2026-10-02: [diseño adaptativo](docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md) y [plan histórico](docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md). El producto actual utiliza JSON 2 y conserva V1 como importación reconocida. Sus entregas 1–8 tienen informes; la aceptación integrada de la entrega 9 conserva su pendiente histórico.
 
 
-> Corrección aprobada 2026-10-03: [interfaz compacta y zoom](docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md), [plan](docs/superpowers/plans/2026-10-03-interfaz-compacta.md). Sustituye las reglas previas de cabecera fuera del zoom, escala mínima 100 %, margen elástico, mínimos particulares de ventanas y composición del reloj. El resto del contrato se conserva.
+> Antecedente de 2026-10-03: [interfaz compacta y zoom](docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md), [plan e informe histórico de 2026-10-04](docs/superpowers/plans/2026-10-03-interfaz-compacta.md). Sustituyó las reglas de cabecera fuera del zoom, escala mínima 100 %, margen elástico, mínimos particulares y composición del reloj. Sus resultados se conservan con su alcance original.
+
+### Nueva revisión — 2026-10-05
+
+La revisión activa se rige por el [plan de revisión](docs/archive/plan.md), el [catálogo definitivo de estados y fases](docs/archive/estados_fase.md) y la [maqueta de estilo](docs/archive/prueba-estilo.html). Estas tres referencias de `docs/archive` están expresamente autorizadas; el resto de la carpeta continúa siendo histórico. La petición actual define el alcance y puede sustituir acuerdos anteriores.
+
+Los apartados 1–14 conservan el contrato base del producto actual. Las sustituciones expresas del nuevo plan describen cambios aprobados que todavía deben implementarse y verificarse; prevalecen sobre las reglas base afectadas y conservan las demás. La maqueta define el acabado visual: sus datos, formularios simplificados, temporizadores de ejemplo y rótulos no se incorporan al producto.
+
+| Área | Base actual | Cambio aprobado pendiente |
+| --- | --- | --- |
+| Documento y módulos | JSON 2, lector V1 y nueve módulos; Elementos contiene dotaciones y generales. | JSON 3, cadena 1 → 2 → 3 y módulo Dotaciones independiente (fase 2). |
+| Estados | Ocho valores V1/V2 del apartado 9. | Catálogo de `estados_fase.md`, incluida la grafía exacta `Aproximandose`; conversión de campos estructurados sin modificar texto libre (fases 2 y 8). |
+| Apariencia y controles | Interfaz compacta de la primera etapa. | Estilo de la maqueta y ocho componentes aprobados el 2026-10-05, composición Radix con CSS/tokens propios, sin Tailwind ni presets (fases 3–11). |
+| Superficies y Puzzle | Adaptación de geometrías; Puzzle restaura 100 % y origen. | Extensión hacia derecha/abajo y Puzzle recoloca solo abiertos al ancho lógico visible, manteniendo zoom y tamaños (5A). |
+| Notas y pines | Notas sin título/escala de contenido; pines sin visibilidad persistente. | Creación/edición en sitio, título/escala de nota y visibilidad del pin persistentes (fases 2, 5C y 6). |
+| Reloj | Base 440 × 480 y temporizadores independientes del JSON. | Base 440 × 260, crecimiento por contenido separado de preferencia manual persistente (fase 7). Los temporizadores siguen fuera del JSON. |
+| Registro | Entradas manuales editables y cambios automáticos con Deshacer. | Edición, eliminación/corrección explícita, historial conservado y marca Actual por unidad; retirada de Deshacer (fase 9). |
+| Coordenadas | Cuatro formatos copiables, enlace externo de Maps y Copiar enlace. | Cinco filas copiables, Maps copia URL sin navegación externa (fase 10). |
+
+La fase 1 debe concretar y someter a revisión el contrato V3, geometrías/Puzzle, navegación y borradores, iconos antiguos, ocupación/fallback y edición/escala de notas, estado inicial/de origen e historial del registro, persistencia, integración shadcn y tamaño manual/presentación del Reloj. Esta fase 0 no elige campos, algoritmos ni ejemplos pendientes, ni convierte esos casos en obligaciones nuevas. Las rutas de especificación y plan definitivos se registrarán en el cierre de fase 1 una vez entregados.
+
+El cierre de la primera etapa comunicado por el usuario se registra como antecedente de esta revisión, sin completar automáticamente la aceptación integrada adaptativa ni sus checks. La instalación PWA en el móvil fue comprobada por el usuario el **2026-10-04**, según el plan autorizado. Esta evidencia no demuestra apertura offline física, instalación Windows, selector nativo, suspensión Android, audición en altavoces ni los nuevos flujos; los informes técnicos anteriores conservan sus límites de emulación.
 
 ## 1. Propósito
 
@@ -966,7 +987,7 @@ La V1 utilizará:
 - `Proj4` para las conversiones relacionadas con coordenadas UTM.
 - `Netlify` para alojar y distribuir los archivos estáticos de la PWA.
 
-La revisión adaptativa prevé `lucide-react` para los iconos solicitados de pizarra, mediante importaciones concretas. Su instalación requiere autorización en la entrega correspondiente; aprobar este documento no afirma que esté instalada.
+`lucide-react` ya figura en `package.json` y su paquete local está presente; su instalación fue autorizada y registrada en la entrega 4 del plan adaptativo histórico. Conservar importaciones concretas. Las dependencias nuevas de los componentes aprobados se concretan en fase 1 y se añaden únicamente con su consumidor en la entrega de producto autorizada; la fase 0 no instala paquetes.
 
 Netlify no almacenará los documentos JSON ni el autoguardado del usuario. Esos datos permanecerán en el dispositivo, salvo cuando el usuario exporte o importe manualmente un archivo.
 
@@ -1069,8 +1090,8 @@ Estos valores son una base de diseño y podrán ajustarse durante la composició
 
 - `ESQUEMA_CONCEPTUAL.md` es la especificación funcional y visual de referencia.
 - `AGENTS.md` contiene las instrucciones de ejecución y los límites de alcance para Codex.
-- `IMPLEMENTATION_PLAN.md` enlaza el plan activo de la revisión adaptativa y conserva la construcción original como historia, sin alterar sus checks.
-- `ACCEPTANCE_CRITERIA.md` reúne las comprobaciones necesarias para considerar terminada la V1.
-- Las notas históricas anteriores al esquema se conservan únicamente en `docs/archive` y no constituyen requisitos vigentes.
-- El usuario ha aprobado el diseño y el plan adaptativo. La entrega documental fija estos requisitos; las entregas de producto todavía deben implementarse y verificarse, una a la vez y con revisión expresa antes de comenzar la siguiente.
+- `IMPLEMENTATION_PLAN.md` enlaza el nuevo plan de revisión y conserva la construcción original, la revisión adaptativa y la corrección compacta como historia, sin alterar checks ni informes.
+- `ACCEPTANCE_CRITERIA.md` separa evidencia histórica, pendientes conservados y verificación de la nueva revisión.
+- `docs/archive/plan.md`, `estados_fase.md` y `prueba-estilo.html` son referencias vigentes autorizadas para esta revisión; las demás notas archivadas no constituyen requisitos actuales.
+- El estilo y los ocho componentes están aprobados desde el 2026-10-05. Las entregas de producto siguen pendientes; el contrato definitivo se entrega en fase 1. Ejecutar solo la entrega solicitada, comprobar dependencias, registrar su cierre y detenerse para revisión antes de iniciar o preparar la siguiente.
 - El despliegue, la publicación y cualquier cambio en producción continúan fuera de alcance hasta recibir autorización expresa.

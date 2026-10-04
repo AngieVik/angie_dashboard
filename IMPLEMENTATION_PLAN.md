@@ -1,16 +1,30 @@
 # Angie Dashboard V1 Implementation Plan
 
-## Corrección activa aprobada — 2026-10-03
+## Revisión activa — 2026-10-05
 
-Ejecutar la entrega integrada de [interfaz compacta](docs/superpowers/plans/2026-10-03-interfaz-compacta.md), según su [diseño aprobado](docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md). El usuario ha autorizado esta corrección completa; no cierra ni ejecuta automáticamente la aceptación integrada anterior.
+Plan vigente: [plan de revisión](docs/archive/plan.md). Referencias autorizadas: [estados y fases](docs/archive/estados_fase.md) y [maqueta de estilo](docs/archive/prueba-estilo.html). Su ubicación en `docs/archive` no las invalida; el resto de la carpeta mantiene su carácter histórico. El estilo y los ocho componentes shadcn/ui están aprobados desde el 2026-10-05, con composición Radix y CSS/tokens propios; sin presets ni Tailwind.
 
-## Fase anterior: revisión adaptativa aprobada — 2026-10-02
+La petición actual autoriza únicamente **fase 0, documentación y reglas de trabajo**, sin dependencias. Ejecutar lo solicitado y su verificación documental sin una segunda aprobación idéntica. Las fases 0–1 no requieren pruebas de aplicación, lint, tipos, build ni instalaciones.
+
+Seguir el protocolo de entrada/cierre y el orden de dependencias del plan. Una entrega por conversación; 5A, 5B y 5C son entregas independientes. Actualizar su fila de «Seguimiento» y su cierre, revisar también archivos ignorados y detenerse. La fase 1 depende de la revisión expresa de fase 0: no se inicia ni se prepara en esta entrega. Sus rutas definitivas de diseño/ejecución siguen pendientes y se registrarán en su propio cierre.
+
+El esquema conserva el contrato base del producto actual, JSON 2 con lector V1, y separa las sustituciones aprobadas aún pendientes del nuevo plan. No ejecutar los planes anteriores, completar sus checks ni trasladar documentos como parte de esta revisión. Sin escrituras Git, despliegues, publicaciones, cambios de recursos originales o dependencias fuera de la entrega autorizada.
+
+## Primera etapa — antecedentes y pendientes conservados
+
+El cierre de la primera etapa comunicado por el usuario se registra como antecedente de esta revisión. La instalación PWA móvil fue comprobada por el usuario el **2026-10-04**, según el plan autorizado; no acredita apertura offline física, instalación Windows, selector real, suspensión Android, audición en altavoces ni nuevos flujos físicos. Los informes técnicos conservan su alcance de escritorio/emulación y no se presentan como comprobaciones nuevas.
+
+### Corrección compacta aprobada — 2026-10-03 (histórica)
+
+[Diseño](docs/superpowers/specs/2026-10-03-interfaz-compacta-design.md) y [plan con informe de cierre de 2026-10-04](docs/superpowers/plans/2026-10-03-interfaz-compacta.md). Corrección implementada y verificada según ese informe; no volver a ejecutarla. El pendiente de revisión del usuario registrado allí pertenece a esa evidencia histórica; el cierre comunicado de la primera etapa no se utiliza para reescribirlo.
+
+### Revisión adaptativa aprobada — 2026-10-02 (histórica)
 
 El usuario aprobó el [diseño adaptativo](docs/superpowers/specs/2026-10-02-dashboard-adaptativo-design.md) y su [plan de implementación](docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md). Sus entregas 1–8 preceden esta corrección; la entrega 9 de aceptación integrada sigue pendiente y no se inicia con este cierre.
 
-Ejecutar una entrega a la vez, con revisión expresa antes de iniciar la siguiente. No escribir en Git, desplegar, instalar dependencias no autorizadas ni modificar recursos originales. `ESQUEMA_CONCEPTUAL.md` conserva la autoridad normativa y `ACCEPTANCE_CRITERIA.md`, sección 11, contiene los criterios nuevos todavía por demostrar.
+Conservar sus decisiones útiles e informes. `ACCEPTANCE_CRITERIA.md`, sección 11, mantiene los criterios y checks de esa revisión; no marcarlos como demostrados por la fase 0 ni convertir su entrega 9 pendiente en una actuación automática.
 
-La evidencia histórica permanece en ese plan. La instalación nativa/PWA no se declara comprobada por esta corrección.
+La evidencia histórica permanece en ese plan. La comprobación posterior de instalación PWA móvil se registra por separado arriba.
 
 ## Construcción original V1 — contenido histórico
 

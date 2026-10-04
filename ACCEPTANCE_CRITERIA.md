@@ -1,10 +1,12 @@
 # Criterios de aceptación — Angie Dashboard V1
 
-Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` conserva el detalle normativo y prevalece ante cualquier duda.
+Este documento resume las comprobaciones de entrega. `ESQUEMA_CONCEPTUAL.md` distingue el contrato base actual de los cambios aprobados para la nueva revisión. La petición actual define el alcance y las sustituciones expresas del plan autorizado prevalecen sobre las reglas anteriores afectadas.
 
-La revisión adaptativa aprobada el 2026-10-02 se verifica con los criterios de la **sección 11**, inicialmente sin marcar. Su orden de implementación está en el plan activo enlazado desde `IMPLEMENTATION_PLAN.md`.
+La revisión activa utiliza el [plan de revisión](docs/archive/plan.md), el [catálogo definitivo de estados y fases](docs/archive/estados_fase.md) y la [maqueta de estilo](docs/archive/prueba-estilo.html), expresamente autorizados aunque estén archivados. La **sección 13** registra su alcance y evidencia. Los planes adaptativo y compacto anteriores conservan sus resultados y pendientes históricos; no se ejecutan automáticamente.
 
-Las **secciones 1–10 son evidencia histórica de la V1 original**: sus checks se refieren al alcance demostrado en la sección 10, con navegador de escritorio, emulación Pixel 7, simulaciones y límites indicados. Se conservan íntegros; sus reglas sustituidas, como espacio fijo, ausencia normal de solapamiento, filtro, notas fijas o nombre independiente, no son requisitos de la revisión vigente. Ningún check histórico acredita por sí solo el nuevo comportamiento. La instalación nativa continúa pendiente en esa evidencia y la actualización documental no la demuestra.
+La revisión adaptativa aprobada el 2026-10-02 conserva sus criterios en la **sección 11**, sin cambiar los checks. El contrato base actual es V2; el nuevo V3 aún no está implementado. Los criterios afectados se sincronizarán con la especificación y el plan definitivos después de la aprobación de fase 1, sin inventar ahora decisiones pendientes.
+
+Las **secciones 1–10 son evidencia histórica de la V1 original**: sus checks se refieren al alcance demostrado en la sección 10, con navegador de escritorio, emulación Pixel 7, simulaciones y límites indicados. Se conservan íntegros; sus reglas sustituidas, como espacio fijo, ausencia normal de solapamiento, filtro, notas fijas o nombre independiente, no son requisitos de la revisión vigente. Ningún check histórico acredita por sí solo el nuevo comportamiento. La instalación nativa continúa pendiente en esa evidencia histórica; la comprobación posterior de PWA móvil por el usuario se registra por separado en la sección 13, sin marcar el criterio compuesto de instalación Windows/Android y apertura offline.
 
 ## 1. Arranque, cabecera y documentos
 
@@ -203,7 +205,7 @@ Durante una ejecución completa apareció una carrera de la prueba entre Escape 
 
 ## 11. Criterios vigentes de la revisión adaptativa — 2026-10-02
 
-Estos criterios corresponden al esquema actualizado y al diseño aprobado. Su implementación y sus pruebas se realizan en las entregas 2–9 del plan activo. La entrega 1 es documental: no marca ninguno como verificado. La aceptación de la revisión también exige comprobar de nuevo los comportamientos conservados de la V1 que dependan del producto integrado.
+Estos criterios corresponden al diseño adaptativo aprobado de 2026-10-02 y se conservan como referencia de esa etapa, con su aceptación integrada pendiente. Sus entregas 2–8 tienen informes en el plan histórico; la entrega 9 no se inicia ni se completa automáticamente. Los criterios sustituidos por la sección 12 o el nuevo plan no son órdenes de recuperar comportamientos anteriores. Ninguna edición documental marca por sí sola criterios de producto como verificados; la aceptación integrada exige evidencia de los comportamientos conservados.
 
 ### 11.1. Contrato y continuidad del trabajo
 
@@ -292,7 +294,7 @@ Estos criterios corresponden al esquema actualizado y al diseño aprobado. Su im
 
 ### 11.9. Evidencia de la revisión
 
-Pendiente de las entregas de producto y de aceptación integrada. La sincronización documental de la entrega 1 no aporta resultados de ejecución de la aplicación ni habilita checks de esta sección.
+Los informes de las entregas 2–8 se conservan en el [plan adaptativo histórico](docs/superpowers/plans/2026-10-02-dashboard-adaptativo.md). La aceptación integrada de la entrega 9 sigue pendiente en esa etapa. La sincronización documental de su entrega 1 y de la fase 0 actual no aporta resultados de ejecución de la aplicación ni habilita checks de esta sección.
 
 ## 12. Corrección de interfaz compacta — 2026-10-03
 
@@ -310,3 +312,17 @@ Los criterios 11 afectados por mínimos particulares, escala 100–400 %, cabece
 - [x] Unitarias, lint, tipos, build, navegador y revisión visual verificados con evidencia fresca; originales intactos.
 
 Evidencia del 2026-10-04: [informe de cierre](docs/superpowers/plans/2026-10-03-interfaz-compacta.md). 595 unitarias; E2E 159 aprobados y 9 skips de tacto en escritorio; lint, tipos y build con salida 0. Móvil emulado, sin aceptación de dispositivo físico ni instalación PWA. La revisión expresa del usuario permanece pendiente.
+
+## 13. Nueva revisión — 2026-10-05
+
+### Alcance y evidencia previa
+
+- Plan vigente: [plan de revisión](docs/archive/plan.md); estados: [estados_fase.md](docs/archive/estados_fase.md); acabado visual: [prueba-estilo.html](docs/archive/prueba-estilo.html). El resto de `docs/archive` continúa siendo histórico.
+- El cierre de la primera etapa comunicado por el usuario se registra como antecedente. No completa automáticamente la aceptación integrada adaptativa ni reescribe checks, resultados o pendientes históricos.
+- Instalación PWA en el móvil: **comprobada por el usuario el 2026-10-04**, según el plan autorizado. Es evidencia aportada por el usuario; no una prueba ejecutada por Codex en esta fase. No acredita apertura offline física, instalación Windows, selector real, suspensión Android, audición en altavoces ni nuevos flujos físicos.
+- Estilo y ocho componentes shadcn/ui: aprobados el 2026-10-05. Las entregas de producto siguen pendientes. Los datos y flujos simplificados de la maqueta no son criterios funcionales.
+- Contrato y decisiones de fase 1: pendientes de entrega/revisión. La fase 0 no define nuevas estructuras V3 ni resuelve sus casos de producto. La aceptación final de la nueva revisión corresponde a fase 12, con evidencia fresca y límites explícitos.
+
+### Fase 0 — documentación
+
+La verificación de esta entrega se limita a diff, alcance, coherencia y enlaces entre los cuatro documentos vigentes y el plan autorizado. Su resultado, comandos y estado de revisión se registran en [Seguimiento y cierre de fase 0](docs/archive/plan.md#cierre-de-fase-0--2026-10-05). No requiere pruebas de aplicación, lint, tipos, build ni instalaciones, no acredita cambios en la interfaz y no marca criterios funcionales. Revisión del usuario pendiente; detenerse antes de fase 1.
