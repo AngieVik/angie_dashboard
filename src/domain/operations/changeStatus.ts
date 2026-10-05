@@ -2,8 +2,8 @@ import { DOCUMENT_STATUSES } from '../document/types'
 import type { AngieDocument, OperationalStatus, TimelineEntry } from '../document/types'
 import { appendTimelineEntry } from './timelineEntries'
 
-function statusChangeEntry(unitId: string, unitName: string, previousStatus: OperationalStatus, nextStatus: OperationalStatus, now: Date): TimelineEntry {
-  return { id: crypto.randomUUID(), type: 'status-change', occurredAt: now.toISOString(), unitId, unitName, previousStatus, nextStatus }
+function statusChangeEntry(unitId: string, unitName: string, previousStatus: OperationalStatus | null, nextStatus: OperationalStatus, now: Date): TimelineEntry {
+  return { id: crypto.randomUUID(), type: 'status-change', occurredAt: now.toISOString(), unitId, unitName, previousStatus, nextStatus, revisions: [] }
 }
 
 export function changeElementStatus(document: AngieDocument, elementId: string, nextStatus: OperationalStatus, now: Date): AngieDocument {
@@ -15,7 +15,7 @@ export function changeElementStatus(document: AngieDocument, elementId: string, 
   return {
     ...document,
     document: { ...document.document, updatedAt: entry.occurredAt < document.document.createdAt ? document.document.createdAt : entry.occurredAt },
-    elements: document.elements.map(element => element.id === elementId && element.isUnit ? { ...element, operational: { ...element.operational, status: nextStatus } } : element),
+    elements: document.elements.map(element => element.id === elementId && element.isUnit ? { ...element, operational: { ...element.operational, status: nextStatus, currentEntryId: entry.id } } : element),
     timeline: appendTimelineEntry(document.timeline, entry),
   }
 }

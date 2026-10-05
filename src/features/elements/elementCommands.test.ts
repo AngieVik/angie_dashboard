@@ -7,11 +7,11 @@ import { clampAssetScale, clampPinPosition, createElement, updateElement, duplic
 const input = { name: 'Tango 1', visual: { type: 'asset' as const, assetId: 'ambulance' as const, scale: 1 }, information: 'Canal 4', isUnit: true }
 
 describe('comandos de elementos', () => {
-  it('crea dotación Disponible y general con emoji libre sin datos operativos', () => {
+  it('crea dotación sin estado y general con emoji libre sin datos operativos', () => {
     const document = createEmptyDocument()
     const unit = createElement(document, input)
     const general = createElement(document, { name: 'Ruta', information: '', isUnit: false, visual: { type: 'emoji', value: '🚴🏽‍♂️', scale: 1 } })
-    expect(unit.operational).toEqual({ status: 'Disponible', notes: '', tags: [] })
+    expect(unit.operational).toEqual({ status: null, currentEntryId: null, notes: '', tags: [] })
     expect(unit.position).toEqual({ x: 500, y: 500 })
     expect(unit.id).not.toBe(general.id)
     expect(general).toMatchObject({ isUnit: false, operational: null, visual: { type: 'emoji', value: '🚴🏽‍♂️', scale: 1 } })
@@ -50,12 +50,12 @@ describe('comandos de elementos', () => {
     const document = createEmptyDocument()
     const unit = createElement(document, { ...input, visual: { ...input.visual, scale: 2 }, position: { x: 500, y: 500 } })
     if (!unit.isUnit) throw new Error('dotación esperada')
-    unit.operational = { status: 'En camino', notes: 'Acceso norte', tags: ['Radio'] }
-    document.timeline.push({ id: crypto.randomUUID(), type: 'status-change', occurredAt: document.document.createdAt, unitId: unit.id, unitName: unit.name, previousStatus: 'Disponible', nextStatus: 'En camino' })
+    unit.operational = { status: 'Aproximandose', currentEntryId: null, notes: 'Acceso norte', tags: ['Radio'] }
+    document.timeline.push({ id: crypto.randomUUID(), type: 'status-change', revisions: [], occurredAt: document.document.createdAt, unitId: unit.id, unitName: unit.name, previousStatus: 'Disponible', nextStatus: 'Aproximandose' })
     const history = structuredClone(document.timeline)
     const copy = duplicateElement(document, unit.id)
     expect(copy.id).not.toBe(unit.id)
-    expect(copy).toMatchObject({ name: 'Tango 1 copia', visual: unit.visual, information: unit.information, isUnit: true, position: { x: 524, y: 524 }, operational: { status: 'Disponible', notes: '', tags: [] } })
+    expect(copy).toMatchObject({ name: 'Tango 1 copia', visual: unit.visual, information: unit.information, isUnit: true, position: { x: 524, y: 524 }, operational: { status: null, currentEntryId: null, notes: '', tags: [] } })
     expect(document.timeline).toEqual(history)
     deleteElement(document, unit.id)
     expect(document.elements.map(element => element.id)).toEqual([copy.id])

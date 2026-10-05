@@ -9,20 +9,20 @@ function setup() {
   const document = createEmptyDocument()
   const a = createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
   const b = createElement(document, { name: 'Tango 2', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
-  const first = changeElementStatus(document, a.id, 'Asignada', new Date())
-  const second = changeElementStatus(first, a.id, 'En camino', new Date())
+  const first = changeElementStatus(document, a.id, 'Activada', new Date())
+  const second = changeElementStatus(first, a.id, 'Aproximandose', new Date())
   return { document: changeElementStatus(second, b.id, 'Inoperativa', new Date()), a, b }
 }
 describe('Registro cronológico', () => {
   it('crea, edita y elimina entradas manuales conservando UUID y fecha', () => {
     const document = createEmptyDocument(), now = new Date()
     const added = addManualTimelineEntry(document, 'Acceso cerrado 🚧', now)
-    expect(document.timeline[0]).toEqual({ id: added.id, type: 'manual', text: 'Acceso cerrado 🚧', occurredAt: now.toISOString() })
+    expect(document.timeline[0]).toEqual({ id: added.id, type: 'manual', revisions: [], text: 'Acceso cerrado 🚧', occurredAt: now.toISOString() })
     editManualTimelineEntry(document, added.id, 'Acceso abierto')
-    expect(document.timeline[0]).toMatchObject({ id: added.id, text: 'Acceso abierto', occurredAt: now.toISOString() })
+    expect(document.timeline[0]).toMatchObject({ id: added.id, text: 'Acceso cerrado 🚧', occurredAt: now.toISOString(), revisions: [{ kind: 'text', text: 'Acceso abierto' }] })
     expect(validateDocument(document).success).toBe(true)
     deleteManualTimelineEntry(document, added.id)
-    expect(document.timeline).toEqual([])
+    expect(document.timeline[0]?.revisions).toMatchObject([{ kind: 'text' }, { kind: 'delete' }])
   })
   it('muestra hora española con verano e invierno y conserva fecha UTC completa', () => {
     expect(formatTimelineTime('2026-07-01T12:32:08.000Z')).toBe('14:32:08')
@@ -30,7 +30,7 @@ describe('Registro cronológico', () => {
   })
   it('formatea segundos intercalares admitidos por el contrato sin perder la fecha original', () => {
     const document = createEmptyDocument()
-    document.timeline = [{ id: crypto.randomUUID(), type: 'manual', text: 'Importada', occurredAt: '2016-12-31T23:59:60Z' }]
+    document.timeline = [{ id: crypto.randomUUID(), type: 'manual', revisions: [], text: 'Importada', occurredAt: '2016-12-31T23:59:60Z' }]
     expect(validateDocument(document).success).toBe(true)
     expect(formatTimelineTime(document.timeline[0]!.occurredAt)).toBe('00:59:60')
     expect(document.timeline[0]!.occurredAt).toBe('2016-12-31T23:59:60Z')
@@ -38,7 +38,7 @@ describe('Registro cronológico', () => {
   it('resuelve UUID sin distinguir mayúsculas y agrupa el historial de la misma dotación', () => {
     const { document, a } = setup()
     const third = changeElementStatus(document, a.id, 'Disponible', new Date())
-    const fourth = changeElementStatus(third, a.id, 'Asignada', new Date())
+    const fourth = changeElementStatus(third, a.id, 'Activada', new Date())
     for (const entry of fourth.timeline) {
       if (entry.type === 'status-change' && entry.unitId === a.id && entry !== fourth.timeline[0]) entry.unitId = entry.unitId.toUpperCase()
     }
@@ -49,8 +49,8 @@ describe('Registro cronológico', () => {
     const result = undoAutomaticTimelineEntry(fourth, latest.id)
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.document.elements.find(unit => unit.id === a.id)?.operational?.status).toBe('Disponible')
-      expect(result.document.timeline).toHaveLength(4)
+      expect(result.document.elements.find(unit => unit.id === a.id)?.operational?.status).toBeNull()
+      expect(result.document.timeline).toHaveLength(5)
       expect(validateDocument(result.document).success).toBe(true)
     }
   })
@@ -60,16 +60,16 @@ describe('Registro cronológico', () => {
     expect(() => deleteManualTimelineEntry(document, first.id)).toThrow()
     expect(document).toEqual(before)
     addManualTimelineEntry(document, 'Preparación', new Date('2026-01-01T00:00:00.000Z'))
-    expect(document.timeline[0]).toMatchObject({ type: 'manual', text: 'Preparación' })
+    expect(document.timeline[0]).toMatchObject({ type: 'manual', revisions: [], text: 'Preparación' })
   })
   it('conserva precisión UTC completa al insertar entre entradas importadas', () => {
     const document = createEmptyDocument()
-    document.timeline = [{ id: crypto.randomUUID(), type: 'manual', text: 'Importada', occurredAt: '2026-01-01T12:00:00.0009Z' }]
+    document.timeline = [{ id: crypto.randomUUID(), type: 'manual', revisions: [], text: 'Importada', occurredAt: '2026-01-01T12:00:00.0009Z' }]
     addManualTimelineEntry(document, 'Anterior', new Date('2026-01-01T12:00:00.000Z'))
     expect(document.timeline.map(entry => entry.type === 'manual' && entry.text)).toEqual(['Anterior', 'Importada'])
     expect(validateDocument(document).success).toBe(true)
   })
-  it('deshace por dotación en orden inverso sin interferir con otras ni crear entradas', () => {
+  it('corrige Actual sin interferir con otras ni recuperar estados anteriores', () => {
     const { document, a, b } = setup(), [old, latest, other] = document.timeline
     expect(canUndoAutomaticTimelineEntry(document, old!.id)).toBe(false)
     expect(canUndoAutomaticTimelineEntry(document, latest!.id)).toBe(true)
@@ -78,18 +78,15 @@ describe('Registro cronológico', () => {
     const undo = undoAutomaticTimelineEntry(document, latest!.id)
     expect(undo.success).toBe(true)
     if (!undo.success) return
-    expect(undo.document.elements.find(e => e.id === a.id)?.operational?.status).toBe('Asignada')
+    expect(undo.document.elements.find(e => e.id === a.id)?.operational?.status).toBeNull()
     expect(undo.document.elements.find(e => e.id === b.id)?.operational?.status).toBe('Inoperativa')
-    expect(undo.document.timeline.map(e => e.id)).toEqual([old!.id, other!.id])
+    expect(undo.document.timeline.map(e => e.id)).toEqual([old!.id, latest!.id, other!.id])
+    expect(undo.document.timeline[1]?.revisions).toMatchObject([{ kind: 'correction' }])
     expect(document).toEqual(before)
-    expect(canUndoAutomaticTimelineEntry(undo.document, old!.id)).toBe(true)
+    expect(canUndoAutomaticTimelineEntry(undo.document, old!.id)).toBe(false)
     const again = undoAutomaticTimelineEntry(undo.document, old!.id)
-    expect(again.success).toBe(true)
-    if (again.success) {
-      expect(again.document.elements[0]?.operational?.status).toBe('Disponible')
-      expect(again.document.timeline.map(e => e.id)).toEqual([other!.id])
-      expect(validateDocument(again.document).success).toBe(true)
-    }
+    expect(again.success).toBe(false)
+    expect(validateDocument(undo.document).success).toBe(true)
   })
   it('rechaza entradas antiguas, incoherentes, manuales o ausentes atómicamente', () => {
     const { document } = setup()

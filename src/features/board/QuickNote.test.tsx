@@ -7,7 +7,7 @@ function setup() {
   const node = document.createElement('div')
   vi.spyOn(node, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 50, width: 1400, height: 600 } as DOMRect)
   const onMove = vi.fn(), onResize = vi.fn(), blockedRef = { current: false }
-  const props = { note: { id: 'note', text: 'Ruta', position: { x: 500, y: 300 }, width: 220, height: 96 },
+  const props = { note: { id: 'note', title: '', scale: 1, text: 'Ruta', position: { x: 500, y: 300 }, width: 220, height: 96 },
     selected: true, enabled: true, surface: { current: node }, view: { scale: .5, offsetX: -50, offsetY: -30 },
     viewportSize: { width: 700, height: 300 }, onSelect: vi.fn(), onMove, onResize, onEdit: vi.fn(), onDelete: vi.fn() }
   function Harness({ blocked = false }: { blocked?: boolean }) {

@@ -1,9 +1,8 @@
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject } from 'ajv'
-import schema from './schema/angie-document-v3.schema.json'
-import type { AngieDocumentV3, ValidationIssue, ValidationResult } from './types'
-import { isTimelineEntryDeleted, isTimelineEntryCorrected, projectUnitStatus } from '../operations/timelineProjection'
+import schema from './schema/angie-document-v2.schema.json'
+import type { AngieDocumentV2, ValidationIssue, ValidationResult } from './v2Types'
 
 const ajv = new Ajv2020({
   strict: true,
@@ -15,7 +14,7 @@ const ajv = new Ajv2020({
   ownProperties: true,
 })
 addFormats(ajv)
-const validateSchema = ajv.compile<AngieDocumentV3>(schema)
+const validateSchema = ajv.compile<AngieDocumentV2>(schema)
 
 function issueFromSchema(error: ErrorObject): ValidationIssue {
   const parts = error.instancePath.split('/').slice(1).map(part => part.replace(/~1/g, '/').replace(/~0/g, '~'))
@@ -41,7 +40,7 @@ function issueFromSchema(error: ErrorObject): ValidationIssue {
     oneOf: 'debe coincidir con una única variante permitida',
     if: 'no cumple la relación condicional requerida',
   }
-  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V3'}` }
+  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V2'}` }
 }
 
 // Compare the complete UTC instant, including fractions finer than milliseconds.
@@ -58,7 +57,7 @@ function compareUtcDates(left: string, right: string): number {
   return a === b ? 0 : a < b ? -1 : 1
 }
 
-export function validateDocument(input: unknown): ValidationResult<AngieDocumentV3> {
+export function validateDocumentV2(input: unknown): ValidationResult<AngieDocumentV2> {
   if (!validateSchema(input)) {
     return { success: false, errors: (validateSchema.errors ?? []).map(issueFromSchema) }
   }
@@ -87,14 +86,6 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
       if (tags.has(key)) add(`elements[${index}].operational.tags[${tagIndex}]`, 'no puede duplicar otra etiqueta sin distinguir mayúsculas')
       tags.add(key)
     })
-    const { status, currentEntryId } = element.operational
-    const path = `elements[${index}].operational.currentEntryId`
-    if ((status === null) !== (currentEntryId === null)) add(path, 'y status deben ser nulos conjuntamente')
-    if (currentEntryId !== null) {
-      if (projectUnitStatus(input.timeline, element.id, currentEntryId) !== status) add(path, 'debe referenciar un cambio vigente de esta dotación con el mismo estado')
-      const latest = input.timeline.findLast(entry => entry.type === 'status-change' && entry.unitId.toLowerCase() === element.id.toLowerCase())
-      if (latest?.id.toLowerCase() !== currentEntryId.toLowerCase()) add(path, 'debe identificar la selección más reciente, sin recuperar anteriores')
-    }
   })
   input.notebook.forEach((block, index) => {
     identify(block.id, `notebook[${index}].id`)
@@ -105,23 +96,6 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
     const previous = input.timeline[index - 1]
     if (previous && compareUtcDates(entry.occurredAt, previous.occurredAt) < 0) {
       add(`timeline[${index}].occurredAt`, 'debe mantener el orden cronológico ascendente')
-    }
-    let lastInstant: string | null = null
-    let deleted = false, corrected = false
-    entry.revisions.forEach((revision, revisionIndex) => {
-      const path = `timeline[${index}].revisions[${revisionIndex}]`
-      identify(revision.id, `${path}.id`)
-      if (lastInstant !== null && compareUtcDates(revision.recordedAt, lastInstant) < 0) add(`${path}.recordedAt`, 'debe mantener el orden de las revisiones anteriores')
-      lastInstant = revision.recordedAt
-      if (deleted) add(path, 'no puede revisar una entrada eliminada')
-      if (revision.kind === 'delete') deleted = true
-      if (revision.kind === 'correction') {
-        if (entry.type !== 'status-change' || corrected) add(path, 'solo puede corregir una vez un cambio de estado')
-        corrected = true
-      }
-    })
-    if ((isTimelineEntryDeleted(entry) || isTimelineEntryCorrected(entry)) && input.elements.some(element => element.isUnit && element.operational.currentEntryId?.toLowerCase() === entry.id.toLowerCase())) {
-      add(`timeline[${index}].revisions`, 'una entrada retirada no puede ser Actual')
     }
   })
   for (const [id, layout] of Object.entries(input.moduleLayouts)) {

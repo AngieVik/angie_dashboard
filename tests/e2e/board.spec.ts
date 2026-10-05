@@ -333,8 +333,8 @@ test('escena estable: notas heredadas y nuevas en ventanas horizontal y vertical
   const document = createEmptyDocument()
   document.board.backgroundColor = '#223344'
   document.board.quickNotes = [
-    { id: crypto.randomUUID(), text: 'Nota heredada', position: { x: 1500, y: 1300 }, width: 180, height: 80 },
-    { id: crypto.randomUUID(), text: 'Nota nueva', position: { x: 1550, y: 1390 }, width: 220, height: 96 },
+    { id: crypto.randomUUID(), title: '', scale: 1, text: 'Nota heredada', position: { x: 1500, y: 1300 }, width: 180, height: 80 },
+    { id: crypto.randomUUID(), title: '', scale: 1, text: 'Nota nueva', position: { x: 1550, y: 1390 }, width: 220, height: 96 },
   ]
   const size = await page.getByTestId('mobile-viewport').evaluate(el => ({ width: el.clientWidth, height: el.clientHeight }))
   document.moduleLayouts.board = { x: 0, y: 0, width: 702, height: 374, referenceSize: size }

@@ -5,12 +5,12 @@ import { createDocumentStore } from '../document/documentStore'
 import { ElementsModule } from './ElementsModule'
 import { createElement, updateElement } from './elementCommands'
 
-async function setup(placementPosition?: { x: number; y: number }) {
+async function setup(placementPosition?: { x: number; y: number }, isUnit = false) {
   const store = createDocumentStore({ loadActive: async () => null, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })
   await store.initialize()
   function Harness() {
     const [selectedId, onSelect] = useState<string | null>(null)
-    return <ElementsModule store={store} selectedId={selectedId} onSelect={onSelect} {...{ placementPosition }} />
+    return <ElementsModule store={store} selectedId={selectedId} onSelect={onSelect} {...{ placementPosition }} isUnit={isUnit} />
   }
   render(<Harness />)
   const action = (name: string) => {
@@ -29,11 +29,11 @@ describe('Elementos y configuración', () => {
     expect(store.getSnapshot().document.elements[1]?.position).toEqual({ x: 1400, y: 1800 })
     expect(store.getSnapshot().document.elements[0]).toEqual(previous)
   })
-  it('crea con checkbox, separa listas, edita como solo lectura, duplica y elimina', async () => {
-    const { store, action } = await setup()
+  it('crea por módulo, edita como solo lectura, duplica y elimina', async () => {
+    const { store, action } = await setup(undefined, true)
     action('Añadir')
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Tango 1' } })
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Dotación' }))
+    expect(screen.queryByRole('checkbox', { name: 'Dotación' })).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Información'), { target: { value: 'Canal 4' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear elemento' }))
     const unit = store.getSnapshot().document.elements[0]!
@@ -53,8 +53,8 @@ describe('Elementos y configuración', () => {
     fireEvent.change(screen.getByLabelText('Representación'), { target: { value: 'emoji' } })
     fireEvent.change(screen.getByLabelText('Emoji'), { target: { value: '🚴🏽‍♂️' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear elemento' }))
-    expect(within(screen.getByRole('region', { name: 'Generales' })).getByRole('button', { name: 'Seleccionar Ruta' })).toBeInTheDocument()
-    action('Modificar'); expect(screen.getByText('Tipo: General')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Dotaciones' })).getByRole('button', { name: 'Seleccionar Ruta' })).toBeInTheDocument()
+    action('Modificar'); expect(screen.getByText('Tipo: Dotación')).toBeInTheDocument()
     expect(screen.getByLabelText('Escala del icono')).toBeInTheDocument()
   })
   it('Cancelar descarta nombre, información, representación y escala; guardar aplica el borrador conjuntamente', async () => {
@@ -119,7 +119,7 @@ describe('Elementos y configuración', () => {
     expect(store.getSnapshot().document.elements[0]).toMatchObject({ position: position ?? { x: 500, y: 500 }, visual: { type: 'emoji', scale: 2 } })
     expect(screen.getByRole('button', { name: 'Añadir' })).toHaveFocus()
   })
-  it('muestra todas las dotaciones y generales sin controles de filtro ni pérdida de datos', async () => {
+  it('muestra solo generales sin controles de filtro ni pérdida de datos', async () => {
     const { store } = await setup()
     act(() => store.mutateDocument(document => {
       createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑', scale: 1 }, information: '', isUnit: true })
@@ -127,7 +127,7 @@ describe('Elementos y configuración', () => {
     }))
     const before = structuredClone(store.getSnapshot().document.elements)
     expect(screen.queryByRole('group', { name: 'Filtrar dotaciones por estado' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Seleccionar Tango' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Seleccionar Tango' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Seleccionar Ruta' })).toBeInTheDocument()
     expect(store.getSnapshot().document.elements).toEqual(before)
   })

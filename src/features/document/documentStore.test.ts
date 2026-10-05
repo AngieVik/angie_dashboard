@@ -18,12 +18,12 @@ function setup(saved: AngieDocument | null = null) {
 }
 
 describe('documento activo y autoguardado', () => {
-  it('carga V1 sin modificar el archivo y exporta V2; rechaza V1 dañado sin reemplazo', async () => {
+  it('carga V1 sin modificar el archivo y exporta V3; rechaza V1 dañado sin reemplazo', async () => {
     const { store, download, local } = setup()
     await store.initialize()
     const source = JSON.stringify({ ...legacy, filters: { visibleStatuses: [] } })
     await store.loadDocument({ text: async () => source })
-    expect(store.getSnapshot().document.formatVersion).toBe(2)
+    expect(store.getSnapshot().document.formatVersion).toBe(3)
     expect(store.getSnapshot().document.elements).toHaveLength(legacy.elements.length)
     expect(store.getSnapshot().document.document.updatedAt).toBe(legacy.document.updatedAt)
     await store.saveDocument()

@@ -2,10 +2,12 @@ import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createEmptyDocument } from '../domain/document/defaultDocument'
 import legacy from '../domain/document/fixtures/complete.json'
-import complete from '../domain/document/fixtures/v2-complete.json'
+import v2 from '../domain/document/fixtures/v2-complete.json'
+import complete from '../domain/document/fixtures/v3-complete.json'
 import { validateDocument } from '../domain/document/validateDocument'
 import { createDatabase } from './db'
 import { DocumentRepository } from './documentRepository'
+import { createTimerDatabase, TimerRepository } from '../features/clock/timerRepository'
 
 const databases: ReturnType<typeof createDatabase>[] = []
 afterEach(() => { for (const db of databases.splice(0)) db.close() })
@@ -16,13 +18,25 @@ function setup(indexedDB = new IDBFactory()) {
 }
 
 describe('repositorio del documento activo', () => {
-  it('recupera V1 como V2 sin cambiar el registro hasta el autoguardado posterior', async () => {
+  it('recupera V2 por la misma cadena sin escribir origen ni temporizadores', async () => {
+    const { db, repository, indexedDB } = setup()
+    await db.table('documents').put({ key: 'active', document: v2 })
+    const timerDb = createTimerDatabase('test-independent-timers', { indexedDB, IDBKeyRange })
+    databases.push(timerDb)
+    const timers = new TimerRepository(timerDb)
+    const timerData = { id: crypto.randomUUID(), note: 'Radio', kind: 'tzero' as const, status: 'idle' as const, elapsedMs: 0, startedAt: null, alertActive: false }
+    await timers.saveTimers([timerData])
+    expect(await repository.loadActive()).toEqual(complete)
+    expect(await db.table('documents').get('active')).toEqual({ key: 'active', document: v2 })
+    expect(await timers.loadTimers()).toEqual([timerData])
+  })
+  it('recupera V1 como V3 sin cambiar el registro hasta el autoguardado posterior', async () => {
     const { repository, db } = setup()
     const source = structuredClone(legacy)
     source.filters.visibleStatuses = []
     await db.table('documents').put({ key: 'active', document: source })
     const recovered = await repository.loadActive()
-    expect(recovered?.formatVersion).toBe(2)
+    expect(recovered?.formatVersion).toBe(3)
     expect(recovered?.elements).toHaveLength(source.elements.length)
     expect(recovered).not.toHaveProperty('filters')
     expect(await db.table('documents').get('active')).toEqual({ key: 'active', document: source })

@@ -8,6 +8,7 @@ import { getDocumentStore, useDocumentStore } from '../features/document/documen
 import { ViewMenu } from '../features/view/ViewMenu'
 import { BoardModule } from '../features/board/BoardModule'
 import { ElementsModule } from '../features/elements/ElementsModule'
+import { DotationsModule } from '../features/elements/DotationsModule'
 import { InformationModule } from '../features/information/InformationModule'
 import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
@@ -137,6 +138,8 @@ export function App() {
             renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
+                placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
+              id === 'dotations' ? <DotationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
                 placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :

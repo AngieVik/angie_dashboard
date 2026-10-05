@@ -33,8 +33,8 @@ export function createElement(document: AngieDocument, input: CreateElementInput
   const visual = normalizeVisual(input.visual)
   const requested = input.position === undefined ? { x: 500, y: 500 } : input.position
   const common = { id: crypto.randomUUID(), name: input.name, visual, information: input.information,
-    position: requested ? clampPinPosition(requested, visual) : null }
-  const element: DocumentElement = input.isUnit ? { ...common, isUnit: true, operational: { status: 'Disponible', notes: '', tags: [] } } :
+    position: requested ? clampPinPosition(requested, visual) : null, pinVisible: true }
+  const element: DocumentElement = input.isUnit ? { ...common, isUnit: true, operational: { status: null, currentEntryId: null, notes: '', tags: [] } } :
     { ...common, isUnit: false, operational: null }
   document.elements.push(element)
   return element
@@ -51,8 +51,10 @@ export function updateElement(document: AngieDocument, id: string, patch: Elemen
 }
 export function duplicateElement(document: AngieDocument, id: string) {
   const element = findElement(document, id)
-  return createElement(document, { name: `${element.name} copia`, visual: element.visual, information: element.information,
+  const copy = createElement(document, { name: `${element.name} copia`, visual: element.visual, information: element.information,
     isUnit: element.isUnit, position: element.position ? { x: element.position.x + 24, y: element.position.y + 24 } : null })
+  copy.pinVisible = element.pinVisible
+  return copy
 }
 export function deleteElement(document: AngieDocument, id: string) {
   document.elements = document.elements.filter(element => element.id !== id)

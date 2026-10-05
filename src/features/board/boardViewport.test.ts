@@ -5,7 +5,7 @@ import { getBoardBounds, initialBoardView, panBoard, toBoardPosition, zoomBoardA
 describe('cámara rectangular de pizarra', () => {
   it('recupera el ancho del nombre escalado aunque exceda la caja del emoji', () => {
     const document = createEmptyDocument()
-    document.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Nombre largo', information: '', isUnit: false, operational: null,
+    document.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Nombre largo', pinVisible: true, information: '', isUnit: false, operational: null,
       visual: { type: 'emoji', value: '📍', scale: 3 }, position: { x: 1500, y: 1500 } })
     expect(getBoardBounds({ width: 300, height: 300 }, document.board, document.elements)).toEqual({ left: 0, top: 0, right: 1800, bottom: 1596 })
   })
@@ -23,7 +23,7 @@ describe('cámara rectangular de pizarra', () => {
   it('abre contenido centrado a escala 1 y vacío en origen sin modificar el documento', () => {
     const document = createEmptyDocument(), size = { width: 700, height: 300 }
     expect(initialBoardView(size, document.board, document.elements)).toEqual({ scale: 1, offsetX: 0, offsetY: 0 })
-    document.board.quickNotes.push({ id: '00000000-0000-4000-8000-000000000001', text: 'Ruta', position: { x: 1500, y: 900 }, width: 220, height: 96 })
+    document.board.quickNotes.push({ id: '00000000-0000-4000-8000-000000000001', title: '', scale: 1, text: 'Ruta', position: { x: 1500, y: 900 }, width: 220, height: 96 })
     const before = structuredClone(document)
     expect(initialBoardView(size, document.board, document.elements)).toEqual({ scale: 1, offsetX: -1150, offsetY: -750 })
     expect(getBoardBounds({ width: 300, height: 700 }, document.board, [])).toEqual({ left: 0, top: 0, right: 1610, bottom: 948 })
@@ -33,7 +33,7 @@ describe('cámara rectangular de pizarra', () => {
   })
   it('incluye cajas completas de pines, nombres y ancho de trazos', () => {
     const document = createEmptyDocument()
-    document.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Nombre largo', information: '', isUnit: false, operational: null, visual: { type: 'asset', assetId: 'ambulance', scale: 3 }, position: { x: 1500, y: 1500 } })
+    document.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Nombre largo', pinVisible: true, information: '', isUnit: false, operational: null, visual: { type: 'asset', assetId: 'ambulance', scale: 3 }, position: { x: 1500, y: 1500 } })
     document.board.strokes.push({ id: '00000000-0000-4000-8000-000000000002', tool: 'pen', color: '#000000', width: 40, points: [{ x: 1900, y: 2000 }] })
     expect(getBoardBounds({ width: 300, height: 300 }, document.board, document.elements)).toEqual({ left: 0, top: 0, right: 1920, bottom: 2020 })
   })

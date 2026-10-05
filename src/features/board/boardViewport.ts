@@ -14,7 +14,7 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
   }
   for (const stroke of board.strokes) for (const point of stroke.points) include(point.x, point.y, stroke.width / 2, stroke.width / 2)
   for (const note of board.quickNotes) include(note.position.x, note.position.y, note.width / 2, note.height / 2)
-  for (const element of elements) if (element.position) {
+  for (const element of elements) if (element.pinVisible && element.position) {
     const box = getPinBox(element.visual)
     // Include the name's scaled CSS maximum so it remains recoverable.
     include(element.position.x, element.position.y, Math.max(box.width, 200 * element.visual.scale) / 2, box.height / 2)

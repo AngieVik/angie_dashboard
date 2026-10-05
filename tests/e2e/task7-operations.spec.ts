@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { createElement } from '../../src/features/elements/elementCommands'
 import type { AngieDocument } from '../../src/domain/document/types'
+import { changeElementStatus } from '../../src/domain/operations/changeStatus'
 import { bringModuleToFront, noPageScroll } from './acceptance-helpers'
 
 async function open(page: Page, name: string) {
@@ -15,7 +16,7 @@ function fixture() {
   createElement(document, { name: 'Tango 1', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 }, information: 'Canal 4\nAcceso norte', position: { x: 250, y: 250 } })
   createElement(document, { name: 'Tango 2', isUnit: true, visual: { type: 'emoji', value: '🚗', scale: 1 }, information: 'Canal 5', position: { x: 500, y: 250 } })
   const third = createElement(document, { name: 'Tango 3', isUnit: true, visual: { type: 'emoji', value: '🚙', scale: 1 }, information: 'Canal 6', position: { x: 750, y: 250 } })
-  if (third.isUnit) third.operational.status = 'En destino'
+  for (const unit of document.elements) Object.assign(document, changeElementStatus(document, unit.id, unit.id === third.id ? 'Transfiriendo' : 'Disponible', new Date('2026-01-01T11:59:00Z')))
   createElement(document, { name: 'Acceso', isUnit: false, visual: { type: 'emoji', value: '📍', scale: 1 }, information: 'Puerta norte', position: { x: 500, y: 750 } })
   document.moduleLayouts = { board: { x: 0, y: 0, width: 600, height: 600, referenceSize: { width: 1600, height: 1000 } }, elements: { x: 600, y: 0, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } },
     information: { x: 900, y: 0, width: 320, height: 240, referenceSize: { width: 1600, height: 1000 } }, operations: { x: 900, y: 240, width: 340, height: 320, referenceSize: { width: 1600, height: 1000 } }, timeline: { x: 600, y: 600, width: 420, height: 320, referenceSize: { width: 1600, height: 1000 } } }
@@ -59,9 +60,9 @@ test('sin selección Información muestra Sin dotaciones', async ({ page }) => {
 
 test('Información: ocho estados con color y fase, tamaños mínimo, inicial y ampliado', async ({ page }, info) => {
   const states = [
-    ['Disponible', 'Espera', '🟢'], ['Asignada', 'Activación', '🟡'], ['En camino', 'Aproximación', '🔵'],
-    ['En el lugar', 'Intervención', '🔴'], ['En traslado', 'Evacuación', '💠'], ['En destino', 'Transferencia', '🟠'],
-    ['Operativa', 'Retorno', '🟢'], ['Inoperativa', 'Bloqueo', '⚫'],
+    ['Disponible', 'Alerta', '🟢'], ['Activada', 'Alarma', '🟡'], ['Aproximandose', 'Aproximación', '🔵'],
+    ['Interviniendo', 'Asistencia', '🔴'], ['Trasladando', 'Transporte', '💠'], ['Transfiriendo', 'Transferencia', '🟠'],
+    ['Operativa', 'Reactivación', '🟢'], ['Inoperativa', 'Bloqueo', '⚫'],
   ] as const
   await open(page, 'Información')
   const information = page.locator('[data-module="information"]')
@@ -70,7 +71,7 @@ test('Información: ocho estados con color y fase, tamaños mínimo, inicial y a
       const document = fixture()
       document.elements = document.elements.slice(0, 1)
       const unit = document.elements[0]!
-      if (unit.isUnit) { unit.operational.status = status; unit.operational.tags = ['Sector norte', 'Radio'] }
+      if (unit.isUnit) { Object.assign(document, changeElementStatus(document, unit.id, status, new Date())); document.elements[0]!.operational!.tags = ['Sector norte', 'Radio'] }
       document.moduleLayouts.information = { x: 0, y: 0, width: width!, height: height!, referenceSize: { width: 1440, height: 900 } }
       await load(page, document)
       await expect(information.getByLabel('Estado operativo')).toHaveCount(0)
@@ -78,7 +79,7 @@ test('Información: ocho estados con color y fase, tamaños mínimo, inicial y a
       await expect(information.getByLabel('Estado operativo')).toHaveText(`${icon} ${status}`)
       await expect(information.getByText(phase, { exact: true })).toBeVisible()
       await expect(information.getByText('Sector norte', { exact: true })).toHaveCount(1)
-      if (status === 'En traslado') await page.screenshot({ path: info.outputPath(`information-${width}.png`) })
+      if (status === 'Trasladando') await page.screenshot({ path: info.outputPath(`information-${width}.png`) })
       await noPageScroll(page)
     }
   }
@@ -87,30 +88,30 @@ test('Información: ocho estados con color y fase, tamaños mínimo, inicial y a
 test('selección compartida, ocho estados, etiquetas y registro cerrado con recuperación/JSON/deshacer', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   const document = fixture(); await load(page, document)
-  for (const name of ['Pizarra', 'Elementos', 'Información', 'Operativo']) await open(page, name)
-  const information = page.locator('[data-module="information"]'), ops = page.locator('[data-module="operations"]'), elements = page.locator('[data-module="elements"]'), board = page.locator('[data-module="board"]')
+  for (const name of ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo']) await open(page, name)
+  const information = page.locator('[data-module="information"]'), ops = page.locator('[data-module="operations"]'), elements = page.locator('[data-module="elements"]'), units = page.locator('[data-module="dotations"]'), board = page.locator('[data-module="board"]')
   await expect(information.getByRole('button', { name: /^Seleccionar / })).toHaveText(['Tango 1', 'Tango 2', 'Tango 3'])
-  await expect(ops.locator('.operations-counter')).toHaveText(['🟢 2 Disponible', '🟠 1 En destino'])
+  await expect(ops.locator('.operations-counter')).toHaveText(['🟢 2 Disponible', '🟠 1 Transfiriendo'])
   await ops.getByRole('button', { name: '🟢 2 Disponible' }).click()
   await expect(ops.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
-  await ops.getByRole('button', { name: '🟠 1 En destino' }).click()
+  await ops.getByRole('button', { name: '🟠 1 Transfiriendo' }).click()
   await expect(ops.getByRole('button', { name: 'Seleccionar Tango 1' })).toHaveCount(0)
   await ops.getByRole('button', { name: 'Seleccionar Tango 3' }).click()
   await expect(information.getByText('Transferencia', { exact: true })).toBeVisible()
   await blankBoard(page)
   const fromInfo = information.getByRole('button', { name: 'Seleccionar Tango 1' })
   await fromInfo.focus(); await page.keyboard.press('Enter')
-  await expect(elements.getByRole('button', { name: 'Seleccionar Tango 1' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(units.getByRole('button', { name: 'Seleccionar Tango 1' })).toHaveAttribute('aria-pressed', 'true')
   await expect(board.getByRole('button', { name: 'Seleccionar Tango 1' })).toHaveAttribute('aria-pressed', 'true')
-  await expect(information.getByText('Espera', { exact: true })).toBeVisible()
+  await expect(information.getByText('Alerta', { exact: true })).toBeVisible()
   await expect(ops.getByRole('group', { name: 'Estado operativo' }).getByRole('button')).toHaveCount(8)
   await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'Disponible', exact: true }).click()
-  await expect.poll(async () => (await saved(page)).timeline.length).toBe(0)
-  await ops.getByRole('button', { name: 'Asignada', exact: true }).click()
-  await ops.getByRole('button', { name: 'En camino', exact: true }).click()
+  await expect.poll(async () => (await saved(page)).timeline.length).toBe(3)
+  await ops.getByRole('button', { name: 'Activada', exact: true }).click()
+  await ops.getByRole('button', { name: 'Aproximandose', exact: true }).click()
   await expect(information.getByText('Aproximación', { exact: true })).toBeVisible()
-  await expect.poll(async () => (await saved(page)).timeline.length).toBe(2)
+  await expect.poll(async () => (await saved(page)).timeline.length).toBe(5)
   await ops.getByRole('textbox', { name: 'Anotación' }).fill('Revisar radio\nCanal 4')
   await ops.getByRole('textbox', { name: 'Nueva etiqueta' }).fill(' Sector norte ')
   await ops.getByRole('button', { name: 'Añadir', exact: true }).click()
@@ -132,32 +133,32 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await bringModuleToFront(page, 'Elementos')
   await elements.getByRole('button', { name: 'Seleccionar Acceso' }).click()
   await expect(information.locator('.information-module')).toHaveText('Puerta norte')
-  await expect(ops.locator('.operations-counter')).toHaveText(['🟢 1 Disponible', '🔵 1 En camino', '🟠 1 En destino'])
+  await expect(ops.locator('.operations-counter')).toHaveText(['🟢 1 Disponible', '🔵 1 Aproximandose', '🟠 1 Transfiriendo'])
   await bringModuleToFront(page, 'Pizarra')
   await board.getByRole('button', { name: 'Seleccionar Tango 2' }).click()
-  await expect(elements.getByRole('button', { name: 'Seleccionar Tango 2' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(units.getByRole('button', { name: 'Seleccionar Tango 2' })).toHaveAttribute('aria-pressed', 'true')
   await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'Inoperativa', exact: true }).click()
   await open(page, 'Registro cronológico')
   const timeline = page.locator('[data-module="timeline"]')
-  await expect(timeline.getByRole('button', { name: 'Deshacer', exact: true })).toHaveCount(2)
-  const latest = timeline.locator('li').filter({ hasText: 'Asignada 🟡 → En camino 🔵' })
+  await expect(timeline.getByRole('button', { name: 'Deshacer', exact: true })).toHaveCount(3)
+  const latest = timeline.locator('li').filter({ hasText: 'Activada 🟡 → Aproximandose 🔵' })
   await latest.getByRole('button', { name: 'Deshacer' }).click()
-  await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBe('Asignada')
-  await timeline.locator('li').filter({ hasText: 'Disponible 🟢 → Asignada 🟡' }).getByRole('button', { name: 'Deshacer' }).click()
-  await expect.poll(async () => (await saved(page)).timeline.length).toBe(1)
+  await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBeNull()
+  await expect(timeline.locator('li').filter({ hasText: 'Disponible 🟢 → Activada 🟡' }).getByRole('button', { name: 'Deshacer' })).toHaveCount(0)
+  await expect.poll(async () => (await saved(page)).timeline.length).toBe(6)
   await timeline.getByRole('textbox', { name: 'Acontecimiento' }).fill('Acceso cerrado')
   await timeline.getByRole('button', { name: 'Añadir entrada' }).click()
-  await expect.poll(async () => (await saved(page)).timeline.length).toBe(2)
-  const occurredAt = (await saved(page)).timeline[1]!.occurredAt
+  await expect.poll(async () => (await saved(page)).timeline.length).toBe(7)
+  const occurredAt = (await saved(page)).timeline[6]!.occurredAt
   await timeline.getByRole('button', { name: 'Editar entrada' }).click()
   await timeline.getByRole('textbox', { name: 'Texto de entrada' }).fill('Acceso abierto 🚧')
   await timeline.getByRole('button', { name: 'Guardar entrada' }).click()
-  await expect.poll(async () => (await saved(page)).timeline[1]).toMatchObject({ text: 'Acceso abierto 🚧', occurredAt })
+  await expect.poll(async () => (await saved(page)).timeline[6]).toMatchObject({ text: 'Acceso cerrado', occurredAt, revisions: [{ kind: 'text', text: 'Acceso abierto 🚧' }] })
   await page.screenshot({ path: info.outputPath('task7-modules.png') })
   const json = await exportJson(page)
-  expect(json.elements[0]!.operational).toEqual({ status: 'Disponible', notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
-  expect(json.timeline).toHaveLength(2); expect(Object.keys(json)).toHaveLength(8)
+  expect(json.elements[0]!.operational).toEqual({ status: null, currentEntryId: null, notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
+  expect(json.timeline).toHaveLength(7); expect(Object.keys(json)).toHaveLength(8)
   await page.reload(); await expect(page.locator('[data-module]')).toHaveCount(0)
   await open(page, 'Información'); await open(page, 'Registro cronológico')
   await expect(information.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
@@ -165,13 +166,14 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await load(page, json)
   await expect(timeline.getByText('Acceso abierto 🚧', { exact: true })).toBeVisible()
   await timeline.getByRole('button', { name: 'Eliminar entrada' }).click()
-  await expect.poll(async () => (await saved(page)).timeline.length).toBe(1)
-  await open(page, 'Elementos')
-  await elements.getByRole('button', { name: 'Seleccionar Tango 2' }).click()
+  await expect(timeline.getByText('Acceso abierto 🚧', { exact: true })).toHaveCount(0)
+  await expect.poll(async () => (await saved(page)).timeline[6]!.revisions.at(-1)?.kind).toBe('delete')
+  await open(page, 'Dotaciones')
+  await units.getByRole('button', { name: 'Seleccionar Tango 2' }).click()
   await page.getByRole('button', { name: 'Quitar', exact: true }).click()
-  await expect(timeline.getByText(/Tango 2/)).toBeVisible()
-  await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(0)
-  await expect.poll(async () => (await saved(page)).timeline.length).toBe(1)
+  await expect(timeline.getByText(/Tango 2/).first()).toBeVisible()
+  await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(1)
+  await expect.poll(async () => (await saved(page)).timeline.length).toBe(7)
   expect(errors).toEqual([])
 })
 
@@ -180,7 +182,8 @@ test('registro ascendente sigue el final y conserva lectura antigua; controles e
   document.moduleLayouts.information = { x: 0, y: 0, width: 220, height: 140, referenceSize: { width: 1600, height: 1000 } }
   document.moduleLayouts.operations = { x: 220, y: 0, width: 240, height: 200, referenceSize: { width: 1600, height: 1000 } }
   document.moduleLayouts.timeline = { x: 460, y: 0, width: 280, height: 180, referenceSize: { width: 1600, height: 1000 } }
-  document.timeline = Array.from({ length: 35 }, (_, index) => ({ id: crypto.randomUUID(), type: 'manual' as const, text: `Entrada ${index}`, occurredAt: new Date(Date.UTC(2026, 0, 1, 12, 0, index)).toISOString() }))
+  document.timeline = Array.from({ length: 35 }, (_, index) => ({ id: crypto.randomUUID(), type: 'manual' as const, revisions: [], text: `Entrada ${index}`, occurredAt: new Date(Date.UTC(2026, 0, 1, 12, 0, index)).toISOString() }))
+  for (const unit of document.elements) if (unit.isUnit) Object.assign(unit.operational, { status: null, currentEntryId: null })
   await load(page, document)
   for (const name of ['Información', 'Operativo', 'Registro cronológico']) await open(page, name)
   const timeline = page.locator('[data-module="timeline"]'), log = timeline.getByRole('log')
@@ -197,36 +200,35 @@ test('registro ascendente sigue el final y conserva lectura antigua; controles e
   await bringModuleToFront(page, 'Información')
   await page.locator('[data-module="information"]').getByRole('button', { name: 'Seleccionar Tango 1' }).click()
   const ops = page.locator('[data-module="operations"]')
-  await ops.getByRole('button', { name: 'En traslado', exact: true }).focus()
+  await ops.getByRole('button', { name: 'Trasladando', exact: true }).focus()
   await page.keyboard.press('Enter')
-  await expect(ops.getByRole('button', { name: 'En traslado', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(ops.getByRole('button', { name: 'En traslado', exact: true })).toHaveCSS('outline-style', 'solid')
+  await expect(ops.getByRole('button', { name: 'Trasladando', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(ops.getByRole('button', { name: 'Trasladando', exact: true })).toHaveCSS('outline-style', 'solid')
   expect(await ops.locator('.module-content').evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await page.evaluate(() => ({ width: window.document.documentElement.scrollWidth, height: window.document.documentElement.scrollHeight }))).toEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
   await page.screenshot({ path: info.outputPath('task7-minimum.png') })
 })
 
-test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial y permite deshacer en orden inverso', async ({ page }) => {
+test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial sin recuperar estados al corregir', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   const document = fixture(), unit = document.elements[0]!
-  if (unit.isUnit) unit.operational.status = 'Asignada'
+  for (const other of document.elements.slice(1)) if (other.isUnit) Object.assign(other.operational, { status: null, currentEntryId: null })
+  if (unit.isUnit) unit.operational.status = 'Activada'
   document.timeline = [
-    { id: crypto.randomUUID(), type: 'manual', text: 'Importada', occurredAt: '2016-12-31T23:59:60Z' },
-    { id: crypto.randomUUID(), type: 'status-change', unitId: unit.id, unitName: unit.name, previousStatus: 'Disponible', nextStatus: 'Asignada', occurredAt: '2026-01-01T12:00:00Z' },
-    { id: crypto.randomUUID(), type: 'status-change', unitId: unit.id.toUpperCase(), unitName: unit.name, previousStatus: 'Asignada', nextStatus: 'Disponible', occurredAt: '2026-01-01T12:00:01Z' },
-    { id: crypto.randomUUID(), type: 'status-change', unitId: unit.id.toUpperCase(), unitName: unit.name, previousStatus: 'Disponible', nextStatus: 'Asignada', occurredAt: '2026-01-01T12:00:02Z' },
+    { id: crypto.randomUUID(), type: 'manual', revisions: [], text: 'Importada', occurredAt: '2016-12-31T23:59:60Z' },
+    { id: crypto.randomUUID(), type: 'status-change', revisions: [], unitId: unit.id, unitName: unit.name, previousStatus: 'Disponible', nextStatus: 'Activada', occurredAt: '2026-01-01T12:00:00Z' },
+    { id: crypto.randomUUID(), type: 'status-change', revisions: [], unitId: unit.id.toUpperCase(), unitName: unit.name, previousStatus: 'Activada', nextStatus: 'Disponible', occurredAt: '2026-01-01T12:00:01Z' },
+    { id: crypto.randomUUID(), type: 'status-change', revisions: [], unitId: unit.id.toUpperCase(), unitName: unit.name, previousStatus: 'Disponible', nextStatus: 'Activada', occurredAt: '2026-01-01T12:00:02Z' },
   ]
+  if (unit.isUnit) unit.operational.currentEntryId = document.timeline[3]!.id
   await load(page, document); await open(page, 'Registro cronológico')
   const timeline = page.locator('[data-module="timeline"]')
   await expect(timeline.getByText('00:59:60', { exact: true })).toHaveAttribute('datetime', '2016-12-31T23:59:60Z')
   await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(1)
   await timeline.getByRole('button', { name: 'Deshacer' }).click()
-  await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBe('Disponible')
-  await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(1)
-  await timeline.getByRole('button', { name: 'Deshacer' }).click()
-  await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBe('Asignada')
-  await timeline.getByRole('button', { name: 'Deshacer' }).click()
-  await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBe('Disponible')
-  await expect.poll(async () => (await saved(page)).timeline).toEqual([document.timeline[0]])
+  await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBeNull()
+  await expect(timeline.getByRole('button', { name: 'Deshacer' })).toHaveCount(0)
+  await expect.poll(async () => (await saved(page)).timeline.slice(0, 3)).toEqual(document.timeline.slice(0, 3))
+  await expect.poll(async () => (await saved(page)).timeline[3]!.revisions).toMatchObject([{ kind: 'correction' }])
   expect(errors).toEqual([])
 })

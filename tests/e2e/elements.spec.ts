@@ -9,9 +9,9 @@ async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name, exact: true }).click()
 }
-async function action(page: Page, name: string) {
-  await bringModuleToFront(page, 'Elementos')
-  await page.getByRole('button', { name, exact: true }).click()
+async function action(page: Page, name: string, moduleName = 'Elementos') {
+  await bringModuleToFront(page, moduleName)
+  await page.getByRole('region', { name: moduleName, exact: true }).getByRole('button', { name, exact: true }).click()
 }
 async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -29,9 +29,10 @@ async function create(page: Page, name: string, isUnit = false, icon = 'ambulanc
   // Historical movement cases keep their known position via the closed-board rule.
   await bringModuleToFront(page, 'Pizarra')
   await page.getByRole('button', { name: 'Cerrar Pizarra' }).click()
-  await action(page, 'Añadir')
+  const moduleName = isUnit ? 'Dotaciones' : 'Elementos'
+  if (!await page.locator('[data-module="' + (isUnit ? 'dotations' : 'elements') + '"]').count()) await open(page, moduleName)
+  await action(page, 'Añadir', moduleName)
   await page.getByLabel('Nombre', { exact: true }).fill(name)
-  if (isUnit) await page.getByRole('checkbox', { name: 'Dotación', exact: true }).check()
   if (emoji) {
     await page.getByLabel('Representación', { exact: true }).selectOption('emoji')
     await page.getByLabel('Emoji', { exact: true }).fill(emoji)
@@ -150,7 +151,7 @@ test('crear usa cámara actual sin navegar; cerrar o cambiar documento descarta 
   const emptyCenter = await surface.evaluate(el => ({ x: el.clientWidth / 2, y: el.clientHeight / 2 }))
   await expect.poll(async () => (await saved(page)).elements[0]?.position).toEqual(emptyCenter)
   const loaded = createEmptyDocument('Centro nuevo')
-  loaded.board.quickNotes = [{ id: crypto.randomUUID(), text: 'Referencia', position: { x: 2000, y: 1600 }, width: 220, height: 96 }]
+  loaded.board.quickNotes = [{ id: crypto.randomUUID(), title: '', scale: 1, text: 'Referencia', position: { x: 2000, y: 1600 }, width: 220, height: 96 }]
   await loadDocument(page, loaded)
   await expect(surface).toHaveAttribute('data-scale', '1')
   await createVisibleElement(page, 'Documento cargado', false, '📍')
@@ -204,9 +205,9 @@ test('emoji: tirador y editor sincronizados, nombre proporcional, duplicación y
 test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSON y recuperación', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await create(page, 'Tango 1', true)
-  const module = page.locator('[data-module="elements"]'), board = page.locator('[data-module="board"]')
+  const module = page.locator('[data-module="dotations"]'), board = page.locator('[data-module="board"]')
   await expect(board.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await action(page, 'Modificar')
+  await action(page, 'Modificar', 'Dotaciones')
   await expect(page.getByText('Tipo: Dotación', { exact: true })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: 'Dotación' })).toHaveCount(0)
   await page.getByLabel('Escala del icono').fill('1.5')
@@ -222,17 +223,17 @@ test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSO
   await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBeCloseTo(2, 1)
   await expect(board.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
   await expect(board.locator('.board-pin-visual img')).toHaveCSS('object-fit', 'contain')
-  await action(page, 'Modificar')
+  await action(page, 'Modificar', 'Dotaciones')
   await expect.poll(async () => Number(await page.getByLabel('Escala del icono').inputValue())).toBeCloseTo(2, 1)
   await page.getByRole('button', { name: 'Guardar elemento' }).click()
-  await action(page, 'Duplicar')
+  await action(page, 'Duplicar', 'Dotaciones')
   await expect(module.getByRole('button', { name: 'Seleccionar Tango 1 copia', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(async () => (await saved(page)).elements.length).toBe(2)
   const copied = (await saved(page)).elements
   expect(copied[1]!.id).not.toBe(copied[0]!.id)
   expect(copied[1]!.position).toEqual({ x: 524, y: 524 })
-  expect(copied[1]!.operational).toEqual({ status: 'Disponible', notes: '', tags: [] })
-  await action(page, 'Quitar')
+  expect(copied[1]!.operational).toEqual({ status: null, currentEntryId: null, notes: '', tags: [] })
+  await action(page, 'Quitar', 'Dotaciones')
   await create(page, 'Ruta', false, 'ambulance', '🚴🏽‍♂️')
   const pin = board.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })
   // The new emoji shares the initial center. Select the exposed corner of the PNG.

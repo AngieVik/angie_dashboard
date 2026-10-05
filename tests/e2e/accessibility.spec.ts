@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { createElement as addElement } from '../../src/features/elements/elementCommands'
+import { changeElementStatus } from '../../src/domain/operations/changeStatus'
 import { createElement, loadDocument, noPageScroll, openModule } from './acceptance-helpers'
 
-const modules = ['Pizarra', 'Elementos', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']
+const modules = ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']
 function fixture() {
   const document = createEmptyDocument('Accesibilidad V1')
   addElement(document, { name: 'Tango teclado', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 }, information: 'Radio · Canal 4', position: { x: 500, y: 500 } })
@@ -11,8 +12,9 @@ function fixture() {
     { id: crypto.randomUUID(), type: 'note', title: 'Nota', text: 'Preparación\n📻' },
     { id: crypto.randomUUID(), type: 'checklist', title: 'Checklist', items: [{ id: crypto.randomUUID(), text: 'Revisar radio', checked: false }] },
   ]
-  document.board.quickNotes = [{ id: crypto.randomUUID(), text: 'Acceso norte', position: { x: 250, y: 250 }, width: 220, height: 96 }]
-  document.timeline = [{ id: crypto.randomUUID(), type: 'manual', text: 'Preparación', occurredAt: '2026-01-01T12:00:00Z' }]
+  document.board.quickNotes = [{ id: crypto.randomUUID(), title: '', scale: 1, text: 'Acceso norte', position: { x: 250, y: 250 }, width: 220, height: 96 }]
+  document.timeline = [{ id: crypto.randomUUID(), type: 'manual', revisions: [], text: 'Preparación', occurredAt: '2026-01-01T12:00:00Z' }]
+  Object.assign(document, changeElementStatus(document, document.elements[0]!.id, 'Disponible', new Date('2026-01-01T12:00:01Z')))
   return document
 }
 
@@ -105,14 +107,14 @@ test('todos los módulos: nombres accesibles y Tab con foco visible sin controle
 
 test('teclado: selección, estados con texto, etiquetas, calculadora y checklist', async ({ page }) => {
   await page.goto('/'); await loadDocument(page, fixture())
-  await openModule(page, 'Elementos'); await openModule(page, 'Operativo')
-  const elements = page.getByRole('region', { name: 'Elementos', exact: true })
+  await openModule(page, 'Dotaciones'); await openModule(page, 'Operativo')
+  const elements = page.getByRole('region', { name: 'Dotaciones', exact: true })
   const selected = elements.getByRole('button', { name: 'Seleccionar Tango teclado' })
   await selected.press('Enter'); await expect(selected).toHaveAttribute('aria-pressed', 'true')
   await expect(elements.getByRole('group', { name: 'Filtrar por estado' })).toHaveCount(0)
   await expect(selected).toBeVisible()
   const ops = page.getByRole('region', { name: 'Operativo', exact: true })
-  for (const name of ['Disponible', 'Asignada', 'En camino', 'En el lugar', 'En traslado', 'En destino', 'Operativa', 'Inoperativa']) {
+  for (const name of ['Disponible', 'Activada', 'Aproximandose', 'Interviniendo', 'Trasladando', 'Transfiriendo', 'Operativa', 'Inoperativa']) {
     const button = ops.getByRole('button', { name, exact: true })
     await expect(button).toContainText(name)
     await button.press('Enter'); await expect(button).toHaveAttribute('aria-pressed', 'true')
@@ -124,7 +126,7 @@ test('teclado: selección, estados con texto, etiquetas, calculadora y checklist
   await ops.getByRole('textbox', { name: 'Editar etiqueta', exact: true }).press('Enter')
   await ops.getByRole('button', { name: 'Eliminar etiqueta Canal 4' }).press('Enter')
   await expect(ops.getByRole('button', { name: 'Editar etiqueta Canal 4' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Cerrar Elementos' }).click(); await page.getByRole('button', { name: 'Cerrar Operativo' }).click()
+  await page.getByRole('button', { name: 'Cerrar Dotaciones' }).click(); await page.getByRole('button', { name: 'Cerrar Operativo' }).click()
   await openModule(page, 'Calculadora')
   const calculator = page.getByRole('region', { name: 'Calculadora', exact: true })
   await calculator.getByLabel('Operación').fill('(200 + 10 %) / 2'); await calculator.getByLabel('Operación').press('Enter')
@@ -142,7 +144,7 @@ test('teclado: selección, estados con texto, etiquetas, calculadora y checklist
 
 test('editores de elementos: acciones directas recuperan foco tras guardar, cancelar, duplicar y quitar', async ({ page }) => {
   await page.goto('/'); await openModule(page, 'Elementos')
-  await createElement(page, 'Tango foco', true)
+  await createElement(page, 'Tango foco', false)
   const module = page.getByRole('region', { name: 'Elementos', exact: true })
   const add = module.getByRole('button', { name: 'Añadir', exact: true })
   await expect(add).toBeFocused()
@@ -159,8 +161,8 @@ test('editores de elementos: acciones directas recuperan foco tras guardar, canc
 
 test('etiquetas: guardar, Escape, cancelar y eliminar conservan foco en Nueva etiqueta', async ({ page }) => {
   await page.goto('/'); await loadDocument(page, fixture())
-  await openModule(page, 'Elementos'); await openModule(page, 'Operativo')
-  await page.getByRole('region', { name: 'Elementos', exact: true }).getByRole('button', { name: 'Seleccionar Tango teclado' }).press('Enter')
+  await openModule(page, 'Dotaciones'); await openModule(page, 'Operativo')
+  await page.getByRole('region', { name: 'Dotaciones', exact: true }).getByRole('button', { name: 'Seleccionar Tango teclado' }).press('Enter')
   const module = page.getByRole('region', { name: 'Operativo', exact: true })
   const add = module.getByRole('textbox', { name: 'Nueva etiqueta' })
   await add.fill('Radio'); await add.press('Enter')
@@ -199,10 +201,10 @@ test('Registro: guardar, cancelar, eliminar y Deshacer conservan foco en Acontec
   }
   await module.getByRole('button', { name: 'Eliminar entrada' }).press('Enter')
   await expect(add).toBeFocused()
-  await openModule(page, 'Elementos'); await openModule(page, 'Operativo')
-  await page.getByRole('region', { name: 'Elementos', exact: true }).getByRole('button', { name: 'Seleccionar Tango teclado' }).press('Enter')
-  await page.getByRole('region', { name: 'Operativo', exact: true }).getByRole('button', { name: 'Asignada', exact: true }).press('Enter')
-  await module.getByRole('button', { name: 'Deshacer' }).press('Enter')
+  await openModule(page, 'Dotaciones'); await openModule(page, 'Operativo')
+  await page.getByRole('region', { name: 'Dotaciones', exact: true }).getByRole('button', { name: 'Seleccionar Tango teclado' }).press('Enter')
+  await page.getByRole('region', { name: 'Operativo', exact: true }).getByRole('button', { name: 'Activada', exact: true }).press('Enter')
+  await module.getByRole('button', { name: 'Deshacer' }).last().press('Enter')
   await expect(add).toBeFocused()
 })
 

@@ -49,9 +49,24 @@ async function setup() {
 }
 
 describe('módulo Pizarra', () => {
+  it('ocultar un pin lejano no desplaza la cámara ni el centro de creación al abrir o redimensionar', async () => {
+    const { store, view, Harness, resize, onViewChange } = await setup()
+    act(() => store.mutateDocument(document => {
+      createElement(document, { name: 'Visible', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 500, y: 500 } })
+      const hidden = createElement(document, { name: 'Oculto', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 50000, y: 50000 } })
+      hidden.pinVisible = false
+    }))
+    view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
+    const original = structuredClone(store.getSnapshot().document)
+    expect(onViewChange).toHaveBeenLastCalledWith({ x: 500, y: 500 })
+    expect(screen.queryByRole('button', { name: 'Seleccionar Oculto' })).not.toBeInTheDocument()
+    resize(720, 480)
+    expect(onViewChange).toHaveBeenLastCalledWith({ x: 500, y: 500 })
+    expect(store.getSnapshot().document).toEqual(original)
+  })
   it('centra cajas al abrir, mantiene escena al cambiar forma y descarta cámara al cambiar documento', async () => {
     const { store, view, Harness, resize, onViewChange } = await setup()
-    act(() => store.mutateDocument(document => { document.board.quickNotes.push({ id: crypto.randomUUID(), text: 'Ruta', position: { x: 1200, y: 1600 }, width: 180, height: 80 }) }))
+    act(() => store.mutateDocument(document => { document.board.quickNotes.push({ id: crypto.randomUUID(), title: '', scale: 1, text: 'Ruta', position: { x: 1200, y: 1600 }, width: 180, height: 80 }) }))
     view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
     const before = structuredClone(store.getSnapshot().document)
     expect(screen.getByTestId('board-surface')).toHaveAttribute('data-scale', '1')

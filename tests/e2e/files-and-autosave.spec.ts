@@ -3,13 +3,13 @@ import { expect, test } from '@playwright/test'
 import { downloadDocument, openModule, savedDocument } from './acceptance-helpers'
 
 for (const origin of ['archivo', 'IndexedDB'] as const) {
-  test(`V1 real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V2`, async ({ page }) => {
+  test(`V1 real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V3`, async ({ page }) => {
     const legacy = JSON.parse(await readFile('src/domain/document/fixtures/complete.json', 'utf8'))
-    const converted = JSON.parse(await readFile('src/domain/document/fixtures/v2-complete.json', 'utf8'))
+    const converted = JSON.parse(await readFile('src/domain/document/fixtures/v3-complete.json', 'utf8'))
     const source = JSON.stringify({ ...legacy, filters: { visibleStatuses: [] } })
     await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
     await page.goto('/')
-    await expect.poll(async () => (await savedDocument(page))?.formatVersion).toBe(2)
+    await expect.poll(async () => (await savedDocument(page))?.formatVersion).toBe(3)
     if (origin === 'archivo') {
       await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'legacy.json', mimeType: 'application/json', buffer: Buffer.from(source) })
     } else {
@@ -33,11 +33,11 @@ for (const origin of ['archivo', 'IndexedDB'] as const) {
     const exported = await downloadDocument(page)
     expect(exported.document).toEqual(converted)
     expect(JSON.parse(source)).toEqual({ ...legacy, filters: { visibleStatuses: [] } })
-    await openModule(page, 'Elementos')
-    const elements = page.getByRole('region', { name: 'Elementos', exact: true })
+    await openModule(page, 'Dotaciones')
+    const elements = page.getByRole('region', { name: 'Dotaciones', exact: true })
     await expect(elements.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
     await expect(elements.getByRole('group', { name: 'Filtrar dotaciones por estado' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Cerrar Elementos', exact: true }).click()
+    await page.getByRole('button', { name: 'Cerrar Dotaciones', exact: true }).click()
     await openModule(page, 'Pizarra')
     await expect(page.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Acceso norte', exact: true })).toBeVisible()

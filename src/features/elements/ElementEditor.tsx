@@ -8,15 +8,14 @@ import { Input } from '../../components/ui/input'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 
-export function ElementEditor({ element, onSave, onCancel }: {
-  element?: DocumentElement; onSave: (input: CreateElementInput) => void; onCancel: () => void
+export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
+  element?: DocumentElement; isUnit?: boolean; onSave: (input: CreateElementInput) => void; onCancel: () => void
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const [name, setName] = useState(element?.name ?? '')
   const [information, setInformation] = useState(element?.information ?? '')
   const informationRef = useAutoGrowingTextarea(information)
   const nameId = useId()
-  const [isUnit, setIsUnit] = useState(element?.isUnit ?? false)
   const [representation, setRepresentation] = useState(element?.visual.type ?? 'asset')
   const [assetId, setAssetId] = useState<AssetId>(element?.visual.type === 'asset' ? element.visual.assetId : 'ambulance')
   const [emoji, setEmoji] = useState(element?.visual.type === 'emoji' ? element.visual.value : '')
@@ -37,8 +36,7 @@ export function ElementEditor({ element, onSave, onCancel }: {
   }}>
     <fieldset disabled={blocked}>
       <div className="element-name-row"><label htmlFor={nameId}>Nombre</label>
-      {element ? <p className="element-type">Tipo: {element.isUnit ? 'Dotación' : 'General'}</p> :
-        <label className="element-unit-choice"><input type="checkbox" checked={isUnit} onChange={event => setIsUnit(event.target.checked)} />Dotación</label>}</div>
+      <p className="element-type">Tipo: {(element?.isUnit ?? isUnit) ? 'Dotación' : 'General'}</p></div>
       <Input id={nameId} aria-label="Nombre" autoFocus value={name} onChange={event => setName(event.target.value)} />
       <label>Representación<select aria-label="Representación" value={representation} onChange={event => setRepresentation(event.target.value as 'asset' | 'emoji')}>
         <option value="asset">Icono PNG</option><option value="emoji">Emoji</option>

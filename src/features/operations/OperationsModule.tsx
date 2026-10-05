@@ -14,6 +14,7 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const [expanded, setExpanded] = useState<OperationalStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const selectionFocusPending = useRef(false)
   const selectedStateControl = useRef<HTMLButtonElement>(null)
   const selected = document.elements.find(element => element.id === selectedId)
@@ -28,8 +29,11 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
       <div className="operations-states" role="group" aria-label="Estado operativo">
         {OPERATIONAL_STATUSES.map(({ status, icon }) => <Button key={status} ref={unit.operational.status === status ? selectedStateControl : undefined} aria-label={status} aria-pressed={unit.operational.status === status} disabled={blocked}
           onClick={() => {
-            if (blockedRef.current) return
-            store.mutateDocument(document => Object.assign(document, changeElementStatus(document, unit.id, status, new Date())))
+            if (blockedRef.current || unit.operational.status === status) return
+            try {
+              store.mutateDocument(document => Object.assign(document, changeElementStatus(document, unit.id, status, new Date())))
+              setError(null)
+            } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
           }}><span aria-hidden="true">{icon}</span> {status}</Button>)}
       </div>
       <label className="operations-notes">Anotación<textarea value={unit.operational.notes} disabled={blocked} onChange={event => {
@@ -49,5 +53,6 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
         </div>
       })}
     </div>}
+    {error && <p role="alert">{error}</p>}
   </div>
 }

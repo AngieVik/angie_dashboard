@@ -38,7 +38,7 @@ describe('pizarra: modos y documento', () => {
   it('goma registra solo una máscara de trazos sin alterar fondo ni notas', () => {
     let state = boardReducer(initial(), { type: 'background', color: '#ffffff' })
     state = boardReducer(state, { type: 'mode', mode: 'note' })
-    state = boardReducer(state, { type: 'add-note', note: { id: noteId, text: 'Acceso norte', position: { x: 500, y: 350 }, width: 220, height: 96 } })
+    state = boardReducer(state, { type: 'add-note', note: { id: noteId, title: '', scale: 1, text: 'Acceso norte', position: { x: 500, y: 350 }, width: 220, height: 96 } })
     const notes = state.board.quickNotes
     state = boardReducer(state, { type: 'mode', mode: 'eraser' })
     state = boardReducer(state, { type: 'start', id: strokeId, point: { x: 500, y: 350 }, color: '#D63A3A', width: 20 })
@@ -50,7 +50,7 @@ describe('pizarra: modos y documento', () => {
 
   it('crea una nota y vuelve a seleccionar; solo seleccionar permite moverla, editarla y eliminarla', () => {
     let state = boardReducer(initial(), { type: 'mode', mode: 'note' })
-    state = boardReducer(state, { type: 'add-note', note: { id: noteId, text: 'Acceso norte', position: { x: 500, y: 350 }, width: 220, height: 96 } })
+    state = boardReducer(state, { type: 'add-note', note: { id: noteId, title: '', scale: 1, text: 'Acceso norte', position: { x: 500, y: 350 }, width: 220, height: 96 } })
     expect(state.mode).toBe('select')
     state = boardReducer(state, { type: 'move-note', id: noteId, position: { x: -10, y: 1100 } })
     expect(state.board.quickNotes[0]?.position).toEqual({ x: 0, y: 1100 })
@@ -72,9 +72,9 @@ describe('pizarra: modos y documento', () => {
   })
   it('redimensiona solo la caja de una nota seleccionable, conserva centro y texto y serializa sus dimensiones', () => {
     let state = boardReducer(initial(), { type: 'mode', mode: 'note' })
-    state = boardReducer(state, { type: 'add-note', note: { id: noteId, text: 'Ruta', position: { x: 1500, y: 1200 }, width: 220, height: 96 } })
+    state = boardReducer(state, { type: 'add-note', note: { id: noteId, title: '', scale: 1, text: 'Ruta', position: { x: 1500, y: 1200 }, width: 220, height: 96 } })
     state = boardReducer(state, { type: 'resize-note', id: noteId, size: { width: 80, height: 40 } })
-    expect(state.board.quickNotes[0]).toEqual({ id: noteId, text: 'Ruta', position: { x: 1500, y: 1200 }, width: 120, height: 64 })
+    expect(state.board.quickNotes[0]).toEqual({ id: noteId, title: '', scale: 1, text: 'Ruta', position: { x: 1500, y: 1200 }, width: 120, height: 64 })
     const document = createEmptyDocument(); document.board = state.board
     expect(JSON.parse(serializeDocument(document)).board.quickNotes).toEqual(state.board.quickNotes)
     expect(boardReducer(state, { type: 'resize-note', id: noteId, size: { width: NaN, height: 100 } })).toBe(state)

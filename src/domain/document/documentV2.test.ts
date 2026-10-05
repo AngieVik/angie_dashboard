@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import legacy from './fixtures/complete.json'
 import { createEmptyDocument } from './defaultDocument'
 import { migrateDocument } from './migrateDocument'
-import { validateDocument } from './validateDocument'
+import { validateDocumentV2 as validateDocument } from './validateDocumentV2'
+import v3 from './fixtures/v3-complete.json'
 
 // Expected V2 assembled from the approved contract, independently of migration.
 function expectedV2() {
@@ -18,10 +19,10 @@ function expectedV2() {
   }
 }
 
-describe('contrato vigente V2', () => {
-  it('crea ocho raíces de versión 2 sin filtros', () => {
+describe('contrato histórico V2', () => {
+  it('crea ocho raíces vigentes sin filtros', () => {
     const document = createEmptyDocument()
-    expect(document.formatVersion).toBe(2)
+    expect(document.formatVersion).toBe(3)
     expect(Object.keys(document)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts'])
   })
 
@@ -33,7 +34,7 @@ describe('contrato vigente V2', () => {
     expect(result.success).toBe(true)
     if (!result.success) throw new Error(JSON.stringify(result.errors))
     expect(result.migrated).toBe(true)
-    expect(result.document).toEqual(expectedV2())
+    expect(result.document).toEqual(v3)
     result.document.document.title = 'Copia independiente'
     expect(source).toEqual(before)
   })
@@ -47,7 +48,7 @@ describe('contrato vigente V2', () => {
     input.moduleLayouts.board = { x: 1800, y: 1000, width: 720, height: 480, referenceSize: { width: 3000, height: 2000 } }
     expect(validateDocument(input)).toEqual({ success: true, document: input })
     const result = migrateDocument(input)
-    expect(result.success && result.migrated).toBe(false)
+    expect(result.success && result.migrated).toBe(true)
   })
 
   it.each([

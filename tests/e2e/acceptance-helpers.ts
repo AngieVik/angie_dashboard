@@ -41,11 +41,12 @@ export async function savedDocument(page: Page): Promise<AngieDocument | null> {
   }))
 }
 export async function createElement(page: Page, name: string, isUnit: boolean, emoji?: string) {
-  const module = page.getByRole('region', { name: 'Elementos', exact: true })
-  await bringModuleToFront(page, 'Elementos')
+  const moduleName = isUnit ? 'Dotaciones' : 'Elementos'
+  const module = page.getByRole('region', { name: moduleName, exact: true })
+  if (!await module.count()) await openModule(page, moduleName)
+  await bringModuleToFront(page, moduleName)
   await module.getByRole('button', { name: 'Añadir', exact: true }).click()
   await module.getByLabel('Nombre', { exact: true }).fill(name)
-  if (isUnit) await module.getByRole('checkbox', { name: 'Dotación', exact: true }).check()
   if (emoji) {
     await module.getByLabel('Representación').selectOption('emoji')
     await module.getByLabel('Emoji', { exact: true }).fill(emoji)

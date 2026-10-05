@@ -25,7 +25,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onMove
     if (blocked || !enabled) cancel()
   }, [blocked, enabled, cancel])
   useEffect(() => () => clearTimeout(timer.current), [])
-  if (!element.position) return null
+  if (!element.position || !element.pinVisible) return null
   const visual = { ...element.visual, scale: preview?.scale ?? element.visual.scale }
   const position = preview?.position ?? clampPinPosition(element.position, visual)
   const box = getPinBox(visual)

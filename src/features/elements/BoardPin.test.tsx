@@ -5,7 +5,7 @@ import { ViewportContext } from '../../layout/ViewportContext'
 import { BoardPin } from './BoardPin'
 
 afterEach(() => vi.useRealTimers())
-const element: DocumentElement = { id: crypto.randomUUID(), name: 'Tango 1', visual: { type: 'asset', assetId: 'ambulance', scale: 1 }, information: '', position: { x: 500, y: 500 }, isUnit: false, operational: null }
+const element: DocumentElement = { id: crypto.randomUUID(), name: 'Tango 1', visual: { type: 'asset', assetId: 'ambulance', scale: 1 }, pinVisible: true, information: '', position: { x: 500, y: 500 }, isUnit: false, operational: null }
 function setup() {
   const onSelect = vi.fn(), onMove = vi.fn(), onScale = vi.fn()
   const surface = { current: document.createElement('div') }

@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { createDocumentStore } from '../document/documentStore'
 import { createElement } from '../elements/elementCommands'
+import { changeElementStatus } from '../../domain/operations/changeStatus'
 import { OperationsModule } from './OperationsModule'
 
 async function setup() {
@@ -10,9 +11,10 @@ async function setup() {
   const store = createDocumentStore({ loadActive: async () => null, saveActive: async document => { saved = structuredClone(document) }, clearActive: async () => {} }, { platform: { download: () => {} } })
   await store.initialize()
   store.mutateDocument(document => {
-    createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
+    const a = createElement(document, { name: 'Tango 1', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
     const b = createElement(document, { name: 'Tango 2', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
-    if (b.isUnit) b.operational.status = 'En destino'
+    Object.assign(document, changeElementStatus(document, a.id, 'Disponible', new Date()))
+    Object.assign(document, changeElementStatus(document, b.id, 'Transfiriendo', new Date()))
     createElement(document, { name: 'Ruta', visual: { type: 'emoji', value: '📍', scale: 1 }, isUnit: false, information: '' })
   })
   function Harness() {
@@ -23,22 +25,33 @@ async function setup() {
   return { store, saved: () => saved }
 }
 describe('Operativo', () => {
+  it('comunica una selección incoherente por reloj anterior al historial y conserva el documento completo', async () => {
+    const { store } = await setup()
+    fireEvent.click(screen.getByRole('button', { name: '🟢 1 Disponible' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Tango 1' }))
+    const id = store.getSnapshot().document.elements[0]!.id
+    act(() => store.mutateDocument(document => Object.assign(document, changeElementStatus(document, id, 'Activada', new Date('2099-01-01T00:00:00Z')))))
+    const before = store.getSnapshot().document
+    fireEvent.click(screen.getByRole('button', { name: 'Inoperativa' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('currentEntryId')
+    expect(store.getSnapshot().document).toBe(before)
+  })
   it('muestra solo contadores no vacíos en orden, un despliegue a la vez y ocho estados seleccionables', async () => {
     const { store } = await setup()
-    expect(screen.getAllByRole('button').map(node => node.textContent)).toEqual(['🟢 1 Disponible', '🟠 1 En destino'])
+    expect(screen.getAllByRole('button').map(node => node.textContent)).toEqual(['🟢 1 Disponible', '🟠 1 Transfiriendo'])
     fireEvent.click(screen.getByRole('button', { name: '🟢 1 Disponible' }))
     expect(screen.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '🟠 1 En destino' }))
+    fireEvent.click(screen.getByRole('button', { name: '🟠 1 Transfiriendo' }))
     expect(screen.queryByRole('button', { name: 'Seleccionar Tango 1' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Tango 2' }))
     const states = within(screen.getByRole('group', { name: 'Estado operativo' }))
     expect(states.getAllByRole('button')).toHaveLength(8)
-    expect(states.getByRole('button', { name: 'En destino' })).toHaveAttribute('aria-pressed', 'true')
+    expect(states.getByRole('button', { name: 'Transfiriendo' })).toHaveAttribute('aria-pressed', 'true')
     const before = store.getSnapshot().document
-    fireEvent.click(states.getByRole('button', { name: 'En destino' }))
+    fireEvent.click(states.getByRole('button', { name: 'Transfiriendo' }))
     expect(store.getSnapshot().document).toBe(before)
     fireEvent.click(states.getByRole('button', { name: 'Disponible' }))
-    expect(store.getSnapshot().document.timeline).toHaveLength(1)
+    expect(store.getSnapshot().document.timeline).toHaveLength(3)
   })
   it('anotaciones y chips con botón/Enter, edición en línea, errores y eliminación se autoguardan sin entradas', async () => {
     const { store, saved } = await setup()
@@ -61,8 +74,8 @@ describe('Operativo', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('vacía')
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar etiqueta Radio' }))
     const document = store.getSnapshot().document
-    expect(document.elements[0]?.operational).toEqual({ status: 'Disponible', notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
-    expect(document.timeline).toEqual([])
+    expect(document.elements[0]?.operational).toEqual({ status: 'Disponible', currentEntryId: document.timeline[0]!.id, notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
+    expect(document.timeline).toHaveLength(2)
     await store.flushAutosave()
     expect(saved()).toEqual(document)
   })
