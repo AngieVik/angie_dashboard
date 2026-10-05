@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { NotebookBlock } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
+import { Trash } from 'lucide-react'
 import { useAutoGrowingTextarea } from './useAutoGrowingTextarea'
 
 function ItemText({ text, index, disabled, onEdit }: { text: string; index: number; disabled: boolean; onEdit: (text: string) => void }) {
@@ -30,7 +31,7 @@ export function ChecklistBlock({ block, disabled, onAdd, onEdit, onCheck, onDele
         onChange={event => onCheck(item.id, event.target.checked)} />
       <ItemText text={item.text} index={index} disabled={disabled} onEdit={text => onEdit(item.id, text)} />
       <Button aria-label={`Añadir elemento después de ${index + 1}`} title="Añadir elemento" disabled={disabled} onClick={() => { pendingFocus.current = index + 1; onAdd(item.id) }}>+</Button>
-      <Button aria-label={`Eliminar elemento ${index + 1}`} title="Eliminar elemento" disabled={disabled} onClick={() => { pendingFocus.current = Math.min(index, block.items.length - 2); onDelete(item.id) }}>×</Button>
+      <Button aria-label={`Eliminar elemento ${index + 1}`} title="Eliminar elemento" disabled={disabled} onClick={() => { pendingFocus.current = Math.min(index, block.items.length - 2); onDelete(item.id) }}><Trash aria-hidden="true" /></Button>
     </li>)}</ul>
     {block.items.length === 0 && <Button ref={addControl} aria-label="Añadir elemento" title="Añadir elemento" disabled={disabled} onClick={() => { pendingFocus.current = 0; onAdd() }}>+</Button>}
   </div>

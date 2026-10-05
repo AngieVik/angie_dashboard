@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
+import { SquareX } from 'lucide-react'
 import { Input } from '../../components/ui/input'
 import { calculateTimerValue, formatDuration, normalizeDuration } from './timerEngine'
 import type { TimerRecord } from './timerTypes'
@@ -35,7 +36,7 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
       if (snapshot.alertActive && !(event.target as HTMLElement).closest('button, input, textarea')) recognize()
     }}>
     <div className="timer-heading"><span>{name}</span><span className="timer-status">{STATUS_LABELS[snapshot.status]}</span>
-      <Button aria-label="Cerrar temporizador" onClick={close}>×</Button></div>
+      <Button aria-label="Cerrar temporizador" onClick={close}><SquareX aria-hidden="true" /></Button></div>
     <div className="timer-main">
       {snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
       <div className="timer-controls">

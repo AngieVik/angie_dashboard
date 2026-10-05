@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { evaluateExpression } from './expression'
 import type { CalculationResult } from './expression'
@@ -13,19 +14,21 @@ const keys = [
   ['%', 'Porcentaje'], ['0', '0'], [',', 'Separador decimal'], ['+', 'Sumar'],
 ] as const
 
-export function CalculatorModule() {
+export function CalculatorModule({ generation = 0 }: { generation?: number } = {}) {
   const id = useId()
   const { blocked, blockedRef } = useViewportInteraction()
   const [expression, setExpression] = useState('')
   const [result, setResult] = useState<CalculationResult | null>(null)
-  const error = result && !result.ok ? result.error : null
+  const [error, setError] = useValidationNotice(null, generation)
 
   function edit(value: string) {
     if (blockedRef.current) return
-    setExpression(value); setResult(null)
+    setExpression(value); setResult(null); setError(null)
   }
   function calculate() {
-    if (!blockedRef.current) setResult(evaluateExpression(expression))
+    if (blockedRef.current) return
+    const next = evaluateExpression(expression)
+    setResult(next); setError(next.ok ? null : next.error)
   }
 
   return <form className="calculator-module" onSubmit={event => { event.preventDefault(); calculate() }}>

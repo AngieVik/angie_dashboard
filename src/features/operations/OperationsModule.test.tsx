@@ -72,6 +72,8 @@ describe('Operativo', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Nueva etiqueta' }), { target: { value: '  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
     expect(screen.getByRole('alert')).toHaveTextContent('vacía')
+    expect(screen.getByRole('textbox', { name: 'Nueva etiqueta' })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('textbox', { name: 'Nueva etiqueta' })).toHaveAccessibleDescription(screen.getByRole('alert').textContent!)
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar etiqueta Radio' }))
     const document = store.getSnapshot().document
     expect(document.elements[0]?.operational).toEqual({ status: 'Disponible', currentEntryId: document.timeline[0]!.id, notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
+import { SquareX } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
@@ -38,7 +39,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
             const addControl = block.type === 'note' ? noteControl : checklistControl
             addControl.current?.focus()
             mutate(document => deleteNotebookBlock(document, block.id))
-          }}>×</Button>
+          }}><SquareX aria-hidden="true" /></Button>
         </div>
         {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
           <ChecklistBlock block={block} disabled={blocked}

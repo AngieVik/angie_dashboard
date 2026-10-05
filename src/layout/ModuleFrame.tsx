@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Ambulance, Calculator, ClipboardList, Clock3, Info, MapPin, NotebookPen, Package, PanelsTopLeft, Radio } from 'lucide-react'
+import { Ambulance, Calculator, ClipboardList, Clock3, Info, MapPin, NotebookPen, Package, PanelsTopLeft, Radio, SquareX } from 'lucide-react'
+import { HelpTooltip } from '../components/ui/tooltip'
 import { Button } from '../components/ui/button'
 import { MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId } from './layoutTypes'
@@ -9,7 +10,7 @@ import { useViewportInteraction } from './ViewportContext'
 
 const MODULE_ICONS = { board: PanelsTopLeft, elements: Package, dotations: Ambulance, information: Info, operations: Radio, coordinates: MapPin, clock: Clock3, calculator: Calculator, notebook: NotebookPen, timeline: ClipboardList }
 
-export function ModuleFrame({ id, active, onClose, children }: { id: ModuleId; active: boolean; onClose: () => void; children?: ReactNode }) {
+export function ModuleFrame({ id, active, onClose, children, generation = 0 }: { id: ModuleId; active: boolean; onClose: () => void; children?: ReactNode; generation?: number }) {
   const name = MODULE_REGISTRY[id].name
   const Icon = MODULE_ICONS[id]
   const [scale, setScale] = useState(1)
@@ -20,13 +21,13 @@ export function ModuleFrame({ id, active, onClose, children }: { id: ModuleId; a
       <header className="module-header">
         <Icon className="module-icon" aria-hidden="true" />
         <h2>{name}</h2>
+        <HelpTooltip key={generation} text={`Cerrar ${name}`}><Button className="module-close" aria-label={`Cerrar ${name}`} disabled={blocked} onClick={onClose}><SquareX aria-hidden="true" /></Button></HelpTooltip>
       </header>
       <div className="module-content">
-        <div className="module-scaled-content" data-scale={scale} style={{ zoom: scale, width: `${100 / scale}%`, height: `${100 / scale}%`, minWidth: width - 2, minHeight: height - 44 }}>{children}</div>
+        <div className="module-scaled-content" data-scale={scale} style={{ zoom: scale, width: `${100 / scale}%`, height: `${100 / scale}%`, minWidth: width - 2, minHeight: height - 52 }}>{children}</div>
       </div>
       <div className="module-controls">
-        <ZoomControl scale={scale} onChange={value => { if (!blockedRef.current) setScale(value) }} label={`Zoom de ${name}`} disabled={blocked} />
-        <Button className="module-close" aria-label={`Cerrar ${name}`} disabled={blocked} onClick={onClose}>×</Button>
+        <ZoomControl key={generation} scale={scale} onChange={value => { if (!blockedRef.current) setScale(value) }} label={`Zoom de ${name}`} disabled={blocked} side="right" />
       </div>
     </section>
   )

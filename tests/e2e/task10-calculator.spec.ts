@@ -131,7 +131,11 @@ test('tamaño mínimo sin scroll de página, controles accesibles y foco visible
   await module.getByRole('textbox', { name: 'Operación' }).fill('(200+10%)')
   await calculate.focus(); await page.keyboard.press('Enter')
   await expect(module.getByLabel('Resultado', { exact: true })).toHaveText('220')
-  expect(await module.locator('.module-content').evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true)
+  const contentBounds = (await module.locator('.module-content').boundingBox())!
+  const calculateBounds = (await calculate.boundingBox())!
+  expect(calculateBounds.y).toBeGreaterThanOrEqual(contentBounds.y)
+  expect(calculateBounds.y + calculateBounds.height).toBeLessThanOrEqual(contentBounds.y + contentBounds.height + 1)
+  await expect(page.locator('[data-module="calculator"]')).toHaveAttribute('data-height', '280')
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
   await page.screenshot({ path: info.outputPath('calculator-minimum.png') })
   await page.getByRole('button', { name: 'Cerrar Calculadora', exact: true }).focus(); await page.keyboard.press('Enter')

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, act } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDocumentStore } from './documentStore'
 import { FileMenu, DocumentNotices } from './FileMenu'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
@@ -19,6 +19,20 @@ async function setup(fail = false) {
 }
 
 describe('Archivo y modo degradado', () => {
+  afterEach(() => vi.useRealTimers())
+  it('el rechazo de archivo caduca sin reemplazar documento; el fallo de DB permanece', async () => {
+    const { store } = await setup(true)
+    vi.useFakeTimers()
+    const original = store.getSnapshot().document
+    await act(async () => store.loadDocument({ text: async () => '{' }))
+    expect(screen.getAllByRole('alert')).toHaveLength(2)
+    act(() => vi.advanceTimersByTime(5000))
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByRole('alert')).toHaveTextContent('Autoguardado no disponible')
+    expect(store.getSnapshot().document).toBe(original)
+    await act(async () => store.loadDocument({ text: async () => '{' }))
+    expect(screen.getAllByRole('alert')).toHaveLength(2)
+  })
   it('permite Nuevo y Guardar con teclado', async () => {
     const { store, download } = await setup()
     const trigger = screen.getByRole('button', { name: 'Archivo' })

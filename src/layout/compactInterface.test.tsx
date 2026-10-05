@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render as renderView, screen, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { TooltipProvider } from '../components/ui/tooltip'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fit, clamp, zoomAt, resizeViewport } from './viewportMath'
 import { ModuleFrame } from './ModuleFrame'
 import { MODULE_REGISTRY } from './moduleRegistry'
@@ -9,7 +11,10 @@ import { validateDocument } from '../domain/document/validateDocument'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import { ElementEditor } from '../features/elements/ElementEditor'
 
+const render = (view: ReactNode) => renderView(<TooltipProvider>{view}</TooltipProvider>)
+
 describe('interfaz compacta aprobada', () => {
+  afterEach(() => vi.unstubAllGlobals())
   const size = { width: 800, height: 600 }
   it('admite 25–400 %, sin huecos positivos ni recientes al cambiar el área', () => {
     expect(zoomAt(fit(size), 0.5, { x: 0, y: 0 }, size)).toEqual({ scale: 0.5, offsetX: 0, offsetY: 0 })
@@ -38,7 +43,8 @@ describe('interfaz compacta aprobada', () => {
     render(<><ModuleFrame id="elements" active onClose={close}><button>Herramienta</button></ModuleFrame>
       <ModuleFrame id="clock" active={false} onClose={vi.fn()}>Reloj</ModuleFrame></>)
     const elements = screen.getByRole('region', { name: 'Elementos' })
-    expect(elements.querySelector('.module-header')!.querySelectorAll('button,input')).toHaveLength(0)
+    expect(elements.querySelector('.module-header')).toContainElement(within(elements).getByRole('button', { name: 'Cerrar Elementos' }))
+    expect(elements.querySelector('.module-controls')).not.toContainElement(within(elements).getByRole('button', { name: 'Cerrar Elementos' }))
     const zoom = within(elements).getByRole('spinbutton', { name: 'Zoom de Elementos' })
     fireEvent.change(zoom, { target: { value: '50' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
     expect(elements.querySelector('.module-scaled-content')).toHaveAttribute('data-scale', '0.5')
@@ -47,6 +53,32 @@ describe('interfaz compacta aprobada', () => {
     expect(zoom).toHaveValue(50)
     fireEvent.click(within(elements).getByRole('button', { name: 'Cerrar Elementos' }))
     expect(close).toHaveBeenCalledOnce()
+  })
+  it('abre el slider de zoom sincronizado por teclado y conserva el valor al cancelar entrada inválida', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+    render(<ModuleFrame id="elements" active onClose={vi.fn()} />)
+    const zoom = screen.getByRole('spinbutton', { name: 'Zoom de Elementos' })
+    fireEvent.change(zoom, { target: { value: '800' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
+    expect(zoom).toHaveValue(400)
+    fireEvent.change(zoom, { target: { value: '10' } }); fireEvent.keyDown(zoom, { key: 'Escape' })
+    expect(zoom).toHaveValue(400)
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir deslizador: Zoom de Elementos' }))
+    const slider = screen.getByRole('slider', { name: 'Zoom de Elementos' })
+    fireEvent.keyDown(slider, { key: 'Home' })
+    expect(zoom).toHaveValue(25)
+    fireEvent.keyDown(slider, { key: 'End' })
+    expect(zoom).toHaveValue(400)
+  })
+  it('cambiar generación cierra popovers y descarta entrada pendiente sin cambiar el zoom individual', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+    const view = render(<ModuleFrame id="elements" active onClose={vi.fn()} generation={1} />)
+    const input = screen.getByRole('spinbutton', { name: 'Zoom de Elementos' })
+    fireEvent.change(input, { target: { value: '50' } }); fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir deslizador: Zoom de Elementos' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    view.rerender(<TooltipProvider><ModuleFrame id="elements" active onClose={vi.fn()} generation={2} /></TooltipProvider>)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Zoom de Elementos' })).toHaveValue(50)
   })
   it('mantiene los cuatro formatos vacíos e impide copiarlos', () => {
     render(<CoordinatesModule />)

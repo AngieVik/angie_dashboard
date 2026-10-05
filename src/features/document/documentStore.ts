@@ -15,13 +15,14 @@ export interface DocumentSnapshot {
   recoveryPending: boolean
   fileBusy: boolean
   fileMessage: string | null
+  fileMessageRevision: number
   downloadFallback: (() => Promise<SaveOutcome>) | null
 }
 
 export function createDocumentStore(repository: ActiveDocumentRepository, initialContext: FileAccessContext) {
   let state: DocumentSnapshot = {
     document: createEmptyDocument(), documentGeneration: 0, autosaveUnavailable: false, recoveryPending: false,
-    fileBusy: false, fileMessage: null, downloadFallback: null,
+    fileBusy: false, fileMessage: null, fileMessageRevision: 0, downloadFallback: null,
   }
   let revision = 0
   let fileOperation = 0
@@ -32,7 +33,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
   let fileContext = { ...initialContext }
   const listeners = new Set<() => void>()
   function update(patch: Partial<DocumentSnapshot>) {
-    state = { ...state, ...patch }
+    state = { ...state, ...patch, fileMessageRevision: 'fileMessage' in patch ? state.fileMessageRevision + 1 : state.fileMessageRevision }
     listeners.forEach(listener => listener())
   }
   const autosave = createAutosave(repository, available => update({ autosaveUnavailable: !available }))

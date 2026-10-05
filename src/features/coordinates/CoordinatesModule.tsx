@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
 import { parseCoordinate } from './parseCoordinate'
@@ -9,11 +10,11 @@ import { createGoogleMapsLink } from './googleMapsLink'
 import type { FormattedCoordinate } from './coordinateTypes'
 import './coordinates.css'
 
-export function CoordinatesModule() {
+export function CoordinatesModule({ generation = 0 }: { generation?: number } = {}) {
   const id = useId(), revision = useRef(0)
   const { blocked, blockedRef } = useViewportInteraction()
   const [input, setInput] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useValidationNotice(null, generation)
   const [result, setResult] = useState<{ conversions: FormattedCoordinate[]; link: string } | null>(null)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [rowCopyError, setRowCopyError] = useState<string | null>(null)

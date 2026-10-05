@@ -171,6 +171,8 @@ describe('Módulo Reloj', () => {
     audio.play.mockRejectedValueOnce(error)
     act(() => store.start(timer.id)); await advance(1000)
     expect(screen.getByRole('alert')).toHaveTextContent(message)
+    await advance(5001)
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
     expect(row('T-Minus 1').getByRole('button', { name: 'Reconocer alerta' }).closest('.timer-row')).toHaveAttribute('data-alert', 'true')
     if (message === 'Sonido bloqueado') {
       await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Activar sonido' })))

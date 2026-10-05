@@ -14,10 +14,10 @@ import { useViewportInteraction } from './ViewportContext'
 export interface OpenModule { id: ModuleId; layout: ModuleLayout }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
 
-export function DashboardGrid({ modules, bounds, layers, scale, active, onActive, onClose, onLayout, renderModule }: {
+export function DashboardGrid({ modules, bounds, layers, scale, active, onActive, onClose, onLayout, renderModule, generation = 0 }: {
   modules: readonly OpenModule[]; bounds: Size; layers: readonly ModuleId[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void
   onClose: (id: ModuleId) => void; onLayout: (id: ModuleId, layout: ModuleLayout) => void
-  renderModule?: (id: ModuleId) => ReactNode
+  renderModule?: (id: ModuleId) => ReactNode; generation?: number
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const [reset, setReset] = useState(0)
@@ -57,7 +57,7 @@ export function DashboardGrid({ modules, bounds, layers, scale, active, onActive
         <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
           style={{ zIndex: layers.indexOf(id) + 1 }}
           onPointerDown={() => onActive(id)} onFocusCapture={() => onActive(id)}>
-          <ModuleFrame id={id} active={active === id} onClose={() => onClose(id)}>{renderModule?.(id)}</ModuleFrame>
+          <ModuleFrame id={id} generation={generation} active={active === id} onClose={() => onClose(id)}>{renderModule?.(id)}</ModuleFrame>
         </div>
       ))}
     </GridLayout>

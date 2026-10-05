@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { DocumentElement, Position } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
+import { CopyPlus, Trash, Wrench } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
@@ -27,20 +28,20 @@ export function ElementsModule({ store, selectedId, onSelect, placementPosition,
   return <div className="elements-module">
     <div className="elements-configure-actions" role="group" aria-label="Acciones de elementos">
         <Button ref={addControl} disabled={blocked} onClick={() => { if (!blockedRef.current) setEditor('create') }}>Añadir</Button>
-        <Button ref={modifyControl} disabled={blocked || !selected} onClick={() => { if (!blockedRef.current) setEditor('edit') }}>Modificar</Button>
+        <Button ref={modifyControl} disabled={blocked || !selected} onClick={() => { if (!blockedRef.current) setEditor('edit') }}><Wrench aria-hidden="true" />Modificar</Button>
         <Button disabled={blocked || !selected} onClick={() => {
           if (!selected || blockedRef.current) return
           let copyId = ''
           store.mutateDocument(document => { copyId = duplicateElement(document, selected.id).id })
           addControl.current?.focus()
           onSelect(copyId); setEditor(null)
-        }}>Duplicar</Button>
+        }}><CopyPlus aria-hidden="true" />Duplicar</Button>
         <Button disabled={blocked || !selected} onClick={() => {
           if (!selected || blockedRef.current) return
           store.mutateDocument(document => deleteElement(document, selected.id))
           addControl.current?.focus()
           onSelect(null); setEditor(null)
-        }}>Quitar</Button>
+        }}><Trash aria-hidden="true" />Quitar</Button>
     </div>
     {editing ? <ElementEditor key={editor === 'edit' ? selected?.id : 'create'} element={editor === 'edit' ? selected : undefined} isUnit={isUnit}
       onCancel={() => { focusAction(); setEditor(null) }} onSave={input => {

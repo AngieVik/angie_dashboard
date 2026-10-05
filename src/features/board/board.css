@@ -22,7 +22,10 @@
 .quick-note[data-selected="true"] { outline: 2px solid var(--color-accent-red); outline-offset: 1px; }
 .quick-note-text { display: block; width: 100%; flex: 1; min-height: 0; padding: 4px 6px; overflow: auto; border: 0; background: transparent; color: var(--color-text); text-align: left; font-size: 16px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; cursor: grab; touch-action: none; }
 .quick-note-text:disabled { opacity: 1; cursor: inherit; }
-.quick-note-actions { display: flex; justify-content: flex-start; gap: 2px; flex: 0 0 22px; padding: 1px 18px 1px 3px; }
+.quick-note-header { display: flex; flex: 0 0 24px; align-items: center; gap: 4px; padding: 0 3px 0 6px; cursor: grab; touch-action: none; }
+.quick-note-header span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-note-header button { flex: none; width: 21px; height: 21px; padding: 0; border-color: transparent; background: transparent; }
+.quick-note-actions { display: flex; justify-content: flex-start; gap: 2px; flex: 0 0 24px; padding: 1px 26px 1px 3px; }
 .quick-note-resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; border: 0; background: repeating-linear-gradient(135deg, transparent 0 3px, #A7ADB1 3px 4px); cursor: se-resize; touch-action: none; }
 .quick-note-actions .document-button { display: grid; place-items: center; width: 24px; height: 20px; padding: 1px 3px; }
 .board-image-error { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 8px; border: 1px solid var(--color-accent-yellow); background: #17191B; color: var(--color-text); font-size: 13px; overflow-wrap: anywhere; pointer-events: none; }

@@ -9,6 +9,102 @@ async function zoom(page: Page, value: number, label = 'Zoom actual') {
   await expect(field).toHaveValue(String(value))
 }
 
+test('keeps_zoom_popover_visible_at_scaled_edge y restaura foco al cerrar', async ({ page }, info) => {
+  await page.goto('/')
+  const fixture = createEmptyDocument('Controles')
+  fixture.moduleLayouts.information = { x: 0, y: 0, width: 140, height: 140, referenceSize: { width: 1440, height: 864 } }
+  await loadDocument(page, fixture); await openModule(page, 'Información')
+  for (const value of [25, 50, 100, 200, 400]) {
+    await zoom(page, value)
+    for (const label of ['Zoom actual', 'Zoom de Información']) {
+      const trigger = page.getByRole('button', { name: `Abrir deslizador: ${label}`, exact: true })
+      await trigger.click()
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+      const popup = page.getByRole('dialog', { name: label, exact: true })
+      await expect(popup).toBeVisible()
+      const box = (await popup.boundingBox())!, viewport = page.viewportSize()!
+      expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
+      expect(await popup.evaluate(el => Number(getComputedStyle(el).zoom))).toBe(1)
+      await page.screenshot({ path: info.outputPath(`${label === 'Zoom actual' ? 'general' : 'modulo'}-${value}.png`) })
+      await page.getByRole('slider', { name: label, exact: true }).press('Escape')
+      await expect(popup).toHaveCount(0); await expect(trigger).toBeFocused()
+    }
+  }
+  await zoom(page, 100)
+  const label = 'Zoom de Información', trigger = page.getByRole('button', { name: `Abrir deslizador: ${label}`, exact: true })
+  await trigger.click()
+  const slider = page.getByRole('slider', { name: label, exact: true })
+  await slider.press('End'); await expect(page.getByRole('spinbutton', { name: label, exact: true })).toHaveValue('400')
+  await slider.press('Home'); await expect(page.getByRole('spinbutton', { name: label, exact: true })).toHaveValue('25')
+  const track = await page.locator('.ui-slider-track').boundingBox()
+  await page.mouse.click(track!.x + track!.width / 2, track!.y + track!.height / 2)
+  await expect.poll(() => page.getByRole('spinbutton', { name: label, exact: true }).inputValue()).not.toBe('25')
+  await trigger.click(); await expect(page.getByRole('dialog', { name: label, exact: true })).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  await trigger.click(); await page.getByRole('heading', { name: 'Información', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: label, exact: true })).toHaveCount(0); await expect(trigger).toBeFocused()
+  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts).toEqual(fixture.moduleLayouts)
+  await noPageScroll(page)
+})
+
+test('título no se autoextiende y el aviso expira sin validar coordenadas', async ({ page }) => {
+  await page.goto('/')
+  const title = page.getByRole('textbox', { name: 'Título del documento', exact: true })
+  const initialWidth = (await title.boundingBox())!.width
+  await title.fill('Título muy largo '.repeat(30))
+  expect((await title.boundingBox())!.width).toBe(initialWidth)
+  await openModule(page, 'Coordenadas')
+  await page.clock.install({ time: new Date('2026-10-05T10:00:00Z') })
+  await page.clock.pauseAt(new Date('2026-10-05T10:00:01Z'))
+  const input = page.getByRole('textbox', { name: 'Coordenadas', exact: true })
+  await input.fill('30I 588700 4101800'); await page.getByRole('button', { name: 'Convertir', exact: true }).click()
+  await page.clock.fastForward(4999); await expect(input).toHaveAttribute('aria-invalid', 'true')
+  await page.getByRole('button', { name: 'Convertir', exact: true }).click()
+  await page.clock.fastForward(4999); await expect(input).toHaveAttribute('aria-invalid', 'true')
+  await page.clock.fastForward(1); await expect(input).toHaveAttribute('aria-invalid', 'false')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(input).toHaveValue('30I 588700 4101800')
+  await expect(page.getByRole('button', { name: 'Copiar enlace', exact: true })).toBeDisabled()
+  await expect(page.getByLabel('Resultado DD', { exact: true })).toBeEmpty()
+})
+
+test('consulta táctil no cierra el módulo; tap corto cierra sin moverlo', async ({ page, context, isMobile }) => {
+  test.skip(!isMobile, 'consulta mediante touch en móvil emulado')
+  await page.goto('/'); await openModule(page, 'Información')
+  const node = page.locator('[data-module="information"]'), close = page.getByRole('button', { name: 'Cerrar Información', exact: true })
+  const before = await savedDocument(page), rect = (await close.boundingBox())!
+  const cdp = await context.newCDPSession(page)
+  await page.clock.install()
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, id: 1 }] })
+  await page.clock.fastForward(501)
+  await expect(page.getByRole('tooltip')).toHaveText('Cerrar Información')
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect(node).toBeVisible()
+  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts).toEqual(before!.moduleLayouts)
+  await page.getByRole('heading', { name: 'Información', exact: true }).click()
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  await close.tap(); await expect(node).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Ver', exact: true })).toBeFocused()
+  await cdp.detach()
+})
+
+test('segundo dedo cancela el popover y bloquea el control sin cambiar geometría', async ({ page, context, isMobile }) => {
+  test.skip(!isMobile, 'gesto de dos dedos en móvil emulado')
+  await page.goto('/'); await openModule(page, 'Información')
+  const trigger = page.getByRole('button', { name: 'Abrir deslizador: Zoom de Información', exact: true })
+  await trigger.click(); await expect(page.getByRole('dialog', { name: 'Zoom de Información', exact: true })).toBeVisible()
+  const before = await savedDocument(page), cdp = await context.newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 100, y: 500, id: 1 }, { x: 180, y: 500, id: 2 }] })
+  await expect(trigger).toBeDisabled()
+  await expect(page.getByRole('dialog', { name: 'Zoom de Información', exact: true })).toHaveCount(0)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect(trigger).toBeEnabled()
+  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts).toEqual(before!.moduleLayouts)
+  await cdp.detach()
+})
+
 test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documento', async ({ page }, info) => {
   await page.goto('/')
   const fixture = createEmptyDocument('')
@@ -36,13 +132,14 @@ test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documen
   await page.screenshot({ path: info.outputPath('header.png') })
 })
 
-test('los nueve módulos escalan herramientas y contenido sin escalar sus marcos', async ({ page }, info) => {
+test('los diez módulos escalan herramientas y contenido sin escalar sus marcos', async ({ page }, info) => {
   await page.goto('/')
-  for (const name of ['Pizarra', 'Elementos', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']) {
+  for (const name of ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']) {
     await openModule(page, name)
-    const module = page.getByRole('region', { name, exact: true })
+    const module = page.locator('.module-frame').filter({ has: page.getByRole('heading', { name, exact: true }) })
     const frame = await module.boundingBox()
-    await expect(module.locator('.module-header button, .module-header input')).toHaveCount(0)
+    await expect(module.locator('.module-header').getByRole('button', { name: `Cerrar ${name}`, exact: true })).toBeVisible()
+    await expect(module.locator('.module-controls button.module-close')).toHaveCount(0)
     const content = module.locator('.module-scaled-content')
     for (const value of [50, 200, 100]) {
       await zoom(page, value, `Zoom de ${name}`)

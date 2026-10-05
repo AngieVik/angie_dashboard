@@ -9,7 +9,7 @@ import { createElement } from '../elements/elementCommands'
 
 // jsdom has no canvas renderer; actual Konva pixels are covered by browser tests.
 vi.mock('react-konva', () => ({ Stage: () => null, Layer: () => null, Rect: () => null, Image: () => null, Line: () => null, Circle: () => null, Group: () => null }))
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
 async function setup() {
   const measurements: { node: HTMLElement; callback: () => void }[] = []
@@ -49,6 +49,35 @@ async function setup() {
 }
 
 describe('módulo Pizarra', () => {
+  it('cerrar durante la decodificación descarta su aviso tardío y conserva el fondo anterior', async () => {
+    let reject!: (error: Error) => void
+    vi.stubGlobal('createImageBitmap', vi.fn(() => new Promise<ImageBitmap>((_resolve, fail) => { reject = fail })))
+    const { store, view, Harness } = await setup()
+    const before = structuredClone(store.getSnapshot().document)
+    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    view.rerender(<Harness visible={false} />)
+    await act(async () => reject(new Error('Imagen ilegible')))
+    view.rerender(<Harness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(store.getSnapshot().document).toEqual(before)
+  })
+  it('un aviso de imagen caducado o cerrado no reaparece al abrir Pizarra', async () => {
+    const { view, Harness } = await setup()
+    vi.useFakeTimers()
+    const fail = async () => {
+      await act(async () => fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['x'], 'archivo.txt', { type: 'text/plain' })] } }))
+    }
+    await fail()
+    expect(screen.getByRole('alert')).toBeVisible()
+    act(() => vi.advanceTimersByTime(5000))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await fail()
+    expect(screen.getByRole('alert')).toBeVisible()
+    view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
   it('ocultar un pin lejano no desplaza la cámara ni el centro de creación al abrir o redimensionar', async () => {
     const { store, view, Harness, resize, onViewChange } = await setup()
     act(() => store.mutateDocument(document => {

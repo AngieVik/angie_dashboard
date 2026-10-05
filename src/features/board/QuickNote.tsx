@@ -7,7 +7,7 @@ import { clampBoardPosition } from './boardReducer'
 import { boardDelta } from './boardViewport'
 import type { BoardViewportState } from './boardViewport'
 import { useViewportInteraction } from '../../layout/ViewportContext'
-import { Pencil, Trash2 } from 'lucide-react'
+import { PenLine, SquareX } from 'lucide-react'
 
 export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, onResize, onEdit, onDelete, view = { scale: 1, offsetX: 0, offsetY: 0 }, viewportSize }: {
   note: Note; selected: boolean; enabled: boolean; surface: RefObject<HTMLDivElement | null>
@@ -26,7 +26,7 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
     if (blocked || !enabled) cancel()
   }, [blocked, enabled, cancel])
   useEffect(() => () => clearTimeout(timer.current), [])
-  function start(event: PointerEvent<HTMLButtonElement>, kind: 'move' | 'resize') {
+  function start(event: PointerEvent<HTMLElement>, kind: 'move' | 'resize') {
     if (!enabled || blockedRef.current || event.button !== 0) return
     event.stopPropagation(); event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId)
     suppressClick.current = false
@@ -34,7 +34,7 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
     clearTimeout(timer.current)
     if (kind === 'move') timer.current = setTimeout(() => { if (drag.current && !blockedRef.current) drag.current.ready = true }, 250)
   }
-  function move(event: PointerEvent<HTMLButtonElement>) {
+  function move(event: PointerEvent<HTMLElement>) {
     const current = drag.current, rect = surface.current?.getBoundingClientRect()
     if (!current || current.pointerId !== event.pointerId || !current.ready || blockedRef.current || !rect?.width) return
     event.stopPropagation()
@@ -44,7 +44,7 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
       : { position: note.position, size: { width: Math.max(120, note.width + 2 * delta.x), height: Math.max(64, note.height + 2 * delta.y) } }
     setPreview(current.next)
   }
-  function finish(event: PointerEvent<HTMLButtonElement>) {
+  function finish(event: PointerEvent<HTMLElement>) {
     const current = drag.current
     if (!current || current.pointerId !== event.pointerId) return
     event.stopPropagation()
@@ -57,12 +57,15 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
   const position = preview?.position ?? note.position, size = preview?.size ?? note
   return <div className="quick-note" data-note-id={note.id} data-selected={selected}
     style={{ left: position.x, top: position.y, width: size.width, height: size.height, pointerEvents: enabled && !blocked ? 'auto' : 'none' }}>
+    <div className="quick-note-header" onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}>
+      <span>{note.title}</span>
+      <Button disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onPointerDown={event => event.stopPropagation()} onClick={onDelete}><SquareX aria-hidden="true" /></Button>
+    </div>
     <button type="button" className="quick-note-text" title={note.text} disabled={!enabled || blocked}
       onClick={() => { if (!blockedRef.current && !suppressClick.current) onSelect(); suppressClick.current = false }} aria-label={note.text || 'Nota rápida vacía'}
       onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}>{note.text || '\u00a0'}</button>
     <div className="quick-note-actions" style={{ visibility: selected && enabled ? 'visible' : 'hidden' }} onPointerDown={event => event.stopPropagation()}>
-      <Button disabled={!enabled || blocked} aria-label="Editar nota" title="Editar nota" onClick={onEdit}><Pencil size={14} aria-hidden="true" /></Button>
-      <Button disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onClick={onDelete}><Trash2 size={14} aria-hidden="true" /></Button>
+      <Button disabled={!enabled || blocked} aria-label="Editar nota" title="Editar nota" onClick={onEdit}><PenLine size={14} aria-hidden="true" /></Button>
     </div>
     {selected && enabled && <button type="button" className="quick-note-resize" aria-label="Redimensionar nota rápida" disabled={blocked}
       onPointerDown={event => start(event, 'resize')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel} />}

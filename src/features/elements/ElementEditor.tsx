@@ -5,6 +5,8 @@ import { getPinBox, ICON_CATALOG } from './iconCatalog'
 import { clampAssetScale } from './elementCommands'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { useValidationNotice } from '../../components/ui/useValidationNotice'
+import { Check } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 
@@ -24,20 +26,21 @@ export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
   // A direct pin resize replaces only the scale; other draft fields stay intact.
   if (draftScale.source !== savedScale) setDraftScale({ source: savedScale, value: savedScale })
   const scale = draftScale.source === savedScale ? draftScale.value : savedScale
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useValidationNotice()
+  const [errorField, setErrorField] = useState<'name' | 'emoji' | null>(null)
   const visual: ElementVisual = representation === 'asset' ? { type: 'asset', assetId, scale } : { type: 'emoji', value: emoji, scale }
   const box = getPinBox(visual)
   return <form className="element-editor" aria-label={element ? 'Modificar elemento' : 'Añadir elemento'} onSubmit={event => {
     event.preventDefault()
     if (blockedRef.current) return
-    if (!name.trim()) { setError('El nombre no puede estar vacío.'); return }
-    if (representation === 'emoji' && !emoji.length) { setError('Escribe o pega un emoji.'); return }
+    if (!name.trim()) { setErrorField('name'); setError('El nombre no puede estar vacío.'); return }
+    if (representation === 'emoji' && !emoji.length) { setErrorField('emoji'); setError('Escribe o pega un emoji.'); return }
     onSave({ name, information, visual, isUnit: element?.isUnit ?? isUnit })
   }}>
     <fieldset disabled={blocked}>
       <div className="element-name-row"><label htmlFor={nameId}>Nombre</label>
       <p className="element-type">Tipo: {(element?.isUnit ?? isUnit) ? 'Dotación' : 'General'}</p></div>
-      <Input id={nameId} aria-label="Nombre" autoFocus value={name} onChange={event => setName(event.target.value)} />
+      <Input id={nameId} aria-label="Nombre" aria-invalid={Boolean(error && errorField === 'name')} aria-describedby={error && errorField === 'name' ? `${nameId}-error` : undefined} autoFocus value={name} onChange={event => setName(event.target.value)} />
       <label>Representación<select aria-label="Representación" value={representation} onChange={event => setRepresentation(event.target.value as 'asset' | 'emoji')}>
         <option value="asset">Icono PNG</option><option value="emoji">Emoji</option>
       </select></label>
@@ -45,7 +48,7 @@ export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
         <label>Icono<select aria-label="Icono" value={assetId} onChange={event => setAssetId(event.target.value as AssetId)}>
           {Object.values(ICON_CATALOG).map(icon => <option key={icon.id} value={icon.id}>{icon.name}</option>)}
         </select></label>
-      </> : <label>Emoji<Input aria-label="Emoji" value={emoji} onChange={event => setEmoji(event.target.value)} placeholder="Escribe o pega cualquier emoji" /></label>}
+      </> : <label>Emoji<Input aria-label="Emoji" aria-invalid={Boolean(error && errorField === 'emoji')} aria-describedby={error && errorField === 'emoji' ? `${nameId}-error` : undefined} value={emoji} onChange={event => setEmoji(event.target.value)} placeholder="Escribe o pega cualquier emoji" /></label>}
       <div className="element-preview" role="img" aria-label="Previsualización del elemento">
         <div className="element-preview-scene" style={{ width: box.width + 12, height: box.height + 12 }}>
           <div className="element-preview-pin" style={{ width: box.width, height: box.height }}>
@@ -58,8 +61,8 @@ export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
       <label className="element-scale-control">Escala<input aria-label="Escala del icono" type="range" min="0.25" max="3" step="0.01" value={scale}
         onChange={event => setDraftScale({ source: savedScale, value: clampAssetScale(Number(event.target.value)) })} /><output className="technical-data" aria-label="Escala actual">{Math.round(scale * 100)} %</output></label>
       <label className="element-information">Información<textarea ref={informationRef} rows={1} aria-label="Información" value={information} onChange={event => setInformation(event.target.value)} /></label>
-      {error && <p role="alert">{error}</p>}
-      <div className="element-editor-actions"><Button type="submit">{element ? 'Guardar elemento' : 'Crear elemento'}</Button><Button onClick={onCancel}>Cancelar</Button></div>
+      {error && <p id={`${nameId}-error`} role="alert">{error}</p>}
+      <div className="element-editor-actions"><Button type="submit"><Check aria-hidden="true" />{element ? 'Guardar elemento' : 'Crear elemento'}</Button><Button onClick={onCancel}>Cancelar</Button></div>
     </fieldset>
   </form>
 }

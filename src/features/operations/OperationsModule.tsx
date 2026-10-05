@@ -6,6 +6,7 @@ import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import { changeElementStatus } from '../../domain/operations/changeStatus'
 import { setUnitNotes } from '../../domain/operations/unitAnnotations'
 import { Button } from '../../components/ui/button'
+import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { UnitTags } from './UnitTags'
 import './operations.css'
@@ -14,7 +15,7 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const [expanded, setExpanded] = useState<OperationalStatus | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useValidationNotice()
   const selectionFocusPending = useRef(false)
   const selectedStateControl = useRef<HTMLButtonElement>(null)
   const selected = document.elements.find(element => element.id === selectedId)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Button } from '../components/ui/button'
 import { Puzzle } from 'lucide-react'
 import { ZoomControl } from '../layout/ZoomControl'
+import { TooltipProvider } from '../components/ui/tooltip'
 import { Input } from '../components/ui/input'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
@@ -120,7 +121,7 @@ export function App() {
     activate(id)
   }
   return (
-    <div className="app-shell">
+    <TooltipProvider delayDuration={500}><div className="app-shell">
       <header className="app-header" style={{ zoom: viewport.state.scale }}>
         <h1><img className="app-logo" src="/assets/elements/icon_chincheta.png" alt="Angie Dashboard" /></h1>
         <FileMenu store={store} />
@@ -128,13 +129,13 @@ export function App() {
         <Input aria-label="Título del documento" placeholder="Título"
           value={document.document.title} onChange={event => store.setTitle(event.target.value)} />
         <Button className="fit-button" aria-label="Encajar" title="Encajar" onClick={() => setViewport(previous => ({ ...previous, state: fit(previous.size, bounds) }))}><Puzzle size={19} aria-hidden="true" /></Button>
-        <ZoomControl label="Zoom actual" scale={viewport.state.scale} onChange={scale => setViewport(previous => ({ ...previous,
+        <ZoomControl key={documentGeneration} label="Zoom actual" scale={viewport.state.scale} onChange={scale => setViewport(previous => ({ ...previous,
           state: zoomAt(previous.state, scale, { x: 0, y: 0 }, previous.size, sceneBounds) }))} />
       </header>
       <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo">
         <DocumentNotices store={store} />
-        <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={34} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid modules={open} bounds={sceneBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout}
+        <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
+          <DashboardGrid generation={documentGeneration} modules={open} bounds={sceneBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout}
             renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
@@ -145,11 +146,11 @@ export function App() {
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
-              id === 'coordinates' ? <CoordinatesModule /> :
+              id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} /> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
-              id === 'calculator' ? <CalculatorModule /> : null} />
+              id === 'calculator' ? <CalculatorModule generation={documentGeneration} /> : null} />
         </MobileViewport>
       </main>
-    </div>
+    </div></TooltipProvider>
   )
 }

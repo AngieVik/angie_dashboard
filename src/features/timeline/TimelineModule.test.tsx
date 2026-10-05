@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createDocumentStore } from '../document/documentStore'
 import { createElement } from '../elements/elementCommands'
 import { changeElementStatus } from '../../domain/operations/changeStatus'
@@ -13,6 +13,15 @@ async function setup() {
   return store
 }
 describe('Interfaz del registro', () => {
+  it('asocia el rechazo de una entrada al campo sin guardar el borrador', async () => {
+    const store = await setup()
+    vi.spyOn(store, 'mutateDocument').mockImplementation(() => { throw new Error('Entrada rechazada.') })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Acontecimiento' }), { target: { value: 'Acceso norte' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir entrada' }))
+    expect(screen.getByRole('textbox', { name: 'Acontecimiento' })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('textbox', { name: 'Acontecimiento' })).toHaveAccessibleDescription(screen.getByRole('alert').textContent!)
+    expect(store.getSnapshot().document.timeline).toHaveLength(0)
+  })
   it('revisa una actuación futura con hora real y comunica rechazo atómico si el reloj precede a la última revisión', async () => {
     const store = await setup()
     act(() => store.mutateDocument(document => {

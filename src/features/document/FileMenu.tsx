@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Button } from '../../components/ui/button'
 import { Alert } from '../../components/ui/alert'
+import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
@@ -36,7 +37,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
 }
 
 export function DocumentNotices({ store = getDocumentStore() }: { store?: DocumentStore }) {
-  const { autosaveUnavailable, recoveryPending, fileBusy, fileMessage, downloadFallback } = useDocumentStore(store)
+  const { autosaveUnavailable, recoveryPending, fileBusy, fileMessage, fileMessageRevision, downloadFallback } = useDocumentStore(store)
   return (
     <>
       {(autosaveUnavailable || fileMessage) && (
@@ -48,12 +49,12 @@ export function DocumentNotices({ store = getDocumentStore() }: { store?: Docume
               <Button disabled={fileBusy} onClick={() => { void store.downloadJson() }}>Guardar JSON</Button>
             </Alert>
           )}
-          {fileMessage && (
+          {fileMessage && (downloadFallback ? (
             <Alert>
               <span>{fileMessage}</span>
-              {downloadFallback && <Button disabled={fileBusy} onClick={() => { void store.acceptDownloadFallback() }}>Descargar JSON</Button>}
+              <Button disabled={fileBusy} onClick={() => { void store.acceptDownloadFallback() }}>Descargar JSON</Button>
             </Alert>
-          )}
+          ) : <FileValidationNotice key={fileMessageRevision} message={fileMessage} />)}
         </div>
       )}
       <AlertDialog open={recoveryPending}>
@@ -70,4 +71,9 @@ export function DocumentNotices({ store = getDocumentStore() }: { store?: Docume
       </AlertDialog>
     </>
   )
+}
+
+function FileValidationNotice({ message }: { message: string }) {
+  const [notice] = useValidationNotice(message)
+  return notice ? <Alert><span>{notice}</span></Alert> : null
 }
