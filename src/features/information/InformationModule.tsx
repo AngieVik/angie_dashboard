@@ -3,6 +3,8 @@ import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import { Button } from '../../components/ui/button'
+import { Badge } from '../../components/ui/badge'
+import { Separator } from '../../components/ui/separator'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import './information.css'
 
@@ -17,9 +19,10 @@ export function InformationModule({ store, selectedId, onSelect }: { store: Docu
     {selected ? <>
       <div className="information-text">{selected.information}</div>
       {selected.isUnit && <>
-        <p className="information-status" aria-label="Estado operativo">{status ? <><span aria-hidden="true">{status.icon}</span> {status.status}</> : 'Sin estado'}</p>
+        <Separator />
+        <Badge variant="outline" className="information-status" aria-label="Estado operativo">{status ? <><span aria-hidden="true">{status.icon}</span> {status.status}</> : 'Sin estado'}</Badge>
         {status && <p className="information-phase">Fase: <span>{status.phase}</span></p>}
-        <div className="information-tags" aria-label="Etiquetas">{selected.operational.tags.map(tag => <span key={tag} className="unit-tag">{tag}</span>)}</div>
+        <div className="information-tags" aria-label="Etiquetas">{selected.operational.tags.map(tag => <Badge key={tag} className="unit-tag">{tag}</Badge>)}</div>
       </>}
     </> : units.length ? <div className="information-units">{units.map(unit => <Button key={unit.id} aria-label={`Seleccionar ${unit.name}`} disabled={blocked}
       onClick={() => {

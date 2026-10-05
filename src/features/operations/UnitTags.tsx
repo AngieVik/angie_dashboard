@@ -4,6 +4,7 @@ import { addUnitTag, editUnitTag, removeUnitTag } from '../../domain/operations/
 import type { AngieDocument } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { Badge } from '../../components/ui/badge'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 
 export function UnitTags({ store, unitId, tags }: { store: DocumentStore; unitId: string; tags: string[] }) {
@@ -28,10 +29,10 @@ export function UnitTags({ store, unitId, tags }: { store: DocumentStore; unitId
           onKeyDown={event => { if (event.key === 'Escape') { finishEditing(); setError(null) } }} />
         <Button type="submit" aria-label="Guardar etiqueta" disabled={blocked}>✓</Button>
         <Button aria-label="Cancelar edición de etiqueta" disabled={blocked} onClick={() => { finishEditing(); setError(null) }}>×</Button>
-      </form> : <span className="unit-tag" key={index}>
+      </form> : <span className="unit-tag-actions" key={index}>
         <Button aria-label={`Editar etiqueta ${tag}`} disabled={blocked} onClick={() => {
           if (!blockedRef.current) { setEditing({ index, text: tag }); setError(null) }
-        }}>{tag}</Button>
+        }}><Badge>{tag}</Badge></Button>
         <Button aria-label={`Eliminar etiqueta ${tag}`} disabled={blocked} onClick={() => mutate(document => removeUnitTag(document, unitId, index), finishEditing)}>×</Button>
       </span>)}
     </div>

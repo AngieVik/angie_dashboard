@@ -1,19 +1,24 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { Ambulance, Calculator, ClipboardList, Clock3, Info, MapPin, NotebookPen, Package, PanelsTopLeft, Radio } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId } from './layoutTypes'
 import { ZoomControl } from './ZoomControl'
 import { useViewportInteraction } from './ViewportContext'
 
+const MODULE_ICONS = { board: PanelsTopLeft, elements: Package, dotations: Ambulance, information: Info, operations: Radio, coordinates: MapPin, clock: Clock3, calculator: Calculator, notebook: NotebookPen, timeline: ClipboardList }
+
 export function ModuleFrame({ id, active, onClose, children }: { id: ModuleId; active: boolean; onClose: () => void; children?: ReactNode }) {
   const name = MODULE_REGISTRY[id].name
+  const Icon = MODULE_ICONS[id]
   const [scale, setScale] = useState(1)
   const { blocked, blockedRef } = useViewportInteraction()
   const [width, height] = MODULE_REGISTRY[id].contentMinimum
   return (
     <section className="module-frame" data-active={active} role="region" aria-label={name}>
       <header className="module-header">
+        <Icon className="module-icon" aria-hidden="true" />
         <h2>{name}</h2>
       </header>
       <div className="module-content">

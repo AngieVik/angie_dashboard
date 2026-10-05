@@ -2,7 +2,7 @@
 .operations-unit-name { margin: 0 0 6px; font-size: 14px; font-weight: 650; }
 .operations-states { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .operations-states .document-button { padding: 4px; text-align: left; font-size: 13px; }
-.operations-states .document-button[aria-pressed="true"] { border-color: var(--color-text); box-shadow: inset 3px 0 var(--color-text), 0 0 4px rgb(242 242 240 / 14%); background: linear-gradient(180deg, #41484D, #262C30); }
+.operations-states .document-button[aria-pressed="true"] { border-color: var(--color-active-border); box-shadow: inset 2px 0 var(--color-accent-red); background: var(--color-selected); }
 .operations-notes { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; color: var(--color-text-secondary); font-size: 13px; }
 .operations-notes textarea { width: 100%; min-height: 50px; resize: vertical; padding: 5px; border: 1px solid var(--color-border); border-radius: 2px; background: #1C1F21; color: var(--color-text); }
 .operations-counters { display: flex; flex-direction: column; gap: 4px; }
@@ -12,8 +12,10 @@
 .operations-matching .document-button { padding: 3px 6px; text-align: left; font-size: 13px; }
 .operations-tags { margin-top: 7px; }
 .operations-tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-.operations-tag-list .unit-tag { padding: 0; }
-.operations-tag-list .unit-tag .document-button { min-width: 0; border: 0; background: transparent; box-shadow: none; padding: 2px 5px; font-size: 12px; overflow-wrap: anywhere; }
+.unit-tag-actions { display: inline-flex; align-items: center; max-width: 100%; }
+.unit-tag-actions .document-button { min-width: 0; border: 0; background: transparent; box-shadow: none; padding: 2px 5px; font-size: 12px; overflow-wrap: anywhere; }
+.unit-tag-actions .document-button:first-child { padding: 0; }
+.unit-tag-actions .ui-badge { font-size: inherit; }
 .unit-tag-add, .unit-tag-editor { display: flex; gap: 4px; min-width: 0; max-width: 100%; }
 .unit-tag-add .document-title, .unit-tag-editor .document-title { width: 0; height: 26px; font-size: 13px; }
 .unit-tag-add .document-button, .unit-tag-editor .document-button { padding: 3px 6px; font-size: 12px; }

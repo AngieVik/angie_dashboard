@@ -8,7 +8,7 @@
 .element-rows .document-button > img { width: 34px; height: 26px; object-fit: contain; }
 .element-rows .document-button > span:first-child { width: 34px; font-size: 23px; text-align: center; }
 .element-rows .document-button > span:last-child { overflow-wrap: anywhere; }
-.element-rows .document-button[aria-pressed="true"] { border-color: var(--color-accent-red); background: linear-gradient(180deg, #442C2E, #241B1D); box-shadow: inset 3px 0 var(--color-accent-red); }
+.element-rows .document-button[aria-pressed="true"] { border-color: var(--color-active-border); background: var(--color-selected); box-shadow: inset 2px 0 var(--color-accent-red); }
 .element-state-filter { position: relative; display: flex; justify-content: space-between; gap: 2px; margin: 8px 0 12px; padding: 5px 0; border-block: 1px solid #3A3F43; }
 .element-state-filter .document-button { flex: 1; min-width: 0; padding: 3px 0; font-size: 15px; border-radius: 2px; }
 .element-state-filter .document-button[aria-pressed="false"] { opacity: .4; filter: grayscale(1); }
