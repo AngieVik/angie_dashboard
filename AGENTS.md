@@ -16,7 +16,7 @@ La petición actual del usuario define el alcance; nuevas instrucciones explíci
 
 ## Alcance
 
-- Ejecuta únicamente la fase o entrega solicitada del plan autorizado. El producto actual utiliza JSON 2 y reconoce V1; JSON 3 y los cambios de módulos pertenecen a entregas posteriores, con el contrato definitivo pendiente de fase 1.
+- Ejecuta únicamente la fase o entrega solicitada del plan autorizado. El producto actual utiliza JSON 2 y reconoce V1; JSON 3 y los cambios de módulos pertenecen a entregas posteriores. La fase 1 entrega [especificación](docs/superpowers/specs/2026-10-05-revision-dashboard-design.md) y [plan de ejecución](docs/superpowers/plans/2026-10-05-revision-dashboard.md) para revisión del contrato pendiente; no tratarlos como contrato aprobado ni implementar fase 2 antes de su revisión.
 - No añadas funciones, módulos, integraciones ni comportamientos fuera del esquema y las sustituciones expresamente aprobadas en este plan. Propón las mejoras ajenas y espera autorización antes de incorporarlas.
 - La petición de ejecutar una entrega autoriza su trabajo y las verificaciones que le correspondan, sin solicitar una segunda aprobación idéntica. Consulta solo decisiones indispensables pendientes y acciones que requieran autorización adicional expresa.
 - No introduzcas datos clínicos ni datos de pacientes en ejemplos, pruebas o datos iniciales.
