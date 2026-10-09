@@ -127,8 +127,8 @@ test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documen
   const input = page.getByRole('spinbutton', { name: 'Zoom actual', exact: true })
   await input.fill(''); await input.press('Tab'); await expect(input).toHaveValue('50')
   await page.getByRole('button', { name: 'Encajar', exact: true }).click()
-  await expect(input).toHaveValue('100')
-  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts).toEqual(fixture.moduleLayouts)
+  await expect(input).toHaveValue('50')
+  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts.information).toMatchObject({ x: 12, y: 12, width: 320, height: 240 })
   await page.screenshot({ path: info.outputPath('header.png') })
 })
 
@@ -218,8 +218,9 @@ test('el área navegable conserva módulos situados abajo al volver del 50 al 10
     await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 100, y: 100, id: 1 }, { x: 140, y: 100, id: 2 }] })
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await expect.poll(async () => Number(await page.getByTestId('mobile-viewport').getAttribute('data-offset-y'))).toBeLessThan(-100)
+    const offset = await page.getByTestId('mobile-viewport').getAttribute('data-offset-y')
     await page.setViewportSize({ width: 412, height: 500 })
-    await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-offset-y', '0')
+    await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-offset-y', offset!)
     await session.detach()
   }
 })

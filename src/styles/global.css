@@ -348,3 +348,7 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .document-button { transition: none; }
 }
+
+/* Puzzle is an explicit placement action. */
+.app-header .fit-button { background: transparent; border-color: transparent; box-shadow: none; }
+.app-header .fit-button:hover, .app-header .fit-button:active { background: transparent; box-shadow: none; }

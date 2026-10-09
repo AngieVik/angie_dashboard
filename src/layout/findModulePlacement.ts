@@ -10,7 +10,7 @@ export function findModulePlacement(request: PlacementRequest, occupied: readonl
   const definition = MODULE_REGISTRY[request.id]
   const minimum = { width: definition.minimum[0], height: definition.minimum[1] }
   if (request.saved) return { layout: adaptModuleLayout(request.saved, bounds, minimum) }
-  const initial = adaptModuleLayout({ x: 0, y: 0, width: definition.initial[0], height: definition.initial[1], referenceSize: bounds }, bounds, minimum)
+  const initial = { x: 0, y: 0, width: Math.max(minimum.width, Math.min(definition.initial[0], bounds.width)), height: Math.max(minimum.height, Math.min(definition.initial[1], bounds.height)), referenceSize: { ...bounds } }
   const { width, height, referenceSize } = initial
   bounds = referenceSize
   const origin = { x: 0, y: 0 }

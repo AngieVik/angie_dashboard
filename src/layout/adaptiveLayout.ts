@@ -9,7 +9,7 @@ export function getWorkspaceBounds(available: Size, modules: readonly ModuleId[]
 }
 
 export function adaptModuleLayout(saved: ModuleLayout, available: Size, minimum: Size): ModuleLayout {
-  const bounds = { width: Math.max(available.width, minimum.width), height: Math.max(available.height, minimum.height) }
+  const bounds = { width: Math.max(available.width, minimum.width, saved.x + saved.width), height: Math.max(available.height, minimum.height, saved.y + saved.height) }
   const width = Math.min(bounds.width, Math.max(minimum.width, saved.width))
   const height = Math.min(bounds.height, Math.max(minimum.height, saved.height))
   const anchor = (position: number, reference: number, original: number, extent: number, displayed: number) => {

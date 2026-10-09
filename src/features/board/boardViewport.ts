@@ -24,13 +24,13 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
 
 export function getBoardBounds(size: Size, board: Board, elements: DocumentElement[], hasImage = false): BoardBounds {
   const content = contentBounds(board, elements)
-  return { left: Math.min(0, content?.left ?? 0), top: Math.min(0, content?.top ?? 0),
+  return { left: 0, top: 0,
     right: Math.max(size.width, content?.right ?? 0, hasImage ? 1000 : 0), bottom: Math.max(size.height, content?.bottom ?? 0, hasImage ? 1000 : 0) }
 }
 export function initialBoardView(size: Size, board: Board, elements: DocumentElement[]): BoardViewportState {
   const bounds = contentBounds(board, elements)
-  return { scale: 1, offsetX: bounds ? size.width / 2 - (bounds.left + bounds.right) / 2 : 0,
-    offsetY: bounds ? size.height / 2 - (bounds.top + bounds.bottom) / 2 : 0 }
+  return { scale: 1, offsetX: bounds ? Math.min(0, size.width / 2 - (bounds.left + bounds.right) / 2) : 0,
+    offsetY: bounds ? Math.min(0, size.height / 2 - (bounds.top + bounds.bottom) / 2) : 0 }
 }
 export function toBoardPosition(point: Position, rect: { left: number; top: number; width: number; height: number }, view: BoardViewportState, size: Size): Position | null {
   if (rect.width <= 0 || rect.height <= 0 || size.width <= 0 || size.height <= 0 || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null
@@ -41,11 +41,11 @@ export function toBoardPosition(point: Position, rect: { left: number; top: numb
 export function boardDelta(point: Position, rect: { width: number; height: number }, view: BoardViewportState, size: Size): Position {
   return { x: point.x * size.width / rect.width / view.scale, y: point.y * size.height / rect.height / view.scale }
 }
-export function panBoard(view: BoardViewportState, dx: number, dy: number, size: Size, bounds: BoardBounds): BoardViewportState {
+export function panBoard(view: BoardViewportState, dx: number, dy: number, _size: Size, bounds: BoardBounds): BoardViewportState {
   // One visible region of margin permits drawing beyond existing content.
   // Complete object boxes remain reachable at either navigation limit.
-  return { ...view, offsetX: Math.max(-bounds.right * view.scale, Math.min(size.width - bounds.left * view.scale, view.offsetX + dx)),
-    offsetY: Math.max(-bounds.bottom * view.scale, Math.min(size.height - bounds.top * view.scale, view.offsetY + dy)) }
+  return { ...view, offsetX: Math.max(-bounds.right * view.scale, Math.min(0, view.offsetX + dx)),
+    offsetY: Math.max(-bounds.bottom * view.scale, Math.min(0, view.offsetY + dy)) }
 }
 export function zoomBoardAt(view: BoardViewportState, requestedScale: number, point: Position, size: Size, bounds: BoardBounds): BoardViewportState {
   const scale = Math.max(.25, Math.min(4, requestedScale)), ratio = scale / view.scale

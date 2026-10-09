@@ -1,8 +1,8 @@
 import type { AngieDocument, BoardStroke, Position, QuickNote } from '../../domain/document/types'
-import type { Size } from '../../layout/layoutTypes'
+export type NoteEdit = { title?: string; text?: string; height?: number }
 
 export type Board = AngieDocument['board']
-export type BoardMode = 'select' | 'pen' | 'eraser' | 'note'
+export type BoardMode = 'select' | 'pen' | 'eraser'
 export interface BoardState { board: Board; mode: BoardMode; draft: BoardStroke | null; selectedNoteId: string | null }
 export type BoardAction =
   | { type: 'mode'; mode: BoardMode }
@@ -13,8 +13,8 @@ export type BoardAction =
   | { type: 'select-note'; id: string | null }
   | { type: 'add-note'; note: QuickNote }
   | { type: 'move-note'; id: string; position: Position }
-  | { type: 'resize-note'; id: string; size: Size }
-  | { type: 'edit-note'; id: string; text: string }
+  | { type: 'resize-note'; id: string; factor: number }
+  | ({ type: 'edit-note'; id: string } & NoteEdit)
   | { type: 'delete-note'; id: string }
 
 export type BoardImageResult =

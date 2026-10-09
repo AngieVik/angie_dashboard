@@ -45,3 +45,26 @@ describe('cámara rectangular de pizarra', () => {
     expect(zoomBoardAt(view, 10, { x: 200, y: 100 }, size, bounds).scale).toBe(4)
   })
 })
+
+describe('origen firme y exploración', () => {
+  it('no crea margen positivo por centrar cajas importadas cercanas a cero', () => {
+    const doc = createEmptyDocument()
+    doc.board.quickNotes.push({ id: '00000000-0000-4000-8000-000000000003', title: '', scale: 1, text: 'Borde', position: { x: 1, y: 1 }, width: 220, height: 96 })
+    const before = structuredClone(doc)
+    expect(getBoardBounds({ width: 300, height: 200 }, doc.board, [])).toEqual({ left: 0, top: 0, right: 300, bottom: 200 })
+    expect(initialBoardView({ width: 300, height: 200 }, doc.board, [])).toEqual({ scale: 1, offsetX: 0, offsetY: 0 })
+    expect(doc).toEqual(before)
+  })
+  it('limita arriba/izquierda al origen incluso con tres zooms y explora vacío a derecha/abajo', () => {
+    const size = { width: 300, height: 200 }, bounds = { left: 0, top: 0, right: 300, bottom: 200 }
+    expect(panBoard({ scale: 4, offsetX: 0, offsetY: 0 }, 1000, 1000, size, bounds)).toEqual({ scale: 4, offsetX: 0, offsetY: 0 })
+    expect(panBoard({ scale: 1, offsetX: 0, offsetY: 0 }, -200, -100, size, bounds)).toEqual({ scale: 1, offsetX: -200, offsetY: -100 })
+  })
+})
+
+
+it('invierte los tres zooms para que cursor y punto compartan centro lógico', () => {
+  // board .5, module 2, dashboard 1.5: scene (120,80) -> physical (190,110).
+  expect(toBoardPosition({ x: 190, y: 110 }, { left: 10, top: 20, width: 1200, height: 900 },
+    { scale: .5, offsetX: 0, offsetY: -10 }, { width: 400, height: 300 })).toEqual({ x: 120, y: 80 })
+})

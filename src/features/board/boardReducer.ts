@@ -1,5 +1,6 @@
 import type { Position } from '../../domain/document/types'
 import type { Board, BoardAction, BoardState } from './boardTypes'
+import { growQuickNote, scaleQuickNote } from './noteGeometry'
 
 export function createBoardState(board: Board): BoardState {
   return { board, mode: 'select', draft: null, selectedNoteId: null }
@@ -24,18 +25,19 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case 'finish': return state.draft ? { ...state, draft: null, board: { ...board, strokes: [...board.strokes, state.draft] } } : state
     case 'cancel': return { ...state, draft: null }
     case 'select-note': return state.mode === 'select' ? { ...state, selectedNoteId: action.id } : state
-    case 'add-note': return state.mode === 'note' && finitePoint(action.note.position) ? {
+    case 'add-note': return finitePoint(action.note.position) && [action.note.width, action.note.height, action.note.scale].every(value => Number.isFinite(value) && value > 0) ? {
       ...state, mode: 'select', selectedNoteId: action.note.id,
-      board: { ...board, quickNotes: [...board.quickNotes, { ...action.note, position: clampBoardPosition(action.note.position) }] },
+      board: { ...board, quickNotes: [...board.quickNotes, { ...action.note, position: { x: Math.max(action.note.width / 2, action.note.position.x), y: Math.max(action.note.height / 2, action.note.position.y) } }] },
     } : state
     case 'move-note': return state.mode === 'select' && finitePoint(action.position) ? {
       ...state, board: { ...board, quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note, position: clampBoardPosition(action.position) } : note) },
     } : state
-    case 'resize-note': return state.mode === 'select' && Number.isFinite(action.size.width) && Number.isFinite(action.size.height) ? { ...state, board: { ...board,
-      quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note, width: Math.max(120, action.size.width), height: Math.max(64, action.size.height) } : note),
+    case 'resize-note': return state.mode === 'select' && Number.isFinite(action.factor) && action.factor > 0 ? { ...state, board: { ...board,
+      quickNotes: board.quickNotes.map(note => note.id === action.id ? scaleQuickNote(note, action.factor) : note),
     } } : state
     case 'edit-note': return state.mode === 'select' ? { ...state, board: { ...board,
-      quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note, text: action.text } : note),
+      quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...(action.height === undefined ? note : growQuickNote(note, action.height)),
+        ...(action.title === undefined ? {} : { title: action.title }), ...(action.text === undefined ? {} : { text: action.text }) } : note),
     } } : state
     case 'delete-note': return state.mode === 'select' ? { ...state, selectedNoteId: state.selectedNoteId === action.id ? null : state.selectedNoteId,
       board: { ...board, quickNotes: board.quickNotes.filter(note => note.id !== action.id) },

@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { createElement } from '../features/elements/elementCommands'
+// jsdom has no canvas; Pizarra pixels are verified in E2E.
+vi.mock('react-konva', () => ({ Stage: () => null, Layer: () => null, Rect: () => null, Image: () => null, Line: () => null, Circle: () => null, Group: () => null }))
+
 import { getDocumentStore } from '../features/document/documentStore'
 
 // jsdom does not resolve CSS custom properties. Check their actual definitions
@@ -46,7 +50,7 @@ describe('base de Angie Dashboard', () => {
       expect(module).toHaveAttribute('data-y', '280')
       expect(screen.getByLabelText('Zoom actual')).toHaveValue(100)
       resize(412, 871)
-      expect(module).toHaveAttribute('data-x', '46')
+      expect(module).toHaveAttribute('data-x', '320')
       resize(1600, 1000)
       expect(module).toHaveAttribute('data-x', '640')
       expect(module).toHaveAttribute('data-y', '380')
@@ -97,4 +101,90 @@ describe('base de Angie Dashboard', () => {
     expect(getComputedStyle(technicalSample).fontFamily).toContain('var(--font-technical)')
     technicalSample.remove()
   })
+})
+
+describe('Puzzle solo recoloca', () => {
+  it('conserva zoom y documento cuando no hay abiertos', async () => {
+    const store = getDocumentStore()
+    await act(async () => { await store.newDocument(); store.mutateDocument(doc => { doc.moduleLayouts.clock = { x: 800, y: 500, width: 440, height: 260, referenceSize: { width: 1600, height: 1000 } } }) })
+    render(<App />)
+    const zoom = screen.getByLabelText('Zoom actual')
+    fireEvent.change(zoom, { target: { value: '200' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
+    const before = structuredClone(store.getSnapshot().document)
+    fireEvent.click(screen.getByRole('button', { name: 'Encajar' }))
+    expect(zoom).toHaveValue(200)
+    expect(store.getSnapshot().document).toEqual(before)
+  })
+  it('recoloca abiertos en orden estable sin cambiar tamaños manuales ni cerrados', async () => {
+    const store = getDocumentStore()
+    await act(async () => { await store.newDocument(); store.mutateDocument(doc => {
+      doc.moduleLayouts.elements = { x: 30, y: 40, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } }
+      doc.moduleLayouts.information = { x: 50, y: 50, width: 320, height: 240, referenceSize: { width: 1600, height: 1000 } }
+      doc.moduleLayouts.clock = { x: 800, y: 500, width: 440, height: 260, referenceSize: { width: 1600, height: 1000 } }
+    }) })
+    render(<App />)
+    for (const name of ['Información', 'Elementos']) {
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Ver' }), { key: 'Enter' })
+      fireEvent.click(await screen.findByRole('menuitemcheckbox', { name }))
+    }
+    const before = structuredClone(store.getSnapshot().document)
+    fireEvent.click(screen.getByRole('button', { name: 'Encajar' }))
+    const after = store.getSnapshot().document
+    expect(after.moduleLayouts.elements).toMatchObject({ x: 12, y: 12, width: 300, height: 420 })
+    expect(after.moduleLayouts.information).toMatchObject({ width: 320, height: 240 })
+    expect(after.moduleLayouts.clock).toEqual(before.moduleLayouts.clock)
+    expect(after.elements).toEqual(before.elements)
+  })
+})
+
+it('Puzzle conserva documento, presentación y cámara si falla la aplicación validada', async () => {
+  const store = getDocumentStore()
+  await act(async () => { await store.newDocument(); store.mutateDocument(doc => {
+    doc.moduleLayouts.information = { x: 90, y: 100, width: 100, height: 100, referenceSize: { width: 1600, height: 1000 } }
+  }) })
+  render(<App />)
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Ver' }), { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Información' }))
+  const module = document.querySelector('[data-module="information"]')!
+  const before = structuredClone(store.getSnapshot().document), html = module.outerHTML
+  const fail = vi.spyOn(store, 'mutateDocument').mockImplementationOnce(() => { throw new Error('Validación rechazada') })
+  fireEvent.click(screen.getByRole('button', { name: 'Encajar' }))
+  expect(store.getSnapshot().document).toEqual(before)
+  expect(module.outerHTML).toBe(html)
+  fail.mockRestore()
+  fireEvent.click(screen.getByRole('button', { name: 'Encajar' }))
+  expect(store.getSnapshot().document.moduleLayouts.information).toMatchObject({ width: 100, height: 100, x: 12, y: 12 })
+  expect(module).toHaveAttribute('data-width', '100')
+})
+
+it('Nuevo reconstruye desde el documento nuevo con una ventana lejana todavía abierta', async () => {
+  const store = getDocumentStore()
+  await act(async () => { await store.newDocument(); store.mutateDocument(doc => {
+    doc.moduleLayouts.information = { x: 5000, y: 4000, width: 320, height: 240, referenceSize: { width: 6000, height: 5000 } }
+  }) })
+  render(<App />)
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Ver' }), { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Información' }))
+  expect(document.querySelector('.logical-workspace')).toHaveStyle({ width: '6000px' })
+  act(() => store.newDocument())
+  expect(document.querySelector('[data-module="information"]')).toHaveAttribute('data-x', '0')
+  expect(document.querySelector('.logical-workspace')).not.toHaveStyle({ width: '6000px' })
+})
+
+
+it('Pizarra abre y activa listas sin cerrarlas al repetir ni crear objetos', async () => {
+  const store = getDocumentStore()
+  await act(async () => { await store.newDocument(); store.mutateDocument(doc => createElement(doc, { name: 'Referencia', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 100, y: 100 } })) })
+  render(<App />)
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Ver' }), { key: 'Enter' })
+  fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Pizarra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Referencia' }))
+  const before = structuredClone(store.getSnapshot().document)
+  for (const name of ['Dotaciones', 'Elementos', 'Dotaciones']) {
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir ' + name }))
+    const id = name === 'Dotaciones' ? 'dotations' : 'elements'
+    expect(document.querySelector('[data-module="' + id + '"] .module-frame')).toHaveAttribute('data-active', 'true')
+    expect(document.querySelector('.board-pin')).toHaveAttribute('data-selected', 'true')
+    expect(store.getSnapshot().document).toEqual(before)
+  }
 })

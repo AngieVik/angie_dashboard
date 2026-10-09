@@ -79,34 +79,33 @@ test('revisión adaptativa: superficie rectangular completa y herramientas en un
   expect(surface.height).toBeCloseTo(area.height, 1)
   expect(surface.x).toBeCloseTo(area.x, 1)
   expect(surface.y).toBeCloseTo(area.y, 1)
-  const modes = (await page.getByRole('radiogroup').boundingBox())!, width = (await page.getByLabel('Grosor', { exact: true }).boundingBox())!
+  const modes = (await page.getByRole('radiogroup').boundingBox())!, width = (await page.getByRole('button', { name: 'Abrir deslizador: Grosor' }).boundingBox())!
   expect(Math.abs(modes.y + modes.height / 2 - width.y - width.height / 2)).toBeLessThan(2)
   expect(await page.getByRole('radio').first().locator('svg').count()).toBe(1)
 })
 
 test('canvas real: fondo, lápiz, goma, notas, JSON y recuperación', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
-  await page.getByLabel('Color de fondo').fill('#ffffff')
+  await page.getByLabel('Color de fondo', { exact: true }).fill('#ffffff')
   await expect.poll(() => pixel(page, 0, 500, 500)).toEqual([255, 255, 255, 255])
   const image = await localImage(page, 800, 400)
   await page.getByLabel('Cargar imagen de fondo').setInputFiles(image)
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-image-width', '800')
   await expect.poll(() => pixel(page, 0, 500, 500)).toEqual([54, 128, 160, 255])
-  await page.getByRole('radio', { name: 'Nota rápida', exact: true }).click()
-  const position = await canvasPoint(page, 500, 500)
-  await page.mouse.click(position.x, position.y)
+  await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
   await page.getByLabel('Texto de nota rápida').fill('Acceso norte')
-  await page.getByRole('button', { name: 'Crear nota', exact: true }).click()
+  await page.getByLabel('Texto de nota rápida').press('Tab')
   await expect(page.getByRole('radio', { name: 'Seleccionar/mover' })).toHaveAttribute('aria-checked', 'true')
   await expect.poll(async () => (await saved(page)).board.quickNotes.length).toBe(1)
   const noteBefore = (await saved(page)).board.quickNotes[0]!
-  expect(Math.abs(noteBefore.position.x - 500)).toBeLessThan(8)
-  expect(Math.abs(noteBefore.position.y - 500)).toBeLessThan(8)
+  expect(noteBefore).toMatchObject({ title: '', scale: 1, width: 180 })
   await page.getByRole('radio', { name: 'Lápiz', exact: true }).click()
-  await page.getByLabel('Grosor').fill('40')
+  await page.getByRole('button', { name: 'Abrir deslizador: Grosor' }).click()
+  await page.getByRole('slider', { name: 'Grosor' }).press('End')
+  await page.keyboard.press('Escape')
   await draw(page, [300, 500], [700, 500])
   await expect.poll(() => pixel(page, 1, 400, 500)).toEqual([214, 58, 58, 255])
-  await expect(page.getByRole('button', { name: 'Acceso norte', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Texto de nota rápida')).toBeVisible()
   await expect.poll(async () => (await saved(page)).board.strokes.length).toBe(1)
   expect((await saved(page)).board.quickNotes[0]).toEqual(noteBefore)
   await page.getByRole('radio', { name: 'Goma', exact: true }).click()
@@ -127,14 +126,14 @@ test('canvas real: fondo, lápiz, goma, notas, JSON y recuperación', async ({ p
   await expect.poll(() => pixel(page, 1, 600, 500)).toEqual([214, 58, 58, 255])
   expect(await pixel(page, 1, 400, 500)).toEqual([0, 0, 0, 0])
   expect(await pixel(page, 0, 400, 500)).toEqual([255, 255, 255, 255])
-  await expect(page.getByRole('button', { name: 'Acceso norte', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Texto de nota rápida')).toBeVisible()
   expect((await saved(page)).board).toEqual(json.board)
   expect(errors).toEqual([])
 })
 
 test('imagen local: reducción real, fondo anterior ante errores y descarte al cargar/Nuevo', async ({ page }) => {
   const network: string[] = []
-  page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4173') && !request.url().startsWith('data:')) network.push(request.url()) })
+  page.on('request', request => { if (!request.url().startsWith(new URL(page.url()).origin) && !request.url().startsWith('data:')) network.push(request.url()) })
   await page.getByLabel('Cargar imagen de fondo').setInputFiles(await localImage(page, 6000, 3000, 'image/jpeg'))
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-image-width', '4096')
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-image-height', '2048')
@@ -151,9 +150,12 @@ test('imagen local: reducción real, fondo anterior ante errores y descarte al c
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-image-width', '800')
   await centerCamera(page, 500, 500)
   const handle = (await page.locator('[data-module="board"] .react-resizable-handle-se').boundingBox())!
+  const camera = await page.getByTestId('board-surface').evaluate(el => [el.getAttribute('data-offset-x'), el.getAttribute('data-offset-y')])
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down()
   await page.mouse.move(handle.x + handle.width / 2 + 320 - Number(await page.locator('[data-module="board"]').getAttribute('data-width')), handle.y + handle.height / 2 + 200); await page.mouse.up()
   await expect(page.locator('[data-module="board"]')).toHaveAttribute('data-width', '320')
+  expect(await page.getByTestId('board-surface').evaluate(el => [el.getAttribute('data-offset-x'), el.getAttribute('data-offset-y')])).toEqual(camera)
+  await centerCamera(page, 500, 500)
   expect(await pixel(page, 0, 500, 400)).toEqual([54, 128, 160, 255])
   expect(await pixel(page, 0, 500, 230)).toEqual([37, 40, 43, 255])
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-image-width', '800')
@@ -167,7 +169,7 @@ test('imagen local: reducción real, fondo anterior ante errores y descarte al c
 test('rueda y modificadores navegan solo la pizarra y permiten dibujar más allá de 1000', async ({ page }) => {
   const surface = page.getByTestId('board-surface'), rect = (await surface.boundingBox())!
   const before = await saved(page)
-  await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2)
+  await page.mouse.move(rect.x + 3, rect.y + rect.height / 2)
   const x = Number(await surface.getAttribute('data-offset-x')), y = Number(await surface.getAttribute('data-offset-y'))
   await page.mouse.wheel(0, 80)
   await expect.poll(async () => Number(await surface.getAttribute('data-offset-y'))).toBeLessThan(y)
@@ -187,23 +189,20 @@ test('rueda y modificadores navegan solo la pizarra y permiten dibujar más all�
 })
 
 test('notas: pulsación mantenida, edición, borrado y lienzo centrado al redimensionar', async ({ page }, info) => {
-  await page.getByRole('radio', { name: 'Nota rápida', exact: true }).click()
-  const location = await canvasPoint(page, 500, 500)
-  await page.mouse.click(location.x, location.y)
+  await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
   await page.getByLabel('Texto de nota rápida').fill('Acceso norte')
-  await page.getByRole('button', { name: 'Crear nota', exact: true }).click()
+  await page.getByLabel('Texto de nota rápida').press('Tab')
   await expect.poll(async () => (await saved(page)).board.quickNotes.length).toBe(1)
   const before = (await saved(page)).board.quickNotes[0]!
-  const note = page.getByRole('button', { name: 'Acceso norte', exact: true }), rect = (await note.boundingBox())!
-  await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2)
+  const note = page.locator('.quick-note > .quick-note-header'), rect = (await note.boundingBox())!
+  await page.mouse.move(rect.x + 3, rect.y + rect.height / 2)
   await page.mouse.down(); await page.waitForTimeout(280)
-  await page.mouse.move(rect.x + rect.width / 2 + 20, rect.y + rect.height / 2 + 12, { steps: 5 }); await page.mouse.up()
+  await page.mouse.move(rect.x + 3 + 20, rect.y + rect.height / 2 + 12, { steps: 5 }); await page.mouse.up()
   await expect.poll(async () => (await saved(page)).board.quickNotes[0]!.position.x).toBeGreaterThan(before.position.x)
   const moved = (await saved(page)).board.quickNotes[0]!
-  await page.getByRole('button', { name: 'Editar nota', exact: true }).click()
   await page.getByLabel('Texto de nota rápida').fill('Acceso sur')
-  await page.getByRole('button', { name: 'Guardar nota', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Acceso sur', exact: true })).toBeVisible()
+  await page.getByLabel('Texto de nota rápida').press('Tab')
+  await expect(page.getByLabel('Texto de nota rápida')).toBeVisible()
   await expect.poll(async () => (await saved(page)).board.quickNotes[0]!.text).toBe('Acceso sur')
   const dimensions = await page.locator('.quick-note').evaluate(el => ({ width: (el as HTMLElement).offsetWidth, height: (el as HTMLElement).offsetHeight }))
   const scale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
@@ -225,19 +224,17 @@ test('notas: pulsación mantenida, edición, borrado y lienzo centrado al redime
   expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))).toEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
 })
 
-test('herramientas y editor de notas accesibles con teclado', async ({ page }) => {
+test('herramientas y notas en sitio accesibles con teclado', async ({ page }) => {
   const select = page.getByRole('radio', { name: 'Seleccionar/mover' })
   await select.focus(); await page.keyboard.press('ArrowRight')
   await expect(page.getByRole('radio', { name: 'Lápiz', exact: true })).toBeFocused()
-  await page.keyboard.press('End')
-  await expect(page.getByRole('radio', { name: 'Nota rápida', exact: true })).toHaveAttribute('aria-checked', 'true')
-  const position = await canvasPoint(page, 500, 500); await page.mouse.click(position.x, position.y)
-  await expect(page.getByLabel('Texto de nota rápida')).toBeFocused()
-  await page.keyboard.type('Acceso norte'); await page.keyboard.press('Tab'); await page.keyboard.press('Enter')
-  await expect(page.getByRole('button', { name: 'Acceso norte', exact: true })).toBeVisible()
+  await page.keyboard.press('End'); await expect(page.getByRole('radio', { name: 'Goma', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Nota rápida', exact: true }).press('Enter')
+  const body = page.getByLabel('Texto de nota rápida')
+  await expect(body).toBeFocused(); await body.fill('Acceso norte'); await body.press('Tab')
+  await expect.poll(async () => (await saved(page)).board.quickNotes[0]?.text).toBe('Acceso norte')
   await select.focus(); await expect(select).toHaveCSS('outline-style', 'solid')
 })
-
 test('tacto: un dedo dibuja y mueve notas; dos dedos cancelan ambos sin cambios persistentes', async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'requiere emulación táctil Chromium')
   const session = await context.newCDPSession(page)
@@ -257,18 +254,19 @@ test('tacto: un dedo dibuja y mueve notas; dos dedos cancelan ambos sin cambios 
   expect(await page.getByTestId('mobile-viewport').getAttribute('data-scale')).toBe(mainBefore)
   expect((await saved(page)).board).toEqual(before)
   await page.getByRole('button', { name: 'Encajar' }).click()
-  await page.getByRole('radio', { name: 'Nota rápida', exact: true }).click()
+  await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
   const center = await canvasPoint(page, 500, 500)
   await touch('touchStart', [{ ...center, id: 1 }]); await touch('touchEnd', [])
-  await page.getByLabel('Texto de nota rápida').fill('Acceso norte'); await page.getByRole('button', { name: 'Crear nota', exact: true }).click()
-  const note = (await page.getByRole('button', { name: 'Acceso norte', exact: true }).boundingBox())!
-  const finger = { x: note.x + note.width / 2, y: note.y + note.height / 2, id: 1 }
+  await page.getByLabel('Texto de nota rápida').fill('Acceso norte'); await page.getByLabel('Texto de nota rápida').press('Tab')
+  const initialNote = (await saved(page)).board.quickNotes[0]!
+  const note = (await page.locator('.quick-note > .quick-note-header').boundingBox())!
+  const finger = { x: note.x + 3, y: note.y + note.height / 2, id: 1 }
   await touch('touchStart', [finger]); await page.waitForTimeout(280)
   await touch('touchMove', [{ ...finger, x: finger.x + 10 }]); await touch('touchEnd', [])
   const noteScale = Number(await page.getByTestId('board-surface').getAttribute('data-scale')) * Number(mainBefore)
-  await expect.poll(async () => (await saved(page)).board.quickNotes[0]?.position.x ?? 0).toBeCloseTo(500 + 10 / noteScale, 1)
+  await expect.poll(async () => (await saved(page)).board.quickNotes[0]?.position.x ?? 0).toBeCloseTo(initialNote.position.x + 10 / noteScale, 1)
   const noteBefore = (await saved(page)).board.quickNotes[0]!
-  const current = (await page.getByRole('button', { name: 'Acceso norte', exact: true }).boundingBox())!
+  const current = (await page.getByLabel('Texto de nota rápida').boundingBox())!
   const a = { x: current.x + current.width / 2, y: current.y + current.height / 2, id: 1 }
   const beforeNoteScale = Number(await page.getByTestId('board-surface').getAttribute('data-scale'))
   await touch('touchStart', [a]); await page.waitForTimeout(280)
@@ -291,43 +289,31 @@ test('tacto: un dedo dibuja y mueve notas; dos dedos cancelan ambos sin cambios 
   await session.detach()
 })
 
-test('nota redimensionable: texto estable, centro fijo y dimensiones recuperadas desde JSON', async ({ page }, info) => {
-  await page.getByRole('radio', { name: 'Nota rápida', exact: true }).click()
-  const center = await canvasPoint(page, 500, 500)
-  await page.mouse.click(center.x, center.y)
-  await page.getByLabel('Texto de nota rápida').fill('Ruta norte')
-  await page.getByRole('button', { name: 'Crear nota', exact: true }).click()
-  await expect.poll(async () => (await saved(page)).board.quickNotes.length).toBe(1)
+test('nota: escala proporcional y geometría recuperada desde JSON', async ({ page }, info) => {
+  await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
+  const body = page.getByLabel('Texto de nota rápida')
+  await body.fill('Ruta norte'); await body.press('Tab')
   const before = (await saved(page)).board.quickNotes[0]!
   const handle = (await page.getByRole('button', { name: 'Redimensionar nota rápida' }).boundingBox())!
-  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down()
-  await page.mouse.move(handle.x + handle.width / 2 + 25, handle.y + handle.height / 2 + 12); await page.mouse.up()
-  await expect.poll(async () => (await saved(page)).board.quickNotes[0]?.width).toBeCloseTo(270, 1)
+  const surface = (await page.getByTestId('board-surface').boundingBox())!
+  const scale = surface.width / Number(await page.getByTestId('board-surface').getAttribute('data-viewport-width')) * Number(await page.getByTestId('board-surface').getAttribute('data-scale'))
+  const x = handle.x + handle.width / 2, y = handle.y + handle.height / 2
+  await page.mouse.move(x, y); await page.mouse.down()
+  await page.mouse.move(x + before.width * scale / 2, y + before.height * scale / 2); await page.mouse.up()
+  await expect.poll(async () => (await saved(page)).board.quickNotes[0]?.scale).toBeCloseTo(1.5, 1)
   const resized = (await saved(page)).board.quickNotes[0]!
-  expect(resized).toMatchObject({ text: before.text, position: before.position, height: 120 })
-  await expect(page.getByRole('button', { name: 'Ruta norte', exact: true })).toHaveCSS('font-size', '16px')
+  expect(resized.width).toBeCloseTo(270, 1); expect(resized.height).toBeCloseTo(before.height * 1.5, 1)
+  expect(resized.position.x - resized.width / 2).toBeCloseTo(before.position.x - 90, 1)
+  expect(resized.position.y - resized.height / 2).toBeCloseTo(before.position.y - before.height / 2, 1)
+  await expect(body).toHaveCSS('font-size', '24px')
   const json = await exportDocument(page)
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'notas.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })
   await expect(page.locator('.quick-note')).toHaveCSS('width', '270px')
-  await expect(page.locator('.quick-note')).toHaveCSS('height', '120px')
   await page.reload(); await openBoard(page)
   expect((await saved(page)).board.quickNotes[0]).toEqual(resized)
-  await page.screenshot({ path: info.outputPath('board-resized-note.png') })
-  await page.getByRole('button', { name: 'Ruta norte', exact: true }).click()
-  const minimumHandle = (await page.getByRole('button', { name: 'Redimensionar nota rápida' }).boundingBox())!
-  await page.mouse.move(minimumHandle.x + 7, minimumHandle.y + 7); await page.mouse.down()
-  await page.mouse.move(minimumHandle.x - 150, minimumHandle.y - 100); await page.mouse.up()
-  await expect(page.locator('.quick-note')).toHaveCSS('width', '120px')
-  await expect(page.locator('.quick-note')).toHaveCSS('height', '64px')
-  const noteBox = (await page.locator('.quick-note').boundingBox())!
-  for (const name of ['Editar nota', 'Eliminar nota']) {
-    const action = (await page.getByRole('button', { name, exact: true }).boundingBox())!
-    expect(action.x + action.width).toBeLessThanOrEqual(noteBox.x + noteBox.width)
-    expect(action.y + action.height).toBeLessThanOrEqual(noteBox.y + noteBox.height)
-  }
-  await page.screenshot({ path: info.outputPath('board-minimum-note.png') })
+  await expect(body).toHaveCSS('font-size', '24px')
+  await page.screenshot({ path: info.outputPath('board-scaled-note.png') })
 })
-
 test('escena estable: notas heredadas y nuevas en ventanas horizontal y vertical; fondo completo y cámara temporal', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const document = createEmptyDocument()
@@ -345,8 +331,8 @@ test('escena estable: notas heredadas y nuevas en ventanas horizontal y vertical
     if (shape === 'vertical') { document.moduleLayouts.board = { x: 0, y: 0, width: 320, height: 780, referenceSize: size }; await load() }
     const area = (await page.locator('.board-area').boundingBox())!, surface = (await page.getByTestId('board-surface').boundingBox())!
     expect(surface.width).toBeCloseTo(area.width, 1); expect(surface.height).toBeCloseTo(area.height, 1)
-    await expect(page.getByRole('button', { name: 'Nota heredada', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Nota nueva', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Texto de nota rápida').nth(0)).toBeVisible()
+    await expect(page.getByLabel('Texto de nota rápida').nth(1)).toBeVisible()
     expect(await page.getByTestId('board-surface').evaluate(el => {
       const canvas = el.querySelector('canvas')!, ctx = canvas.getContext('2d')!
       return [[1, 1], [canvas.width - 2, canvas.height - 2]].map(([x, y]) => [...ctx.getImageData(x!, y!, 1, 1).data])

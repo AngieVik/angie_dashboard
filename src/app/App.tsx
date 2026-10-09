@@ -2,7 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Button } from '../components/ui/button'
 import { Puzzle } from 'lucide-react'
 import { ZoomControl } from '../layout/ZoomControl'
-import { TooltipProvider } from '../components/ui/tooltip'
+import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
+import { repositionModules } from '../layout/repositionModules'
+import { HelpTooltip, TooltipProvider } from '../components/ui/tooltip'
 import { Input } from '../components/ui/input'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
@@ -30,6 +32,12 @@ import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import type { Position } from '../domain/document/types'
 
 type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
+
+function layoutSource(module: PresentedModule, saved: ModuleLayout | undefined, bounds: { width: number; height: number }, generation: number): ModuleLayout {
+  if (saved) return saved
+  if (module.presentation?.generation === generation) return module.layout
+  return findModulePlacement({ id: module.id }, [], bounds).layout
+}
 
 function presentedLayout(module: PresentedModule, saved: ModuleLayout, bounds: { width: number; height: number }, generation: number): ModuleLayout {
   if (module.presentation?.generation === generation && module.presentation.size.width === bounds.width && module.presentation.size.height === bounds.height &&
@@ -60,7 +68,8 @@ export function App() {
   const [active, setActive] = useState<ModuleId | null>(null)
   const [layers, setLayers] = useState<ModuleId[]>([])
   const bounds = useMemo(() => getWorkspaceBounds(viewport.layoutSize, modules.map(module => module.id)), [viewport.layoutSize, modules])
-  const visibleBounds = { width: Math.max(bounds.width, Math.ceil(viewport.size.width / viewport.state.scale)), height: Math.max(bounds.height, Math.ceil(viewport.size.height / viewport.state.scale)) }
+  const visibleBounds = { width: Math.max(1, Math.ceil(viewport.size.width / viewport.state.scale)), height: Math.max(1, Math.ceil(viewport.size.height / viewport.state.scale)) }
+  const [extent, setExtent] = useState(() => ({ generation: documentGeneration, size: reconstructWorkspaceExtent(visibleBounds, document.moduleLayouts) }))
   const [selection, setSelection] = useState<{ generation: number; id: string | null }>({ generation: documentGeneration, id: null })
   const selectedId = selection.generation === documentGeneration && document.elements.some(element => element.id === selection.id) ? selection.id : null
   const selectElement = (id: string | null) => setSelection({ generation: documentGeneration, id })
@@ -75,30 +84,59 @@ export function App() {
       const layoutSize = { width: size.width, height: header ? (node.parentElement?.clientHeight || size.height + header.offsetHeight) - header.offsetHeight : size.height }
       setViewport(previous => {
         const nextBounds = getWorkspaceBounds(layoutSize, modules.map(module => module.id))
-        const extent = modules.reduce((extent, module) => {
-          const layout = presentedLayout(module, document.moduleLayouts[module.id] ?? module.layout, nextBounds, documentGeneration)
+        const measuredExtent = modules.reduce((extent, module) => {
+          const layout = presentedLayout(module, layoutSource(module, document.moduleLayouts[module.id], nextBounds, documentGeneration), nextBounds, documentGeneration)
           return { width: Math.max(extent.width, layout.x + layout.width), height: Math.max(extent.height, layout.y + layout.height) }
         },
-          { width: Math.max(nextBounds.width, Math.ceil(size.width / previous.state.scale)), height: Math.max(nextBounds.height, Math.ceil(size.height / previous.state.scale)) })
-        return { size, layoutSize, measured: true, state: !previous.measured ? fit(size, extent) : resizeViewport(previous.state, previous.size, size, extent) }
+          { width: Math.max(nextBounds.width, extent.generation === documentGeneration ? extent.size.width : 0, Math.ceil(size.width / previous.state.scale)), height: Math.max(nextBounds.height, extent.generation === documentGeneration ? extent.size.height : 0, Math.ceil(size.height / previous.state.scale)) })
+        return { size, layoutSize, measured: true, state: !previous.measured ? fit(size, measuredExtent) : resizeViewport(previous.state, previous.size, size, measuredExtent) }
       })
     })
     observer.observe(node)
     return () => observer.disconnect()
-  }, [modules, document.moduleLayouts, documentGeneration])
+  }, [modules, document.moduleLayouts, documentGeneration, extent])
   // Module visibility and viewport belong to the running app. Document changes
   // only replace the persistent geometry; neither state is exported.
   const open = useMemo(() => modules.map(module => ({ id: module.id,
-    layout: presentedLayout(module, document.moduleLayouts[module.id] ?? module.layout, bounds, documentGeneration),
+    layout: presentedLayout(module, layoutSource(module, document.moduleLayouts[module.id], bounds, documentGeneration), bounds, documentGeneration),
   })), [modules, document.moduleLayouts, bounds, documentGeneration])
-  const sceneBounds = open.reduce((extent, module) => ({ width: Math.max(extent.width, module.layout.x + module.layout.width), height: Math.max(extent.height, module.layout.y + module.layout.height) }), visibleBounds)
+  const previousExtent = extent.generation === documentGeneration ? extent.size : reconstructWorkspaceExtent(visibleBounds, document.moduleLayouts)
+  const sceneBounds = growWorkspaceExtent(previousExtent, visibleBounds, open.map(module => module.layout))
+  if (extent.generation !== documentGeneration || extent.size.width !== sceneBounds.width || extent.size.height !== sceneBounds.height) {
+    setExtent({ generation: documentGeneration, size: sceneBounds })
+  }
+  function grow(candidate: ModuleLayout) {
+    setExtent(previous => ({ generation: documentGeneration, size: growWorkspaceExtent(previous.size, visibleBounds, [candidate]) }))
+  }
+  function recolocate() {
+    if (!open.length) { setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } })); return }
+    const placed = repositionModules(open, viewport.size.width / viewport.state.scale)
+    const saved = placed.map(({ id, layout }) => {
+      const manual = document.moduleLayouts[id] ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] }
+      return { id, layout: { ...layout, width: manual.width, height: manual.height,
+        referenceSize: { width: Math.ceil(Math.max(visibleBounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)),
+          height: Math.ceil(Math.max(visibleBounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)) } } }
+    })
+    try { store.mutateDocument(candidate => { for (const item of saved) candidate.moduleLayouts[item.id] = item.layout }) }
+    catch { return }
+    setModules(previous => previous.map(module => {
+      const shown = placed.find(item => item.id === module.id)!, source = saved.find(item => item.id === module.id)!
+      return { ...module, layout: shown.layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(source.layout) } }
+    }))
+    setExtent({ generation: documentGeneration, size: growWorkspaceExtent(reconstructWorkspaceExtent(visibleBounds, store.getSnapshot().document.moduleLayouts), visibleBounds, placed.map(item => item.layout)) })
+    setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))
+  }
   function activate(id: ModuleId) {
     setActive(id)
     setLayers(previous => previous.at(-1) === id ? previous : [...previous.filter(other => other !== id), id])
   }
-  function saveLayout(id: ModuleId, layout: ModuleLayout) {
-    store.mutateDocument(document => { document.moduleLayouts[id] = layout })
-    setModules(previous => previous.map(module => module.id === id ? { ...module, layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(layout) } } : module))
+  function saveLayout(id: ModuleId, layout: ModuleLayout, kind: 'move' | 'resize' = 'resize') {
+    const manual = kind === 'move' ? document.moduleLayouts[id] ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] } : layout
+    const saved = { ...layout, width: manual.width, height: manual.height, referenceSize: {
+      width: Math.ceil(Math.max(bounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)), height: Math.ceil(Math.max(bounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)),
+    } }
+    store.mutateDocument(document => { document.moduleLayouts[id] = saved })
+    setModules(previous => previous.map(module => module.id === id ? { ...module, layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
   }
   function close(id: ModuleId) {
     const shown = open.find(module => module.id === id)
@@ -113,9 +151,8 @@ export function App() {
     if (open.some(module => module.id === id)) { close(id); return }
     const nextBounds = getWorkspaceBounds(visibleBounds, [...modules.map(module => module.id), id])
     const placement = findModulePlacement({ id, saved: document.moduleLayouts[id] }, open.map(module => module.layout), nextBounds)
-    if (!document.moduleLayouts[id]) store.mutateDocument(document => { document.moduleLayouts[id] = placement.layout })
-    const source = JSON.stringify(document.moduleLayouts[id] ?? placement.layout)
     const cached = closedModules.current[id]
+    const source = JSON.stringify(document.moduleLayouts[id] ?? (cached?.presentation?.generation === documentGeneration ? cached.layout : placement.layout))
     const layout = cached?.presentation?.generation === documentGeneration && cached.presentation.source === source && cached.presentation.size.width === bounds.width && cached.presentation.size.height === bounds.height ? cached.layout : placement.layout
     setModules(previous => [...previous, { id, layout, presentation: { size: bounds, generation: documentGeneration, source } }])
     activate(id)
@@ -128,16 +165,16 @@ export function App() {
         <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} triggerRef={viewTrigger} />
         <Input aria-label="Título del documento" placeholder="Título"
           value={document.document.title} onChange={event => store.setTitle(event.target.value)} />
-        <Button className="fit-button" aria-label="Encajar" title="Encajar" onClick={() => setViewport(previous => ({ ...previous, state: fit(previous.size, bounds) }))}><Puzzle size={19} aria-hidden="true" /></Button>
+        <HelpTooltip text="Recolocar módulos"><Button className="fit-button" aria-label="Encajar" onClick={recolocate}><Puzzle size={19} aria-hidden="true" /></Button></HelpTooltip>
         <ZoomControl key={documentGeneration} label="Zoom actual" scale={viewport.state.scale} onChange={scale => setViewport(previous => ({ ...previous,
           state: zoomAt(previous.state, scale, { x: 0, y: 0 }, previous.size, sceneBounds) }))} />
       </header>
       <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo">
         <DocumentNotices store={store} />
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid generation={documentGeneration} modules={open} bounds={sceneBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout}
+          <DashboardGrid generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
             renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
-              onViewChange={updateBoardCenter} /> :
+              onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
                 placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
               id === 'dotations' ? <DotationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}

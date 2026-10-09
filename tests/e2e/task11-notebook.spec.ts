@@ -72,19 +72,29 @@ test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll
   expect(await item.evaluate(node => node.clientHeight)).toBeGreaterThan(initial * 2)
   await item.fill('')
   await expect.poll(() => item.evaluate(node => node.clientHeight)).toBe(initial)
-  // A loaded paragraph wraps again on the same textarea when the viewport narrows.
+  // Viewport changes preserve manual geometry; resizing the module reflows text.
   const paragraph = 'Preparación de radio en el acceso norte. '.repeat(16)
   document.notebook[0] = { ...document.notebook[0]!, type: 'note', text: paragraph }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'loaded.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(note).toHaveValue(paragraph)
   const wideHeight = await height()
   await page.setViewportSize({ width: 280, height: 800 })
-  await expect.poll(height).toBeGreaterThan(wideHeight)
+  await expect.poll(height).toBe(wideHeight)
   expect(await note.evaluate(node => node.scrollHeight <= node.clientHeight + 1)).toBe(true)
   expect(await module.getByRole('list', { name: 'Bloques del Cuaderno' }).evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect.poll(height).toBe(wideHeight)
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual([1440, 900])
+  const frame = page.locator('[data-module="notebook"]')
+  const resizeWidth = async (delta: number, width: number) => {
+    const handle = (await frame.locator('.react-resizable-handle-se').boundingBox())!
+    const scale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
+    const x = handle.x + handle.width / 2, y = handle.y + handle.height / 2
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + delta * scale, y, { steps: 5 }); await page.mouse.up()
+    await expect(frame).toHaveAttribute('data-width', String(width))
+  }
+  await resizeWidth(-100, 260); await expect.poll(height).toBeGreaterThan(wideHeight)
+  await resizeWidth(100, 360); await expect.poll(height).toBe(wideHeight)
   await page.screenshot({ path: info.outputPath('notebook-loaded-wide.png') })
   expect(await module.getByRole('button', { name: 'Reordenar bloque 1' }).evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(30)
   document.notebook = [
@@ -110,7 +120,9 @@ test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll
     expect(bounds.x).toBeGreaterThanOrEqual(-1)
     expect(bounds.y).toBeGreaterThanOrEqual(0)
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1)
-    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height + 1)
+    // A manually tall window stays tall in landscape; the dashboard camera makes it reachable.
+    await expect(frame).toHaveAttribute('data-height', String(height))
+    expect(bounds.y).toBeLessThan(viewport.height)
     expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
     await page.screenshot({ path: info.outputPath(`notebook-${label}-layout.png`) })
   }

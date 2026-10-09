@@ -209,26 +209,17 @@ test('Registro: guardar, cancelar, eliminar y Deshacer conservan foco en Acontec
   await expect(add).toBeFocused()
 })
 
-test('notas rápidas: edición, cancelación y borrado conservan foco en herramienta activa', async ({ page }) => {
+test('notas rápidas: edición en sitio, Escape y borrado con foco', async ({ page }) => {
   await page.goto('/'); await loadDocument(page, fixture()); await openModule(page, 'Pizarra')
-  const module = page.getByRole('region', { name: 'Pizarra', exact: true })
-  const select = module.getByRole('radio', { name: 'Seleccionar/mover' })
-  await module.getByRole('button', { name: 'Acceso norte', exact: true }).press('Enter')
-  for (const action of ['Guardar nota', 'Cancelar']) {
-    await module.getByRole('button', { name: 'Editar nota', exact: true }).press('Enter')
-    await module.getByRole('button', { name: action, exact: true }).press('Enter')
-    await expect(select).toBeFocused()
-  }
+  const module = page.getByRole('region', { name: 'Pizarra', exact: true }), body = module.getByLabel('Texto de nota rápida')
+  await body.focus(); await body.fill('Borrador'); await body.press('Escape')
+  await expect(body).toHaveValue('Acceso norte'); await expect(module.locator('.quick-note')).toBeFocused()
   await module.getByRole('button', { name: 'Eliminar nota', exact: true }).press('Enter')
-  await expect(select).toBeFocused()
-  await module.getByRole('radio', { name: 'Nota rápida', exact: true }).press('Enter')
-  const square = (await page.getByTestId('board-surface').boundingBox())!
-  await page.mouse.click(square.x + square.width / 2, square.y + square.height / 2)
-  await module.getByLabel('Texto de nota rápida').fill('Radio')
-  await module.getByRole('button', { name: 'Crear nota', exact: true }).press('Enter')
-  await expect(select).toBeFocused()
+  await expect(module.getByRole('radio', { name: 'Seleccionar/mover' })).toBeFocused()
+  await module.getByRole('button', { name: 'Nota rápida', exact: true }).press('Enter')
+  await expect(body).toBeFocused(); await body.fill('Radio'); await body.press('Tab')
+  await expect(body).toHaveValue('Radio')
 })
-
 test('seleccionar desde Información o contadores Operativo transfiere foco al contenido vigente', async ({ page }) => {
   await page.goto('/'); await loadDocument(page, fixture()); await openModule(page, 'Información')
   const information = page.getByRole('region', { name: 'Información', exact: true })

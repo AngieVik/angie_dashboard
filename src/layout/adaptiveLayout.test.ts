@@ -11,12 +11,12 @@ describe('geometrías adaptadas sin reescribir su referencia', () => {
     expect(adaptModuleLayout(saved, { width: 1600, height: 1000 }, { width: 320, height: 220 })).toEqual(before)
     expect(saved).toEqual(before)
   })
-  it('limita dimensiones a la superficie y usa extensión solo para mínimos', () => {
+  it('extiende referencia hasta el rectángulo guardado sin recortar su tamaño', () => {
     expect(adaptModuleLayout(saved, { width: 412, height: 871 }, { width: 320, height: 220 })).toEqual({
-      x: 0, y: 196, width: 412, height: 480, referenceSize: { width: 412, height: 871 },
+      x: 220, y: 196, width: 720, height: 480, referenceSize: { width: 1160, height: 871 },
     })
     expect(adaptModuleLayout(saved, { width: 200, height: 150 }, { width: 320, height: 220 })).toEqual({
-      x: 0, y: 0, width: 320, height: 220, referenceSize: { width: 320, height: 220 },
+      x: 220, y: 130, width: 720, height: 480, referenceSize: { width: 1160, height: 740 },
     })
   })
   it('extiende únicamente los ejes que necesitan mínimos de módulos abiertos', () => {
@@ -28,4 +28,9 @@ describe('geometrías adaptadas sin reescribir su referencia', () => {
     expect(adaptModuleLayout({ x: 0, y: 0, width: 720, height: 480, referenceSize: { width: 720, height: 480 } },
       { width: 1000, height: 800 }, { width: 320, height: 220 })).toMatchObject({ x: 0, y: 0, width: 720, height: 480 })
   })
+})
+
+it('no recorta geometrías guardadas fuera del viewport ni usa extensión ajena como referencia', () => {
+  const saved = { x: 900, y: 800, width: 700, height: 500, referenceSize: { width: 1600, height: 1300 } }
+  expect(adaptModuleLayout(saved, { width: 412, height: 800 }, { width: 1, height: 1 })).toEqual(saved)
 })
