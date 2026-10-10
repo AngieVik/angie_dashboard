@@ -2,8 +2,6 @@ import { useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { X, Play, Pause, Square } from 'lucide-react'
 import { Input } from '../../components/ui/input'
-import { Textarea } from '../../components/ui/textarea'
-import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 import { calculateTimerValue, formatDuration, normalizeDuration } from './timerEngine'
 import type { TimerRecord } from './timerTypes'
 import type { TimerStore } from './timerStore'
@@ -14,12 +12,12 @@ const STATUS_LABELS = { idle: 'Inactivo', running: 'En marcha', paused: 'Pausado
 export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; index: number; now: number; store: TimerStore }) {
   const row = useRef<HTMLDivElement>(null)
   const resetControl = useRef<HTMLButtonElement>(null)
-  const note = useAutoGrowingTextarea(timer.note)
-  const [fields, setFields] = useState(() => formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds).split(':'))
+  const [durationText, setDurationText] = useState(() => formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds))
   const snapshot = calculateTimerValue(timer, now), name = `${TIMER_LABELS[timer.kind]} ${index}`
   function normalize() {
-    const duration = normalizeDuration(fields[0]!, fields[1]!, fields[2]!)
-    setFields(formatDuration(duration).split(':'))
+    const fields = durationText.includes(':') ? durationText.split(':') : durationText.padStart(6, '0').match(/.{2}/g)!
+    const duration = normalizeDuration(fields[0] ?? '', fields[1] ?? '', fields[2] ?? '')
+    setDurationText(formatDuration(duration))
     store.setDuration(timer.id, duration)
   }
   function start() { if (timer.kind !== 'tzero' && timer.status === 'idle') normalize(); store.start(timer.id) }
@@ -50,16 +48,10 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
         </>}
       </div>
     </div>
-    {timer.kind !== 'tzero' && <div className="timer-duration" role="group" aria-label="Duración inicial">
-      <span>Duración</span>
-      {['Horas', 'Minutos', 'Segundos'].map((label, part) => <span className="timer-duration-part" key={label}>
-        {part > 0 && <span aria-hidden="true">:</span>}
-        <Input aria-label={label} className="technical-data timer-digit" inputMode="numeric" pattern="[0-9]*"
-          disabled={timer.status !== 'idle'} value={fields[part]} onBlur={normalize} onChange={event => {
-            if (/^[0-9]*$/.test(event.target.value)) setFields(previous => previous.map((value, position) => position === part ? event.target.value : value))
-          }} />
-      </span>)}
-    </div>}
-    <Textarea ref={note} rows={1} aria-label="Nota" placeholder="anotación" className="timer-note" value={timer.note} onChange={event => store.setNote(timer.id, event.target.value)} />
+    {timer.kind !== 'tzero' && <Input aria-label="Duración inicial" title="Duración inicial (hh:mm:ss)"
+      className="technical-data timer-duration" inputMode="numeric" maxLength={8} placeholder="00:00:00"
+      disabled={timer.status !== 'idle'} value={durationText} onBlur={normalize} onChange={event => {
+        if (/^(?:[0-9]{0,6}|[0-9]{0,2}(?::[0-9]{0,2}){1,2})$/.test(event.target.value)) setDurationText(event.target.value)
+      }} />}
   </div>
 }

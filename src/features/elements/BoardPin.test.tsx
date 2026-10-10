@@ -16,6 +16,13 @@ function setup() {
   return { onSelect, onMove, onScale, view, props, blockedRef }
 }
 describe('pin coordinado con la pizarra', () => {
+  it('oculta solo el nombre y conserva el pin seleccionable', () => {
+    const { view, props } = setup()
+    view.rerender(<BoardPin {...props} element={{ ...element, nameHidden: true }} />)
+    expect(screen.queryByText('Tango 1')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeEnabled()
+    expect(screen.getByRole('img', { name: 'Ambulancia' })).toBeVisible()
+  })
   it('mover invierte zoom propio y principal sin cambiar el centro al escalar', () => {
     vi.useFakeTimers()
     const { view, props, onMove } = setup()

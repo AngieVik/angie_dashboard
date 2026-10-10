@@ -1,7 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Position } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
-import { Badge } from '../../components/ui/badge'
 import { HelpTooltip } from '../../components/ui/tooltip'
 import { CopyPlus, Eye, EyeOff, Trash, Wrench } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -10,7 +9,6 @@ import { useDocumentStore } from '../document/documentStore'
 import { createElement, updateElement, duplicateElement, deleteElement, togglePinVisibility } from './elementCommands'
 import { ElementEditor } from './ElementEditor'
 import { ICON_CATALOG } from './iconCatalog'
-import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import './elements.css'
 export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void; placementPosition?: Position }
 type Props = ElementsModuleProps & { isUnit?: boolean }
@@ -21,6 +19,7 @@ export function ElementsModule(props: Props) {
 function ElementsContent({ store, selectedId, onSelect, placementPosition, isUnit = false }: Props) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
+  const formId = useId()
   const [editor, setEditor] = useState<{ kind: 'create' | 'edit'; id: string | null } | null>(null)
   const emptyPointer = useRef<{ id: number; x: number; y: number } | null>(null)
   const dragged = useRef(false)
@@ -33,21 +32,27 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, isUni
   }, [editor])
   function back() { focusList.current = true; onSelect(null); setEditor(null) }
   return <div className="elements-module">
+    <div className="elements-configure-actions">
+      <Button ref={addControl} type={editor ? 'submit' : 'button'} form={editor ? formId : undefined} disabled={blocked} onClick={event => {
+        if (!editor) {
+          event.preventDefault()
+          if (!blockedRef.current) setEditor({ kind: 'create', id: null })
+        }
+      }}>{editor?.kind === 'edit' ? 'Guardar' : 'Crear'}</Button>
+      {editor && <Button disabled={blocked} onClick={() => { if (!blockedRef.current) back() }}>Atrás</Button>}
+    </div>
     {editor ? <ElementEditor key={editor.id ?? 'create'} element={editor.kind === 'edit' ? selected : undefined} isUnit={isUnit}
-      onCancel={back} onSave={input => {
+      formId={formId} onSave={input => {
         if (blockedRef.current) return
         let id: string | null = null
         store.mutateDocument(document => {
           if (editor.kind === 'edit' && selected) {
-            updateElement(document, selected.id, { name: input.name, information: input.information, visual: input.visual, nameFontSize: input.nameFontSize })
+            updateElement(document, selected.id, { name: input.name, information: input.information, visual: input.visual, nameFontSize: input.nameFontSize, nameHidden: input.nameHidden })
             id = selected.id
           } else id = createElement(document, { ...input, position: placementPosition }).id
         })
         focusList.current = true; onSelect(id); setEditor(null)
       }} /> : <>
-      <div className="elements-configure-actions"><Button ref={addControl} disabled={blocked} onClick={() => {
-        if (!blockedRef.current) setEditor({ kind: 'create', id: null })
-      }}>Crear</Button></div>
       <div className="elements-list" onPointerDown={event => {
         dragged.current = false
         emptyPointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
@@ -61,14 +66,13 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, isUni
       }}>
         <section aria-label={isUnit ? 'Dotaciones' : 'Generales'}>
           <div className="element-rows">{document.elements.filter(element => element.isUnit === isUnit).map(element => {
-            const status = element.isUnit ? OPERATIONAL_STATUSES.find(item => item.status === element.operational.status) : undefined
             return <div className="element-row" key={element.id} data-selected={element.id === selectedId}>
               <Button className="document-button element-select" aria-label={`Seleccionar ${element.name}`} aria-pressed={element.id === selectedId} disabled={blocked}
                 onClick={() => { if (!blockedRef.current) onSelect(element.id) }}>
                 {element.visual.type === 'asset' ? <img src={ICON_CATALOG[element.visual.assetId].path} alt="" /> : <span className="element-row-emoji" aria-hidden="true">{element.visual.value}</span>}
-                <span className="element-row-text"><strong title={element.name}>{element.name}</strong>
-                  {element.isUnit && <span className="element-row-status">{status ? <><Badge>{status.icon} {status.abbreviation}</Badge><span>{status.phase}</span></> : 'Sin estado'}</span>}
-                </span>
+                <span className="element-row-text"><strong title={element.name}>{element.isUnit
+                  ? <><span>{[...element.name].slice(0, 6).join('')}</span>{[...element.name].length > 6 && <span>{[...element.name].slice(6, 12).join('')}</span>}</>
+                  : element.name}</strong></span>
               </Button>
               <div className="element-row-actions" role="group" aria-label={`Acciones de ${element.name}`}>
                 <HelpTooltip text={`Modificar ${element.name}`}><Button aria-label="Modificar" disabled={blocked} onClick={() => {

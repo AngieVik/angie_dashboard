@@ -4,6 +4,7 @@
 .calculator-readout { flex: 0 0 auto; min-height: 20px; text-align: right; overflow-wrap: anywhere; }
 .calculator-readout output { font-size: var(--calculator-display-size); line-height: 1.25; color: var(--color-text); }
 .calculator-readout [role="alert"] { display: block; font-size: var(--font-size-body); line-height: 1.25; color: var(--color-accent-yellow); }
-.calculator-keypad { container-type: size; display: grid; flex: 0 0 auto; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(6, var(--control-height)); gap: 0; }
-.calculator-keypad .document-button { min-width: 0; padding: 1px 4px; font-family: var(--font-technical); font-variant-numeric: tabular-nums; }
+.calculator-keypad { container-type: size; display: grid; flex: 1 1 auto; min-height: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); gap: 0; }
+.calculator-module .calculator-keypad .document-button { height: 100%; min-height: 0; min-width: 0; --control-font-size: clamp(10px, min(9cqi, 10cqb), 28px); padding: 1px 4px; font-family: var(--font-technical); font-variant-numeric: tabular-nums; }
+.module-frame[data-fitting] .calculator-keypad { grid-template-rows: repeat(6, var(--control-height)); }
 .calculator-keypad .calculator-equals { grid-column: 1 / -1; }

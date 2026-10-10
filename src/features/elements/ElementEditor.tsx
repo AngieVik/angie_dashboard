@@ -3,22 +3,21 @@ import type { AssetId, DocumentElement, ElementVisual } from '../../domain/docum
 import type { CreateElementInput } from './elementTypes'
 import { getPinBox, ICON_CATALOG } from './iconCatalog'
 import { clampAssetScale } from './elementCommands'
-import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Slider } from '../../components/ui/slider'
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group'
 import { Textarea } from '../../components/ui/textarea'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
-import { Check } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 
-export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
-  element?: DocumentElement; isUnit?: boolean; onSave: (input: CreateElementInput) => void; onCancel: () => void
+export function ElementEditor({ element, onSave, formId, isUnit = false }: {
+  element?: DocumentElement; isUnit?: boolean; onSave: (input: CreateElementInput) => void; formId: string
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const [name, setName] = useState(element?.name ?? '')
   const [nameFontSize, setNameFontSize] = useState(element?.nameFontSize ?? 16)
+  const [nameHidden, setNameHidden] = useState(element?.nameHidden ?? false)
   const [information, setInformation] = useState(element?.information ?? '')
   const informationRef = useAutoGrowingTextarea(information)
   const nameId = useId()
@@ -34,20 +33,20 @@ export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
   const scale = draftScale.source === savedScale ? draftScale.value : savedScale
   const setScale = (value: number) => { if (!blockedRef.current) setDraftScale({ source: savedScale, value: clampAssetScale(value) }) }
   const [error, setError] = useValidationNotice()
-  const [errorField, setErrorField] = useState<'name' | 'emoji' | null>(null)
+  const [errorField, setErrorField] = useState<'emoji' | null>(null)
   const visual: ElementVisual = representation === 'asset' ? { type: 'asset', assetId, scale } : { type: 'emoji', value: emoji, scale }
   const box = getPinBox(visual)
-  return <form className="element-editor" aria-label={element ? 'Modificar elemento' : 'Crear elemento'} onSubmit={event => {
+  return <form id={formId} className="element-editor" aria-label={element ? 'Modificar elemento' : 'Crear elemento'} onSubmit={event => {
     event.preventDefault()
     if (blockedRef.current) return
-    if (!name.trim()) { setErrorField('name'); setError('El nombre no puede estar vacío.'); return }
     if (representation === 'emoji' && !emoji.trim()) { setErrorField('emoji'); setError('Escribe o pega un emoji.'); return }
-    onSave({ name, nameFontSize, information, visual, isUnit: unit })
+    onSave({ name, nameFontSize, nameHidden, information, visual, isUnit: unit })
   }}>
     <fieldset disabled={blocked}>
       <div className="element-editor-top">
-        <Input id={nameId} placeholder="Nombre" aria-label="Nombre" aria-invalid={Boolean(error && errorField === 'name')} aria-describedby={error && errorField === 'name' ? `${nameId}-error` : undefined} autoFocus value={name} onChange={event => setName(event.target.value)} />
+        <Input id={nameId} placeholder="Nombre" aria-label="Nombre" autoFocus value={name} onChange={event => setName(event.target.value)} />
         <EditorNumber label="Tamaño de letra del nombre" min={8} max={72} value={nameFontSize} onValueChange={setNameFontSize} />
+        <label className="element-name-hidden"><input type="checkbox" checked={nameHidden} onChange={event => setNameHidden(event.target.checked)} />Ocultar</label>
       </div>
       <RadioGroup aria-label="Tipo de pin" orientation="horizontal" value={representation} onValueChange={value => {
         if (!blockedRef.current) setRepresentation(value as 'asset' | 'emoji')
@@ -60,11 +59,11 @@ export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
         {catalog.map(id => <option key={id} value={id}>{ICON_CATALOG[id].name}</option>)}
       </select></label> : <Input aria-label="Emoji" placeholder="Emoji" aria-invalid={Boolean(error && errorField === 'emoji')} aria-describedby={error && errorField === 'emoji' ? `${nameId}-error` : undefined} value={emoji} onChange={event => setEmoji(event.target.value)} />}
       <div className="element-preview" role="img" aria-label="Previsualización del elemento">
-        <div className="element-preview-scene" style={{ width: Math.max(box.width, Math.min(200 * scale, name.length * nameFontSize * .65 + 8)) + 12, height: Math.max(box.height, nameFontSize * 1.25) + 12 }}>
+        <div className="element-preview-scene" style={{ width: Math.max(box.width, nameHidden ? 0 : Math.min(200 * scale, name.length * nameFontSize * .65 + 8)) + 12, height: Math.max(box.height, nameHidden ? 0 : nameFontSize * 1.25) + 12 }}>
           <div className="element-preview-pin" style={{ width: box.width, height: box.height }}>
             {visual.type === 'asset' ? <img src={ICON_CATALOG[visual.assetId].path} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} /> :
               <span className="board-pin-emoji" style={{ fontSize: 48 * scale, lineHeight: `${64 * scale}px` }}>{visual.value}</span>}
-            <span className="board-pin-name" style={{ fontSize: nameFontSize, lineHeight: `${nameFontSize * 1.25}px`, maxWidth: 200 * scale, padding: `${scale}px ${4 * scale}px` }}>{name}</span>
+            {!nameHidden && <span className="board-pin-name" style={{ fontSize: nameFontSize, lineHeight: `${nameFontSize * 1.25}px`, maxWidth: 200 * scale, padding: `${scale}px ${4 * scale}px` }}>{name}</span>}
           </div>
         </div>
       </div>
@@ -74,7 +73,6 @@ export function ElementEditor({ element, onSave, onCancel, isUnit = false }: {
       </div>
       <Textarea ref={informationRef} rows={1} aria-label="Información" placeholder="Información" value={information} onChange={event => setInformation(event.target.value)} />
       {error && <p id={`${nameId}-error`} role="alert">{error}</p>}
-      <div className="element-editor-actions"><Button type="submit"><Check aria-hidden="true" />{element ? 'Guardar' : 'Crear'}</Button><Button onClick={onCancel}>Atrás</Button></div>
     </fieldset>
   </form>
 }

@@ -295,3 +295,29 @@ test('dos dedos cancelan el reordenado sin perder datos', async ({ page, context
   await expect(module.getByRole('textbox', { name: 'Texto de nota' })).toHaveValue('')
   await session.detach()
 })
+
+
+test('checklist mantiene el + a la derecha al añadir y eliminar todas las filas', async ({ page }, info) => {
+  await add(page, 'Checklist')
+  const checklist = page.locator('.notebook-checklist')
+  const right = async () => {
+    const box = (await checklist.getByRole('button', { name: /Añadir elemento/ }).last().boundingBox())!
+    return box.x + box.width
+  }
+  const emptyRight = await right()
+  await checklist.getByRole('button', { name: 'Añadir elemento', exact: true }).click()
+  expect(await right()).toBeCloseTo(emptyRight, 0)
+  const row = checklist.locator('li').first()
+  const plus = (await row.getByRole('button', { name: /Añadir/ }).boundingBox())!
+  const minus = (await row.getByRole('button', { name: /Eliminar/ }).boundingBox())!
+  expect(plus.x).toBeGreaterThanOrEqual(minus.x + minus.width - 1)
+  await checklist.getByRole('textbox').fill('Comprobar radio\nConfirmar canal')
+  expect(await right()).toBeCloseTo(emptyRight, 0)
+  await page.screenshot({ path: info.outputPath('checklist-plus-derecha.png') })
+  await checklist.getByRole('button', { name: 'Añadir elemento después de 1', exact: true }).click()
+  expect(await right()).toBeCloseTo(emptyRight, 0)
+  await checklist.getByRole('button', { name: 'Eliminar elemento 2', exact: true }).click()
+  await checklist.getByRole('button', { name: 'Eliminar elemento 1', exact: true }).click()
+  expect(await right()).toBeCloseTo(emptyRight, 0)
+  await expect(checklist.getByRole('button', { name: 'Añadir elemento', exact: true })).toBeFocused()
+})

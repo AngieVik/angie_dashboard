@@ -10,8 +10,7 @@
 .element-select > img, .element-row-emoji { flex: 0 0 34px; width: 34px; height: 30px; object-fit: contain; text-align: center; font-size: 23px; line-height: 30px; }
 .element-row-text { flex: 1; min-width: 0; }
 .element-row-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
-.element-row-status { display: flex; gap: 0; align-items: center; white-space: nowrap; color: var(--color-text-secondary); font-size: 11px; }
-.element-row-status .ui-badge { padding: 0 2px; font-size: 10px; }
+.element-row-text strong > span { display: block; overflow: hidden; text-overflow: ellipsis; }
 .element-row-actions { display: flex; flex: 0 0 auto; gap: 0; }
 .element-row-actions .document-button { width: 24px; height: 26px; padding: 3px; border-color: transparent; background: transparent; color: var(--color-text-secondary); }
 .element-row-actions .document-button:hover { background: #252f36; color: var(--color-text); }
@@ -23,6 +22,8 @@
 .element-editor-top { display: flex; align-items: center; gap: 0; margin-bottom: 0; }
 .element-editor-top .document-title[aria-label="Nombre"] { width: 10ch; flex: 0 1 auto; min-width: 0; }
 .element-editor-top .document-title[type="number"] { width: 6ch; min-width: 0; flex: 0 0 auto; }
+.element-editor .element-name-hidden { flex: 0 0 auto; white-space: nowrap; }
+.element-name-hidden input { accent-color: var(--color-accent-red); }
 .element-editor label { display: flex; align-items: center; gap: 0; color: var(--color-text-secondary); }
 .element-editor .element-pin-choice { margin-block: 6px; }
 .element-editor select { min-width: 0; flex: 1; padding: 3px 5px; border: 1px solid var(--color-border); border-radius: 2px; background: var(--color-panel); color: var(--color-text); }
@@ -36,8 +37,6 @@
 .element-scale-control .document-title { width: 7ch; min-width: 0; flex: 0 0 auto; }
 .element-editor input[type="number"] { appearance: textfield; }
 .element-editor input[type="number"]::-webkit-inner-spin-button, .element-editor input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
-.element-editor-actions { display: flex; gap: 0; margin-top: 0; }
-.element-editor-actions .document-button { padding: 3px 6px; }
 .ui-radio-group { display: flex; gap: 0; }
 .ui-radio-item { display: grid; place-items: center; width: 14px; height: 14px; padding: 0; border: 1px solid var(--color-border); border-radius: 2px; background: #0c0d0e; }
 .ui-radio-indicator { width: 8px; height: 8px; background: var(--color-accent-red); }

@@ -364,14 +364,14 @@ textarea {
 
 /* Tool icons share the board toolbar's geometry at 100% zoom. */
 .app-shell .lucide { flex-shrink: 0; width: 15px; height: 15px; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-preview, .quick-note-delete)) {
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete)) {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   width: 25px; min-width: 25px; height: 25px; min-height: 25px; padding: 0; border-radius: 3px;
 }
-.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-preview, .quick-note-delete, [aria-checked="true"], [aria-pressed="true"], [data-state="open"])) {
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete, [aria-checked="true"], [aria-pressed="true"], [data-state="open"])) {
   border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--color-text-secondary);
 }
-.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-preview, .quick-note-delete)):hover:not(:disabled) {
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete)):hover:not(:disabled) {
   border-color: var(--color-hover-border); background: var(--surface-button-hover); color: var(--color-text);
 }
 :is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])):focus-visible { outline: none; border-color: var(--color-active-border); }
@@ -411,8 +411,10 @@ textarea {
 .react-resizable-handle svg, .window-resize svg { width: 15px; height: 15px; pointer-events: none; }
 .react-resizable-handle-se:hover, .window-resize:hover { color: var(--color-text); }
 
-/* Retain scrolling without bottom scrollbar tracks in the compact workspace. */
-.app-shell :is(.module-content, .app-header, .notebook-list, .elements-list, .element-editor, .element-preview, .timeline-entries, .coordinates-results dd) { scrollbar-width: auto; }
+/* Module scrolling remains available without visible scrollbar tracks. */
+.app-shell .app-header { scrollbar-width: auto; }
+.app-shell .module-frame, .app-shell .module-frame * { scrollbar-width: none; }
+.app-shell .module-frame::-webkit-scrollbar, .app-shell .module-frame ::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .app-shell ::-webkit-scrollbar { width: 6px; height: 0; }
 .app-shell ::-webkit-scrollbar-thumb { border-radius: 3px; background: #555B60; }
 .app-shell ::-webkit-scrollbar-track { background: var(--color-module); }

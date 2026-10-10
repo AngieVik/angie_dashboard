@@ -66,7 +66,6 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
         <div className="timeline-entry-line">
           <time className="technical-data" dateTime={entry.occurredAt} title={formatTimelineDate(entry.occurredAt)}>{formatTimelineTime(entry.occurredAt)}</time>
           <span className="timeline-text">{getTimelineEntryLabel(entry)}</span>
-          {isCurrentTimelineEntry(document, entry) && <Badge className="timeline-current">Actual</Badge>}
           {isTimelineEntryCorrected(entry) && <Badge variant="outline">Corregida</Badge>}
         </div>
         {editing?.id === entry.id ? <form className="timeline-edit" aria-label="Editar entrada" onSubmit={event => {

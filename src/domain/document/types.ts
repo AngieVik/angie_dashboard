@@ -27,6 +27,7 @@ export type DocumentElement = {
   information: string
   position: Position | null
   nameFontSize?: number
+  nameHidden?: boolean
   pinVisible: boolean
   readonly isUnit: boolean
 } & (

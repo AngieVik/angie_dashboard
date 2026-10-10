@@ -32,8 +32,8 @@ export function ChecklistBlock({ block, disabled, onAdd, onEdit, onCheck, onDele
       <input type="checkbox" aria-label={`Marcar elemento ${index + 1}`} checked={item.checked} disabled={disabled}
         onChange={event => onCheck(item.id, event.target.checked)} />
       <ItemText text={item.text} index={index} disabled={disabled} onEdit={text => onEdit(item.id, text)} />
-      <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" aria-label={`Añadir elemento después de ${index + 1}`} disabled={disabled} onClick={() => { pendingFocus.current = index + 1; onAdd(item.id) }}><Plus aria-hidden="true" /></Button></HelpTooltip>
       <HelpTooltip text="Eliminar elemento"><Button className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled} onClick={() => { pendingFocus.current = Math.min(index, block.items.length - 2); onDelete(item.id) }}><Minus aria-hidden="true" /></Button></HelpTooltip>
+      <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" aria-label={`Añadir elemento después de ${index + 1}`} disabled={disabled} onClick={() => { pendingFocus.current = index + 1; onAdd(item.id) }}><Plus aria-hidden="true" /></Button></HelpTooltip>
     </li>)}</ul>
     {block.items.length === 0 && <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" ref={addControl} aria-label="Añadir elemento" disabled={disabled} onClick={() => { pendingFocus.current = 0; onAdd() }}><Plus aria-hidden="true" /></Button></HelpTooltip>}
   </div>

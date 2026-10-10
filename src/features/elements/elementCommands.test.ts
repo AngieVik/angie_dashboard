@@ -8,6 +8,31 @@ import { clampAssetScale, clampPinPosition, createElement, updateElement, duplic
 const input = { name: 'Tango 1', visual: { type: 'asset' as const, assetId: 'ambulance' as const, scale: 1 }, information: 'Canal 4', isUnit: true }
 
 describe('comandos de elementos', () => {
+  it('asigna nombres automáticos por tipo sin colisiones al crear y modificar', () => {
+    const document = createEmptyDocument()
+    createElement(document, { ...input, name: 'E1', isUnit: false })
+    const general = createElement(document, { ...input, name: '   ', isUnit: false })
+    const unit = createElement(document, { ...input, name: '' })
+    expect(general.name).toBe('E2')
+    expect(unit.name).toBe('D1')
+    expect(createElement(document, { ...input, name: '' }).name).toBe('D2')
+    updateElement(document, unit.id, { name: ' ' })
+    expect(unit.name).toBe('D1')
+    expect(validateDocument(document).success).toBe(true)
+  })
+  it('conserva ocultar nombre al guardar, duplicar y recargar; acepta documentos sin campo', () => {
+    const document = createEmptyDocument()
+    const unit = createElement(document, input)
+    updateElement(document, unit.id, { nameHidden: true })
+    expect(duplicateElement(document, unit.id).nameHidden).toBe(true)
+    const restored = migrateDocument(JSON.parse(serializeDocument(document)))
+    expect(restored.success).toBe(true)
+    if (restored.success) expect(restored.document.elements[0]?.nameHidden).toBe(true)
+    delete unit.nameHidden
+    expect(validateDocument(document).success).toBe(true)
+    Object.assign(unit, { nameHidden: 'sí' })
+    expect(validateDocument(document).success).toBe(false)
+  })
   it('ocultar y mostrar solo cambia visibilidad; duplicar conserva letra sin operación', () => {
     const document = createEmptyDocument()
     const unit = createElement(document, { ...input, nameFontSize: 24 })
@@ -46,9 +71,8 @@ describe('comandos de elementos', () => {
     expect(general).toMatchObject({ isUnit: false, operational: null, visual: { type: 'emoji', value: '🚴🏽‍♂️', scale: 1 } })
     expect(validateDocument(document).success).toBe(true)
   })
-  it('rechaza nombres vacíos, emojis vacíos y números no finitos sin alterar el documento', () => {
+  it('rechaza emojis vacíos y números no finitos sin alterar el documento', () => {
     const document = createEmptyDocument()
-    expect(() => createElement(document, { ...input, name: '   ' })).toThrow()
     expect(() => createElement(document, { ...input, visual: { type: 'emoji', value: '', scale: 1 } })).toThrow()
     expect(() => createElement(document, { ...input, position: { x: Infinity, y: 4 } })).toThrow()
     expect(document.elements).toEqual([])

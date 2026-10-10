@@ -13,7 +13,7 @@ export default defineConfig({
         // Do not include the public font stylesheet a second time.
         globIgnores: ['assets/fonts/**'],
       },
-      includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/elements/*.png', 'assets/audio/alarm.mp3'],
+      includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/fonts/rajdhani/*', 'assets/elements/*.png', 'assets/audio/alarm.mp3'],
       manifest: {
         id: '/',
         name: 'Angie Dashboard',

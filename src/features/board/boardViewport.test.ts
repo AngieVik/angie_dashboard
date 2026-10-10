@@ -74,4 +74,6 @@ it('centrado recupera letra de 72 px cuando el icono mide 16 px', () => {
   d.elements.push({ id: crypto.randomUUID(), name: 'CP', nameFontSize: 72, pinVisible: true, information: '', isUnit: false, operational: null,
     visual: { type: 'emoji', value: '📍', scale: .25 }, position: { x: 200, y: 100 } })
   expect(initialBoardView({ width: 100, height: 100 }, d.board, d.elements)).toEqual({ scale: 1, offsetX: -150, offsetY: -13 })
+  d.elements[0]!.nameHidden = true
+  expect(initialBoardView({ width: 100, height: 100 }, d.board, d.elements)).toEqual({ scale: 1, offsetX: -150, offsetY: -50 })
 })

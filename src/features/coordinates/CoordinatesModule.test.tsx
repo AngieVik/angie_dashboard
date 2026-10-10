@@ -26,7 +26,7 @@ describe('Módulo de coordenadas', () => {
   it('conserva el campo accesible sin etiqueta ni indicación redundante', () => {
     render(<CoordinatesModule />)
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveAttribute('placeholder', 'coordenadas')
+    expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveAttribute('placeholder', 'Coordenadas')
     expect(screen.queryByText('Convertir')).not.toBeInTheDocument()
     expect(screen.queryByText('Coordenadas')).not.toBeInTheDocument()
     expect(screen.queryByText('DD · DMS · DMM · UTM')).not.toBeInTheDocument()

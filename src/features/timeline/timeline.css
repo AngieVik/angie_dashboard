@@ -7,7 +7,6 @@
 .timeline-entry-line time { flex-shrink: 0; color: var(--color-text-secondary); font-size: 12px; }
 .timeline-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; flex: 1 1 120px; }
 .timeline-entry-line .ui-badge { flex-shrink: 0; font-size: 11px; }
-.timeline-current { border-left: 2px solid var(--color-accent-red); }
 .timeline-entry-actions { display: flex; justify-content: flex-end; gap: 0; margin-top: 0; }
 .timeline-entry-actions .document-button, .timeline-add .document-button { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; padding: 3px; }
 .timeline-entry-actions svg, .timeline-add svg, .timeline-edit svg { width: 15px; height: 15px; flex-shrink: 0; }

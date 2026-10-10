@@ -5,6 +5,7 @@ import { HelpTooltip } from '../components/ui/tooltip'
 import { Button } from '../components/ui/button'
 import { MODULE_ICONS, MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, Size } from './layoutTypes'
+import { ModuleSizeContext } from './ModuleSizeContext'
 import { ZoomControl } from './ZoomControl'
 import { useViewportInteraction } from './ViewportContext'
 
@@ -94,6 +95,25 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     node.addEventListener('wheel', wheel, { capture: true, passive: false })
     return () => node.removeEventListener('wheel', wheel, true)
   }, [id, blockedRef])
+  function requestSpace(minimum: Size, { fitHeight = false } = {}) {
+    const section = frame.current
+    if (blockedRef.current || !section || !onFit) return
+    const chrome = section.querySelector<HTMLElement>('.module-header')!.offsetHeight + section.querySelector<HTMLElement>('.module-controls')!.offsetHeight + 2
+    if (fitHeight) {
+      const height = Math.max(chrome + 1, Math.ceil(minimum.height * scale + chrome))
+      if (height !== section.offsetHeight) onFit({ width: section.offsetWidth, height })
+      return
+    }
+    const width = Math.ceil(Math.max(section.offsetWidth, minimum.width * scale + 2))
+    const originalWidth = section.style.width
+    let height: number
+    try {
+      section.style.width = width + 'px'
+      const measuredHeight = (content.current?.firstElementChild as HTMLElement | null)?.scrollHeight ?? 0
+      height = Math.ceil(Math.max(section.offsetHeight, Math.max(minimum.height, measuredHeight) * scale + chrome))
+    } finally { section.style.width = originalWidth }
+    if (width > section.offsetWidth || height > section.offsetHeight) onFit({ width, height })
+  }
   return (
     <section ref={frame} className="module-frame" data-active={active} role="region" aria-label={name}>
       <header className="module-header">
@@ -103,7 +123,7 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
         <HelpTooltip key={generation} text={`Cerrar ${name}`}><Button className="module-close" aria-label={`Cerrar ${name}`} disabled={blocked} onClick={onClose}><X aria-hidden="true" /></Button></HelpTooltip>
       </header>
       <div ref={content} className="module-content">
-        <div className="module-scaled-content" data-scale={scale} style={{ zoom: scale, width: '100%', height: '100%' }}>{children}</div>
+        <div className="module-scaled-content" data-scale={scale} style={{ zoom: scale, width: '100%', height: '100%' }}><ModuleSizeContext value={requestSpace}>{children}</ModuleSizeContext></div>
       </div>
       <div className="module-controls">
         <ZoomControl key={generation} scale={scale} onChange={value => { if (!blockedRef.current) setScale(value) }} label={`Zoom de ${name}`} disabled={blocked} side="right" />

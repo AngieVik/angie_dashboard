@@ -73,7 +73,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onMove
       onPointerCancel={cancel} onLostPointerCapture={cancel} onClick={() => { if (interactive && !blockedRef.current && !suppressClick.current) onSelect(); suppressClick.current = false }}>
       {visual.type === 'asset' ? <img src={ICON_CATALOG[visual.assetId].path} alt={ICON_CATALOG[visual.assetId].name} draggable={false}
         style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} /> : <span className="board-pin-emoji" aria-hidden="true" style={{ fontSize: 48 * visual.scale, lineHeight: `${64 * visual.scale}px` }}>{visual.value}</span>}
-      <span className="board-pin-name" style={{ fontSize: element.nameFontSize ?? 16, lineHeight: `${(element.nameFontSize ?? 16) * 1.25}px`, maxWidth: 200 * visual.scale, padding: `${visual.scale}px ${4 * visual.scale}px` }}>{element.name}</span>
+      {!element.nameHidden && <span className="board-pin-name" style={{ fontSize: element.nameFontSize ?? 16, lineHeight: `${(element.nameFontSize ?? 16) * 1.25}px`, maxWidth: 200 * visual.scale, padding: `${visual.scale}px ${4 * visual.scale}px` }}>{element.name}</span>}
     </button>
     {selected && enabled && <button type="button" className="board-pin-resize" aria-label={`Redimensionar ${element.name}`} disabled={blocked}
       onPointerDown={event => start(event, 'resize')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel} />}

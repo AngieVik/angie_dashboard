@@ -39,4 +39,6 @@ it('letra grande independiente del icono ocupa toda la altura del pin', async ()
   const d = createEmptyDocument()
   createElement(d, { name: 'CP', isUnit: false, information: '', nameFontSize: 72, visual: { type: 'emoji', value: '📍', scale: .25 }, position: { x: 200, y: 100 } })
   expect(getQuickNoteObstacles(d.board, d.elements, () => 50)).toEqual([{ x: 175, y: 18, width: 50, height: 90 }])
+  d.elements[0]!.nameHidden = true
+  expect(getQuickNoteObstacles(d.board, d.elements, () => 50)).toEqual([{ x: 192, y: 92, width: 16, height: 16 }])
 })

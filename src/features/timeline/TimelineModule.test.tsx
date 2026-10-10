@@ -105,10 +105,11 @@ describe('entrega 9: editor y confirmaciones', () => {
     }))
     return store
   }
-  it('marca Actual por referencia, edita automáticas sin transición y cancela borrado sin revisión', async () => {
+  it('oculta etiqueta Actual, edita automáticas sin transición y cancela borrado sin revisión', async () => {
     const store = await automatic(), before = store.getSnapshot().document
     expect(screen.queryByRole('button', { name: 'Deshacer' })).not.toBeInTheDocument()
-    expect(screen.getAllByText('Actual', { exact: true })).toHaveLength(1)
+    expect(screen.queryByText('Actual', { exact: true })).not.toBeInTheDocument()
+    expect(document.querySelectorAll('[data-current="true"]')).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: 'Editar entrada' })).toHaveLength(3)
     fireEvent.click(screen.getAllByRole('button', { name: 'Editar entrada' })[0]!)
     expect(screen.queryByRole('button', { name: 'Corregir estado actual' })).not.toBeInTheDocument()

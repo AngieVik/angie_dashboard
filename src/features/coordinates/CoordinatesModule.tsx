@@ -79,7 +79,7 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
       <InputGroup className="coordinates-entry">
         <Input id={`${id}-input`} aria-label="Coordenadas" className="document-title technical-data" value={input} disabled={blocked}
           aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
-          placeholder="coordenadas" spellCheck={false} autoComplete="off"
+          placeholder="Coordenadas" spellCheck={false} autoComplete="off"
           onChange={event => {
             if (blockedRef.current) return
             revision.current++

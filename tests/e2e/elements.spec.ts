@@ -43,7 +43,7 @@ async function create(page: Page, name: string, isUnit = false, icon = 'checkpoi
     await page.getByRole('textbox', { name: 'Emoji', exact: true }).fill(emoji)
   } else await page.getByLabel('Pin', { exact: true }).selectOption(icon)
   await page.getByLabel('Información', { exact: true }).fill('Acceso norte · Canal 4')
-  await page.getByRole('form', { name: 'Crear elemento' }).getByRole('button', { name: 'Crear', exact: true }).click()
+  await page.getByRole('region', { name: moduleName, exact: true }).getByRole('button', { name: 'Crear', exact: true }).click()
   await open(page, 'Pizarra')
 }
 async function point(page: Page, x: number, y: number) {
@@ -514,4 +514,48 @@ test('entrega 6: preview sin recorte de etiqueta mayor que el icono', async ({ p
   const labelBox = (await module.locator('.element-preview-pin .board-pin-name').boundingBox())!
   expect(labelBox.y).toBeGreaterThanOrEqual(sceneBox.y)
   expect(labelBox.y + labelBox.height).toBeLessThanOrEqual(sceneBox.y + sceneBox.height)
+})
+
+
+test('cabecera única, nombres automáticos y ocultar nombre persisten sin duplicar acciones', async ({ page }, info) => {
+  const fixture = createEmptyDocument('Mejoras de elementos')
+  for (const id of ['board', 'elements', 'dotations'] as const) {
+    fixture.moduleLayouts[id] = { x: 0, y: 0, width: 280, height: 360, referenceSize: { width: 1440, height: 900 } }
+  }
+  await loadDocument(page, fixture)
+  await page.getByRole('spinbutton', { name: 'Zoom actual', exact: true }).fill('100')
+  await page.getByRole('spinbutton', { name: 'Zoom actual', exact: true }).press('Enter')
+  for (const [moduleName, automaticName] of [['Elementos', 'E1'], ['Dotaciones', 'D1']]) {
+    if (moduleName === 'Dotaciones') await open(page, moduleName!)
+    await bringModuleToFront(page, moduleName!)
+    const panel = page.getByRole('region', { name: moduleName, exact: true })
+    await panel.getByRole('button', { name: 'Crear', exact: true }).click()
+    await expect(panel.getByRole('button', { name: 'Crear', exact: true })).toHaveCount(1)
+    await expect(panel.locator('form button[type="submit"]')).toHaveCount(0)
+    const hide = panel.getByRole('checkbox', { name: 'Ocultar', exact: true })
+    const hideBox = (await hide.boundingBox())!, fontBox = (await panel.getByLabel('Tamaño de letra del nombre').boundingBox())!
+    expect(hideBox.x).toBeGreaterThanOrEqual(fontBox.x + fontBox.width)
+    await hide.check()
+    await panel.getByRole('button', { name: 'Crear', exact: true }).click()
+    await expect(panel.getByRole('button', { name: 'Seleccionar ' + automaticName, exact: true })).toBeVisible()
+    await panel.getByRole('button', { name: 'Modificar', exact: true }).click()
+    await expect(hide).toBeChecked()
+    await panel.getByLabel('Nombre', { exact: true }).fill('Borrador')
+    await panel.getByRole('button', { name: 'Atrás', exact: true }).click()
+    await expect(panel.getByRole('button', { name: 'Seleccionar ' + automaticName, exact: true })).toBeVisible()
+  }
+  await expect.poll(async () => (await saved(page)).elements.map(element => [element.name, element.nameHidden])).toEqual([['E1', true], ['D1', true]])
+  await expect(page.locator('.board-pin-name')).toHaveCount(0)
+  await page.reload()
+  await open(page, 'Dotaciones')
+  const panel = page.getByRole('region', { name: 'Dotaciones', exact: true })
+  await panel.getByRole('button', { name: 'Modificar', exact: true }).click()
+  await expect(panel.getByRole('checkbox', { name: 'Ocultar' })).toBeChecked()
+  await panel.getByRole('checkbox', { name: 'Ocultar' }).uncheck()
+  await panel.getByLabel('Nombre', { exact: true }).fill('ABCDEFGHIJKLM')
+  await page.screenshot({ path: info.outputPath('formulario-cabecera.png') })
+  await panel.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(panel.locator('.element-row-text strong > span')).toHaveText(['ABCDEF', 'GHIJKL'])
+  await expect(panel.locator('.element-row-status, .ui-badge')).toHaveCount(0)
+  await page.screenshot({ path: info.outputPath('dotaciones-dos-lineas.png') })
 })
