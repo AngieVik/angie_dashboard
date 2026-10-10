@@ -42,7 +42,7 @@ describe('Módulo de coordenadas', () => {
     fireEvent.click(row)
     await waitFor(() => expect(copied).toBe(expected))
     expect(within(row).queryByText(`Copiar ${format}`)).not.toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Coordenada copiada'))
   })
   it('la fila UTM copia solo su valor y admite Enter y Espacio', async () => {
     let copied = ''
@@ -182,4 +182,19 @@ describe('Módulo de coordenadas', () => {
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveValue('')
     expect(screen.getByLabelText('Resultado DD')).toBeEmptyDOMElement()
   })
+})
+
+
+it.each(['DD', 'DMS', 'DMM', 'UTM', 'Maps'])('la confirmación de %s dura tres segundos y copiar de nuevo reinicia el plazo', async format => {
+  vi.useFakeTimers()
+  clipboardAccess({ writeText: async () => {} })
+  render(<CoordinatesModule />); enter('37, -2')
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copiar ' + format })))
+  expect(screen.getByRole('status')).toHaveTextContent(format === 'Maps' ? 'Enlace copiado' : 'Coordenada copiada')
+  act(() => vi.advanceTimersByTime(2000))
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copiar ' + format })))
+  act(() => vi.advanceTimersByTime(2999))
+  expect(screen.getByRole('status')).toBeInTheDocument()
+  act(() => vi.advanceTimersByTime(1))
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })

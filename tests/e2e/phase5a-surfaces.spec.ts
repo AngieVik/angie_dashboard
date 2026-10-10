@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
 })
 for (const scale of [25, 100, 200, 400]) {
-  test(`Puzzle ordena solo abiertos a ${scale} %, mantiene selección, capas y tamaño manual`, async ({ page }, info) => {
+  test(`Puzzle ordena solo abiertos a ${scale} %, mantiene selección y capas con tamaños moderados`, async ({ page }, info) => {
     await page.goto('/')
     const fixture = createEmptyDocument('Puzzle')
     const ref = { width: 1600, height: 1000 }
@@ -34,27 +34,27 @@ for (const scale of [25, 100, 200, 400]) {
     await zoom(page, scale)
     const layers = await page.locator('[data-module]').evaluateAll(els => els.map(el => (el as HTMLElement).style.zIndex))
     const widths = await Promise.all(['board', 'elements', 'information'].map(id => geometry(page, id)))
-    const visible = await page.getByTestId('mobile-viewport').evaluate(el => el.clientWidth)
     await page.getByRole('button', { name: 'Encajar', exact: true }).click()
     const ordered = await Promise.all(['board', 'elements', 'information'].map(id => geometry(page, id)))
-    expect(ordered[0]).toEqual({ ...widths[0], x: 12, y: 12 })
-    const rowWidth = visible / (scale / 100)
-    let x = 12, y = 12, height = 0
-    for (let i = 0; i < widths.length; i++) {
-      const size = widths[i]!
-      if (x > 12 && x + size.width + 12 > rowWidth) { x = 12; y += height + 12; height = 0 }
-      expect(ordered[i]).toEqual({ ...size, x, y })
-      x += size.width + 12; height = Math.max(height, size.height)
+    const actualScale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
+    const visible = await page.getByTestId('mobile-viewport').evaluate(el => ({ width: el.clientWidth, height: el.clientHeight }))
+    for (let i = 0; i < ordered.length; i++) {
+      const a = ordered[i]!, original = widths[i]!
+      expect(a.width).toBeGreaterThanOrEqual(original.width * .8 - 1)
+      expect(a.height).toBeGreaterThanOrEqual(original.height * .8 - 1)
+      expect(a.x + a.width).toBeLessThanOrEqual(visible.width / actualScale + 1)
+      expect(a.y + a.height).toBeLessThanOrEqual(visible.height / actualScale + 1)
+      for (const b of ordered) if (a !== b) expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true)
     }
-    await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', String(scale / 100))
     await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-offset-x', '0')
     expect(await page.locator('[data-module]').evaluateAll(els => els.map(el => (el as HTMLElement).style.zIndex))).toEqual(layers)
     await expect(page.locator('[data-module="elements"]').getByRole('button', { name: 'Seleccionar Referencia', exact: true })).toHaveAttribute('aria-pressed', 'true')
     const saved = (await downloadDocument(page)).document
     expect(saved.moduleLayouts.clock).toEqual(fixture.moduleLayouts.clock)
     for (const id of ['board', 'elements', 'information'] as const) {
-      expect(saved.moduleLayouts[id]!.width).toBe(fixture.moduleLayouts[id]!.width)
-      expect(saved.moduleLayouts[id]!.height).toBe(fixture.moduleLayouts[id]!.height)
+      const shown = ordered[['board', 'elements', 'information'].indexOf(id)]!
+      expect(saved.moduleLayouts[id]!.width).toBe(shown.width)
+      expect(saved.moduleLayouts[id]!.height).toBe(shown.height)
     }
     expect(saved.board).toEqual(fixture.board); expect(saved.elements).toEqual(fixture.elements)
     await noPageScroll(page)

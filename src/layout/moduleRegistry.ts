@@ -1,3 +1,4 @@
+import { Ambulance, Calculator, ClipboardList, Clock3, Info, MapPin, NotebookPen, Package, PanelsTopLeft, Radio } from 'lucide-react'
 import type { ModuleId } from './layoutTypes'
 
 interface ModuleDefinition { name: string; initial: readonly [number, number]; minimum: readonly [number, number]; contentMinimum: readonly [number, number] }
@@ -13,3 +14,5 @@ export const MODULE_REGISTRY = {
   notebook: { name: 'Cuaderno', initial: [360, 420], minimum: [1, 1], contentMinimum: [260, 220] },
   timeline: { name: 'Registro cronológico', initial: [420, 320], minimum: [1, 1], contentMinimum: [280, 180] },
 } as const satisfies Record<ModuleId, ModuleDefinition>
+
+export const MODULE_ICONS = { board: PanelsTopLeft, elements: Package, dotations: Ambulance, information: Info, operations: Radio, coordinates: MapPin, clock: Clock3, calculator: Calculator, notebook: NotebookPen, timeline: ClipboardList }

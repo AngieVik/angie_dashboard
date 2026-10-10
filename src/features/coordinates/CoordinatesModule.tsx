@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { InputGroup } from '../../components/ui/input-group'
@@ -22,9 +22,18 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [rowCopyError, setRowCopyError] = useState<string | null>(null)
 
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => { clearTimeout(copyTimer.current); revision.current++ }, [])
+  function confirmCopy(message: string) {
+    clearTimeout(copyTimer.current)
+    setCopyMessage(message)
+    copyTimer.current = setTimeout(() => setCopyMessage(null), 3000)
+  }
+
   function convert() {
     if (blockedRef.current) return
     revision.current++
+    clearTimeout(copyTimer.current)
     setCopyMessage(null)
     setRowCopyError(null)
     const parsed = parseCoordinate(input)
@@ -39,17 +48,24 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
   async function copy() {
     if (blockedRef.current || !result) return
     setRowCopyError(null)
-    const current = revision.current
+    clearTimeout(copyTimer.current)
+    setCopyMessage(null)
+    const current = ++revision.current
     const copied = await copyText(result.link)
-    if (current === revision.current) setCopyMessage(copied ? 'Enlace copiado' : 'No se pudo copiar. Copia el enlace manualmente.')
+    if (current !== revision.current) return
+    if (copied) confirmCopy('Enlace copiado')
+    else setCopyMessage('No se pudo copiar. Copia el enlace manualmente.')
   }
 
   async function copyCoordinate(value: string | null) {
     if (blockedRef.current || value === null) return
-    const current = revision.current
+    clearTimeout(copyTimer.current)
+    const current = ++revision.current
     setCopyMessage(null); setRowCopyError(null)
     const copied = await copyText(value)
-    if (current === revision.current) setRowCopyError(copied ? null : 'No se pudo copiar la coordenada.')
+    if (current !== revision.current) return
+    if (copied) confirmCopy('Coordenada copiada')
+    else setRowCopyError('No se pudo copiar la coordenada.')
   }
 
   const rows = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
@@ -67,6 +83,7 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
           onChange={event => {
             if (blockedRef.current) return
             revision.current++
+            clearTimeout(copyTimer.current)
             setInput(event.target.value); setError(null); setResult(null); setCopyMessage(null); setRowCopyError(null)
           }} />
         <HelpTooltip text="Validar coordenadas y mostrar formatos"><Button type="submit" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked}><Check aria-hidden="true" /></Button></HelpTooltip>

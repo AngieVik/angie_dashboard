@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { createElement } from '../features/elements/elementCommands'
@@ -69,6 +69,77 @@ describe('base de Angie Dashboard', () => {
     fireEvent.focus(screen.getByRole('button', { name: 'Cerrar Coordenadas' }))
     expect([module('information').style.zIndex, module('elements').style.zIndex, module('coordinates').style.zIndex]).toEqual(['1', '2', '3'])
   })
+  it('los iconos de abiertos activan y traen al frente sin modificar el documento', async () => {
+    const store = getDocumentStore()
+    await act(async () => { await store.newDocument() })
+    render(<App />)
+    await open('Información'); await open('Coordenadas')
+    const before = structuredClone(store.getSnapshot().document)
+    fireEvent.click(within(document.querySelector('.app-header') as HTMLElement).getByRole('button', { name: 'Seleccionar módulo Información' }))
+    expect(screen.getByRole('region', { name: 'Información' })).toHaveAttribute('data-active', 'true')
+    expect(document.querySelector('[data-module="information"]')).toHaveStyle({ zIndex: '2' })
+    expect(store.getSnapshot().document).toEqual(before)
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar Información' }))
+    expect(screen.queryByRole('button', { name: 'Seleccionar módulo Información' })).not.toBeInTheDocument()
+  })
+  it('una zona libre de cualquier módulo o del dashboard deselecciona sin afectar controles ni arrastres', async () => {
+    const store = getDocumentStore()
+    await act(async () => {
+      await store.newDocument()
+      store.mutateDocument(doc => createElement(doc, { name: 'Referencia', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 100, y: 100 } }))
+    })
+    render(<App />)
+    await open('Elementos'); await open('Información')
+    const choose = () => fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Referencia' }))
+    const row = document.querySelector('.element-row')!
+    choose()
+    fireEvent.click(screen.getByRole('spinbutton', { name: 'Zoom de Información' }))
+    expect(row).toHaveAttribute('data-selected', 'true')
+    fireEvent.click(screen.getByRole('region', { name: 'Información' }).querySelector('.module-content')!)
+    expect(row).toHaveAttribute('data-selected', 'false')
+    choose()
+    const workspace = screen.getByRole('main')
+    fireEvent.pointerDown(workspace, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(workspace, { pointerId: 1, clientX: 30, clientY: 10 })
+    fireEvent.click(workspace)
+    expect(row).toHaveAttribute('data-selected', 'true')
+    fireEvent.pointerDown(workspace, { pointerId: 2, clientX: 10, clientY: 10 })
+    fireEvent.click(workspace)
+    expect(row).toHaveAttribute('data-selected', 'false')
+  })
+  it('volver al origen conserva zoom, geometría y documento y precede a los iconos de módulos', async () => {
+    const store = getDocumentStore()
+    await act(async () => { await store.newDocument() })
+    render(<App />)
+    await open('Información')
+    const zoom = screen.getByLabelText('Zoom actual')
+    fireEvent.change(zoom, { target: { value: '200' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
+    const viewport = screen.getByTestId('mobile-viewport')
+    fireEvent.pointerDown(viewport, { pointerId: 1, button: 0, clientX: 700, clientY: 600 })
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 600, clientY: 500 })
+    fireEvent.pointerUp(viewport, { pointerId: 1 })
+    expect(viewport).toHaveAttribute('data-offset-x', '-100')
+    const before = structuredClone(store.getSnapshot().document)
+    const origin = screen.getByRole('button', { name: 'Volver al origen' })
+    fireEvent.click(origin)
+    expect(viewport).toHaveAttribute('data-offset-x', '0')
+    expect(viewport).toHaveAttribute('data-offset-y', '0')
+    expect(zoom).toHaveValue(200)
+    expect(store.getSnapshot().document).toEqual(before)
+    expect(origin.compareDocumentPosition(screen.getByRole('button', { name: 'Seleccionar módulo Información' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+  it('el imán se activa sin cambiar el documento y está a la izquierda de Puzzle', async () => {
+    const store = getDocumentStore()
+    await act(async () => { await store.newDocument() })
+    render(<App />)
+    const before = structuredClone(store.getSnapshot().document)
+    const magnet = screen.getByRole('button', { name: 'Imán de módulos' })
+    expect(magnet).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(magnet)
+    expect(magnet).toHaveAttribute('aria-pressed', 'true')
+    expect(magnet.compareDocumentPosition(screen.getByRole('button', { name: 'Encajar' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(store.getSnapshot().document).toEqual(before)
+  })
   it('integra Archivo y el título editable con el documento activo', async () => {
     render(<App />)
     expect(screen.getByRole('button', { name: 'Archivo' })).toBeInTheDocument()
@@ -103,7 +174,7 @@ describe('base de Angie Dashboard', () => {
   })
 })
 
-describe('Puzzle solo recoloca', () => {
+describe('Puzzle compacto', () => {
   it('conserva zoom y documento cuando no hay abiertos', async () => {
     const store = getDocumentStore()
     await act(async () => { await store.newDocument(); store.mutateDocument(doc => { doc.moduleLayouts.clock = { x: 800, y: 500, width: 440, height: 260, referenceSize: { width: 1600, height: 1000 } } }) })
@@ -115,7 +186,7 @@ describe('Puzzle solo recoloca', () => {
     expect(zoom).toHaveValue(200)
     expect(store.getSnapshot().document).toEqual(before)
   })
-  it('recoloca abiertos en orden estable sin cambiar tamaños manuales ni cerrados', async () => {
+  it('compacta abiertos sin cambiar módulos cerrados ni contenido', async () => {
     const store = getDocumentStore()
     await act(async () => { await store.newDocument(); store.mutateDocument(doc => {
       doc.moduleLayouts.elements = { x: 30, y: 40, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } }
@@ -130,8 +201,9 @@ describe('Puzzle solo recoloca', () => {
     const before = structuredClone(store.getSnapshot().document)
     fireEvent.click(screen.getByRole('button', { name: 'Encajar' }))
     const after = store.getSnapshot().document
-    expect(after.moduleLayouts.elements).toMatchObject({ x: 12, y: 12, width: 300, height: 420 })
-    expect(after.moduleLayouts.information).toMatchObject({ width: 320, height: 240 })
+    expect(after.moduleLayouts.elements).toMatchObject({ x: 0, y: 0, width: 320, height: 420 })
+    expect(after.moduleLayouts.information!.width).toBeGreaterThanOrEqual(256)
+    expect(after.moduleLayouts.information!.height).toBeLessThanOrEqual(288)
     expect(after.moduleLayouts.clock).toEqual(before.moduleLayouts.clock)
     expect(after.elements).toEqual(before.elements)
   })
@@ -153,7 +225,7 @@ it('Puzzle conserva documento, presentación y cámara si falla la aplicación v
   expect(module.outerHTML).toBe(html)
   fail.mockRestore()
   fireEvent.click(screen.getByRole('button', { name: 'Encajar' }))
-  expect(store.getSnapshot().document.moduleLayouts.information).toMatchObject({ width: 100, height: 100, x: 12, y: 12 })
+  expect(store.getSnapshot().document.moduleLayouts.information).toMatchObject({ width: 100, height: 100, x: 0, y: 0 })
   expect(module).toHaveAttribute('data-width', '100')
 })
 

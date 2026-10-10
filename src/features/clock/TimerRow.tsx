@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
-import { SquareX } from 'lucide-react'
+import { X, Play, Pause, Square } from 'lucide-react'
 import { Input } from '../../components/ui/input'
 import { Textarea } from '../../components/ui/textarea'
 import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
@@ -39,14 +39,14 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
       if (snapshot.alertActive && !(event.target as HTMLElement).closest('button, input, textarea')) recognize()
     }}>
     <div className="timer-heading"><span>{name}</span>
-      <Button className="timer-close document-button" aria-label="Cerrar temporizador" onClick={close}><SquareX aria-hidden="true" /></Button></div>
+      <Button className="timer-close document-button" aria-label="Cerrar temporizador" onClick={close}><X aria-hidden="true" /></Button></div>
     <div className="timer-main">
       {snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
       <div className="timer-controls">
-        <Button aria-label="Iniciar" title="Iniciar" disabled={snapshot.status === 'running' || snapshot.status === 'completed'} onClick={start}>▶</Button>
-        {timer.kind === 'advisory' ? <Button ref={resetControl} aria-label="Desactivar" title="Desactivar" onClick={() => store.deactivate(timer.id)}>⏹</Button> : <>
-          <Button aria-label="Pausar" title="Pausar" disabled={snapshot.status !== 'running'} onClick={() => store.pause(timer.id)}>⏸</Button>
-          <Button ref={resetControl} aria-label="Reiniciar" title="Reiniciar" onClick={() => store.reset(timer.id)}>⏹</Button>
+        <Button aria-label="Iniciar" title="Iniciar" disabled={snapshot.status === 'running' || snapshot.status === 'completed'} onClick={start}><Play aria-hidden="true" /></Button>
+        {timer.kind === 'advisory' ? <Button ref={resetControl} aria-label="Desactivar" title="Desactivar" onClick={() => store.deactivate(timer.id)}><Square aria-hidden="true" /></Button> : <>
+          <Button aria-label="Pausar" title="Pausar" disabled={snapshot.status !== 'running'} onClick={() => store.pause(timer.id)}><Pause aria-hidden="true" /></Button>
+          <Button ref={resetControl} aria-label="Reiniciar" title="Reiniciar" onClick={() => store.reset(timer.id)}><Square aria-hidden="true" /></Button>
         </>}
       </div>
     </div>

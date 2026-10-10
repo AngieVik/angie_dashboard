@@ -55,7 +55,7 @@ describe('Operativo', () => {
     fireEvent.click(screen.getByRole('button', { name: '🟢 1 Disponible' }))
     fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Tango 1' }))
     expect(screen.getByRole('textbox', { name: 'Anotación' })).toHaveAttribute('rows', '1')
-    expect(screen.getByRole('textbox', { name: 'Anotación' })).toHaveAttribute('placeholder', 'anotación')
+    expect(screen.getByRole('textbox', { name: 'Anotación' })).toHaveAttribute('placeholder', 'Anotación')
     const input = screen.getByRole('textbox', { name: 'Nueva etiqueta' })
     expect(input).toHaveAttribute('placeholder', 'Etiqueta')
     vi.useFakeTimers()
@@ -127,4 +127,27 @@ describe('Operativo', () => {
     await store.flushAutosave()
     expect(saved()).toEqual(document)
   })
+  it('cambiar repetidamente de dotación conserva una sola anotación y etiqueta sin mezclar borradores', async () => {
+    const store = createDocumentStore({ loadActive: async () => null, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })
+    await store.initialize()
+    store.mutateDocument(document => {
+      for (const name of ['Equipo uno', 'Equipo dos']) {
+        const unit = createElement(document, { name, visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
+        if (unit.operational) unit.operational.notes = 'Anotación de ' + name
+      }
+    })
+    const units = store.getSnapshot().document.elements
+    const view = render(<TooltipProvider><OperationsModule store={store} selectedId={units[0]!.id} onSelect={() => {}} /></TooltipProvider>)
+    for (let index = 0; index < 8; index++) {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Nueva etiqueta' }), { target: { value: 'Borrador sin guardar' } })
+      const unit = units[(index + 1) % 2]!
+      view.rerender(<TooltipProvider><OperationsModule store={store} selectedId={unit.id} onSelect={() => {}} /></TooltipProvider>)
+      expect(screen.getAllByRole('textbox', { name: 'Anotación' })).toHaveLength(1)
+      expect(screen.getByRole('textbox', { name: 'Anotación' })).toHaveValue('Anotación de ' + unit.name)
+      expect(screen.getAllByRole('textbox', { name: 'Nueva etiqueta' })).toHaveLength(1)
+      expect(screen.getByRole('textbox', { name: 'Nueva etiqueta' })).toHaveValue('')
+    }
+    expect(store.getSnapshot().document.timeline).toHaveLength(0)
+  })
+
 })

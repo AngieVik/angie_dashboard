@@ -17,6 +17,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   const [blocked, setBlocked] = useState(false)
   const current = useRef(state)
   const previous = useRef<{ midpoint: Point; distance: number } | null>(null)
+  const drag = useRef<{ pointerId: number; point: Point; state: ViewportState } | null>(null)
   // Both fingers use one reference, so transient clamping between their events
   // cannot change the final scale of a translation.
   const config = useRef({ state, size, bounds, onChange, headerHeight })
@@ -28,6 +29,9 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     return { x: event.clientX - origin.current.left, y: event.clientY - origin.current.top }
   }
   function start(event: PointerEvent) {
+    // React portals bubble through this component but live outside its surface.
+    if (!(event.target instanceof Node) || !element.current?.contains(event.target)) return
+    if (event.pointerType === 'mouse' && event.button !== 0) return
     if (!pointers.current.size) {
       const rect = element.current?.getBoundingClientRect()
       origin.current = { left: rect?.left ?? 0, top: rect?.top ?? 0 }
@@ -35,11 +39,18 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       config.current = { state, size, bounds, onChange, headerHeight }
       suppressClick.current = false
       gestureOwner.current = null
+      const target = event.target
+      if (target instanceof Element && !target.closest('[data-module],button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) {
+        drag.current = { pointerId: event.pointerId, point: point(event), state }
+        element.current?.setPointerCapture?.(event.pointerId)
+      }
     }
     pointers.current.set(event.pointerId, point(event))
     origins.current.set(event.pointerId, Boolean(boardNavigationRef.current?.element.contains(event.target as Node)))
     if (pointers.current.size >= 2) {
       const entering = !blockedRef.current
+      drag.current = null
+      if (entering) config.current.state = current.current
       blockedRef.current = true
       suppressClick.current = true
       setBlocked(true)
@@ -73,7 +84,17 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   function move(event: PointerEvent) {
     if (!pointers.current.has(event.pointerId)) return
     pointers.current.set(event.pointerId, point(event))
-    if (!blockedRef.current) return
+    if (!blockedRef.current) {
+      const start = drag.current
+      if (!start || start.pointerId !== event.pointerId) return
+      const next = point(event), dx = next.x - start.point.x, dy = next.y - start.point.y
+      if (!suppressClick.current && Math.hypot(dx, dy) <= 4) return
+      suppressClick.current = true
+      current.current = pan(start.state, dx, dy, config.current.size, config.current.bounds)
+      config.current.onChange(current.current)
+      event.preventDefault(); event.stopPropagation()
+      return
+    }
     event.preventDefault(); event.stopPropagation()
     const boardRect = boardNavigationRef.current?.element.getBoundingClientRect()
     if (boardRect && gestureOwner.current !== 'cancel') {
@@ -99,6 +120,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     }
   }
   function end(event: PointerEvent) {
+    if (drag.current?.pointerId === event.pointerId) drag.current = null
     pointers.current.delete(event.pointerId)
     origins.current.delete(event.pointerId)
     if (blockedRef.current) { event.preventDefault(); event.stopPropagation() }

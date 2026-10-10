@@ -73,7 +73,7 @@ test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll
   await item.fill('')
   await expect.poll(() => item.evaluate(node => node.clientHeight)).toBe(initial)
   // Viewport changes preserve manual geometry; resizing the module reflows text.
-  const paragraph = 'Preparación de radio en el acceso norte. '.repeat(16)
+  const paragraph = 'Preparación de radio en el acceso norte. '.repeat(32)
   document.notebook[0] = { ...document.notebook[0]!, type: 'note', text: paragraph }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'loaded.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   await expect(note).toHaveValue(paragraph)
@@ -110,18 +110,16 @@ test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll
     document.moduleLayouts.notebook = { x: 0, y: 0, width, height, referenceSize: { width: 1440, height: 900 } }
     await page.getByLabel('Cargar documento JSON').setInputFiles({ name: `${label}.json`, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
     await page.getByRole('button', { name: 'Encajar', exact: true }).click()
-    await expect(module.getByLabel('Título del bloque 1')).toHaveValue('')
-    await expect(module.getByLabel('Título del bloque 2')).toHaveValue('Radio 📻 '.repeat(30))
-    const typography = await note.evaluate(node => ({ body: parseFloat(getComputedStyle(node).fontSize), title: parseFloat(getComputedStyle(node.parentElement!.querySelector('.notebook-title')!).fontSize) }))
+    await expect(module.getByLabel(/Título del bloque/)).toHaveCount(0)
+    await expect.poll(async () => (await saved(page)).notebook[1]!.title).toBe('Radio 📻 '.repeat(30))
+    const typography = await note.evaluate(node => ({ body: parseFloat(getComputedStyle(node).fontSize) }))
     expect(typography.body).toBeGreaterThanOrEqual(13); expect(typography.body).toBeLessThanOrEqual(16)
-    expect(typography.title).toBeGreaterThanOrEqual(15); expect(typography.title).toBeLessThanOrEqual(18)
     expect(await module.locator('.module-content').evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true)
     const bounds = (await module.boundingBox())!, viewport = page.viewportSize()!
     expect(bounds.x).toBeGreaterThanOrEqual(-1)
     expect(bounds.y).toBeGreaterThanOrEqual(0)
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1)
-    // A manually tall window stays tall in landscape; the dashboard camera makes it reachable.
-    await expect(frame).toHaveAttribute('data-height', String(height))
+    expect(Number(await frame.getAttribute('data-height'))).toBeGreaterThanOrEqual(height * .8 - 1)
     expect(bounds.y).toBeLessThan(viewport.height)
     expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
     await page.screenshot({ path: info.outputPath(`notebook-${label}-layout.png`) })
@@ -164,10 +162,8 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   await expect(module.getByRole('button', { name: 'Checklist', exact: true })).toBeVisible()
   await page.keyboard.press('Enter')
   await module.getByRole('textbox', { name: 'Texto de nota' }).fill('Preparación\n⚠ Acceso norte → sur\n📻 Radio')
-  await module.getByRole('textbox', { name: 'Título del bloque 1' }).fill('')
   await add(page, 'Checklist')
   const checklist = module.locator('[data-block-type="checklist"]')
-  await checklist.getByRole('textbox', { name: 'Título del bloque 2' }).fill('Radio 📻 '.repeat(30))
   await checklist.getByRole('button', { name: 'Añadir elemento' }).focus(); await page.keyboard.press('Enter')
   await checklist.getByRole('textbox', { name: 'Texto del elemento 1' }).fill('Comprobar canal 📻')
   const checkbox = checklist.getByRole('checkbox', { name: 'Marcar elemento 1' })
@@ -192,8 +188,8 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   const jsonText = await readFile((await (await downloading).path())!, 'utf8')
   const exported: AngieDocument = JSON.parse(jsonText)
   expect(exported.notebook).toEqual([
-    { id: expect.any(String), type: 'checklist', title: 'Radio 📻 '.repeat(30), items: [{ id: expect.any(String), text: 'Comprobar canal 📻', checked: true }] },
-    { id: expect.any(String), type: 'note', title: '', text: 'Preparación\n⚠ Acceso norte → sur\n📻 Radio' },
+    { id: expect.any(String), type: 'checklist', title: 'Checklist', items: [{ id: expect.any(String), text: 'Comprobar canal 📻', checked: true }] },
+    { id: expect.any(String), type: 'note', title: 'Nota', text: 'Preparación\n⚠ Acceso norte → sur\n📻 Radio' },
   ])
   expect(Object.keys(exported)).toHaveLength(8)
   await expect.poll(async () => (await saved(page)).notebook).toEqual(exported.notebook)
@@ -207,8 +203,6 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Cuaderno Task 11')
   await open(page)
   await expect(checkbox).toBeChecked()
-  await expect(module.getByRole('textbox', { name: 'Título del bloque 1' })).toHaveValue('Radio 📻 '.repeat(30))
-  await expect(module.getByRole('textbox', { name: 'Título del bloque 2' })).toHaveValue('')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Nuevo', exact: true }).click()
   await expect(module.locator('[data-block-id]')).toHaveCount(0)
@@ -265,7 +259,7 @@ test('tamaño mínimo, lista con scroll interno, nombres accesibles y foco visib
   expect(await addButton.evaluate(node => getComputedStyle(node).outlineStyle)).not.toBe('none')
   const ids = document.notebook.map(block => block.id)
   if (isMobile) {
-    const rect = await list.locator('.notebook-title').first().boundingBox(), session = await context.newCDPSession(page)
+    const rect = await list.locator('textarea').first().boundingBox(), session = await context.newCDPSession(page)
     // Scroll from block content, away from block and module resize handles.
     const x = rect!.x + rect!.width / 2, y = rect!.y + rect!.height / 2
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] })

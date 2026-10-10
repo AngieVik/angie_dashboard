@@ -26,22 +26,25 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
   useLayoutEffect(() => {
     if (selectionFocusPending.current && unit) { selectionFocusPending.current = false; selectedStateControl.current?.focus() }
   }, [unit])
+
   const units = document.elements.filter(element => element.isUnit)
   return <div className="operations-module">
     {unit ? <>
       <p className="operations-unit-name">{unit.name}</p>
-      <div className="operations-states" role="group" aria-label="Estado operativo">
-        {OPERATIONAL_STATUSES.map(({ status, icon, phase, abbreviation }) => <HelpTooltip key={status} text={`${status} · Fase: ${phase}`}><Button ref={unit.operational.status === status ? selectedStateControl : undefined} aria-label={status} aria-pressed={unit.operational.status === status} disabled={blocked}
-          onClick={() => {
-            if (blockedRef.current || unit.operational.status === status) return
-            try {
-              store.mutateDocument(document => Object.assign(document, changeElementStatus(document, unit.id, status, new Date())))
-              setError(null)
-            } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
-          }}><span className="operations-state-icon" aria-hidden="true">{icon}</span><span className="operations-state-name" aria-hidden="true">{status}</span><span className="operations-state-abbr technical-data" aria-hidden="true">{abbreviation}</span></Button></HelpTooltip>)}
+      <div className="operations-cards">
+        <div className="operations-states" role="group" aria-label="Estado operativo">
+          {OPERATIONAL_STATUSES.map(({ status, icon, phase, abbreviation }) => <HelpTooltip key={status} text={`${status} · Fase: ${phase}`}><Button className="document-button operations-state" ref={unit.operational.status === status ? selectedStateControl : undefined} aria-label={status} aria-pressed={unit.operational.status === status} disabled={blocked}
+            onClick={() => {
+              if (blockedRef.current || unit.operational.status === status) return
+              try {
+                store.mutateDocument(document => Object.assign(document, changeElementStatus(document, unit.id, status, new Date())))
+                setError(null)
+              } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
+            }}><span className="operations-state-icon" aria-hidden="true">{icon}</span><span className="operations-state-name" aria-hidden="true">{status}</span><span className="operations-state-abbr technical-data" aria-hidden="true">{abbreviation}</span></Button></HelpTooltip>)}
+        </div>
+        <UnitNotes key={'notes-' + unit.id} store={store} unitId={unit.id} notes={unit.operational.notes} />
+        <UnitTags key={'tags-' + unit.id} store={store} unitId={unit.id} tags={unit.operational.tags} />
       </div>
-      <UnitNotes key={unit.id} store={store} unitId={unit.id} notes={unit.operational.notes} />
-      <UnitTags key={unit.id} store={store} unitId={unit.id} tags={unit.operational.tags} />
     </> : <div className="operations-counters">
       {OPERATIONAL_STATUSES.map(({ status, icon }) => {
         const matching = units.filter(unit => unit.operational.status === status)
@@ -62,7 +65,7 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
 function UnitNotes({ store, unitId, notes }: { store: DocumentStore; unitId: string; notes: string }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const notesRef = useAutoGrowingTextarea(notes)
-  return <div className="operations-notes"><Textarea ref={notesRef} rows={1} aria-label="Anotación" placeholder="anotación" value={notes} disabled={blocked} onChange={event => {
+  return <div className="operations-notes"><Textarea ref={notesRef} rows={1} aria-label="Anotación" placeholder="Anotación" value={notes} disabled={blocked} onChange={event => {
     if (!blockedRef.current) store.mutateDocument(document => setUnitNotes(document, unitId, event.target.value))
   }} /></div>
 }

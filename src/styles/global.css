@@ -26,7 +26,7 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent-yellow);
+  outline: 1px solid var(--color-selection-border);
   outline-offset: 2px;
 }
 
@@ -231,9 +231,9 @@ textarea {
 
 .app-header { flex-wrap: nowrap; flex: 0 0 36px; height: 36px; min-height: 36px; padding: 3px 8px; gap: 6px; overflow-x: auto; overflow-y: hidden; }
 .app-header .document-title { flex: 0 0 clamp(120px, 23vw, 360px); width: clamp(120px, 23vw, 360px); min-width: 120px; height: 26px; padding: 2px 5px; }
-.app-header .fit-button { margin-left: auto; }
+.app-header .magnet-button { margin-left: auto; }
 .app-header .document-button { height: 26px; padding: 2px 6px; line-height: 20px; white-space: nowrap; }
-.app-header .fit-button { display: grid; place-items: center; padding: 3px; }
+.app-header .origin-button, .app-header .fit-button { display: grid; place-items: center; padding: 3px; }
 .app-header .document-button { border-color: transparent; background: transparent; box-shadow: none; }
 .app-header .document-button:hover:not(:disabled), .app-header .document-button[data-state="open"] { border-color: var(--color-hover-border); background: rgb(255 255 255 / 3%); }
 .app-header::before { display: none; }
@@ -241,8 +241,20 @@ textarea {
 .zoom-control { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 2px; margin: 0; color: var(--color-text-secondary); font-size: 12px; }
 .zoom-control input { appearance: textfield; width: 4ch; min-width: 0; padding: 1px 0; border: 0; border-bottom: 1px solid #555B60; background: transparent; color: var(--color-text); text-align: right; font: inherit; }
 .zoom-control input::-webkit-inner-spin-button, .zoom-control input::-webkit-outer-spin-button { appearance: none; margin: 0; }
-.module-controls { display: flex; flex: 0 0 23px; align-items: center; gap: 6px; padding: 0 26px 0 5px; overflow-x: auto; overflow-y: hidden; background: #13181B; border-top: 1px solid var(--color-border); }
-.module-scaled-content { container-type: inline-size; }
+.module-controls { display: flex; flex: 0 0 25px; align-items: center; gap: 6px; padding: 0 26px 0 0; overflow: hidden; background: var(--color-module); }
+.module-scaled-content { container-type: inline-size; min-width: 0; min-height: 0; }
+.open-modules { display: flex; flex: 0 0 auto; align-items: center; gap: 0; }
+.open-modules .document-button, .app-header .magnet-button { width: 26px; padding: 0; }
+.open-modules .document-button[aria-pressed="true"] { color: var(--color-text); border-color: var(--color-hover-border); }
+.app-header .magnet-button[aria-pressed="true"] { color: #E8DA92; border-color: var(--color-selection-border); box-shadow: var(--shadow-selection); }
+/* Intrinsic measurement excludes window size, scroll viewports and empty space. */
+.module-frame[data-fitting] .module-header { width: max-content; }
+.module-frame[data-fitting] .module-header h2 { flex: none; }
+.module-frame[data-fitting] .module-scaled-content { width: max-content !important; height: auto !important; container-type: normal; }
+.module-frame[data-fitting] .module-scaled-content > * { width: max-content; height: auto; min-height: 0; container-type: normal; }
+.module-frame[data-fitting] :is(.elements-list,.notebook-list,.timeline-entries,.element-editor,.board-area) { flex: none; height: auto; min-height: 0; overflow: visible; }
+.module-frame[data-fitting] .calculator-keypad { flex: none; container-type: normal; }
+.module-frame[data-fitting] .elements-list section { min-height: 0; }
 .module-scaled-content .document-button { white-space: nowrap; }
 .module-content, .module-controls, .app-header, .element-preview, .notebook-list { scrollbar-width: thin; scrollbar-color: #555B60 #17191B; }
 .zoom-percentage { flex-shrink: 0; min-width: 48px; color: var(--color-text-secondary); text-align: right; }
@@ -259,27 +271,24 @@ textarea {
 .module-frame { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--color-frame-border); border-radius: 4px;
   background: var(--color-module);
   box-shadow: var(--shadow-panel); }
-.module-frame[data-active="true"] { border-color: var(--color-active-border); box-shadow: 0 12px 28px rgb(0 0 0 / 65%), 0 0 0 1px #0A0C0E, inset 0 1px rgb(255 255 255 / 6%); }
 .module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 5px;
   border-bottom: 1px solid #080B0D; background: var(--surface-header);
   box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); cursor: move; touch-action: none; user-select: none; }
 .module-header::before { content: ''; flex: 0 0 2px; height: 11px; background: var(--color-active-border); }
-.module-frame[data-active="true"] .module-header::before { background: var(--color-accent-red); box-shadow: 0 0 5px rgb(214 58 58 / 20%); }
 .module-icon { flex: none; width: 14px; height: 14px; color: #A1AEB7; pointer-events: none; }
 .module-header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.025em; }
-.module-close { display: grid; place-items: center; flex: none; width: 21px; height: 21px; padding: 0; border: 1px solid transparent; border-radius: 2px; color: var(--color-text-secondary); background: transparent; cursor: pointer; line-height: 1; }
-.module-close svg { width: 15px; height: 15px; }
+.module-fit, .module-close { display: grid; place-items: center; flex: none; width: 21px; height: 21px; padding: 0; border: 1px solid transparent; border-radius: 2px; color: var(--color-text-secondary); background: transparent; cursor: pointer; line-height: 1; }
+.module-fit svg, .module-close svg { width: 15px; height: 15px; }
+.module-fit:hover { color: var(--color-text); border-color: var(--color-selection-border); }
 .module-close:hover { color: var(--color-text); border-color: var(--color-accent-red); }
-.module-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; font-size: var(--font-size-body); }
-.logical-workspace .module-frame .module-content .document-button:not(.board-pin):not(.quick-note *),
-.logical-workspace .module-frame .module-content :is(input, select, textarea, label):not(.quick-note *) {
-  font-size: var(--font-size-body);
-}
+.module-content { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; font-size: var(--font-size-body); }
+.logical-workspace .module-frame .module-content .document-button:not(.board-pin):not(.quick-note *, .quick-note-measure *) { font-size: var(--control-font-size); }
+.logical-workspace .module-frame .module-content :is(input, select, textarea, label):not(.quick-note *, .quick-note-measure *) { font-size: var(--field-font-size); }
 .module-content h3 { font-size: var(--font-size-title); }
 .module-content time { font-size: var(--font-size-technical); }
 .app-header .technical-data { font-size: var(--font-size-technical); }
 .react-grid-item { transition: none; }
-.react-grid-item.react-grid-placeholder { background: var(--color-accent-red); opacity: 0.12; }
+.react-grid-item.react-grid-placeholder { background: var(--color-frame-border); opacity: 0.12; }
 .react-resizable-handle { touch-action: none; }
 .react-resizable-handle::after { border-color: var(--color-text-secondary); }
 .react-resizable-handle-n, .react-resizable-handle-s { width: calc(100% - 40px); height: 6px; left: 20px; margin: 0; transform: none; }
@@ -293,7 +302,7 @@ textarea {
   position: absolute; right: 0; bottom: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 0;
   background: transparent; cursor: se-resize; touch-action: none;
 }
-.logical-workspace .react-grid-item > .react-resizable-handle-se::before, .quick-note-resize::before, .window-resize::before { content: ''; position: absolute; right: 2px; bottom: 2px; width: 11px; height: 11px; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-text-secondary) 3px 4px); pointer-events: none; }
+.quick-note-resize::before { content: ''; position: absolute; right: 2px; bottom: 2px; width: 11px; height: 11px; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-text-secondary) 3px 4px); pointer-events: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle-se::after { display: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle::after { border-color: var(--color-text-secondary); }
 .logical-workspace .react-grid-item > .react-resizable-handle-n,
@@ -350,5 +359,60 @@ textarea {
 }
 
 /* Puzzle is an explicit placement action. */
-.app-header .fit-button { background: transparent; border-color: transparent; box-shadow: none; }
+.app-header .origin-button, .app-header .fit-button { background: transparent; border-color: transparent; box-shadow: none; }
 .app-header .fit-button:hover, .app-header .fit-button:active { background: transparent; box-shadow: none; }
+
+/* Tool icons share the board toolbar's geometry at 100% zoom. */
+.app-shell .lucide { flex-shrink: 0; width: 15px; height: 15px; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-preview, .quick-note-delete)) {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 25px; min-width: 25px; height: 25px; min-height: 25px; padding: 0; border-radius: 3px;
+}
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-preview, .quick-note-delete, [aria-checked="true"], [aria-pressed="true"], [data-state="open"])) {
+  border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--color-text-secondary);
+}
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-preview, .quick-note-delete)):hover:not(:disabled) {
+  border-color: var(--color-hover-border); background: var(--surface-button-hover); color: var(--color-text);
+}
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])):focus-visible { outline: none; border-color: var(--color-active-border); }
+
+/* Compact text actions follow the notebook toolbar; icon tools keep their geometry. */
+:where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: var(--control-height); min-height: var(--control-height); padding: 1px 9px;
+  border: 1px solid var(--color-border); border-radius: 3px;
+  background: var(--surface-button); color: var(--color-text);
+  box-shadow: inset 0 1px 0 rgb(242 242 240 / 9%), 0 1px 3px rgb(0 0 0 / 35%);
+  font-family: var(--font-interface); font-size: var(--control-font-size); line-height: 18px; white-space: nowrap;
+}
+:where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)):hover:not(:disabled) {
+  border-color: var(--color-hover-border); background: var(--surface-button-hover);
+}
+:where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)):active:not(:disabled) {
+  background: var(--color-selected); box-shadow: inset 0 1px 3px rgb(0 0 0 / 50%);
+}
+
+/* One-line fields share Anotación's line height and padding; textareas can grow. */
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *)) {
+  min-height: var(--field-height); padding: 4px 6px;
+  border: 1px solid var(--color-field-border); border-radius: 2px;
+  background: var(--color-field); color: var(--color-text); box-shadow: none;
+  font-family: var(--font-interface); font-size: var(--field-font-size); line-height: 1.4;
+}
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *)) { height: var(--field-height); }
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *)):hover:not(:disabled) { border-color: var(--color-active-border); }
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--color-accent-red); }
+:is(.app-shell, .document-dialog, .ui-popover) textarea[aria-invalid="true"]:focus-visible { border-color: var(--color-accent-red); }
+
+.logical-workspace .react-grid-item > .react-resizable-handle-se, .window-resize {
+  display: flex; align-items: center; justify-content: center; width: 24px; min-width: 24px; height: 24px; min-height: 24px;
+  color: var(--color-text-secondary);
+}
+.react-resizable-handle svg, .window-resize svg { width: 15px; height: 15px; pointer-events: none; }
+.react-resizable-handle-se:hover, .window-resize:hover { color: var(--color-text); }
+
+/* Retain scrolling without bottom scrollbar tracks in the compact workspace. */
+.app-shell :is(.module-content, .app-header, .notebook-list, .elements-list, .element-editor, .element-preview, .timeline-entries, .coordinates-results dd) { scrollbar-width: auto; }
+.app-shell ::-webkit-scrollbar { width: 6px; height: 0; }
+.app-shell ::-webkit-scrollbar-thumb { border-radius: 3px; background: #555B60; }
+.app-shell ::-webkit-scrollbar-track { background: var(--color-module); }

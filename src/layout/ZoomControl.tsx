@@ -12,6 +12,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
   const [draft, setDraft] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
+  const sliderPointer = useRef(false)
   const Icon = side === 'right' ? GitCommitHorizontal : GitCommitVertical
   useEffect(() => {
     if (!open) return
@@ -34,20 +35,32 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
     }
     setDraft(null)
   }
-  return <div className="zoom-control technical-data">
+  const percentage = <>
     <input type="number" inputMode="decimal" aria-label={label} title={label} min={25} max={400} step={1}
       disabled={disabled} value={draft ?? percent} onChange={event => setDraft(event.target.value)} onBlur={commit}
       onKeyDown={event => {
         if (event.key === 'Enter') { event.preventDefault(); commit() }
         if (event.key === 'Escape') { event.preventDefault(); setDraft(null) }
       }} /><span aria-hidden="true">%</span>
+  </>
+  return <div className="zoom-control technical-data">
+    {side !== 'right' && percentage}
     <Popover open={open && !disabled} onOpenChange={setOpen}>
       <HelpTooltip text={label}><PopoverTrigger asChild><Button ref={trigger} className="zoom-trigger" disabled={disabled}
         aria-label={`Abrir deslizador: ${label}`}><Icon aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
-      <PopoverContent side={side} aria-label={label} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
+      <PopoverContent side={side} aria-label={label}
+        onPointerDownCapture={() => { sliderPointer.current = true }}
+        onPointerUpCapture={() => { sliderPointer.current = false }}
+        onPointerCancelCapture={() => { sliderPointer.current = false }}
+        onKeyDownCapture={() => { sliderPointer.current = false }} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <div className="zoom-popover-label"><span>{label}</span><output>{percent} %</output></div>
-        <Slider label={label} value={percent} min={25} max={400} disabled={disabled} onValueChange={value => { setDraft(null); onChange(value / 100) }} />
+        <Slider label={label} value={percent} min={25} max={400} disabled={disabled} onValueChange={value => {
+          const nearest = Math.round(value / 10) * 10
+          const percent = sliderPointer.current && Math.abs(value - nearest) <= 2 ? nearest : value
+          setDraft(null); onChange(percent / 100)
+        }} />
       </PopoverContent>
     </Popover>
+    {side === 'right' && percentage}
   </div>
 }

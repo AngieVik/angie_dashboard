@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { fit, pan, zoomAt, clamp, resizeViewport } from './viewportMath'
 import { MobileViewport } from './MobileViewport'
+import { createPortal } from 'react-dom'
 import { useLayoutEffect } from 'react'
 import { useViewportInteraction } from './ViewportContext'
 
@@ -186,4 +187,84 @@ describe('viewport lógico bajo la cabecera', () => {
     fireEvent.click(button, { detail: 0 })
     expect(click).toHaveBeenCalledTimes(1)
   })
+})
+
+
+describe('navegación arrastrando el fondo', () => {
+  it.each(['mouse', 'touch'])('desplaza con %s, limita el origen y termina al soltar', pointerType => {
+    const change = vi.fn()
+    render(<MobileViewport state={{ scale: 2, offsetX: -100, offsetY: -100 }} size={{ width: 800, height: 500 }} onChange={change}><div>Fondo</div></MobileViewport>)
+    const background = screen.getByText('Fondo'), viewport = screen.getByTestId('mobile-viewport')
+    fireEvent.pointerDown(background, { pointerId: 1, pointerType, button: 0, clientX: 300, clientY: 300 })
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 240, clientY: 260 })
+    expect(change).toHaveBeenLastCalledWith({ scale: 2, offsetX: -160, offsetY: -140 })
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 500, clientY: 500 })
+    expect(change).toHaveBeenLastCalledWith({ scale: 2, offsetX: 0, offsetY: 0 })
+    fireEvent.pointerUp(viewport, { pointerId: 1 })
+    change.mockClear()
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 100, clientY: 100 })
+    expect(change).not.toHaveBeenCalled()
+  })
+  it('no navega desde módulos, controles ni con botón derecho', () => {
+    const change = vi.fn()
+    render(<MobileViewport state={{ scale: 2, offsetX: -100, offsetY: -100 }} size={{ width: 800, height: 500 }} onChange={change}>
+      <div data-module="clock"><header>Cabecera</header><div>Contenido</div></div><button>Control</button>
+    </MobileViewport>)
+    const viewport = screen.getByTestId('mobile-viewport')
+    for (const target of [screen.getByText('Cabecera'), screen.getByText('Contenido'), screen.getByRole('button')]) {
+      fireEvent.pointerDown(target, { pointerId: 1, button: 0, clientX: 300, clientY: 300 })
+      fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 200, clientY: 200 })
+      fireEvent.pointerUp(viewport, { pointerId: 1 })
+    }
+    fireEvent.pointerDown(viewport, { pointerId: 2, pointerType: 'mouse', button: 2, clientX: 300, clientY: 300 })
+    fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 200, clientY: 200 })
+    expect(change).not.toHaveBeenCalled()
+  })
+  it('cancelar el arrastre impide continuar con el mismo puntero', () => {
+    const change = vi.fn()
+    render(<MobileViewport state={{ scale: 2, offsetX: -100, offsetY: -100 }} size={{ width: 800, height: 500 }} onChange={change}>{null}</MobileViewport>)
+    const viewport = screen.getByTestId('mobile-viewport')
+    fireEvent.pointerDown(viewport, { pointerId: 1, button: 0, clientX: 300, clientY: 300 })
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 240, clientY: 260 })
+    expect(change).toHaveBeenCalledOnce()
+    fireEvent.pointerCancel(viewport, { pointerId: 1 })
+    change.mockClear()
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 200, clientY: 200 })
+    expect(change).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('continuidad de navegación del fondo', () => {
+  it('añadir segundo dedo conserva el desplazamiento y levantarlo no reanuda el arrastre', () => {
+    const change = vi.fn()
+    render(<MobileViewport state={{ scale: 2, offsetX: -100, offsetY: -100 }} size={{ width: 800, height: 500 }} onChange={change}>{null}</MobileViewport>)
+    const viewport = screen.getByTestId('mobile-viewport')
+    fireEvent.pointerDown(viewport, { pointerId: 1, button: 0, clientX: 300, clientY: 300 })
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 240, clientY: 260 })
+    fireEvent.pointerDown(viewport, { pointerId: 2, button: 0, clientX: 340, clientY: 260 })
+    fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 340, clientY: 260 })
+    expect(change).toHaveBeenLastCalledWith({ scale: 2, offsetX: -160, offsetY: -140 })
+    fireEvent.pointerUp(viewport, { pointerId: 2 })
+    change.mockClear()
+    fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 200, clientY: 200 })
+    expect(change).not.toHaveBeenCalled()
+    fireEvent.pointerUp(viewport, { pointerId: 1 })
+    fireEvent.pointerDown(viewport, { pointerId: 3, button: 0, clientX: 300, clientY: 300 })
+    fireEvent.pointerMove(viewport, { pointerId: 3, clientX: 250, clientY: 250 })
+    expect(change).toHaveBeenCalledOnce()
+  })
+})
+
+
+it('un slider en un popover externo conserva sus eventos sin navegar el dashboard', () => {
+  const change = vi.fn(), move = vi.fn()
+  render(<MobileViewport state={{ scale: 2, offsetX: -100, offsetY: -100 }} size={{ width: 800, height: 500 }} onChange={change}>
+    {createPortal(<div role="slider" aria-label="Zoom emergente" onPointerMove={move} />, document.body)}
+  </MobileViewport>)
+  const slider = screen.getByRole('slider')
+  fireEvent.pointerDown(slider, { pointerId: 1, button: 0, clientX: 100, clientY: 100 })
+  fireEvent.pointerMove(slider, { pointerId: 1, clientX: 150, clientY: 100 })
+  expect(change).not.toHaveBeenCalled()
+  expect(move).toHaveBeenCalledOnce()
 })

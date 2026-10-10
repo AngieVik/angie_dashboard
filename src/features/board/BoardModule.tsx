@@ -7,8 +7,10 @@ import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
 import { boardReducer, createBoardState } from './boardReducer'
-import { getBoardBounds, initialBoardView, toBoardPosition } from './boardViewport'
+import { boardDelta, getBoardBounds, initialBoardView, toBoardPosition } from './boardViewport'
 import { useBoardViewportGestures } from './useBoardViewportGestures'
+import { transformBoardImage } from './boardImageGeometry'
+import type { BoardImageLayout, ImageAction } from './boardImageGeometry'
 import { BoardToolbar } from './BoardToolbar'
 import { QuickNote } from './QuickNote'
 import { findQuickNotePlacement, getQuickNoteObstacles } from './findQuickNotePlacement'
@@ -25,8 +27,8 @@ function Stroke({ stroke }: { stroke: BoardStroke }) {
     lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
 }
 
-export function BoardModule({ store, imageSession, selectedId = null, onSelect, onViewChange, onOpenModule }: {
-  store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
+export function BoardModule({ store, imageSession, selectedId = null, onSelect, onViewChange, onOpenModule, selectionReset = 0 }: {
+  selectionReset?: number; store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
   onViewChange?: (center: Position) => void; onOpenModule?: (id: 'dotations' | 'elements') => void
 }) {
   const { document, documentGeneration } = useDocumentStore(store)
@@ -42,12 +44,20 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
   const area = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null)
   const pointer = useRef<number | null>(null)
   const emptyPointer = useRef<{ id: number; x: number; y: number } | null>(null)
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
+  const [cursor, setCursor] = useState<{ x: number; y: number; pixel: number } | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [view, setView] = useState({ scale: 1, offsetX: 0, offsetY: 0 })
   const [explored, setExplored] = useState({ width: 0, height: 0 })
   const previousSize = useRef({ width: 0, height: 0 })
-  const contentBounds = getBoardBounds(size, document.board, document.elements, Boolean(imageSession.image))
+  const [imagePreview, setImagePreview] = useState<{ image: typeof imageSession.image; layout: BoardImageLayout } | null>(null)
+  if (blocked && imagePreview) setImagePreview(null)
+  const imageGesture = useRef<{ id: number; action: ImageAction; origin: Position; initial: BoardImageLayout; result: BoardImageLayout; image: typeof imageSession.image; view: typeof view; size: typeof size; rect: DOMRect } | null>(null)
+  const cancelImage = useCallback(() => { imageGesture.current = null; setImagePreview(null) }, [])
+  const imageLayout = imagePreview?.image === imageSession.image && !blocked && !imageSession.busy ? imagePreview?.layout ?? imageSession.layout : imageSession.layout
+  const imageBounds = imageSession.image && imageLayout ? { right: Math.max(0, imageLayout.x + imageLayout.width), bottom: Math.max(0, imageLayout.y + imageLayout.height) } : { right: 0, bottom: 0 }
+  const objectBounds = getBoardBounds({ width: 0, height: 0 }, document.board, document.elements)
+  const actualBounds = { ...objectBounds, right: Math.max(objectBounds.right, imageBounds.right), bottom: Math.max(objectBounds.bottom, imageBounds.bottom) }
+  const contentBounds = { ...actualBounds, right: Math.max(size.width, actualBounds.right), bottom: Math.max(size.height, actualBounds.bottom) }
   const bounds = { ...contentBounds, right: Math.max(contentBounds.right, explored.width), bottom: Math.max(contentBounds.bottom, explored.height) }
   if (bounds.right > explored.width || bounds.bottom > explored.height) {
     setExplored({ width: bounds.right, height: bounds.bottom })
@@ -85,9 +95,10 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
     setState(next)
     if (next.board !== board) store.mutateDocument(document => { document.board = next.board })
   }, [store])
+  useEffect(() => { dispatch({ type: 'select-note', id: null }) }, [selectionReset, dispatch])
   useEffect(() => {
     // The external viewport gesture cancels the stroke and pending empty selection.
-    if (blocked) { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }
+    if (blocked) { pointer.current = null; emptyPointer.current = null; imageGesture.current = null; dispatch({ type: 'cancel' }) }
   }, [blocked, dispatch])
   function point(event: PointerEvent, clamp = false) {
     const rect = surface.current?.getBoundingClientRect()
@@ -101,18 +112,35 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
     const position = point(event)
     if (!position) return
     const mode = interaction.current.mode
+    if (mode === 'image' && imageSession.image && imageSession.layout && !imageSession.busy) {
+      const action = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-image-action]')?.dataset.imageAction as ImageAction | undefined : undefined
+      if (action) {
+        event.preventDefault()
+        emptyPointer.current = null
+        imageGesture.current = { id: event.pointerId, action, origin: { x: event.clientX, y: event.clientY }, initial: imageSession.layout,
+          result: imageSession.layout, image: imageSession.image, view, size, rect: event.currentTarget.getBoundingClientRect() }
+        event.currentTarget.setPointerCapture?.(event.pointerId)
+        return
+      }
+    }
     const overObject = [...event.currentTarget.querySelectorAll('.board-pin,.quick-note')].some(node => {
       const rect = node.getBoundingClientRect()
       return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom
     })
     emptyPointer.current = overObject ? null : { id: event.pointerId, x: event.clientX, y: event.clientY }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    if (mode === 'select') return
+    if (mode === 'select' || mode === 'image') return
     event.preventDefault()
     pointer.current = event.pointerId
     dispatch({ type: 'start', id: crypto.randomUUID(), point: position, color, width })
   }
   function finish(event: PointerEvent<HTMLDivElement>) {
+    const gesture = imageGesture.current
+    if (gesture?.id === event.pointerId) {
+      if (!blockedRef.current && gesture.image === imageSession.image && !imageSession.busy) imageSession.updateLayout(gesture.result)
+      cancelImage()
+      return
+    }
     const empty = emptyPointer.current
     emptyPointer.current = null
     if (pointer.current === event.pointerId) {
@@ -120,13 +148,14 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
       dispatch({ type: blockedRef.current ? 'cancel' : 'finish' })
     }
     if (empty?.id === event.pointerId && !blockedRef.current && Math.hypot(event.clientX - empty.x, event.clientY - empty.y) <= 4) {
+      if (interaction.current.mode === 'image') dispatch({ type: 'mode', mode: 'select' })
       dispatch({ type: 'select-note', id: null }); onSelect?.(null)
     }
   }
   function trackCursor(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === 'touch' || blockedRef.current || event.target instanceof Element && event.target.closest('.board-pin,.quick-note')) { setCursor(null); return }
     const rect = surface.current?.getBoundingClientRect()
-    if (rect?.width) setCursor({ x: (event.clientX - rect.left) * size.width / rect.width, y: (event.clientY - rect.top) * size.height / rect.height })
+    if (rect?.width) setCursor({ x: (event.clientX - rect.left) * size.width / rect.width, y: (event.clientY - rect.top) * size.height / rect.height, pixel: size.width / rect.width })
   }
   function addNote() {
     if (blockedRef.current || !size.width || !size.height) return
@@ -144,7 +173,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
       const name = surface.current?.querySelector(`[data-element-id="${element.id}"] .board-pin-name`)
       return rect?.width ? (name?.getBoundingClientRect().width ?? 0) * size.width / rect.width / view.scale : 0
     })
-    const dimensions = { width: 180, height: noteMeasure.current?.offsetHeight || 58 }
+    const dimensions = { width: 180, height: noteMeasure.current?.offsetHeight || 32 }
     const { position } = findQuickNotePlacement(visible, dimensions, occupied)
     const id = crypto.randomUUID()
     pointer.current = null; emptyPointer.current = null
@@ -152,41 +181,55 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
     onSelect?.(null); setFocusNote(id)
   }
   const image = imageSession.image
-  const imageScale = image ? 1000 / Math.max(image.width, image.height) : 1
   const strokes = state.draft && !blocked ? [...document.board.strokes, state.draft] : document.board.strokes
   return <div className="board-module" data-mode={state.mode}>
-    <BoardToolbar toolbarRef={toolbar} mode={state.mode} onMode={mode => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'mode', mode }) }}
-      onAddNote={addNote} background={document.board.backgroundColor} onBackground={color => { imageSession.clear(); dispatch({ type: 'background', color }) }}
-      color={color} onColor={setColor} width={width} onWidth={setWidth} onClearImage={imageSession.clear} hasImage={Boolean(imageSession.image)} onOpenModule={onOpenModule} onImage={file => { void imageSession.load(file) }} busy={imageSession.busy} blocked={blocked} />
+    <BoardToolbar toolbarRef={toolbar} mode={state.mode} onMode={mode => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'mode', mode }) }}
+      onAddNote={addNote} background={document.board.backgroundColor} onBackground={color => { cancelImage(); imageSession.clear(); if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }); dispatch({ type: 'background', color }) }}
+      color={color} onColor={setColor} width={width} onWidth={setWidth} onClearStrokes={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'clear-strokes' }) }} hasStrokes={Boolean(document.board.strokes.length || state.draft)} onClearImage={() => { cancelImage(); imageSession.clear(); if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }) }} hasImage={Boolean(imageSession.image)} onOpenModule={onOpenModule} onImage={file => { cancelImage(); void imageSession.load(file).then(loaded => { if (loaded) setView(current => ({ ...current, offsetX: 0, offsetY: 0 })) }) }} busy={imageSession.busy} blocked={blocked} />
     <div ref={area} className="board-area">
       <div ref={noteMeasure} className="quick-note-measure" aria-hidden="true">
         <div className="quick-note-header" /><textarea rows={1} className="quick-note-text" tabIndex={-1} readOnly />
       </div>
       <div ref={surface} className="board-surface" data-testid="board-surface" data-image-width={image?.width ?? 0} data-image-height={image?.height ?? 0}
-        data-extent-width={bounds.right} data-extent-height={bounds.bottom} data-scale={view.scale} data-offset-x={view.offsetX} data-offset-y={view.offsetY} data-viewport-width={size.width} data-viewport-height={size.height}
+        data-image-x={imageLayout?.x ?? 0} data-image-y={imageLayout?.y ?? 0} data-image-display-width={imageLayout?.width ?? 0} data-image-display-height={imageLayout?.height ?? 0}
+        data-content-width={actualBounds.right} data-content-height={actualBounds.bottom} data-extent-width={bounds.right} data-extent-height={bounds.bottom} data-scale={view.scale} data-offset-x={view.offsetX} data-offset-y={view.offsetY} data-viewport-width={size.width} data-viewport-height={size.height}
         {...navigation}
         onPointerDown={event => { trackCursor(event); start(event) }} onPointerMove={event => {
           trackCursor(event)
+          const gesture = imageGesture.current
+          if (gesture?.id === event.pointerId) {
+            if (blockedRef.current || gesture.image !== imageSession.image || imageSession.busy) { cancelImage(); return }
+            const delta = boardDelta({ x: event.clientX - gesture.origin.x, y: event.clientY - gesture.origin.y }, gesture.rect, gesture.view, gesture.size)
+            gesture.result = transformBoardImage(gesture.initial, gesture.action, delta)
+            setImagePreview({ image: gesture.image, layout: gesture.result })
+            return
+          }
           const empty = emptyPointer.current
           if (empty?.id === event.pointerId && Math.hypot(event.clientX - empty.x, event.clientY - empty.y) > 4) emptyPointer.current = null
           if (blockedRef.current || pointer.current !== event.pointerId) return
           const position = point(event, true)
           if (position) dispatch({ type: 'point', point: position })
-        }} onPointerEnter={trackCursor} onPointerLeave={() => setCursor(null)} onPointerUp={finish} onPointerCancel={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
-        onLostPointerCapture={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
+        }} onPointerEnter={trackCursor} onPointerLeave={() => setCursor(null)} onPointerUp={finish} onPointerCancel={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
+        onLostPointerCapture={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
         {cursor && !blocked && (state.mode === 'pen' || state.mode === 'eraser') && <div className="board-tool-cursor" aria-hidden="true" data-tool={state.mode}
           style={{ left: cursor.x, top: cursor.y, width: width * view.scale, height: width * view.scale,
-            backgroundColor: state.mode === 'pen' ? color : 'transparent', boxShadow: state.mode === 'eraser' ? 'inset 0 0 0 1px #F2F2F0' : 'none' }} />}
+            backgroundColor: state.mode === 'pen' ? color : 'transparent', boxShadow: `0 0 0 ${cursor.pixel}px #FFFFFF, 0 0 0 ${2 * cursor.pixel}px #000000` }} />}
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
             <Rect width={size.width} height={size.height} fill={document.board.backgroundColor} />
             <Group x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>
-              {image && <Image image={image.image} width={image.width * imageScale} height={image.height * imageScale}
-                x={(1000 - image.width * imageScale) / 2} y={(1000 - image.height * imageScale) / 2} />}
+              {image && imageLayout && <Image image={image.image} {...imageLayout} />}
             </Group>
           </Layer>
           <Layer listening={false} x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>{strokes.map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
         </Stage>
+        {image && imageLayout && state.mode === 'image' && !blocked && !imageSession.busy && <div className="board-image-editor"
+          aria-label="Mover imagen de fondo" data-image-action="move"
+          style={{ left: view.offsetX + imageLayout.x * view.scale, top: view.offsetY + imageLayout.y * view.scale,
+            width: imageLayout.width * view.scale, height: imageLayout.height * view.scale }}>
+          {(['nw', 'ne', 'sw', 'se'] as const).map(corner => <button key={corner} type="button" tabIndex={-1}
+            className="board-image-resize" data-corner={corner} data-image-action={corner} aria-label={'Redimensionar imagen ' + corner} />)}
+        </div>}
         <div className="board-notes board-pins" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
           {document.elements.filter(element => element.pinVisible).map(element =>
             <BoardPin key={element.id} element={element} surface={surface} view={view} viewportSize={size} selected={selectedId === element.id} enabled={state.mode === 'select'}
@@ -201,7 +244,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
         <div className="board-notes" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
           {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} view={view} viewportSize={size} focusBody={focusNote === note.id} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
             onSelect={() => { onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
-            onResize={factor => dispatch({ type: 'resize-note', id: note.id, factor })}
+            onResize={size => dispatch({ type: 'resize-note', id: note.id, size })}
             onEdit={patch => { if (store.getSnapshot().documentGeneration === documentGeneration) dispatch({ type: 'edit-note', id: note.id, ...patch }) }} onDelete={() => { focusTool(); dispatch({ type: 'delete-note', id: note.id }) }} />)}
         </div>
       </div>

@@ -6,6 +6,8 @@
   --color-border: #394146;
   --color-frame-border: #424D55;
   --color-active-border: #75838D;
+  --color-selection-border: #ACA675;
+  --shadow-selection: 0 0 6px rgb(232 218 146 / 14%);
   --color-selected: #252F36;
   --color-field: #12191E;
   --color-field-border: #4B5A64;
@@ -17,6 +19,10 @@
   --surface-overlay: linear-gradient(160deg, #2B343B, #17191B);
   --shadow-panel: 0 8px 25px rgb(0 0 0 / 45%), 0 1px 3px rgb(0 0 0 / 50%), inset 0 1px rgb(255 255 255 / 2%);
   --transition-control: 110ms;
+  --control-font-size: 13px;
+  --control-height: 22px;
+  --field-font-size: 13px;
+  --field-height: 28.2px;
   --color-text: #F2F2F0;
   --color-text-secondary: #A7ADB1;
   --color-accent-red: #D63A3A;

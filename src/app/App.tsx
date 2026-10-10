@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../components/ui/button'
-import { Puzzle } from 'lucide-react'
+import { LocateFixed, Magnet, Puzzle } from 'lucide-react'
 import { ZoomControl } from '../layout/ZoomControl'
 import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
 import { repositionModules } from '../layout/repositionModules'
@@ -26,9 +26,9 @@ import type { OpenModule } from '../layout/DashboardGrid'
 import { MobileViewport } from '../layout/MobileViewport'
 import { findModulePlacement } from '../layout/findModulePlacement'
 import { adaptModuleLayout, getWorkspaceBounds } from '../layout/adaptiveLayout'
-import { MODULE_REGISTRY } from '../layout/moduleRegistry'
+import { MODULE_ICONS, MODULE_REGISTRY } from '../layout/moduleRegistry'
 import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
-import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
+import { clamp, fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import type { Position } from '../domain/document/types'
 
 type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
@@ -65,6 +65,9 @@ export function App() {
   })
   const [modules, setModules] = useState<PresentedModule[]>([])
   const closedModules = useRef<Partial<Record<ModuleId, PresentedModule>>>({})
+  const [magnet, setMagnet] = useState(false)
+  const [selectionReset, setSelectionReset] = useState(0)
+  const blankPointer = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const [active, setActive] = useState<ModuleId | null>(null)
   const [layers, setLayers] = useState<ModuleId[]>([])
   const bounds = useMemo(() => getWorkspaceBounds(viewport.layoutSize, modules.map(module => module.id)), [viewport.layoutSize, modules])
@@ -110,13 +113,15 @@ export function App() {
   }
   function recolocate() {
     if (!open.length) { setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } })); return }
-    const placed = repositionModules(open, viewport.size.width / viewport.state.scale)
-    const saved = placed.map(({ id, layout }) => {
-      const manual = document.moduleLayouts[id] ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] }
-      return { id, layout: { ...layout, width: manual.width, height: manual.height,
-        referenceSize: { width: Math.ceil(Math.max(visibleBounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)),
-          height: Math.ceil(Math.max(visibleBounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)) } } }
-    })
+    let scale = viewport.state.scale
+    let placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
+    // Prefer a wider view to shrinking manual sizes by more than 20%.
+    while (scale > .25 && placed.some(item => item.layout.width < open.find(module => module.id === item.id)!.layout.width * .8 ||
+      item.layout.height < open.find(module => module.id === item.id)!.layout.height * .8)) {
+      scale = Math.max(.25, scale * .9)
+      placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
+    }
+    const saved = placed
     try { store.mutateDocument(candidate => { for (const item of saved) candidate.moduleLayouts[item.id] = item.layout }) }
     catch { return }
     setModules(previous => previous.map(module => {
@@ -124,11 +129,21 @@ export function App() {
       return { ...module, layout: shown.layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(source.layout) } }
     }))
     setExtent({ generation: documentGeneration, size: growWorkspaceExtent(reconstructWorkspaceExtent(visibleBounds, store.getSnapshot().document.moduleLayouts), visibleBounds, placed.map(item => item.layout)) })
-    setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))
+    setViewport(previous => ({ ...previous, state: { scale, offsetX: 0, offsetY: 0 } }))
   }
   function activate(id: ModuleId) {
     setActive(id)
     setLayers(previous => previous.at(-1) === id ? previous : [...previous.filter(other => other !== id), id])
+  }
+  function focusModule(id: ModuleId) {
+    activate(id)
+    const layout = open.find(module => module.id === id)?.layout
+    if (!layout) return
+    setViewport(previous => {
+      const { state, size } = previous
+      const axis = (offset: number, start: number, length: number, visible: number) => start * state.scale + offset < 0 || (start + length) * state.scale + offset > visible ? -start * state.scale : offset
+      return { ...previous, state: clamp({ ...state, offsetX: axis(state.offsetX, layout.x, layout.width, size.width), offsetY: axis(state.offsetY, layout.y, layout.height, size.height) }, size, sceneBounds) }
+    })
   }
   function saveLayout(id: ModuleId, layout: ModuleLayout, kind: 'move' | 'resize' = 'resize') {
     const manual = kind === 'move' ? document.moduleLayouts[id] ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] } : layout
@@ -165,15 +180,33 @@ export function App() {
         <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} triggerRef={viewTrigger} />
         <Input aria-label="Título del documento" placeholder="Título"
           value={document.document.title} onChange={event => store.setTitle(event.target.value)} />
+        <HelpTooltip text="Volver al origen"><Button className="origin-button" aria-label="Volver al origen" onClick={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}><LocateFixed size={19} aria-hidden="true" /></Button></HelpTooltip>
+        <nav className="open-modules" aria-label="Módulos abiertos">
+          {open.map(({ id }) => {
+            const Icon = MODULE_ICONS[id], name = MODULE_REGISTRY[id].name
+            return <HelpTooltip key={id} text={name}><Button aria-label={'Seleccionar módulo ' + name} aria-pressed={active === id} onClick={() => focusModule(id)}><Icon aria-hidden="true" /></Button></HelpTooltip>
+          })}
+        </nav>
+        <HelpTooltip text="Imán de módulos"><Button className="magnet-button" aria-label="Imán de módulos" aria-pressed={magnet} onClick={() => setMagnet(value => !value)}><Magnet aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Recolocar módulos"><Button className="fit-button" aria-label="Encajar" onClick={recolocate}><Puzzle size={19} aria-hidden="true" /></Button></HelpTooltip>
         <ZoomControl key={documentGeneration} label="Zoom actual" scale={viewport.state.scale} onChange={scale => setViewport(previous => ({ ...previous,
           state: zoomAt(previous.state, scale, { x: 0, y: 0 }, previous.size, sceneBounds) }))} />
       </header>
-      <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo">
+      <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo"
+        onPointerDownCapture={event => { blankPointer.current = { x: event.clientX, y: event.clientY, moved: false } }}
+        onPointerMoveCapture={event => {
+          const start = blankPointer.current
+          if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4) start.moved = true
+        }} onPointerCancelCapture={() => { blankPointer.current = null }}
+        onClick={event => {
+          if (blankPointer.current?.moved || !(event.target instanceof Element) || event.target.closest('.board-pin,.quick-note,.element-row,button,input,textarea,select,a,[role="button"],[role="radio"],[contenteditable="true"]')) return
+          selectElement(null); setSelectionReset(value => value + 1)
+          if (!event.target.closest('[data-module]')) setActive(null)
+        }}>
         <DocumentNotices store={store} />
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
-            renderModule={id => id === 'board' ? <BoardModule key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
+          <DashboardGrid magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
+            renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
                 placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :

@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { flushSync } from 'react-dom'
+import { SquareDimensions } from 'lucide-react'
 import GridLayout from 'react-grid-layout'
 import type { EventCallback, LayoutItem } from 'react-grid-layout'
 import { transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/core'
 import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
+import { snapModulePosition } from './snapModulePosition'
 import { ModuleFrame } from './ModuleFrame'
 import { MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
@@ -15,10 +17,10 @@ import { useViewportInteraction } from './ViewportContext'
 export interface OpenModule { id: ModuleId; layout: ModuleLayout }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
 
-export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onLayout, onGrow, renderModule, generation = 0 }: {
+export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onLayout, onGrow, renderModule, generation = 0, magnet = false }: {
   modules: readonly OpenModule[]; bounds: Size; visible?: Size; layers: readonly ModuleId[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void
   onClose: (id: ModuleId) => void; onLayout: (id: ModuleId, layout: ModuleLayout, kind?: 'move' | 'resize') => void
-  onGrow?: (candidate: ModuleLayout) => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number
+  onGrow?: (candidate: ModuleLayout) => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number; magnet?: boolean
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const activeLayout = useRef<Layout>([])
@@ -63,6 +65,11 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     minW: MODULE_REGISTRY[id].minimum[0], minH: MODULE_REGISTRY[id].minimum[1], maxW: bounds.width, maxH: bounds.height,
     isDraggable: !blocked, isResizable: !blocked }))
   const origin: LayoutConstraint = { name: 'workspace-origin', constrainPosition: (_item, x, y) => ({ x: Math.max(0, x), y: Math.max(0, y) }) }
+  const magneticEdges: LayoutConstraint = { name: 'magnetic-edges', constrainPosition: (item, x, y) => {
+    if (!magnet || blockedRef.current) return { x, y }
+    const next = snapModulePosition({ ...unpack(item, bounds), x, y }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale)
+    return { x: next.x, y: next.y }
+  } }
   function commit(kind: 'move' | 'resize'): EventCallback {
     return (layout, _old, item) => {
       if (blockedRef.current || !item) return
@@ -83,16 +90,18 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     <GridLayout width={bounds.width} layout={layout} autoSize={false} style={{ height: bounds.height }}
       gridConfig={{ cols: bounds.width, rowHeight: 1, maxRows: bounds.height, margin: [0, 0], containerPadding: [0, 0] }}
       compactor={keepLayout}
-      constraints={[origin, minMaxSize]}
+      constraints={[origin, magneticEdges, minMaxSize]}
       positionStrategy={{ ...transformStrategy, scale }}
       dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button,input,textarea,select' }}
-      resizeConfig={{ enabled: !blocked, handles: ['se'] }}
+      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar módulo"><SquareDimensions aria-hidden="true" /></span> }}
       onDragStop={commit('move')} onResizeStop={commit('resize')}>
       {modules.map(({ id, layout }) => (
         <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
           style={{ zIndex: layers.indexOf(id) + 1 }}
           onPointerDown={() => onActive(id)} onFocusCapture={() => onActive(id)}>
-          <ModuleFrame id={id} generation={generation} active={active === id} onClose={() => onClose(id)}>{renderModule?.(id)}</ModuleFrame>
+          <ModuleFrame id={id} generation={generation} active={active === id} onClose={() => onClose(id)} onFit={size => {
+            if (!blockedRef.current) { const next = { ...layout, ...size }; onGrow?.(next); onLayout(id, next, 'resize') }
+          }}>{renderModule?.(id)}</ModuleFrame>
         </div>
       ))}
     </GridLayout>

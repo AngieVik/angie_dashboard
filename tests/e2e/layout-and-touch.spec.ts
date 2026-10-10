@@ -169,7 +169,7 @@ test('cambiar pantalla y orientación conserva el JSON y volver recupera los anc
   expect(JSON.parse(await readFile((await (await download).path())!, 'utf8'))).toEqual(fixture)
 })
 
-test('controles y títulos usan criterios tipográficos comunes y crecen con el módulo', async ({ page }, info) => {
+test('controles y títulos mantienen tamaño uniforme al ampliar el módulo', async ({ page }, info) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
   const fixture = createEmptyDocument('Tipografía común')
   fixture.moduleLayouts = {
@@ -182,15 +182,15 @@ test('controles y títulos usan criterios tipográficos comunes y crecen con el 
   const controlFont = (id: string) => page.locator(`[data-module="${id}"] .module-content .document-button`).first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))
   const titleFont = (id: string) => page.locator(`[data-module="${id}"] h2`).evaluate(el => parseFloat(getComputedStyle(el).fontSize))
   const before = await controlFont('elements')
-  expect(before).toBeGreaterThanOrEqual(13); expect(before).toBeLessThanOrEqual(16)
+  expect(before).toBe(13)
   expect(await controlFont('coordinates')).toBe(before)
   expect(await titleFont('coordinates')).toBe(await titleFont('elements'))
   expect(await titleFont('elements')).toBe(13)
   const handle = await page.locator('[data-module="elements"] .react-resizable-handle-se').boundingBox()
   await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2)
   await page.mouse.down(); await page.mouse.move(handle!.x + handle!.width / 2 + 280, handle!.y + handle!.height / 2 + 30, { steps: 8 }); await page.mouse.up()
-  expect(await controlFont('elements')).toBeGreaterThan(before)
-  expect(await controlFont('elements')).toBeLessThanOrEqual(16)
+  expect(await controlFont('elements')).toBe(before)
+  expect(await controlFont('elements')).toBe(13)
   expect(await titleFont('elements')).toBeLessThanOrEqual(18)
   await page.screenshot({ path: info.outputPath('adaptive-type.png') })
 })
@@ -284,5 +284,8 @@ test('dos dedos hacen zoom y pan y cancelan el arrastre de módulo sin accionar 
   await expect(page.getByRole('button', { name: 'Cerrar Pizarra' })).toBeVisible()
   await expect(page.getByRole('banner')).toHaveCSS('position', 'relative')
   await page.getByRole('button', { name: 'Encajar' }).click()
-  expect(await geometry(page, 'board')).toEqual({ ...original, x: 12, y: 12 })
+  const placed = await geometry(page, 'board')
+  expect(placed.x).toBe(0); expect(placed.y).toBe(0)
+  expect(placed.width).toBeLessThanOrEqual(original.width)
+  expect(placed.height).toBeLessThanOrEqual(original.height)
 })

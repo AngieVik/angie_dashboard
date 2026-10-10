@@ -16,20 +16,25 @@ async function zoom(page: Page, value: number, name: string) {
   await input.fill(String(value)); await input.press('Enter')
 }
 
-test('creación inmediata, edición por campo, autogrowth, Escape y eliminación', async ({ page }, info) => {
+test('nota de una línea: campo único amarillo, tamaño manual, Escape y eliminación', async ({ page }, info) => {
   await setup(page)
   await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
-  const body = page.getByLabel('Texto de nota rápida'), title = page.getByLabel('Título de nota rápida')
+  const body = page.getByLabel('Texto de nota rápida')
+  await expect(page.getByLabel('Título de nota rápida')).toHaveCount(0)
+  await expect(page.locator('.quick-note textarea')).toHaveCount(1)
   await expect(body).toBeFocused(); await expect(body).toHaveAttribute('rows', '1')
   await expect.poll(async () => (await savedDocument(page))?.board.quickNotes.length).toBe(1)
   const initial = (await savedDocument(page))!.board.quickNotes[0]!
   expect(initial).toMatchObject({ title: '', text: '', scale: 1, width: 180 })
-  expect(initial.height).toBeGreaterThanOrEqual(50); expect(initial.height).toBeLessThanOrEqual(65)
-  await title.fill('Accesos'); await title.press('Enter'); await expect(body).toBeFocused()
+  expect(initial.height).toBe(52)
+  await expect(page.locator('.quick-note')).toHaveCSS('outline-offset', '-1px')
+  await expect(page.locator('.quick-note')).toHaveCSS('background-image', /rgb\(255, 240, 163\)/)
+  await expect(page.getByRole('button', { name: 'Eliminar nota', exact: true })).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await body.fill('Norte\nSur\nPunto de encuentro'); await body.press('Tab')
   await expect.poll(async () => (await savedDocument(page))?.board.quickNotes[0]?.text).toBe('Norte\nSur\nPunto de encuentro')
   const grown = (await savedDocument(page))!.board.quickNotes[0]!
-  expect(grown.title).toBe('Accesos'); expect(grown.height).toBeGreaterThan(initial.height + 30)
+  expect(grown.title).toBe(''); expect(grown.height).toBe(initial.height)
+  expect(await body.evaluate(el => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth)).toBe(true)
   expect(grown.position.y - grown.height / 2).toBe(initial.position.y - initial.height / 2)
   await body.fill('Descartar'); await body.press('Escape'); await expect(body).toHaveValue(grown.text)
   await expect(page.locator('.quick-note')).toBeFocused()
@@ -114,7 +119,7 @@ test('viewport menor que nota mantiene tamaño y amplía superficie sin mover c�
   expect(await surface.evaluate(el => ['data-offset-x', 'data-offset-y', 'data-scale'].map(a => el.getAttribute(a)))).toEqual(camera)
 })
 
-test('tacto emulado: crear y borrar con tap; mover desde cabecera y cancelar escala con dos dedos', async ({ page, context, isMobile }, info) => {
+test('tacto emulado: crear y borrar con tap; mover desde borde y cancelar redimensionado con dos dedos', async ({ page, context, isMobile }, info) => {
   test.skip(!isMobile, 'Solo Chromium con tacto emulado')
   await setup(page)
   const add = page.getByRole('button', { name: 'Nota rápida', exact: true })
@@ -148,10 +153,62 @@ test('nota heredada con texto largo conserva caja y permite scroll interior sin 
   fixture.board.quickNotes.push({ id: crypto.randomUUID(), title: 'Heredada', text: Array.from({ length: 20 }, (_, i) => `Acceso ${i + 1}`).join('\n'), scale: 1,
     width: 240, height: 100, position: { x: 160, y: 150 } })
   await loadDocument(page, fixture)
-  const body = page.locator('.quick-note-body'), surface = page.getByTestId('board-surface')
+  const body = page.getByLabel('Texto de nota rápida'), surface = page.getByTestId('board-surface')
   const camera = await surface.evaluate(el => ['data-offset-x', 'data-offset-y', 'data-scale'].map(a => el.getAttribute(a)))
   await body.hover(); await page.mouse.wheel(0, 160)
   await expect.poll(() => body.evaluate(node => node.scrollTop)).toBeGreaterThan(0)
   expect(await surface.evaluate(el => ['data-offset-x', 'data-offset-y', 'data-scale'].map(a => el.getAttribute(a)))).toEqual(camera)
   expect((await downloadDocument(page)).document.board.quickNotes).toEqual(fixture.board.quickNotes)
+})
+
+
+test('mejoras compactas: texto de nota rápida se ajusta a su caja y recupera tamaño', async ({ page }, info) => {
+  const fixture = await setup(page)
+  fixture.board.quickNotes.push({ id: crypto.randomUUID(), title: '', text: 'Acceso norte.\n' + 'Comprobar material y radio. '.repeat(12), position: { x: 180, y: 160 }, width: 320, height: 160, scale: 1 })
+  await loadDocument(page, fixture)
+  const body = page.getByLabel('Texto de nota rápida')
+  await body.focus()
+  const initial = await body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))
+  const fits = () => body.evaluate(el => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth)
+  expect(await fits()).toBe(true)
+  const handle = page.getByRole('button', { name: 'Redimensionar nota rápida' })
+  const start = (await handle.boundingBox())!
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(start.x + start.width / 2 - 200, start.y + start.height / 2 - 96, { steps: 4 })
+  await page.mouse.up()
+  expect(await body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeLessThan(initial)
+  expect(await fits()).toBe(true)
+  await page.screenshot({ path: info.outputPath('nota-texto-ajustado.png') })
+  const small = (await handle.boundingBox())!
+  await page.mouse.move(small.x + small.width / 2, small.y + small.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(small.x + small.width / 2 + 200, small.y + small.height / 2 + 96, { steps: 4 })
+  await page.mouse.up()
+  await expect.poll(() => body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeCloseTo(initial, 1)
+  expect(await fits()).toBe(true)
+  await expect.poll(async () => (await savedDocument(page))?.board.quickNotes[0]?.text).toBe(fixture.board.quickNotes[0]!.text)
+})
+
+
+test('nota rápida amplía el texto por encima de 16 y lo vuelve a reducir al encoger', async ({ page }, info) => {
+  const fixture = await setup(page)
+  fixture.board.quickNotes.push({ id: crypto.randomUUID(), title: '', text: 'Acceso norte', position: { x: 180, y: 160 }, width: 280, height: 140, scale: 1 })
+  await loadDocument(page, fixture)
+  const body = page.getByLabel('Texto de nota rápida')
+  await body.focus()
+  await expect.poll(() => body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(16)
+  const initial = await body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))
+  const handle = page.getByRole('button', { name: 'Redimensionar nota rápida' })
+  const start = (await handle.boundingBox())!
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2); await page.mouse.down()
+  await page.mouse.move(start.x + start.width / 2 + 40, start.y + start.height / 2 + 30, { steps: 4 }); await page.mouse.up()
+  await expect.poll(() => body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(initial)
+  await expect(handle).toBeInViewport()
+  const big = (await handle.boundingBox())!
+  await page.mouse.move(big.x + big.width / 2, big.y + big.height / 2); await page.mouse.down()
+  await page.mouse.move(big.x + big.width / 2 - 40, big.y + big.height / 2 - 30, { steps: 4 }); await page.mouse.up()
+  await expect.poll(() => body.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeCloseTo(initial, 1)
+  expect(await body.evaluate(el => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight)).toBe(true)
+  await page.screenshot({ path: info.outputPath('nota-texto-grande.png') })
 })

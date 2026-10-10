@@ -1,5 +1,6 @@
 import { fireEvent, render as renderView, screen, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { ZoomControl } from './ZoomControl'
 import { TooltipProvider } from '../components/ui/tooltip'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fit, clamp, zoomAt, resizeViewport } from './viewportMath'
@@ -43,6 +44,21 @@ describe('interfaz compacta aprobada', () => {
     const field = screen.getByRole('spinbutton', { name: 'Zoom de Reloj' })
     fireEvent.change(field, { target: { value: '50' } }); fireEvent.keyDown(field, { key: 'Enter' })
     expect(screen.getByRole('region', { name: 'Reloj' }).querySelector('.module-scaled-content')).toHaveStyle({ width: '100%', height: '100%', zoom: '0.5' })
+  })
+  it('Proportions ajusta contenido al zoom actual sin cambiar el porcentaje', () => {
+    const fit = vi.fn()
+    render(<ModuleFrame id="elements" active onClose={vi.fn()} onFit={fit}><div>Tarjetas</div></ModuleFrame>)
+    const region = screen.getByRole('region', { name: 'Elementos' })
+    const scaled = region.querySelector('.module-scaled-content')!
+    Object.defineProperties(scaled, { offsetWidth: { value: 200 }, offsetHeight: { value: 100 }, scrollWidth: { value: 200 }, scrollHeight: { value: 100 } })
+    Object.defineProperty(region.querySelector('.module-header'), 'offsetHeight', { value: 27 })
+    Object.defineProperty(region.querySelector('.module-controls'), 'offsetHeight', { value: 23 })
+    const zoom = screen.getByRole('spinbutton', { name: 'Zoom de Elementos' })
+    fireEvent.change(zoom, { target: { value: '200' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustar ventana de Elementos al contenido' }))
+    expect(fit).toHaveBeenCalledWith({ width: 402, height: 252 })
+    expect(zoom).toHaveValue(200)
+    expect(region).not.toHaveAttribute('data-fitting')
   })
   it('la rueda de Pizarra sincroniza el porcentaje inferior sin otro zoom oculto', () => {
     render(<ModuleFrame id="board" active onClose={() => {}}><div className="board-surface">Lienzo</div></ModuleFrame>)
@@ -113,5 +129,33 @@ describe('interfaz compacta aprobada', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Información' }), { target: { value: 'Uno\nDos' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ name: 'Punto norte', information: 'Uno\nDos' }))
+  })
+})
+
+
+describe('enganche suave de sliders de zoom', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it.each(['bottom', 'right'] as const)('atrae a decenas con puntero en %s y conserva teclado y entrada exacta', side => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+    function Probe() {
+      const [scale, setScale] = useState(1)
+      return <ZoomControl scale={scale} onChange={setScale} label="Zoom de prueba" side={side} />
+    }
+    render(<Probe />)
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir deslizador: Zoom de prueba' }))
+    const slider = screen.getByRole('slider'), track = slider.closest('.ui-slider')!
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 375, top: 0, height: 20, right: 375, bottom: 20 } as DOMRect)
+    Object.assign(track, { setPointerCapture: vi.fn(), hasPointerCapture: () => true, releasePointerCapture: vi.fn() })
+    const input = screen.getByRole('spinbutton', { name: 'Zoom de prueba' })
+    for (const [value, expected] of [[98, 100], [102, 100], [103, 103], [137, 137], [138, 140], [25, 25], [400, 400]]) {
+      fireEvent.pointerDown(track, { pointerId: 1, button: 0, clientX: value! - 25, clientY: 10 })
+      fireEvent.pointerUp(track, { pointerId: 1 })
+      expect(input).toHaveValue(expected)
+    }
+    fireEvent.change(input, { target: { value: '100' } }); fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    expect(input).toHaveValue(101)
+    fireEvent.change(input, { target: { value: '138' } }); fireEvent.keyDown(input, { key: 'Enter' })
+    expect(input).toHaveValue(138)
   })
 })

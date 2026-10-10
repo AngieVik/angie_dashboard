@@ -7,7 +7,7 @@ import { Input } from '../../components/ui/input'
 import { InputGroup } from '../../components/ui/input-group'
 import { Badge } from '../../components/ui/badge'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
-import { Check, SquareX, Trash } from 'lucide-react'
+import { Check, X, Trash } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 
 export function UnitTags({ store, unitId, tags }: { store: DocumentStore; unitId: string; tags: string[] }) {
@@ -33,7 +33,7 @@ export function UnitTags({ store, unitId, tags }: { store: DocumentStore; unitId
         <Input aria-label="Editar etiqueta" aria-invalid={Boolean(error && errorField === 'edit')} aria-describedby={error && errorField === 'edit' ? errorId : undefined} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ index, text: event.target.value })}
           onKeyDown={event => { if (event.key === 'Escape') { finishEditing(); setError(null) } }} />
         <Button type="submit" aria-label="Guardar etiqueta" disabled={blocked}><Check aria-hidden="true" /></Button>
-        <Button aria-label="Cancelar edición de etiqueta" disabled={blocked} onClick={() => { finishEditing(); setError(null) }}><SquareX aria-hidden="true" /></Button>
+        <Button aria-label="Cancelar edición de etiqueta" disabled={blocked} onClick={() => { finishEditing(); setError(null) }}><X aria-hidden="true" /></Button>
       </form> : <span className="unit-tag-actions" key={index}>
         <Button aria-label={`Editar etiqueta ${tag}`} disabled={blocked} onClick={() => {
           if (!blockedRef.current) { setEditing({ index, text: tag }); setError(null) }

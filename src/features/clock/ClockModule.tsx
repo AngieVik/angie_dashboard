@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
+import { Play, Pause } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Alert } from '../../components/ui/alert'
 import { spanishClock } from './timerEngine'
@@ -30,7 +31,7 @@ export function ClockModule({ store }: { store: TimerStore }) {
       <Button disabled={!ready} onClick={() => store.add('advisory')}>Advisories</Button>
       <Button aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview document-button" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
         onClick={() => { if (alarm.preview) store.alarm.stopPreview(); else void store.alarm.startPreview() }}>
-        <span aria-hidden="true">{alarm.preview ? '⏸' : '▶'}</span> Sonido
+        {alarm.preview ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />} Sonido
       </Button>
     </div>
     {alarm.error && <Alert>{alarm.error}{alarm.error === 'Sonido bloqueado' && <Button onClick={() => { void store.alarm.activateSound() }}>Activar sonido</Button>}</Alert>}

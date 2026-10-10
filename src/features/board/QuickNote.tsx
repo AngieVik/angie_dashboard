@@ -7,27 +7,24 @@ import { clampBoardPosition } from './boardReducer'
 import { boardDelta } from './boardViewport'
 import type { BoardViewportState } from './boardViewport'
 import { useViewportInteraction } from '../../layout/ViewportContext'
-import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
-import { growQuickNote, scaleQuickNote } from './noteGeometry'
-import { SquareX } from 'lucide-react'
+import { resizeQuickNote } from './noteGeometry'
+import { X } from 'lucide-react'
 import type { NoteEdit } from './boardTypes'
 
-type Field = 'title' | 'text'
 export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, onResize, onEdit, onDelete, focusBody = false, view = { scale: 1, offsetX: 0, offsetY: 0 }, viewportSize }: {
   note: Note; selected: boolean; enabled: boolean; surface: RefObject<HTMLDivElement | null>; focusBody?: boolean
-  onSelect: () => void; onMove: (position: Position) => void; onResize: (factor: number) => void; onEdit: (patch: NoteEdit) => void; onDelete: () => void
+  onSelect: () => void; onMove: (position: Position) => void; onResize: (size: Size) => void; onEdit: (patch: NoteEdit) => void; onDelete: () => void
   view?: BoardViewportState; viewportSize?: Size
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
-  const root = useRef<HTMLDivElement>(null), header = useRef<HTMLDivElement>(null)
-  const [draft, setDraft] = useState<{ field: Field; value: string } | null>(null)
-  const active = useRef<{ field: Field; original: string; value: string } | null>(null)
+  const root = useRef<HTMLDivElement>(null), textarea = useRef<HTMLTextAreaElement>(null)
+  const [draft, setDraft] = useState<string | null>(null)
+  const active = useRef<{ original: string; value: string } | null>(null)
   const composing = useRef(false), deleted = useRef(false)
-  const text = draft?.field === 'text' ? draft.value : note.text
-  const textarea = useAutoGrowingTextarea(text)
-  const [editHeight, setEditHeight] = useState<number | null>(null)
+  const originalText = note.title ? [note.title, note.text].filter(Boolean).join('\n') : note.text
+  const text = draft ?? originalText
   const [preview, setPreview] = useState<Note | null>(null)
-  const drag = useRef<{ kind: 'move' | 'resize'; pointerId: number; x: number; y: number; base: Note; ready: boolean; next: Note | null; factor: number } | null>(null)
+  const drag = useRef<{ kind: 'move' | 'resize'; pointerId: number; x: number; y: number; base: Note; ready: boolean; next: Note | null } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const cancel = useCallback(() => { clearTimeout(timer.current); drag.current = null; setPreview(null) }, [])
   useEffect(() => {
@@ -37,51 +34,35 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
   }, [blocked, enabled, cancel])
   useEffect(() => () => clearTimeout(timer.current), [])
   useLayoutEffect(() => { if (focusBody) textarea.current?.focus() }, [focusBody, textarea])
-  const measuredHeight = useCallback(() => {
-    const body = textarea.current, bar = header.current, box = root.current
-    if (!body?.scrollHeight || !bar?.offsetHeight || !box) return undefined
-    const style = getComputedStyle(box)
-    return body.scrollHeight + bar.offsetHeight + (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0)
-  }, [textarea])
-  useLayoutEffect(() => {
-    if (active.current?.field !== 'text') return
-    const height = measuredHeight()
-    // Measurement is a local preview. Only field confirmation persists geometry.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (height !== undefined) setEditHeight(height)
-  }, [text, note.width, note.scale, measuredHeight])
   function commit(render = true) {
     const editing = active.current
     active.current = null
-    if (render) { setDraft(null); setEditHeight(null) }
+    if (render) setDraft(null)
     if (!editing || deleted.current || editing.value === editing.original) return
-    const height = editing.field === 'text' ? measuredHeight() : undefined
-    onEdit({ [editing.field]: editing.value, ...(height === undefined ? {} : { height }) })
+    onEdit({ text: editing.value, ...(note.title ? { title: '' } : {}) })
   }
   const commitOnClose = useRef<() => void>(() => {})
   useLayoutEffect(() => { commitOnClose.current = () => commit(false) })
   useLayoutEffect(() => () => commitOnClose.current(), [])
-  function begin(field: Field) {
-    if (active.current?.field === field) return
-    active.current = { field, original: note[field], value: note[field] }
-    setDraft({ field, value: note[field] }); onSelect()
+  function begin() {
+    if (active.current) return
+    active.current = { original: originalText, value: originalText }
+    setDraft(originalText); onSelect()
   }
-  function change(field: Field, value: string) {
-    active.current ??= { field, original: note[field], value: note[field] }
-    active.current.value = value; setDraft({ field, value })
+  function change(value: string) {
+    active.current ??= { original: originalText, value: originalText }
+    active.current.value = value; setDraft(value)
   }
-  function key(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, field: Field) {
+  function key(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return
     if (event.key === 'Escape') {
-      event.preventDefault(); event.stopPropagation(); active.current = null; setDraft(null); setEditHeight(null); root.current?.focus()
-    } else if (event.key === 'Enter' && field === 'title') {
-      event.preventDefault(); event.stopPropagation(); commit(); textarea.current?.focus()
+      event.preventDefault(); event.stopPropagation(); active.current = null; setDraft(null); root.current?.focus()
     }
   }
   function start(event: PointerEvent<HTMLElement>, kind: 'move' | 'resize') {
     if (!enabled || blockedRef.current || event.button !== 0) return
     event.stopPropagation(); event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId)
-    drag.current = { kind, pointerId: event.pointerId, x: event.clientX, y: event.clientY, base: note, ready: kind === 'resize', next: null, factor: 1 }
+    drag.current = { kind, pointerId: event.pointerId, x: event.clientX, y: event.clientY, base: note, ready: kind === 'resize', next: null }
     clearTimeout(timer.current)
     if (kind === 'move') timer.current = setTimeout(() => { if (drag.current && !blockedRef.current) drag.current.ready = true }, 250)
   }
@@ -93,11 +74,7 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
       viewportSize ?? { width: surface.current!.clientWidth || rect.width, height: surface.current!.clientHeight || rect.height })
     if (current.kind === 'move') current.next = { ...current.base, position: clampBoardPosition({ x: current.base.position.x + delta.x, y: current.base.position.y + delta.y }) }
     else {
-      const { width, height } = current.base
-      const factor = 1 + (delta.x * width + delta.y * height) / (width ** 2 + height ** 2)
-      const next = scaleQuickNote(current.base, factor)
-      if (next === current.base) return
-      current.factor = factor; current.next = next
+      current.next = resizeQuickNote(current.base, { width: current.base.width + delta.x, height: current.base.height + delta.y })
     }
     setPreview(current.next)
   }
@@ -107,28 +84,51 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
     event.stopPropagation()
     if (!blockedRef.current && enabled) {
       onSelect()
-      if (current.next) { if (current.kind === 'move') onMove(current.next.position); else onResize(current.factor) }
+      if (current.next) { if (current.kind === 'move') onMove(current.next.position); else onResize({ width: current.next.width, height: current.next.height }) }
     }
     cancel()
   }
-  const box = preview ?? (editHeight === null ? note : growQuickNote(note, editHeight))
+  const box = preview ?? note
+  const fitText = useCallback(() => {
+    const node = textarea.current
+    if (!node || !node.clientWidth || !node.clientHeight) return
+    // Measure the actual wrapped text, including manual line breaks and padding.
+    let low = .5, high = Math.max(32, node.clientHeight)
+    const apply = (size: number) => { node.style.fontSize = size + 'px' }
+    apply(high)
+    if (node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth) return
+    while (high - low > .1) {
+      const middle = (low + high) / 2
+      apply(middle)
+      if (node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth) low = middle
+      else high = middle
+    }
+    apply(low)
+  }, [])
+  useLayoutEffect(fitText, [fitText, text, box.width, box.height])
+  useLayoutEffect(() => {
+    const node = textarea.current
+    if (!node) return
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fitText)
+    observer?.observe(node)
+    let active = true
+    void document.fonts?.ready.then(() => { if (active) fitText() })
+    document.fonts?.addEventListener('loadingdone', fitText)
+    return () => { active = false; observer?.disconnect(); document.fonts?.removeEventListener('loadingdone', fitText) }
+  }, [fitText])
   // readOnly keeps drafts/focus intact when two fingers temporarily own navigation.
   const readOnly = !enabled || blocked
   return <div ref={root} tabIndex={-1} className="quick-note" data-note-id={note.id} data-selected={selected}
-    style={{ left: box.position.x, top: box.position.y, width: box.width, height: box.height, '--note-scale': box.scale,
+    style={{ left: box.position.x, top: box.position.y, width: box.width, height: box.height,
       pointerEvents: enabled && !blocked ? 'auto' : 'none', zIndex: selected ? 1 : undefined } as CSSProperties}>
-    <div ref={header} className="quick-note-header" onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}>
-      <input aria-label="Título de nota rápida" value={draft?.field === 'title' ? draft.value : note.title} readOnly={readOnly}
-        onPointerDown={event => event.stopPropagation()} onFocus={() => begin('title')} onChange={event => change('title', event.target.value)} onBlur={() => commit()}
-        onKeyDown={event => key(event, 'title')} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false }} />
-      <Button disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onPointerDown={event => { event.stopPropagation(); event.preventDefault() }}
-        onClick={() => { deleted.current = true; active.current = null; onDelete() }}><SquareX aria-hidden="true" /></Button>
-    </div>
+    <div className="quick-note-header" aria-label="Mover nota rápida" onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel} />
+    <Button className="document-button quick-note-delete" disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onPointerDown={event => { event.stopPropagation(); event.preventDefault() }}
+      onClick={() => { deleted.current = true; active.current = null; onDelete() }}><X aria-hidden="true" /></Button>
     <div className="quick-note-body" onPointerDown={event => event.stopPropagation()} onWheelCapture={event => {
-      if (!event.ctrlKey && event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation()
+      if (!event.ctrlKey && textarea.current && textarea.current.scrollHeight > textarea.current.clientHeight) event.stopPropagation()
     }}><textarea ref={textarea} rows={1} className="quick-note-text" aria-label="Texto de nota rápida" value={text} readOnly={readOnly}
-      onPointerDown={event => event.stopPropagation()} onFocus={() => begin('text')} onChange={event => change('text', event.target.value)} onBlur={() => commit()}
-      onKeyDown={event => key(event, 'text')} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false }} /></div>
+      onPointerDown={event => event.stopPropagation()} onFocus={begin} onChange={event => change(event.target.value)} onBlur={() => commit()}
+      onKeyDown={key} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false }} /></div>
     {selected && enabled && <button type="button" className="quick-note-resize" aria-label="Redimensionar nota rápida" disabled={blocked}
       onPointerDown={event => start(event, 'resize')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel} />}
   </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { SquareDimensions } from 'lucide-react'
 import { useViewportInteraction } from './ViewportContext'
 
 export function WindowResize({ label }: { label: string }) {
@@ -33,5 +34,5 @@ export function WindowResize({ label }: { label: string }) {
       current.node.style.width = `${Math.max(1, current.width + (event.clientX - current.x) / current.scale)}px`
       current.node.style.height = `${Math.max(1, current.height + (event.clientY - current.y) / current.scale)}px`
     }} onPointerUp={event => { if (gesture.current?.id === event.pointerId) { if (blockedRef.current) cancel(); else gesture.current = null } }}
-    onPointerCancel={cancel} onLostPointerCapture={cancel} />
+    onPointerCancel={cancel} onLostPointerCapture={cancel}><SquareDimensions aria-hidden="true" /></button>
 }

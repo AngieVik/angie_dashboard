@@ -1,28 +1,26 @@
 .notebook-module { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
 .notebook-toolbar { flex: 0 0 auto; padding: 5px 8px; border-bottom: 1px solid var(--color-border); background: var(--surface-header); box-shadow: inset 0 1px 0 rgb(242 242 240 / 6%); }
-.notebook-toolbar { display: flex; gap: 5px; }
+.notebook-toolbar { display: flex; gap: 0; }
 .notebook-toolbar .document-button { padding: 1px 9px; font-size: var(--font-size-body); }
-.notebook-list { flex: 1; min-height: 0; margin: 0; padding: 7px 9px 18px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; list-style: none; overflow-anchor: none; }
-.notebook-block { display: grid; grid-template-columns: 9px minmax(0, 1fr); gap: 3px 4px; margin-bottom: 6px; padding: 4px; border: 1px solid #343A3E; border-radius: 3px; background: linear-gradient(145deg, #212528, #17191B); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
+.notebook-list { flex: 1; min-height: 0; margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; list-style: none; overflow-anchor: none; }
+.notebook-block { display: grid; grid-template-columns: 20px minmax(0, 1fr) 20px; gap: 0; margin-bottom: 0; padding: 0; border: 1px solid #343A3E; border-radius: 3px; background: linear-gradient(145deg, #212528, #17191B); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
 .notebook-block[data-dragging="true"] { opacity: 0.65; }
 .notebook-block[data-drop-target="true"] { border-color: var(--color-accent-yellow); box-shadow: inset 0 0 0 1px var(--color-accent-yellow); }
-.notebook-block-controls { grid-column: 2; display: flex; align-items: center; gap: 4px; min-width: 0; }
-.notebook-title { flex: 1; min-width: 0; width: 100%; padding: 2px 4px; border: 1px solid transparent; background: transparent; }
-.logical-workspace .module-frame .module-content .notebook-module input.notebook-title { font-size: var(--font-size-title); }
-.notebook-title:focus { border-color: var(--color-border); }
-.notebook-title:hover:not(:disabled) { border-color: var(--color-active-border); }
-.notebook-title:disabled { opacity: .5; }
-.notebook-block-controls .document-button, .notebook-checklist .document-button { padding: 1px 5px; font-size: var(--font-size-body); }
-.notebook-block > .notebook-handle { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: stretch; justify-content: center; min-width: 0; padding: 4px 2px; border: 0; background: transparent; box-shadow: none; touch-action: none; cursor: grab; user-select: none; }
-.notebook-grip { display: flex; gap: 2px; height: 24px; align-self: center; }
+.app-shell .notebook-module button.notebook-handle[aria-label] { grid-column: 1; grid-row: 1; width: 20px; height: 100%; min-height: 0; align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0 2px; border: 0; background: transparent; box-shadow: none; touch-action: none; cursor: grab; user-select: none; }
+.notebook-grip { display: flex; gap: 0; height: 24px; align-self: center; }
 .notebook-grip::before, .notebook-grip::after { content: ''; width: 1px; background: var(--color-text-secondary); opacity: .65; }
 .notebook-handle:active { cursor: grabbing; }
-.notebook-note, .notebook-checklist textarea { display: block; width: 100%; min-width: 0; min-height: 0; padding: 4px 5px; border: 1px solid var(--color-field-border); border-radius: 2px; background: var(--color-field); color: var(--color-text); box-shadow: inset 0 1px 4px rgb(0 0 0 / 40%); resize: none; overflow: hidden; font-size: var(--font-size-body); line-height: 1.4; }
+.notebook-note, .notebook-checklist textarea { display: block; width: 100%; min-width: 0; min-height: 0; padding: 0; border: 1px solid var(--color-field-border); border-radius: 2px; background: var(--color-field); color: var(--color-text); box-shadow: inset 0 1px 4px rgb(0 0 0 / 40%); resize: none; overflow: hidden; font-size: var(--font-size-body); line-height: 1.15; }
 .notebook-note:hover:not(:disabled), .notebook-checklist textarea:hover:not(:disabled) { border-color: var(--color-active-border); }
-.notebook-note, .notebook-checklist { grid-column: 2; min-width: 0; }
+.notebook-note, .notebook-checklist { grid-column: 2; grid-row: 1; align-self: start; min-width: 0; }
 .notebook-checklist ul { padding: 0; margin: 0; list-style: none; }
-.notebook-checklist li { display: grid; grid-template-columns: 14px minmax(0, 1fr) 22px 22px; align-items: start; gap: 4px; margin-bottom: 4px; }
+.notebook-checklist li { display: grid; grid-template-columns: 14px minmax(0, 1fr) 20px 20px; align-items: start; gap: 0; margin-bottom: 0; }
 .notebook-checklist li:last-child { margin-bottom: 0; }
-.notebook-checklist input[type="checkbox"] { margin: 6px 0 0; accent-color: var(--color-accent-red); }
-.notebook-checklist li > .document-button { margin-top: 2px; }
+.notebook-checklist input[type="checkbox"] { margin: 3px 0 0; accent-color: var(--color-accent-red); }
+.notebook-checklist li > .document-button { margin-top: 0; }
 .notebook-checklist li[data-checked="true"] textarea { color: var(--color-text-secondary); }
+
+.app-shell .notebook-module button.notebook-delete[aria-label] { grid-column: 3; grid-row: 1; align-self: start; display: grid; place-items: center; width: 20px; min-width: 20px; height: 20px; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
+.app-shell .notebook-module button.notebook-delete[aria-label]:hover:not(:disabled) { background: transparent; color: var(--color-text); }
+.app-shell .notebook-module button.notebook-item-control[aria-label] { display: grid; place-items: center; width: 20px; min-width: 20px; height: 20px; min-height: 0; padding: 0; }
+.notebook-handle svg, .notebook-delete svg, .notebook-item-control svg { width: 16px; height: 16px; }

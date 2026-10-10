@@ -1,12 +1,11 @@
-.coordinates-module { padding: 7px; min-width: 0; font-size: var(--font-size-body); }
-.logical-workspace .module-frame .module-content .coordinates-entry input.document-title { font-size: var(--font-size-technical); }
+.coordinates-module { padding: 0; min-width: 0; font-size: var(--font-size-body); }
 .coordinates-entry svg { width: 16px; height: 16px; }
 .coordinates-error, .coordinates-copy-status { margin: 5px 0; font-size: var(--font-size-body); color: var(--color-accent-yellow); overflow-wrap: anywhere; }
 .coordinates-entry [aria-invalid="true"] { box-shadow: inset 2px 0 var(--color-accent-red); }
 .coordinates-results { display: flex; flex-direction: column; margin: 6px 0 0; }
-.coordinates-results > div { display: grid; grid-template-columns: 4ch minmax(0, 1fr); align-items: baseline; gap: 6px; padding: 6px 4px; border-bottom: 1px solid var(--color-border); }
+.coordinates-results > div { display: grid; grid-template-columns: 4ch minmax(0, 1fr); align-items: baseline; column-gap: 4ch; padding: 0; border-bottom: 1px solid var(--color-border); }
 .coordinates-results dt { white-space: nowrap; font-size: var(--font-size-technical); font-weight: 700; color: var(--color-text-secondary); }
-.coordinates-results dd { min-width: 0; overflow-x: auto; white-space: nowrap; margin: 0; font-size: var(--font-size-technical); line-height: 1.25; }
+.coordinates-results dd { min-width: 0; overflow-x: hidden; white-space: normal; overflow-wrap: anywhere; margin: 0; font-size: var(--font-size-technical); line-height: 1.25; }
 .coordinates-results [role="button"] { cursor: copy; transition: background-color var(--transition-control); }
 .coordinates-results [role="button"]:not([aria-disabled="true"]):is(:hover, :focus-visible) { background: var(--color-selected); }
 .coordinates-results [role="button"]:not([aria-disabled="true"]):active { background: var(--color-module-header); }

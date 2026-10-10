@@ -27,7 +27,7 @@ function geometry() {
 }
 
 describe('Cuaderno', () => {
-  it('ofrece Nota y Checklist directamente, títulos editables y elimina bloques independientes', async () => {
+  it('ofrece Nota y Checklist sin cabecera y elimina bloques con un icono independiente', async () => {
     const store = await setup()
     render(<NotebookModule store={store} />)
     expect(screen.queryAllByRole('textbox')).toHaveLength(0)
@@ -38,10 +38,8 @@ describe('Cuaderno', () => {
     fireEvent.change(text, { target: { value: 'Preparación\n⚠ Acceso norte 📻' } })
     await add('Checklist')
     expect(blocks().map(node => node.dataset.blockType)).toEqual(['note', 'checklist'])
-    fireEvent.change(screen.getByRole('textbox', { name: 'Título del bloque 1' }), { target: { value: '' } })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Título del bloque 2' }), { target: { value: 'Radio 📻'.repeat(30) } })
-    expect(store.getSnapshot().document.notebook[0]).toMatchObject({ type: 'note', title: '', text: 'Preparación\n⚠ Acceso norte 📻' })
-    expect(store.getSnapshot().document.notebook[1]?.title).toBe('Radio 📻'.repeat(30))
+    expect(store.getSnapshot().document.notebook[0]).toMatchObject({ type: 'note', text: 'Preparación\n⚠ Acceso norte 📻' })
+    expect(screen.queryByRole('textbox', { name: /Título del bloque/ })).not.toBeInTheDocument()
     fireEvent.click(within(blocks()[0]!).getByRole('button', { name: 'Eliminar bloque' }))
     expect(store.getSnapshot().document.notebook).toHaveLength(1)
     expect(store.getSnapshot().document.notebook[0]?.type).toBe('checklist')
@@ -154,7 +152,6 @@ describe('Cuaderno', () => {
     view.rerender(<ViewportContext.Provider value={{ blocked: true, blockedRef }}><NotebookModule store={store} /></ViewportContext.Provider>)
     fireEvent.pointerUp(handle, { pointerId: 1 })
     fireEvent.change(screen.getByRole('textbox', { name: 'Texto de nota' }), { target: { value: 'No' } })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Título del bloque 1' }), { target: { value: 'No' } })
     fireEvent.keyDown(handle, { key: 'ArrowDown' })
     for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled()
     expect(store.getSnapshot().document).toBe(before)

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Delete } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
@@ -45,7 +46,7 @@ export function CalculatorModule({ generation = 0 }: { generation?: number } = {
     </div>
     <div className="calculator-keypad">
       <Button aria-label="Limpiar" disabled={blocked} onClick={() => edit('')}>C</Button>
-      <Button aria-label="Borrar último carácter" disabled={blocked} onClick={() => edit(expression.slice(0, -1))}>⌫</Button>
+      <Button aria-label="Borrar último carácter" disabled={blocked} onClick={() => edit(expression.slice(0, -1))}><Delete aria-hidden="true" /></Button>
       <Button aria-label="Abrir paréntesis" disabled={blocked} onClick={() => edit(expression + '(')}>(</Button>
       <Button aria-label="Cerrar paréntesis" disabled={blocked} onClick={() => edit(expression + ')')}>)</Button>
       {keys.map(([value, name]) => <Button key={name} aria-label={name} disabled={blocked} onClick={() => edit(expression + value)}>{value}</Button>)}

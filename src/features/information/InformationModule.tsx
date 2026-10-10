@@ -21,7 +21,7 @@ export function InformationModule({ store, selectedId, onSelect }: { store: Docu
     {selected ? <>
       <div className="information-identity">
         {selected.visual.type === 'asset' ? <img src={ICON_CATALOG[selected.visual.assetId].path} alt="" /> : <span className="information-emoji" aria-hidden="true">{selected.visual.value}</span>}
-        <div><strong>{selected.name}</strong><span className="information-pin" aria-label={selected.pinVisible ? 'Pin visible' : 'Pin oculto'}>{selected.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}{selected.pinVisible ? 'Pin visible en Pizarra' : 'Pin oculto en Pizarra'}</span></div>
+        <div><strong>{selected.name}</strong><span className="information-pin" aria-label={selected.pinVisible ? 'Pin visible' : 'Pin oculto'}>{selected.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</span></div>
       </div>
       {selected.isUnit && <div className="information-operative">
         <Badge variant="outline" className="information-status" aria-label="Estado operativo">{status ? <><span aria-hidden="true">{status.icon}</span> {status.status}</> : 'Sin estado'}</Badge>
