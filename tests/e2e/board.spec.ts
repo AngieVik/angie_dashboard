@@ -166,20 +166,22 @@ test('imagen local: reducción real, fondo anterior ante errores y descarte al c
   expect(network).toEqual([])
 })
 
-test('rueda y modificadores navegan solo la pizarra y permiten dibujar más allá de 1000', async ({ page }) => {
+test('rueda sincronizada y modificadores navegan solo la pizarra y permiten dibujar más allá de 1000', async ({ page }) => {
   const surface = page.getByTestId('board-surface'), rect = (await surface.boundingBox())!
   const before = await saved(page)
   await page.mouse.move(rect.x + 3, rect.y + rect.height / 2)
   const x = Number(await surface.getAttribute('data-offset-x')), y = Number(await surface.getAttribute('data-offset-y'))
   await page.mouse.wheel(0, 80)
-  await expect.poll(async () => Number(await surface.getAttribute('data-offset-y'))).toBeLessThan(y)
+  await expect.poll(async () => Number(await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).inputValue())).toBeLessThan(100)
+  expect(Number(await surface.getAttribute('data-offset-y'))).toBe(y)
   expect(Number(await surface.getAttribute('data-offset-x'))).toBe(x)
   await page.keyboard.down('Shift'); await page.mouse.wheel(0, 80); await page.keyboard.up('Shift')
   await expect.poll(async () => Number(await surface.getAttribute('data-offset-x'))).toBeLessThan(x)
   await page.keyboard.down('Control')
   for (let step = 0; step < 4; step++) await page.mouse.wheel(0, 700)
   await page.keyboard.up('Control')
-  await expect(surface).toHaveAttribute('data-scale', '0.25')
+  await expect(page.locator('.module-scaled-content')).toHaveAttribute('data-scale', '0.25')
+  await expect(surface).toHaveAttribute('data-scale', '1')
   await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', '1')
   expect(await saved(page)).toEqual(before)
   await page.getByRole('radio', { name: 'Lápiz', exact: true }).click()

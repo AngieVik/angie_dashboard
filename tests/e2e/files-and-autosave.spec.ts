@@ -2,11 +2,11 @@ import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import { downloadDocument, openModule, savedDocument } from './acceptance-helpers'
 
-for (const origin of ['archivo', 'IndexedDB'] as const) {
-  test(`V1 real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V3`, async ({ page }) => {
-    const legacy = JSON.parse(await readFile('src/domain/document/fixtures/complete.json', 'utf8'))
+for (const version of [1, 2]) for (const origin of ['archivo', 'IndexedDB'] as const) {
+  test(`V${version} real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V3`, async ({ page }) => {
+    const legacy = JSON.parse(await readFile(version === 1 ? 'src/domain/document/fixtures/complete.json' : 'src/domain/document/fixtures/v2-complete.json', 'utf8'))
     const converted = JSON.parse(await readFile('src/domain/document/fixtures/v3-complete.json', 'utf8'))
-    const source = JSON.stringify({ ...legacy, filters: { visibleStatuses: [] } })
+    const source = JSON.stringify(version === 1 ? { ...legacy, filters: { visibleStatuses: [] } } : legacy)
     await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
     await page.goto('/')
     await expect.poll(async () => (await savedDocument(page))?.formatVersion).toBe(3)
@@ -32,7 +32,7 @@ for (const origin of ['archivo', 'IndexedDB'] as const) {
     await expect.poll(() => savedDocument(page)).toEqual(converted)
     const exported = await downloadDocument(page)
     expect(exported.document).toEqual(converted)
-    expect(JSON.parse(source)).toEqual({ ...legacy, filters: { visibleStatuses: [] } })
+    expect(JSON.parse(source)).toEqual(version === 1 ? { ...legacy, filters: { visibleStatuses: [] } } : legacy)
     await openModule(page, 'Dotaciones')
     const elements = page.getByRole('region', { name: 'Dotaciones', exact: true })
     await expect(elements.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
@@ -40,7 +40,7 @@ for (const origin of ['archivo', 'IndexedDB'] as const) {
     await page.getByRole('button', { name: 'Cerrar Dotaciones', exact: true }).click()
     await openModule(page, 'Pizarra')
     await expect(page.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Acceso norte', exact: true })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Texto de nota rápida', exact: true })).toHaveValue('Acceso norte')
   })
 }
 

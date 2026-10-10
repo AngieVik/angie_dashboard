@@ -27,6 +27,28 @@ async function advance(ms: number) { await act(async () => { vi.advanceTimersByT
 function row(name: string) { return within(screen.getByRole('group', { name })) }
 
 describe('Módulo Reloj', () => {
+  it('oculta el rótulo de estado y conserva el cierre por icono accesible', async () => {
+    await setup([createTimer('tzero')])
+    expect(screen.queryByText('Inactivo')).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'T-Zero 1' })).toHaveAccessibleDescription('Inactivo')
+    const close = row('T-Zero 1').getByRole('button', { name: 'Cerrar temporizador' })
+    expect(close).toHaveClass('timer-close')
+    expect(close.querySelector('svg')).toBeInTheDocument()
+    fireEvent.click(close)
+    expect(screen.queryByRole('group', { name: 'T-Zero 1' })).not.toBeInTheDocument()
+  })
+  it('la anotación comienza en una fila, crece y persiste sus líneas al reabrir', async () => {
+    const { store, view } = await setup([createTimer('tzero')])
+    const note = row('T-Zero 1').getByRole('textbox', { name: 'Nota' })
+    expect(note.tagName).toBe('TEXTAREA')
+    expect(note).toHaveAttribute('rows', '1')
+    Object.defineProperty(note, 'scrollHeight', { configurable: true, value: 72 })
+    fireEvent.change(note, { target: { value: 'Canal 4\nSalida norte\nRevisar acceso' } })
+    expect(parseFloat(note.style.height)).toBeGreaterThanOrEqual(72)
+    await act(async () => store.flush())
+    view.unmount(); render(<ClockModule store={store} />)
+    expect(row('T-Zero 1').getByRole('textbox', { name: 'Nota' })).toHaveValue('Canal 4\nSalida norte\nRevisar acceso')
+  })
   it.each([
     ['2026-01-01T12:04:05Z', '13:04:05', 'WT'],
     ['2026-07-01T12:04:05Z', '14:04:05', 'ST'],
@@ -140,7 +162,7 @@ describe('Módulo Reloj', () => {
     expect(audio.play).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: 'Reproducir prueba de sonido' })).toBeDisabled()
     fireEvent.click(row('T-Minus 1').getByRole('button', { name: 'Reconocer alerta' }))
-    expect(row('T-Minus 1').getByText('Finalizado')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'T-Minus 1' })).toHaveAccessibleDescription('Finalizado')
     fireEvent.click(row('T-Minus 1').getByRole('button', { name: 'Reiniciar' }))
     fireEvent.click(row('Advisory 1').getByRole('button', { name: 'Desactivar' }))
     expect(row('Advisory 1').getByLabelText('Tiempo')).toHaveTextContent('00:00:00')
@@ -207,7 +229,7 @@ describe('Módulo Reloj', () => {
     const recognized = { ...createTimer('advisory', 2), status: 'completed' as const, elapsedMs: 2000, alertActive: false }
     await setup([ended, recognized])
     expect(screen.getAllByRole('button', { name: 'Reconocer alerta' })).toHaveLength(1)
-    expect(row('Advisory 1').getByText('Finalizado')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Advisory 1' })).toHaveAccessibleDescription('Finalizado')
   })
   it('fallo de persistencia conserva controles y reintenta el estado más reciente', async () => {
     const { repository, store } = await setup()

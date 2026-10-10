@@ -16,8 +16,9 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
   for (const note of board.quickNotes) include(note.position.x, note.position.y, note.width / 2, note.height / 2)
   for (const element of elements) if (element.pinVisible && element.position) {
     const box = getPinBox(element.visual)
-    // Include the name's scaled CSS maximum so it remains recoverable.
-    include(element.position.x, element.position.y, Math.max(box.width, 200 * element.visual.scale) / 2, box.height / 2)
+    // The label ends at the icon's bottom and can extend above a small icon.
+    const height = Math.max(box.height, (element.nameFontSize ?? 16) * 1.25)
+    include(element.position.x, element.position.y + (box.height - height) / 2, Math.max(box.width, 200 * element.visual.scale) / 2, height / 2)
   }
   return bounds
 }

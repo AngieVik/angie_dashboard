@@ -1,0 +1,6 @@
+.ui-input-group { display: flex; align-items: stretch; width: 100%; min-width: 0; border: 1px solid var(--color-field-border); border-radius: 3px; background: var(--color-field); }
+.ui-input-group:hover { border-color: var(--color-active-border); }
+.ui-input-group:focus-within { outline: 2px solid var(--color-accent-yellow); outline-offset: 1px; }
+.ui-input-group:has([aria-invalid="true"]) { border-color: var(--color-accent-red); }
+.ui-input-group > .document-title { flex: 1; width: 0; min-width: 0; height: 24px; line-height: 1.2; padding: 3px 6px; border: 0; border-radius: 2px 0 0 2px; background: transparent; outline: none; box-shadow: none; }
+.ui-input-group > .document-button { flex: none; width: 26px; height: 24px; padding: 3px; border: 0; border-left: 1px solid var(--color-field-border); border-radius: 0 2px 2px 0; box-shadow: none; }

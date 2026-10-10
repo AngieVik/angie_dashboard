@@ -38,6 +38,21 @@ describe('interfaz compacta aprobada', () => {
     document.moduleLayouts.board!.width = 0
     expect(validateDocument(document).success).toBe(false)
   })
+  it('el zoom usa el área disponible sin compensar porcentajes dos veces', () => {
+    render(<ModuleFrame id="clock" active onClose={() => {}}>Reloj</ModuleFrame>)
+    const field = screen.getByRole('spinbutton', { name: 'Zoom de Reloj' })
+    fireEvent.change(field, { target: { value: '50' } }); fireEvent.keyDown(field, { key: 'Enter' })
+    expect(screen.getByRole('region', { name: 'Reloj' }).querySelector('.module-scaled-content')).toHaveStyle({ width: '100%', height: '100%', zoom: '0.5' })
+  })
+  it('la rueda de Pizarra sincroniza el porcentaje inferior sin otro zoom oculto', () => {
+    render(<ModuleFrame id="board" active onClose={() => {}}><div className="board-surface">Lienzo</div></ModuleFrame>)
+    const surface = screen.getByText('Lienzo'), field = screen.getByRole('spinbutton', { name: 'Zoom de Pizarra' })
+    fireEvent.wheel(surface, { deltaY: -Math.log(1.5) / .002 })
+    expect(field).toHaveValue(150)
+    fireEvent.change(field, { target: { value: '75' } }); fireEvent.keyDown(field, { key: 'Enter' })
+    fireEvent.wheel(surface, { deltaY: Math.log(1.5) / .002, ctrlKey: true })
+    expect(field).toHaveValue(50)
+  })
   it('separa arrastre, cierre y zoom; escala cada contenido independientemente', () => {
     const close = vi.fn()
     render(<><ModuleFrame id="elements" active onClose={close}><button>Herramienta</button></ModuleFrame>
@@ -89,13 +104,14 @@ describe('interfaz compacta aprobada', () => {
     }
   })
   it('información de Elementos comienza en una fila y conserva el borrador', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
     const save = vi.fn()
     render(<ElementEditor onSave={save} onCancel={vi.fn()} />)
     expect(screen.queryByText('Añadir elemento')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Información' })).toHaveAttribute('rows', '1')
     fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), { target: { value: 'Punto norte' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Información' }), { target: { value: 'Uno\nDos' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Crear elemento' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Crear' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ name: 'Punto norte', information: 'Uno\nDos' }))
   })
 })

@@ -25,7 +25,7 @@ Este esquema recoge las funciones generales. La [especificación funcional](docs
 
 JSON vigente `format: "angie-dashboard"` y `formatVersion: 3`. Ocho raíces: `format`, `formatVersion`, `document`, `board`, `elements`, `notebook`, `timeline` y `moduleLayouts`. Lectura compatible y validada de V1/V2; exportación V3. Contratos exactos y conversión en las secciones 2 y 6 de la especificación.
 
-El documento conserva título, trazos, notas rápidas (título/texto/escala/geometría), elementos y dotaciones, visibilidad de pines, datos operativos, Cuaderno, Registro con revisiones y geometrías manuales. Las cámaras, zooms, selección, módulos abiertos y borradores son temporales. Los temporizadores tienen persistencia independiente; la imagen local de Pizarra es temporal.
+El documento conserva título, trazos, notas rápidas (título/texto/escala/geometría), elementos y dotaciones, visibilidad de pines y tamaño de letra independiente del icono, datos operativos, Cuaderno, Registro con revisiones y geometrías manuales. Las cámaras, zooms, selección, módulos abiertos y borradores son temporales. Los temporizadores tienen persistencia independiente; la imagen local de Pizarra es temporal.
 
 ### Decisión técnica de persistencia
 

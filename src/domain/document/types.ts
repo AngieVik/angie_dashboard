@@ -26,6 +26,7 @@ export type DocumentElement = {
   visual: ElementVisual
   information: string
   position: Position | null
+  nameFontSize?: number
   pinVisible: boolean
   readonly isUnit: boolean
 } & (

@@ -68,3 +68,10 @@ it('invierte los tres zooms para que cursor y punto compartan centro lógico', (
   expect(toBoardPosition({ x: 190, y: 110 }, { left: 10, top: 20, width: 1200, height: 900 },
     { scale: .5, offsetX: 0, offsetY: -10 }, { width: 400, height: 300 })).toEqual({ x: 120, y: 80 })
 })
+
+it('centrado recupera letra de 72 px cuando el icono mide 16 px', () => {
+  const d = createEmptyDocument()
+  d.elements.push({ id: crypto.randomUUID(), name: 'CP', nameFontSize: 72, pinVisible: true, information: '', isUnit: false, operational: null,
+    visual: { type: 'emoji', value: '📍', scale: .25 }, position: { x: 200, y: 100 } })
+  expect(initialBoardView({ width: 100, height: 100 }, d.board, d.elements)).toEqual({ scale: 1, offsetX: -150, offsetY: -13 })
+})

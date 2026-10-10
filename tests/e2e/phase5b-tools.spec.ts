@@ -101,7 +101,9 @@ for (const [general, moduleZoom, boardZoom] of [[25, 25, .25], [100, 100, 1], [2
     await page.mouse.move(point.x, point.y)
     // Invoke the real wheel handler directly: mobile CDP Ctrl+wheel scales delta by DPR.
     await surface.dispatchEvent('wheel', { deltaY: -Math.log(boardZoom!) / .002, ctrlKey: true, clientX: point.x, clientY: point.y })
-    await expect.poll(async () => Number(await surface.getAttribute('data-scale'))).toBeCloseTo(boardZoom!, 5)
+    const effectiveZoom = Math.min(4, Math.max(.25, moduleZoom! / 100 * boardZoom!))
+    await expect.poll(async () => Number(await page.locator('.module-scaled-content').getAttribute('data-scale'))).toBeCloseTo(effectiveZoom, 5)
+    await expect(surface).toHaveAttribute('data-scale', '1')
     for (const name of ['Lápiz', 'Goma']) {
       // Focus scrolls the tool into its own toolbar, without changing geometry.
       await page.getByRole('radio', { name, exact: true }).focus(); await page.keyboard.press('Space')
@@ -110,7 +112,7 @@ for (const [general, moduleZoom, boardZoom] of [[25, 25, .25], [100, 100, 1], [2
       const cursor = page.locator('.board-tool-cursor')
       await expect(cursor).toBeVisible()
       const box = (await cursor.boundingBox())!
-      expect(Math.abs(box.width - 40 * boardZoom! * moduleZoom! / 100 * general! / 100)).toBeLessThan(.1)
+      expect(Math.abs(box.width - 40 * effectiveZoom * general! / 100)).toBeLessThan(.1)
       expect(box.height).toBeCloseTo(box.width, 1)
       expect(box.x + box.width / 2).toBeCloseTo(activePoint.x + 1, 0)
       expect(box.y + box.height / 2).toBeCloseTo(activePoint.y + 1, 0)
@@ -226,7 +228,8 @@ test('goma de grosor mínimo conserva diámetro subpixel bajo zoom propio', asyn
   await page.getByRole('radio', { name: 'Goma', exact: true }).click()
   const surface = page.getByTestId('board-surface'), rect = (await surface.boundingBox())!
   await surface.dispatchEvent('wheel', { deltaY: 10000, ctrlKey: true, clientX: rect.x + 30, clientY: rect.y + 30 })
-  await expect(surface).toHaveAttribute('data-scale', '0.25')
+  await expect(page.locator('.module-scaled-content')).toHaveAttribute('data-scale', '0.25')
+  await expect(surface).toHaveAttribute('data-scale', '1')
   await page.mouse.move(rect.x + 30, rect.y + 30)
   const cursor = page.locator('.board-tool-cursor')
   await expect(cursor).toBeVisible()

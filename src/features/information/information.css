@@ -1,10 +1,19 @@
 .information-module { padding: 8px; overflow-wrap: anywhere; font-size: var(--font-size-body); }
-.information-text { white-space: pre-wrap; }
-.information-status { margin: 0; font-weight: 550; }
-.information-phase { margin: 8px 0; color: var(--color-text-secondary); font-size: var(--font-size-body); }
+.information-identity { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.information-identity > img, .information-emoji { flex: none; width: 48px; height: 36px; object-fit: contain; }
+.information-emoji { display: grid; place-items: center; font-size: 28px; }
+.information-identity > div { min-width: 0; }
+.information-identity strong { display: block; font-size: 15px; line-height: 1.2; }
+.information-pin { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--color-text-secondary); font-size: 11px; }
+.information-pin svg { flex: none; width: 13px; height: 13px; }
+.information-status.ui-badge { padding: 0; border: 0; border-radius: 0; font-size: 17px; font-weight: 550; background: transparent; }
+.information-phase { margin: 4px 0; color: var(--color-text-secondary); font-size: 12px; }
 .information-phase span { color: var(--color-text); font-weight: 650; }
+.information-description { margin: 4px 0 0; line-height: 1.4; font-size: 13px; color: var(--color-text-secondary); }
+.information-module .ui-separator { margin-block: 7px; }
+.information-text { white-space: pre-wrap; }
 .information-units { display: flex; flex-direction: column; gap: 4px; }
 .information-units .document-button { text-align: left; padding: 4px 6px; }
-.information-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.information-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .module-empty { margin: 4px 0; color: var(--color-text-secondary); font-size: 13px; }
 .information-module .unit-tag, .information-module .module-empty { font-size: var(--font-size-body); }

@@ -47,7 +47,7 @@ test('base común, selección y zoom conservan el documento completo', async ({ 
   await page.screenshot({ path: info.outputPath('hover.png') })
   await setZoom(25, 'Zoom actual')
   await openModule(page, 'Elementos')
-  await expect(page.getByRole('region', { name: 'Elementos', exact: true }).getByRole('button', { name: 'Modificar', exact: true })).toBeDisabled()
+  await expect(page.getByRole('region', { name: 'Elementos', exact: true }).getByRole('button', { name: 'Modificar', exact: true })).toBeEnabled()
   await page.screenshot({ path: info.outputPath('disabled.png') })
   await bringModuleToFront(page, 'Dotaciones')
   await expect(page.getByRole('button', { name: `Seleccionar ${fixture.elements[0]!.name}`, exact: true })).toHaveAttribute('aria-pressed', 'true')

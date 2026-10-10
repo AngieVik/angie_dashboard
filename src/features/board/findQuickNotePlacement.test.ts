@@ -31,3 +31,12 @@ it('ocupación de nombres de pines visibles; ignora ocultos, trazos y fondo', as
   document.board.strokes.push({ id: crypto.randomUUID(), tool: 'pen', color: '#000000', width: 40, points: [{ x: 12, y: 12 }] })
   expect(getQuickNoteObstacles(document.board, document.elements, () => 200)).toEqual([{ x: 100, y: 68, width: 200, height: 64 }])
 })
+
+it('letra grande independiente del icono ocupa toda la altura del pin', async () => {
+  const { getQuickNoteObstacles } = await import('./findQuickNotePlacement')
+  const { createEmptyDocument } = await import('../../domain/document/defaultDocument')
+  const { createElement } = await import('../elements/elementCommands')
+  const d = createEmptyDocument()
+  createElement(d, { name: 'CP', isUnit: false, information: '', nameFontSize: 72, visual: { type: 'emoji', value: '📍', scale: .25 }, position: { x: 200, y: 100 } })
+  expect(getQuickNoteObstacles(d.board, d.elements, () => 50)).toEqual([{ x: 175, y: 18, width: 50, height: 90 }])
+})

@@ -4,6 +4,7 @@ import { addUnitTag, editUnitTag, removeUnitTag } from '../../domain/operations/
 import type { AngieDocument } from '../../domain/document/types'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { InputGroup } from '../../components/ui/input-group'
 import { Badge } from '../../components/ui/badge'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { Check, SquareX, Trash } from 'lucide-react'
@@ -44,8 +45,10 @@ export function UnitTags({ store, unitId, tags }: { store: DocumentStore; unitId
       event.preventDefault()
       mutate(document => addUnitTag(document, unitId, text), () => setText(''), 'new')
     }}>
-      <Input ref={newTagInput} aria-label="Nueva etiqueta" aria-invalid={Boolean(error && errorField === 'new')} aria-describedby={error && errorField === 'new' ? errorId : undefined} placeholder="Nueva etiqueta" value={text} disabled={blocked} onChange={event => { setText(event.target.value); setError(null) }} />
-      <Button type="submit" disabled={blocked}>Añadir</Button>
+      <InputGroup>
+        <Input ref={newTagInput} aria-label="Nueva etiqueta" aria-invalid={Boolean(error && errorField === 'new')} aria-describedby={error && errorField === 'new' ? errorId : undefined} placeholder="Etiqueta" value={text} disabled={blocked} onChange={event => { setText(event.target.value); setError(null) }} />
+        <Button type="submit" aria-label="Añadir etiqueta" disabled={blocked}><Check aria-hidden="true" /></Button>
+      </InputGroup>
     </form>
     {error && <p id={errorId} className="operations-error" role="alert">{error}</p>}
   </div>

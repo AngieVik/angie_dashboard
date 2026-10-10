@@ -45,14 +45,14 @@ export async function createElement(page: Page, name: string, isUnit: boolean, e
   const module = page.getByRole('region', { name: moduleName, exact: true })
   if (!await module.count()) await openModule(page, moduleName)
   await bringModuleToFront(page, moduleName)
-  await module.getByRole('button', { name: 'Añadir', exact: true }).click()
+  await module.getByRole('button', { name: 'Crear', exact: true }).click()
   await module.getByLabel('Nombre', { exact: true }).fill(name)
   if (emoji) {
-    await module.getByLabel('Representación').selectOption('emoji')
-    await module.getByLabel('Emoji', { exact: true }).fill(emoji)
+    await module.getByRole('radio', { name: 'Emoji', exact: true }).click()
+    await module.getByRole('textbox', { name: 'Emoji', exact: true }).fill(emoji)
   }
   await module.getByLabel('Información', { exact: true }).fill('Preparación · Canal 4')
-  await module.getByRole('button', { name: 'Crear elemento', exact: true }).click()
+  await module.getByRole('button', { name: 'Crear', exact: true }).click()
   await expect(module.getByRole('button', { name: `Seleccionar ${name}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
 }
 export async function noPageScroll(page: Page) {

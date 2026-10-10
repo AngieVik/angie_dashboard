@@ -139,7 +139,8 @@ test('Pizarra explora vacío repetidamente, origen firme, imagen y cámaras sepa
   const bounds = (await surface.boundingBox())!
   await page.mouse.move(bounds.x + 20, bounds.y + 20)
   await page.keyboard.down('Control'); await page.mouse.wheel(0, 10000); await page.keyboard.up('Control')
-  await expect(surface).toHaveAttribute('data-scale', '0.25')
+  await expect(page.locator('.module-scaled-content')).toHaveAttribute('data-scale', '0.25')
+  await expect(surface).toHaveAttribute('data-scale', '1')
   const imagePixel = () => surface.evaluate(el => {
     const canvas = el.querySelector('canvas')!, scale = Number(el.getAttribute('data-scale'))
     return [...canvas.getContext('2d')!.getImageData((500 * scale + Number(el.getAttribute('data-offset-x'))) * canvas.width / el.clientWidth, (500 * scale + Number(el.getAttribute('data-offset-y'))) * canvas.height / el.clientHeight, 1, 1).data]

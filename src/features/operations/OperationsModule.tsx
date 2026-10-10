@@ -9,6 +9,9 @@ import { Button } from '../../components/ui/button'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { UnitTags } from './UnitTags'
+import { HelpTooltip } from '../../components/ui/tooltip'
+import { Textarea } from '../../components/ui/textarea'
+import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 import './operations.css'
 
 export function OperationsModule({ store, selectedId, onSelect }: { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void }) {
@@ -28,18 +31,16 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
     {unit ? <>
       <p className="operations-unit-name">{unit.name}</p>
       <div className="operations-states" role="group" aria-label="Estado operativo">
-        {OPERATIONAL_STATUSES.map(({ status, icon }) => <Button key={status} ref={unit.operational.status === status ? selectedStateControl : undefined} aria-label={status} aria-pressed={unit.operational.status === status} disabled={blocked}
+        {OPERATIONAL_STATUSES.map(({ status, icon, phase, abbreviation }) => <HelpTooltip key={status} text={`${status} · Fase: ${phase}`}><Button ref={unit.operational.status === status ? selectedStateControl : undefined} aria-label={status} aria-pressed={unit.operational.status === status} disabled={blocked}
           onClick={() => {
             if (blockedRef.current || unit.operational.status === status) return
             try {
               store.mutateDocument(document => Object.assign(document, changeElementStatus(document, unit.id, status, new Date())))
               setError(null)
             } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
-          }}><span aria-hidden="true">{icon}</span> {status}</Button>)}
+          }}><span className="operations-state-icon" aria-hidden="true">{icon}</span><span className="operations-state-name" aria-hidden="true">{status}</span><span className="operations-state-abbr technical-data" aria-hidden="true">{abbreviation}</span></Button></HelpTooltip>)}
       </div>
-      <label className="operations-notes">Anotación<textarea value={unit.operational.notes} disabled={blocked} onChange={event => {
-        if (!blockedRef.current) store.mutateDocument(document => setUnitNotes(document, unit.id, event.target.value))
-      }} /></label>
+      <UnitNotes key={unit.id} store={store} unitId={unit.id} notes={unit.operational.notes} />
       <UnitTags key={unit.id} store={store} unitId={unit.id} tags={unit.operational.tags} />
     </> : <div className="operations-counters">
       {OPERATIONAL_STATUSES.map(({ status, icon }) => {
@@ -56,4 +57,12 @@ export function OperationsModule({ store, selectedId, onSelect }: { store: Docum
     </div>}
     {error && <p role="alert">{error}</p>}
   </div>
+}
+
+function UnitNotes({ store, unitId, notes }: { store: DocumentStore; unitId: string; notes: string }) {
+  const { blocked, blockedRef } = useViewportInteraction()
+  const notesRef = useAutoGrowingTextarea(notes)
+  return <div className="operations-notes"><Textarea ref={notesRef} rows={1} aria-label="Anotación" placeholder="anotación" value={notes} disabled={blocked} onChange={event => {
+    if (!blockedRef.current) store.mutateDocument(document => setUnitNotes(document, unitId, event.target.value))
+  }} /></div>
 }

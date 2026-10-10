@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
+import { HelpTooltip } from '../../components/ui/tooltip'
 import { Button } from '../../components/ui/button'
 import { SquareX } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -34,12 +35,12 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
         <div className="notebook-block-controls">
           <input className="notebook-title" aria-label={`Título del bloque ${index + 1}`} value={block.title} disabled={blocked}
             placeholder={block.type === 'note' ? 'Nota' : 'Checklist'} onChange={event => mutate(document => editNotebookTitle(document, block.id, event.target.value))} />
-          <Button aria-label="Eliminar bloque" title="Eliminar bloque" disabled={blocked} onClick={() => {
+          <HelpTooltip text="Eliminar bloque"><Button aria-label="Eliminar bloque" disabled={blocked} onClick={() => {
             if (blockedRef.current) return
             const addControl = block.type === 'note' ? noteControl : checklistControl
             addControl.current?.focus()
             mutate(document => deleteNotebookBlock(document, block.id))
-          }}><SquareX aria-hidden="true" /></Button>
+          }}><SquareX aria-hidden="true" /></Button></HelpTooltip>
         </div>
         {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
           <ChecklistBlock block={block} disabled={blocked}

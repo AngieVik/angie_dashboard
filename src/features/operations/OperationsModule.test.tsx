@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '../../components/ui/tooltip'
 import { createDocumentStore } from '../document/documentStore'
 import { createElement } from '../elements/elementCommands'
 import { changeElementStatus } from '../../domain/operations/changeStatus'
@@ -21,10 +22,55 @@ async function setup() {
     const [selectedId, onSelect] = useState<string | null>(null)
     return <OperationsModule store={store} selectedId={selectedId} onSelect={onSelect} />
   }
-  render(<Harness />)
+  render(<TooltipProvider><Harness /></TooltipProvider>)
   return { store, saved: () => saved }
 }
 describe('Operativo', () => {
+  afterEach(() => vi.useRealTimers())
+  it('consulta táctil del estado y fase sin transición; el siguiente tap cambia una sola vez', async () => {
+    const { store } = await setup()
+    fireEvent.click(screen.getByRole('button', { name: '🟢 1 Disponible' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Tango 1' }))
+    vi.useFakeTimers()
+    const button = screen.getByRole('button', { name: 'Interviniendo' })
+    function touch(type: string) {
+      const event = new Event(type, { bubbles: true })
+      Object.assign(event, { pointerType: 'touch', pointerId: 1, isPrimary: true, clientX: 10, clientY: 10 })
+      fireEvent(button, event)
+    }
+    const before = store.getSnapshot().document
+    touch('pointerdown')
+    act(() => vi.advanceTimersByTime(500))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Interviniendo · Fase: Asistencia')
+    touch('pointerup'); fireEvent.click(button)
+    expect(store.getSnapshot().document).toBe(before)
+    touch('pointerdown'); touch('pointerup'); fireEvent.click(button)
+    expect(store.getSnapshot().document.elements[0]?.operational?.status).toBe('Interviniendo')
+    expect(store.getSnapshot().document.timeline).toHaveLength(before.timeline.length + 1)
+    fireEvent.click(button)
+    expect(store.getSnapshot().document.timeline).toHaveLength(before.timeline.length + 1)
+  })
+  it('anotación de una fila y Etiqueta con Check; error expira y reintentar reinicia cinco segundos', async () => {
+    const { store } = await setup()
+    fireEvent.click(screen.getByRole('button', { name: '🟢 1 Disponible' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Tango 1' }))
+    expect(screen.getByRole('textbox', { name: 'Anotación' })).toHaveAttribute('rows', '1')
+    expect(screen.getByRole('textbox', { name: 'Anotación' })).toHaveAttribute('placeholder', 'anotación')
+    const input = screen.getByRole('textbox', { name: 'Nueva etiqueta' })
+    expect(input).toHaveAttribute('placeholder', 'Etiqueta')
+    vi.useFakeTimers()
+    const before = store.getSnapshot().document
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir etiqueta' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('vacía')
+    act(() => vi.advanceTimersByTime(4000))
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir etiqueta' }))
+    act(() => vi.advanceTimersByTime(1000))
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    act(() => vi.advanceTimersByTime(4000))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    expect(store.getSnapshot().document).toBe(before)
+  })
   it('comunica una selección incoherente por reloj anterior al historial y conserva el documento completo', async () => {
     const { store } = await setup()
     fireEvent.click(screen.getByRole('button', { name: '🟢 1 Disponible' }))
@@ -59,7 +105,7 @@ describe('Operativo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seleccionar Tango 1' }))
     fireEvent.change(screen.getByLabelText('Anotación'), { target: { value: 'Revisar radio\nCanal 4' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Nueva etiqueta' }), { target: { value: ' Sector norte ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir etiqueta' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nueva etiqueta' }), { target: { value: 'Radio' } })
     fireEvent.submit(screen.getByRole('form', { name: 'Nueva etiqueta' }))
     expect(store.getSnapshot().document.elements[0]?.operational?.tags).toEqual(['Sector norte', 'Radio'])
@@ -67,10 +113,10 @@ describe('Operativo', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Editar etiqueta' }), { target: { value: ' Sector sur ' } })
     fireEvent.submit(screen.getByRole('form', { name: 'Editar etiqueta' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nueva etiqueta' }), { target: { value: 'sector SUR' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir etiqueta' }))
     expect(screen.getByRole('alert')).toHaveTextContent('duplicada')
     fireEvent.change(screen.getByRole('textbox', { name: 'Nueva etiqueta' }), { target: { value: '  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir etiqueta' }))
     expect(screen.getByRole('alert')).toHaveTextContent('vacía')
     expect(screen.getByRole('textbox', { name: 'Nueva etiqueta' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: 'Nueva etiqueta' })).toHaveAccessibleDescription(screen.getByRole('alert').textContent!)

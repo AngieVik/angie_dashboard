@@ -1,12 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
+import { migrateDocument } from '../../domain/document/migrateDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
 import { validateDocument } from '../../domain/document/validateDocument'
-import { clampAssetScale, clampPinPosition, createElement, updateElement, duplicateElement, deleteElement } from './elementCommands'
+import { clampAssetScale, clampPinPosition, createElement, updateElement, duplicateElement, deleteElement, togglePinVisibility } from './elementCommands'
 
 const input = { name: 'Tango 1', visual: { type: 'asset' as const, assetId: 'ambulance' as const, scale: 1 }, information: 'Canal 4', isUnit: true }
 
 describe('comandos de elementos', () => {
+  it('ocultar y mostrar solo cambia visibilidad; duplicar conserva letra sin operación', () => {
+    const document = createEmptyDocument()
+    const unit = createElement(document, { ...input, nameFontSize: 24 })
+    const before = structuredClone(unit)
+    togglePinVisibility(document, unit.id)
+    expect(unit).toEqual({ ...before, pinVisible: false })
+    const copy = duplicateElement(document, unit.id)
+    expect(copy).toMatchObject({ pinVisible: false, nameFontSize: 24, operational: { status: null, currentEntryId: null, notes: '', tags: [] } })
+    togglePinVisibility(document, unit.id)
+    expect(unit).toEqual(before)
+    expect(document.timeline).toEqual([])
+    const restored = migrateDocument(JSON.parse(serializeDocument(document)))
+    expect(restored.success).toBe(true)
+    if (restored.success) expect(restored.document.elements[0]).toMatchObject({ nameFontSize: 24, pinVisible: true, visual: { scale: 1 } })
+  })
+  it('letra independiente validada sin mutación parcial y compatible con V3 sin campo', () => {
+    const document = createEmptyDocument()
+    const element = createElement(document, { ...input, nameFontSize: 24 })
+    updateElement(document, element.id, { visual: { ...input.visual, scale: 3 } })
+    expect(element.nameFontSize).toBe(24)
+    const before = structuredClone(element)
+    expect(() => updateElement(document, element.id, { name: 'No guardar', nameFontSize: NaN })).toThrow()
+    expect(element).toEqual(before)
+    for (const value of [0, -1, Infinity, 73]) expect(() => createElement(document, { ...input, nameFontSize: value })).toThrow()
+    Object.assign(element, { nameFontSize: 80 }); expect(validateDocument(document).success).toBe(false)
+    delete element.nameFontSize
+    expect(validateDocument(document).success).toBe(true)
+  })
   it('crea dotación sin estado y general con emoji libre sin datos operativos', () => {
     const document = createEmptyDocument()
     const unit = createElement(document, input)

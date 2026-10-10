@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { AngieDocument } from '../../src/domain/document/types'
 import { bringModuleToFront, createElement as createVisibleElement, fileCommand, loadDocument, noPageScroll } from './acceptance-helpers'
+import { createElement as createFixtureElement } from '../../src/features/elements/elementCommands'
+import { changeElementStatus } from '../../src/domain/operations/changeStatus'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 
 async function open(page: Page, name: string) {
@@ -11,7 +13,10 @@ async function open(page: Page, name: string) {
 }
 async function action(page: Page, name: string, moduleName = 'Elementos') {
   await bringModuleToFront(page, moduleName)
-  await page.getByRole('region', { name: moduleName, exact: true }).getByRole('button', { name, exact: true }).click()
+  const module = page.getByRole('region', { name: moduleName, exact: true })
+  const rows = module.locator('.element-row[data-selected="true"]')
+  const target = name === 'Crear' ? module : await rows.count() ? rows : module.locator('.element-row').first()
+  await target.getByRole('button', { name, exact: true }).click()
 }
 async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -25,20 +30,20 @@ async function saved(page: Page): Promise<AngieDocument> {
     }
   }))
 }
-async function create(page: Page, name: string, isUnit = false, icon = 'ambulance', emoji?: string) {
+async function create(page: Page, name: string, isUnit = false, icon = 'checkpoint', emoji?: string) {
   // Historical movement cases keep their known position via the closed-board rule.
   await bringModuleToFront(page, 'Pizarra')
   await page.getByRole('button', { name: 'Cerrar Pizarra' }).click()
   const moduleName = isUnit ? 'Dotaciones' : 'Elementos'
   if (!await page.locator('[data-module="' + (isUnit ? 'dotations' : 'elements') + '"]').count()) await open(page, moduleName)
-  await action(page, 'Añadir', moduleName)
+  await action(page, 'Crear', moduleName)
   await page.getByLabel('Nombre', { exact: true }).fill(name)
   if (emoji) {
-    await page.getByLabel('Representación', { exact: true }).selectOption('emoji')
-    await page.getByLabel('Emoji', { exact: true }).fill(emoji)
-  } else await page.getByLabel('Icono', { exact: true }).selectOption(icon)
+    await page.getByRole('radio', { name: 'Emoji', exact: true }).click()
+    await page.getByRole('textbox', { name: 'Emoji', exact: true }).fill(emoji)
+  } else await page.getByLabel('Pin', { exact: true }).selectOption(icon)
   await page.getByLabel('Información', { exact: true }).fill('Acceso norte · Canal 4')
-  await page.getByRole('button', { name: 'Crear elemento', exact: true }).click()
+  await page.getByRole('form', { name: 'Crear elemento' }).getByRole('button', { name: 'Crear', exact: true }).click()
   await open(page, 'Pizarra')
 }
 async function point(page: Page, x: number, y: number) {
@@ -63,8 +68,8 @@ test.beforeEach(async ({ page }) => {
 test('borrador, preview estable y acciones visibles en tamaños mínimo, inicial y ampliado', async ({ page, isMobile }, info) => {
   const module = page.locator('[data-module="elements"]')
   await bringModuleToFront(page, 'Elementos')
-  await expect(module.getByRole('button', { name: 'Añadir', exact: true })).toBeEnabled()
-  for (const name of ['Modificar', 'Duplicar', 'Quitar']) await expect(module.getByRole('button', { name, exact: true })).toBeDisabled()
+  await expect(module.getByRole('button', { name: 'Crear', exact: true })).toBeEnabled()
+  for (const name of ['Modificar', 'Duplicar', 'Quitar']) await expect(module.getByRole('button', { name, exact: true })).toHaveCount(0)
   await expect(module.getByRole('button', { name: 'Configurar elementos' })).toHaveCount(0)
   await create(page, 'Nombre largo de punto de cobertura norte', false, 'hydration')
   await expect.poll(async () => (await saved(page)).elements.length).toBe(1)
@@ -72,27 +77,27 @@ test('borrador, preview estable y acciones visibles en tamaños mínimo, inicial
   await action(page, 'Modificar')
   await page.getByLabel('Nombre', { exact: true }).fill('Borrador descartado')
   await page.getByLabel('Información', { exact: true }).fill('Texto descartado')
-  await page.getByLabel('Escala del icono').fill('2')
+  await page.getByLabel('Escala', { exact: true }).fill('200')
   const preview = module.getByRole('img', { name: 'Previsualización del elemento' })
   await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', '200px')
   await expect(preview.locator('.element-preview-pin')).toHaveCSS('height', '300px')
-  await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
-  await page.getByLabel('Representación').selectOption('emoji'); await page.getByLabel('Emoji', { exact: true }).fill('📍')
+  await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
+  await page.getByRole('radio', { name: 'Emoji', exact: true }).click(); await page.getByRole('textbox', { name: 'Emoji', exact: true }).fill('📍')
   await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', '128px')
   await expect(preview.locator('.board-pin-emoji')).toHaveCSS('font-size', '96px')
   await page.waitForTimeout(400)
   expect((await saved(page)).elements).toEqual(before.elements)
   expect((await saved(page)).document.updatedAt).toBe(before.document.updatedAt)
-  await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  await page.getByRole('button', { name: 'Atrás', exact: true }).click()
   expect((await saved(page)).elements).toEqual(before.elements)
   await action(page, 'Modificar')
   const states = [{ width: 220, height: 240, scale: .5 }, { width: 300, height: 420, scale: 1 }, { width: isMobile ? 340 : 380, height: 600, scale: 3 }]
   for (const mode of ['edit', 'create']) {
     if (mode === 'create') {
-      await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
-      await action(page, 'Añadir')
+      await page.getByRole('button', { name: 'Atrás', exact: true }).click()
+      await action(page, 'Crear')
       await page.getByLabel('Nombre', { exact: true }).fill('Nombre largo de punto de cobertura norte')
-      await page.getByLabel('Icono', { exact: true }).selectOption('hydration')
+      await page.getByLabel('Pin', { exact: true }).selectOption('hydration')
     }
   for (const state of states) {
     const handle = (await module.locator('.react-resizable-handle-se').boundingBox())!
@@ -102,25 +107,25 @@ test('borrador, preview estable y acciones visibles en tamaños mínimo, inicial
     await page.mouse.move(handle.x + handle.width / 2 + (state.width - currentWidth) * mainScale,
       handle.y + handle.height / 2 + (state.height - currentHeight) * mainScale, { steps: 8 }); await page.mouse.up()
     await expect(module).toHaveAttribute('data-width', String(state.width))
-    await page.getByLabel('Escala del icono').fill(String(state.scale))
+    await page.getByLabel('Escala', { exact: true }).fill(String(state.scale * 100))
     await preview.scrollIntoViewIfNeeded()
     await expect(preview.locator('.element-preview-scene')).toHaveCSS('height', `${150 * state.scale + 12}px`)
     await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', `${100 * state.scale}px`)
-    await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', `${16 * state.scale}px`)
-    await expect(module.getByRole('button', { name: 'Añadir', exact: true })).toBeVisible()
+    await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
+    await expect(module.getByRole('button', { name: 'Atrás', exact: true })).toBeVisible()
     await noPageScroll(page)
     await page.screenshot({ path: info.outputPath(`element-${mode}-png-${state.width}.png`) })
-    await page.getByLabel('Representación').selectOption('emoji')
-    await page.getByLabel('Emoji', { exact: true }).fill('📍')
+    await page.getByRole('radio', { name: 'Emoji', exact: true }).click()
+    await page.getByRole('textbox', { name: 'Emoji', exact: true }).fill('📍')
     await preview.scrollIntoViewIfNeeded()
     await expect(preview.locator('.element-preview-pin')).toHaveCSS('width', `${64 * state.scale}px`)
     await expect(preview.locator('.board-pin-emoji')).toHaveCSS('font-size', `${48 * state.scale}px`)
-    await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', `${16 * state.scale}px`)
+    await expect(preview.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
     await page.screenshot({ path: info.outputPath(`element-${mode}-emoji-${state.width}.png`) })
-    await page.getByLabel('Representación').selectOption('asset')
+    await page.getByRole('radio', { name: 'PNG', exact: true }).click()
   }
   }
-  await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  await page.getByRole('button', { name: 'Atrás', exact: true }).click()
   expect((await saved(page)).elements).toEqual(before.elements)
 })
 
@@ -129,10 +134,13 @@ test('crear usa cámara actual sin navegar; cerrar o cambiar documento descarta 
   await bringModuleToFront(page, 'Pizarra')
   const box = (await surface.boundingBox())!
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  await page.mouse.wheel(0, 180)
+  await page.mouse.down({ button: 'middle' })
+  await page.mouse.move(box.x + box.width / 2 - 80, box.y + box.height / 2 - 60, { steps: 5 })
+  await page.mouse.up({ button: 'middle' })
   await expect.poll(async () => Number(await surface.getAttribute('data-offset-y'))).toBeLessThan(0)
   await page.keyboard.down('Control'); await page.mouse.wheel(0, -200); await page.keyboard.up('Control')
-  await expect.poll(async () => Number(await surface.getAttribute('data-scale'))).toBeGreaterThan(1)
+  await expect.poll(async () => Number(await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).inputValue())).toBeGreaterThan(100)
+  await expect(surface).toHaveAttribute('data-scale', '1')
   const camera = await surface.evaluate(el => ({ scale: Number(el.getAttribute('data-scale')), x: Number(el.getAttribute('data-offset-x')), y: Number(el.getAttribute('data-offset-y')), width: el.clientWidth, height: el.clientHeight }))
   const expected = { x: Math.max(0, (camera.width / 2 - camera.x) / camera.scale), y: Math.max(0, (camera.height / 2 - camera.y) / camera.scale) }
   await createVisibleElement(page, 'Centro visible', false, '📍')
@@ -158,15 +166,15 @@ test('crear usa cámara actual sin navegar; cerrar o cambiar documento descarta 
   await expect.poll(async () => (await saved(page)).elements[0]?.position).toEqual({ x: 2000, y: 1600 })
 })
 
-test('emoji: tirador y editor sincronizados, nombre proporcional, duplicación y JSON/recarga', async ({ page, context, isMobile }, info) => {
+test('emoji: tirador y editor sincronizados, letra independiente, duplicación y JSON/recarga', async ({ page, context, isMobile }, info) => {
   await create(page, 'Referencia emoji con nombre largo', false, 'ambulance', '📍')
-  await action(page, 'Modificar'); await page.getByLabel('Escala del icono').fill('0.5')
-  await page.getByRole('button', { name: 'Guardar elemento' }).click()
+  await action(page, 'Modificar'); await page.getByLabel('Escala', { exact: true }).fill('50')
+  await page.getByRole('button', { name: 'Guardar' }).click()
   await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBe(.5)
   await action(page, 'Modificar')
   await bringModuleToFront(page, 'Pizarra')
   const pin = page.locator('.board-pin'), handle = page.getByRole('button', { name: 'Redimensionar Referencia emoji con nombre largo' })
-  await expect(pin).toHaveCSS('width', '32px'); await expect(pin.locator('.board-pin-name')).toHaveCSS('font-size', '8px')
+  await expect(pin).toHaveCSS('width', '32px'); await expect(pin.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
   const box = (await handle.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2
   const scale = Number(await page.getByTestId('board-surface').getAttribute('data-scale')) * Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
   if (isMobile) {
@@ -184,19 +192,19 @@ test('emoji: tirador y editor sincronizados, nombre proporcional, duplicación y
     await page.mouse.up()
   }
   await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBeCloseTo(2, 5)
-  await expect(pin.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
+  await expect(pin.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
   await expect(pin.locator('.board-pin-emoji')).toHaveCSS('font-size', '96px')
   expect((await saved(page)).elements[0]!.position).toEqual({ x: 500, y: 500 })
   await page.screenshot({ path: info.outputPath('emoji-scaled.png') })
-  await bringModuleToFront(page, 'Elementos'); await expect(page.getByLabel('Escala del icono')).toHaveValue('2')
-  await page.getByRole('button', { name: 'Cancelar' }).click(); await action(page, 'Duplicar')
+  await bringModuleToFront(page, 'Elementos'); await expect(page.getByLabel('Escala', { exact: true })).toHaveValue('200')
+  await page.getByRole('button', { name: 'Atrás' }).click(); await action(page, 'Duplicar')
   await expect.poll(async () => (await saved(page)).elements.length).toBe(2)
   expect((await saved(page)).elements[1]).toMatchObject({ visual: { type: 'emoji', value: '📍', scale: 2 }, position: { x: 524, y: 524 } })
   const json = await exportJson(page)
   await page.reload(); await open(page, 'Pizarra'); await open(page, 'Elementos')
   expect((await saved(page)).elements).toEqual(json.elements)
   await expect(page.locator('.board-pin').first()).toHaveCSS('width', '128px')
-  await expect(page.locator('.board-pin-name').first()).toHaveCSS('font-size', '32px')
+  await expect(page.locator('.board-pin-name').first()).toHaveCSS('font-size', '16px')
   await loadDocument(page, json)
   await expect(page.locator('.board-pin').first()).toHaveCSS('width', '128px')
   await noPageScroll(page)
@@ -204,14 +212,14 @@ test('emoji: tirador y editor sincronizados, nombre proporcional, duplicación y
 
 test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSON y recuperación', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
-  await create(page, 'Tango 1', true)
+  await create(page, 'Tango 1', true, 'ambulance')
   const module = page.locator('[data-module="dotations"]'), board = page.locator('[data-module="board"]')
   await expect(board.getByRole('button', { name: 'Seleccionar Tango 1', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await action(page, 'Modificar', 'Dotaciones')
-  await expect(page.getByText('Tipo: Dotación', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Pin', { exact: true })).toHaveValue('ambulance')
   await expect(page.getByRole('checkbox', { name: 'Dotación' })).toHaveCount(0)
-  await page.getByLabel('Escala del icono').fill('1.5')
-  await page.getByRole('button', { name: 'Guardar elemento' }).click()
+  await page.getByLabel('Escala', { exact: true }).fill('150')
+  await page.getByRole('button', { name: 'Guardar' }).click()
   await expect.poll(async () => (await saved(page)).elements[0]?.visual).toEqual({ type: 'asset', assetId: 'ambulance', scale: 1.5 })
   const beforeSize = await board.locator('.board-pin-visual').evaluate(el => ({ w: (el as HTMLElement).offsetWidth, h: (el as HTMLElement).offsetHeight }))
   expect(beforeSize).toEqual({ w: 225, h: 150 })
@@ -221,11 +229,11 @@ test('CRUD, selección compartida, escala sincronizada, ausencia de filtros, JSO
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down()
   await page.mouse.move(box.x + box.width / 2 + 37.5 * physicalScale, box.y + box.height / 2 + 25 * physicalScale, { steps: 6 }); await page.mouse.up()
   await expect.poll(async () => (await saved(page)).elements[0]!.visual.scale).toBeCloseTo(2, 1)
-  await expect(board.locator('.board-pin-name')).toHaveCSS('font-size', '32px')
+  await expect(board.locator('.board-pin-name')).toHaveCSS('font-size', '16px')
   await expect(board.locator('.board-pin-visual img')).toHaveCSS('object-fit', 'contain')
   await action(page, 'Modificar', 'Dotaciones')
-  await expect.poll(async () => Number(await page.getByLabel('Escala del icono').inputValue())).toBeCloseTo(2, 1)
-  await page.getByRole('button', { name: 'Guardar elemento' }).click()
+  await expect.poll(async () => Number(await page.getByLabel('Escala', { exact: true }).inputValue()) / 100).toBeCloseTo(2, 1)
+  await page.getByRole('button', { name: 'Guardar' }).click()
   await action(page, 'Duplicar', 'Dotaciones')
   await expect(module.getByRole('button', { name: 'Seleccionar Tango 1 copia', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(async () => (await saved(page)).elements.length).toBe(2)
@@ -273,9 +281,9 @@ test('ratón: clic breve no mueve, arrastre mantenido y escala máxima respetan 
   expect((await saved(page)).elements[0]!.position).toEqual({ x: 500, y: 500 })
   await page.mouse.move(center.x, center.y); await page.mouse.down(); await page.waitForTimeout(280); await page.mouse.move(end.x, end.y, { steps: 8 }); await page.mouse.up()
   await expect.poll(async () => (await saved(page)).elements[0]!.position).toEqual({ x: 990, y: 990 })
-  await action(page, 'Modificar'); await page.getByLabel('Escala del icono').fill('3')
+  await action(page, 'Modificar'); await page.getByLabel('Escala', { exact: true }).fill('300')
   await expect.poll(async () => (await saved(page)).elements[0]!.position).toEqual({ x: 990, y: 990 })
-  await page.getByRole('button', { name: 'Guardar elemento' }).click()
+  await page.getByRole('button', { name: 'Guardar' }).click()
   await bringModuleToFront(page, 'Pizarra')
   await page.getByRole('button', { name: 'Cerrar Pizarra' }).click(); await open(page, 'Pizarra')
   const before = (await saved(page)).elements
@@ -291,7 +299,8 @@ test('ratón: clic breve no mueve, arrastre mantenido y escala máxima respetan 
   await page.mouse.move(zoomPoint.x, zoomPoint.y); await page.keyboard.down('Control')
   for (let step = 0; step < 3; step++) await page.mouse.wheel(0, 350)
   await page.keyboard.up('Control')
-  await expect.poll(async () => Number(await page.getByTestId('board-surface').getAttribute('data-scale'))).toBeLessThan(.6)
+  await expect.poll(async () => Number(await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).inputValue())).toBeLessThan(60)
+  await expect(page.getByTestId('board-surface')).toHaveAttribute('data-scale', '1')
   const surface = (await page.getByTestId('board-surface').boundingBox())!, pinBox = (await page.locator('.board-pin').boundingBox())!
   expect(pinBox.x).toBeGreaterThanOrEqual(surface.x - 1); expect(pinBox.y).toBeGreaterThanOrEqual(surface.y - 1)
   expect(pinBox.x + pinBox.width).toBeLessThanOrEqual(surface.x + surface.width + 1)
@@ -300,13 +309,13 @@ test('ratón: clic breve no mueve, arrastre mantenido y escala máxima respetan 
 })
 
 test('catálogo real carga los nueve PNG, teclado selecciona y el tamaño mínimo mantiene scroll interno', async ({ page }, info) => {
-  for (const id of ['ambulance', 'pathfinder', 'quad', 'checkpoint', 'hydration', 'start', 'finish', 'warning', 'pushpin']) await create(page, id, false, id)
+  for (const id of ['ambulance', 'pathfinder', 'quad', 'checkpoint', 'hydration', 'start', 'finish', 'warning', 'pushpin']) await create(page, id, ['ambulance', 'pathfinder', 'quad'].includes(id), id)
   for (const image of await page.locator('.board-pin-visual img').all()) {
     expect(await image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
     await expect(image).toHaveCSS('object-fit', 'contain'); await expect(image).toHaveCSS('object-position', '50% 50%')
   }
   const module = page.locator('[data-module="elements"]')
-  const select = module.getByRole('button', { name: 'Seleccionar ambulance', exact: true })
+  const select = module.getByRole('button', { name: 'Seleccionar checkpoint', exact: true })
   await select.focus(); await page.keyboard.press('Enter')
   await expect(select).toHaveAttribute('aria-pressed', 'true'); await expect(select).toHaveCSS('outline-style', 'solid')
   const scale = Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))
@@ -314,7 +323,7 @@ test('catálogo real carga los nueve PNG, teclado selecciona y el tamaño mínim
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down()
   await page.mouse.move(handle.x + handle.width / 2 + (220 - Number(await module.getAttribute('data-width'))) * scale, handle.y + handle.height / 2 + (240 - Number(await module.getAttribute('data-height'))) * scale, { steps: 8 }); await page.mouse.up()
   await expect(module).toHaveAttribute('data-width', '220'); await expect(module).toHaveAttribute('data-height', '240')
-  expect(await module.locator('.elements-list').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
+  await expect(module.locator('.elements-list')).toHaveCSS('overflow-y', 'auto')
   expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))).toEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
   await page.screenshot({ path: info.outputPath('elements-minimum.png') })
 })
@@ -350,4 +359,159 @@ test('tacto: mueve y redimensiona con un dedo; dos dedos cancelan cambios y sele
   await touch('touchStart', [blankA]); await touch('touchStart', [blankA, blankB])
   await touch('touchMove', [{ ...blankA, x: blankA.x - 5 }, { ...blankB, x: blankB.x + 5 }]); await touch('touchEnd', [])
   await expect(page.locator('.board-pin-visual')).toHaveAttribute('aria-pressed', 'true')
+})
+
+
+test('entrega 6: visibilidad conserva selección e historial; letra independiente persiste y radios validan', async ({ page }, info) => {
+  await page.clock.install()
+  const document = createEmptyDocument('Entrega 6')
+  const unit = createFixtureElement(document, { name: 'Tango norte', information: 'Canal 4', isUnit: true, nameFontSize: 24, visual: { type: 'asset', assetId: 'ambulance', scale: 1 } })
+  Object.assign(document, changeElementStatus(document, unit.id, 'Activada', new Date()))
+  const source = document.elements[0]!
+  if (source.isUnit) { source.operational.notes = 'Cobertura norte'; source.operational.tags = ['Radio'] }
+  await loadDocument(page, document); await open(page, 'Dotaciones')
+  const module = page.locator('[data-module="dotations"]')
+  const row = module.locator('.element-row').first()
+  await row.getByRole('button', { name: 'Seleccionar Tango norte' }).press('Enter')
+  const before = await saved(page)
+  await row.getByRole('button', { name: 'Ocultar pin de Tango norte' }).press('Enter')
+  await expect(page.locator('.board-pin')).toHaveCount(0)
+  await expect(row.getByRole('button', { name: 'Seleccionar Tango norte' })).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(async () => (await saved(page)).elements[0]).toEqual({ ...before.elements[0], pinVisible: false })
+  expect((await saved(page)).timeline).toEqual(before.timeline)
+  await row.getByRole('button', { name: 'Duplicar' }).press('Enter')
+  await expect.poll(async () => (await saved(page)).elements.length).toBe(2)
+  expect((await saved(page)).elements[1]).toMatchObject({ pinVisible: false, nameFontSize: 24, operational: { status: null, currentEntryId: null, notes: '', tags: [] } })
+  expect((await saved(page)).timeline).toEqual(before.timeline)
+  await row.getByRole('button', { name: 'Mostrar pin de Tango norte' }).press('Enter')
+  await expect(page.locator('.board-pin')).toHaveCount(1)
+  await expect.poll(async () => (await saved(page)).elements[0]?.position).toEqual(before.elements[0]!.position)
+  await row.getByRole('button', { name: 'Modificar' }).press('Enter')
+  const png = module.getByRole('radio', { name: 'PNG', exact: true }), emoji = module.getByRole('radio', { name: 'Emoji', exact: true })
+  await png.focus()
+  await page.keyboard.down('ArrowRight'); await page.clock.runFor(1); await page.keyboard.up('ArrowRight')
+  await expect(emoji).toBeChecked(); await expect(png).not.toBeChecked()
+  await module.getByRole('textbox', { name: 'Emoji', exact: true }).fill('📍')
+  await module.getByLabel('Nombre', { exact: true }).fill('')
+  await module.getByRole('button', { name: 'Guardar', exact: true }).press('Enter')
+  await expect(module.getByRole('alert')).toBeVisible()
+  await page.clock.fastForward(5001)
+  await expect(module.getByRole('alert')).toHaveCount(0)
+  await expect(module.getByLabel('Nombre', { exact: true })).toHaveAttribute('aria-invalid', 'false')
+  await module.getByRole('button', { name: 'Guardar', exact: true }).press('Enter')
+  await expect(module.getByRole('alert')).toBeVisible()
+  await module.getByLabel('Nombre', { exact: true }).fill('Tango norte')
+  await module.getByLabel('Escala', { exact: true }).fill('200')
+  await module.getByRole('slider', { name: 'Escala del icono' }).press('End')
+  await expect(module.getByLabel('Escala', { exact: true })).toHaveValue('300')
+  await module.getByRole('slider', { name: 'Escala del icono' }).press('Home')
+  await expect(module.getByLabel('Escala', { exact: true })).toHaveValue('25')
+  await module.getByLabel('Escala', { exact: true }).fill('200')
+  await module.getByLabel('Tamaño de letra del nombre').fill('36')
+  await expect(module.locator('.element-preview-pin .board-pin-name')).toHaveCSS('font-size', '36px')
+  await module.getByRole('button', { name: 'Guardar', exact: true }).press('Enter')
+  await expect.poll(async () => (await saved(page)).elements[0]?.nameFontSize).toBe(36)
+  await expect(page.locator('.board-pin-name')).toHaveCSS('font-size', '36px')
+  const json = await exportJson(page)
+  await page.reload(); await open(page, 'Pizarra'); await open(page, 'Dotaciones')
+  expect((await saved(page)).elements).toEqual(json.elements)
+  await expect(page.locator('.board-pin-name')).toHaveCSS('font-size', '36px')
+  await loadDocument(page, json)
+  expect((await saved(page)).timeline).toEqual(before.timeline)
+  await bringModuleToFront(page, 'Dotaciones')
+  await page.screenshot({ path: info.outputPath('phase6-list.png') })
+})
+
+test('entrega 6: legado fuera de catálogo, Atrás y cierre descartan todo el borrador', async ({ page }) => {
+  const document = createEmptyDocument('Legado')
+  const element = createFixtureElement(document, { name: 'Legado', isUnit: true, information: '', visual: { type: 'asset', assetId: 'warning', scale: 1 } })
+  delete element.nameFontSize
+  await loadDocument(page, document); await open(page, 'Dotaciones')
+  const module = page.locator('[data-module="dotations"]')
+  await module.getByRole('button', { name: 'Modificar' }).press('Enter')
+  expect(await module.getByLabel('Pin', { exact: true }).locator('option').evaluateAll(nodes => nodes.map(n => (n as HTMLOptionElement).value))).toEqual(['warning', 'ambulance', 'pathfinder', 'quad'])
+  await module.getByLabel('Nombre', { exact: true }).fill('Borrador')
+  await module.getByLabel('Pin', { exact: true }).selectOption('quad')
+  await module.getByLabel('Tamaño de letra del nombre').fill('48')
+  await module.getByRole('button', { name: 'Atrás' }).press('Enter')
+  await expect(module.getByRole('button', { name: 'Seleccionar Legado' })).toHaveAttribute('aria-pressed', 'false')
+  expect((await saved(page)).elements).toEqual(document.elements)
+  await module.getByRole('button', { name: 'Modificar' }).press('Enter')
+  await module.getByLabel('Nombre', { exact: true }).fill('Legado editado')
+  await module.getByRole('button', { name: 'Guardar' }).press('Enter')
+  await expect.poll(async () => (await saved(page)).elements[0]?.name).toBe('Legado editado')
+  expect((await saved(page)).elements[0]?.visual).toEqual(element.visual)
+  await module.getByRole('button', { name: 'Crear', exact: true }).press('Enter')
+  await module.getByLabel('Nombre', { exact: true }).fill('No crear')
+  await module.getByRole('button', { name: 'Cerrar Dotaciones' }).press('Enter')
+  await open(page, 'Dotaciones')
+  await expect(module.getByLabel('Nombre', { exact: true })).toHaveCount(0)
+  expect((await saved(page)).elements).toHaveLength(1)
+})
+
+test('entrega 6: listas largas y editor con ambos zooms sin scroll de página', async ({ page }, info) => {
+  await bringModuleToFront(page, 'Pizarra'); await page.getByRole('button', { name: 'Cerrar Pizarra' }).click()
+  const document = createEmptyDocument('Listas')
+  for (let index = 0; index < 14; index++) createFixtureElement(document, { name: `Dotación ${index} con nombre operativo completo de cobertura norte`, isUnit: true, information: 'Información de varias líneas\nAcceso norte', visual: { type: 'asset', assetId: 'ambulance', scale: 1 } })
+  await loadDocument(page, document); await open(page, 'Dotaciones')
+  const module = page.locator('[data-module="dotations"]')
+  await bringModuleToFront(page, 'Dotaciones')
+  for (const [general, individual] of [[25, 25], [100, 100], [200, 100], [100, 200], [400, 100], [100, 400]]) {
+    const zoom = page.getByRole('spinbutton', { name: 'Zoom actual', exact: true })
+    await zoom.fill(String(general)); await zoom.press('Enter')
+    const own = module.getByRole('spinbutton', { name: 'Zoom de Dotaciones', exact: true })
+    await own.fill(String(individual)); await own.press('Enter')
+    await noPageScroll(page)
+    await expect(module.locator('.elements-list')).toHaveCSS('overflow-y', 'auto')
+    await page.screenshot({ path: info.outputPath(`phase6-list-${general}-${individual}.png`) })
+    await module.locator('.element-row').first().getByRole('button', { name: 'Modificar' }).press('Enter')
+    await module.getByLabel('Información').fill('Línea 1\nLínea 2\nLínea 3')
+    await noPageScroll(page)
+    await page.screenshot({ path: info.outputPath(`phase6-editor-${general}-${individual}.png`) })
+    await module.getByRole('button', { name: 'Atrás', exact: true }).press('Enter')
+  }
+  expect((await saved(page)).elements).toEqual(document.elements)
+})
+
+
+test('entrega 6: tecleo y preview de letra grande sobre icono pequeño', async ({ page }) => {
+  await bringModuleToFront(page, 'Elementos')
+  const module = page.locator('[data-module="elements"]')
+  await module.getByRole('button', { name: 'Crear', exact: true }).press('Enter')
+  await module.getByLabel('Nombre', { exact: true }).fill('CP')
+  await module.getByRole('radio', { name: 'Emoji', exact: true }).press('Space')
+  await module.getByRole('textbox', { name: 'Emoji', exact: true }).fill('📍')
+  const letter = module.getByLabel('Tamaño de letra del nombre')
+  await letter.focus(); await letter.press('ControlOrMeta+A'); await letter.pressSequentially('32'); await letter.press('Tab')
+  await expect(letter).toHaveValue('32')
+  const scale = module.getByLabel('Escala', { exact: true })
+  await scale.focus(); await scale.press('ControlOrMeta+A'); await scale.pressSequentially('100'); await scale.press('Tab')
+  await expect(scale).toHaveValue('100')
+  await scale.fill(''); await scale.press('Tab'); await expect(scale).toHaveValue('100')
+  await scale.fill('25'); await scale.press('Tab')
+  await letter.fill('72'); await letter.press('Tab')
+  const scene = module.locator('.element-preview-scene'), label = module.locator('.element-preview-pin .board-pin-name')
+  const sceneBox = (await scene.boundingBox())!, labelBox = (await label.boundingBox())!
+  expect(labelBox.y).toBeGreaterThanOrEqual(sceneBox.y)
+  expect(labelBox.y + labelBox.height).toBeLessThanOrEqual(sceneBox.y + sceneBox.height)
+  await module.getByRole('button', { name: 'Crear', exact: true }).press('Enter')
+  await expect.poll(async () => (await saved(page)).elements[0]).toMatchObject({ nameFontSize: 72, visual: { scale: .25 } })
+})
+
+
+test('entrega 6: preview sin recorte de etiqueta mayor que el icono', async ({ page }) => {
+  await bringModuleToFront(page, 'Elementos')
+  const module = page.locator('[data-module="elements"]')
+  await module.getByRole('button', { name: 'Crear', exact: true }).press('Enter')
+  await module.getByLabel('Nombre', { exact: true }).fill('CP')
+  await module.getByRole('radio', { name: 'Emoji', exact: true }).press('Space')
+  await module.getByRole('textbox', { name: 'Emoji', exact: true }).fill('📍')
+  await module.getByLabel('Escala', { exact: true }).fill('25')
+  await module.getByLabel('Escala', { exact: true }).press('Tab')
+  await module.getByLabel('Tamaño de letra del nombre').fill('72')
+  await module.getByLabel('Tamaño de letra del nombre').press('Tab')
+  const sceneBox = (await module.locator('.element-preview-scene').boundingBox())!
+  const labelBox = (await module.locator('.element-preview-pin .board-pin-name').boundingBox())!
+  expect(labelBox.y).toBeGreaterThanOrEqual(sceneBox.y)
+  expect(labelBox.y + labelBox.height).toBeLessThanOrEqual(sceneBox.y + sceneBox.height)
 })

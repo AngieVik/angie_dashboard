@@ -86,8 +86,10 @@ test('todos los módulos: nombres accesibles y Tab con foco visible sin controle
       const state = await page.evaluate(() => {
         const node = document.activeElement as HTMLElement
         const style = getComputedStyle(node)
+        const group = node.closest('.ui-input-group')
+        const focusStyle = style.outlineStyle === 'none' && group ? getComputedStyle(group) : style
         return { tag: node.tagName, name: node.getAttribute('aria-label') ?? node.textContent?.trim(), header: Boolean(node.closest('.app-header')),
-          module: node.closest('[role="region"]')?.getAttribute('aria-label'), outline: style.outlineStyle, width: style.outlineWidth,
+          module: node.closest('[role="region"]')?.getAttribute('aria-label'), outline: focusStyle.outlineStyle, width: focusStyle.outlineWidth,
           visible: node.getClientRects().length > 0 && style.visibility !== 'hidden', inModule: Boolean(node.closest('[data-module]')),
           interactive: node.matches('button,input,select,textarea'), menuTrigger: node.textContent === 'Archivo' }
       })
@@ -100,7 +102,12 @@ test('todos los módulos: nombres accesibles y Tab con foco visible sin controle
     }
     expect(visited).toContain(name)
     expect(visited.every(label => label === name)).toBe(true)
-    expect(interactive, name).toBe(controls)
+    // Focusing a quick note selects it and mounts its resize button.
+    const finalControls = await module.locator('button,input,select,textarea').evaluateAll(nodes => nodes.filter(node => {
+      const element = node as HTMLInputElement
+      return !element.disabled && element.tabIndex >= 0 && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden'
+    }).length)
+    expect(interactive, name).toBe(finalControls)
     await page.getByRole('button', { name: `Cerrar ${name}`, exact: true }).click()
     await noPageScroll(page)
   }
@@ -147,15 +154,16 @@ test('editores de elementos: acciones directas recuperan foco tras guardar, canc
   await page.goto('/'); await openModule(page, 'Elementos')
   await createElement(page, 'Tango foco', false)
   const module = page.getByRole('region', { name: 'Elementos', exact: true })
-  const add = module.getByRole('button', { name: 'Añadir', exact: true })
+  const add = module.getByRole('button', { name: 'Crear', exact: true })
   await expect(add).toBeFocused()
-  for (const action of ['Modificar', 'Añadir']) {
+  for (const action of ['Modificar', 'Crear']) {
     await module.getByRole('button', { name: action, exact: true }).press('Enter')
-    await module.getByRole('button', { name: action === 'Modificar' ? 'Guardar elemento' : 'Cancelar', exact: true }).press('Enter')
-    await expect(module.getByRole('button', { name: action, exact: true })).toBeFocused()
+    await module.getByRole('button', { name: action === 'Modificar' ? 'Guardar' : 'Atrás', exact: true }).press('Enter')
+    await expect(add).toBeFocused()
   }
+  await module.getByRole('button', { name: 'Seleccionar Tango foco' }).press('Enter')
   for (const action of ['Duplicar', 'Quitar']) {
-    await module.getByRole('button', { name: action, exact: true }).press('Enter')
+    await module.locator('.element-row[data-selected="true"]').getByRole('button', { name: action, exact: true }).press('Enter')
     await expect(add).toBeFocused()
   }
 })
@@ -191,21 +199,24 @@ test('Cuaderno: eliminar bloque e ítem conserva foco en Añadir', async ({ page
   await expect(module.getByRole('button', { name: 'Checklist', exact: true })).toBeFocused()
 })
 
-test('Registro: guardar, cancelar, eliminar y Deshacer conservan foco en Acontecimiento', async ({ page }) => {
+test('Registro: guardar, cancelar, eliminar y corregir conservan foco en Acontecimiento', async ({ page }) => {
   await page.goto('/'); await loadDocument(page, fixture()); await openModule(page, 'Registro cronológico')
   const module = page.getByRole('region', { name: 'Registro cronológico', exact: true })
   const add = module.getByRole('textbox', { name: 'Acontecimiento' })
   for (const action of ['Guardar entrada', 'Cancelar']) {
-    await module.getByRole('button', { name: 'Editar entrada' }).press('Enter')
+    await module.locator('li[data-entry-type="manual"]').getByRole('button', { name: 'Editar entrada' }).press('Enter')
     await module.getByRole('button', { name: action, exact: true }).press('Enter')
     await expect(add).toBeFocused()
   }
-  await module.getByRole('button', { name: 'Eliminar entrada' }).press('Enter')
+  await module.locator('li[data-entry-type="manual"]').getByRole('button', { name: 'Eliminar entrada' }).press('Enter')
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Eliminar entrada' }).press('Enter')
   await expect(add).toBeFocused()
   await openModule(page, 'Dotaciones'); await openModule(page, 'Operativo')
   await page.getByRole('region', { name: 'Dotaciones', exact: true }).getByRole('button', { name: 'Seleccionar Tango teclado' }).press('Enter')
   await page.getByRole('region', { name: 'Operativo', exact: true }).getByRole('button', { name: 'Activada', exact: true }).press('Enter')
-  await module.getByRole('button', { name: 'Deshacer' }).last().press('Enter')
+  await module.getByRole('button', { name: 'Editar entrada' }).last().press('Enter')
+  await module.getByRole('button', { name: 'Corregir estado actual' }).press('Enter')
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Confirmar corrección' }).press('Enter')
   await expect(add).toBeFocused()
 })
 

@@ -1,6 +1,9 @@
 import { useId, useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { InputGroup } from '../../components/ui/input-group'
+import { HelpTooltip } from '../../components/ui/tooltip'
+import { Check } from 'lucide-react'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
@@ -41,47 +44,50 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
     if (current === revision.current) setCopyMessage(copied ? 'Enlace copiado' : 'No se pudo copiar. Copia el enlace manualmente.')
   }
 
-  async function copyCoordinate(conversion: FormattedCoordinate) {
-    if (blockedRef.current || !conversion.ok) return
+  async function copyCoordinate(value: string | null) {
+    if (blockedRef.current || value === null) return
     const current = revision.current
     setCopyMessage(null); setRowCopyError(null)
-    const copied = await copyText(conversion.text)
+    const copied = await copyText(value)
     if (current === revision.current) setRowCopyError(copied ? null : 'No se pudo copiar la coordenada.')
   }
 
+  const rows = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
+    const conversion = result?.conversions.find(item => item.format === format)
+    return { format: format as string, value: conversion?.ok ? conversion.text : null, error: conversion && !conversion.ok ? conversion.error : '' }
+  })
+  rows.push({ format: 'Maps', value: result?.link ?? null, error: '' })
+
   return <div className="coordinates-module">
     <form onSubmit={event => { event.preventDefault(); convert() }}>
-      <div className="coordinates-entry">
+      <InputGroup className="coordinates-entry">
         <Input id={`${id}-input`} aria-label="Coordenadas" className="document-title technical-data" value={input} disabled={blocked}
           aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
-          placeholder="37.060234, -2.002295" spellCheck={false} autoComplete="off"
+          placeholder="coordenadas" spellCheck={false} autoComplete="off"
           onChange={event => {
             if (blockedRef.current) return
             revision.current++
             setInput(event.target.value); setError(null); setResult(null); setCopyMessage(null); setRowCopyError(null)
           }} />
-        <Button type="submit" disabled={blocked}>Convertir</Button>
-      </div>
+        <HelpTooltip text="Validar coordenadas y mostrar formatos"><Button type="submit" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked}><Check aria-hidden="true" /></Button></HelpTooltip>
+      </InputGroup>
       {error && <p role="alert" id={`${id}-error`} className="coordinates-error">{error}</p>}
     </form>
-      <dl className="coordinates-results">
-        {(result?.conversions ?? (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => ({ format, ok: false as const, error: '' }))).map(conversion => <div key={conversion.format} role={conversion.ok ? 'button' : undefined}
-          tabIndex={conversion.ok && !blocked ? 0 : undefined} aria-label={conversion.ok ? `Copiar ${conversion.format}` : undefined}
-          aria-disabled={conversion.ok ? blocked : undefined} onClick={() => { void copyCoordinate(conversion) }}
+    <dl className="coordinates-results">
+      {rows.map(row => {
+        const available = row.value !== null
+        const copyRow = () => { if (available) { if (row.format === 'Maps') void copy(); else void copyCoordinate(row.value) } }
+        return <div key={row.format} role={available ? 'button' : undefined}
+          tabIndex={available && !blocked ? 0 : undefined} aria-label={available ? `Copiar ${row.format}` : undefined}
+          aria-disabled={available ? blocked : undefined} onClick={copyRow}
           onKeyDown={event => {
-            if (conversion.ok && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); void copyCoordinate(conversion) }
+            if (available && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); copyRow() }
           }}>
-          <dt>{conversion.format}</dt>
-          <dd className="technical-data" aria-label={`Resultado ${conversion.format}`}>{conversion.ok ? conversion.text : conversion.error}</dd>
-        </div>)}
-      </dl>
-    {result && <>
-      <div className="coordinates-link"><span>Enlace de Google Maps</span>
-        <a className="technical-data" aria-label="Enlace de Google Maps" href={result.link} target="_blank" rel="noopener noreferrer"
-          aria-disabled={blocked} tabIndex={blocked ? -1 : undefined} onClick={event => { if (blockedRef.current) event.preventDefault() }}>{result.link}</a>
-      </div>
-    </>}
-    <Button disabled={blocked || !result} onClick={() => { void copy() }}>Copiar enlace</Button>
+          <dt>{row.format}</dt>
+          <dd className="technical-data" aria-label={`Resultado ${row.format}`}>{row.value ?? row.error}</dd>
+        </div>
+      })}
+    </dl>
     {copyMessage && <p role="status" className="coordinates-copy-status">{copyMessage}</p>}
     {rowCopyError && <p role="status" className="coordinates-copy-error">{rowCopyError}</p>}
   </div>

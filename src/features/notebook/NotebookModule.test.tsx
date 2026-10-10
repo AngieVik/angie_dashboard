@@ -1,9 +1,15 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as renderComponent, screen, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { TooltipProvider } from '../../components/ui/tooltip'
 import { describe, expect, it, vi } from 'vitest'
 import { ViewportContext } from '../../layout/ViewportContext'
 import { createDocumentStore } from '../document/documentStore'
 import { addNotebookBlock, editNotebookNote } from './notebookCommands'
 import { NotebookModule } from './NotebookModule'
+
+function render(component: ReactElement) {
+  return renderComponent(component, { wrapper: TooltipProvider })
+}
 
 async function setup() {
   const store = createDocumentStore({ loadActive: async () => null, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })

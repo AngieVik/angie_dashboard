@@ -1,10 +1,15 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render as testingRender, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
+import { TooltipProvider } from '../../components/ui/tooltip'
 import { CoordinatesModule } from './CoordinatesModule'
 import { ViewportContext } from '../../layout/ViewportContext'
 
+function render(ui: ReactNode) { return testingRender(ui, { wrapper: TooltipProvider }) }
+
 const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor)
   else Reflect.deleteProperty(navigator, 'clipboard')
@@ -14,13 +19,15 @@ function clipboardAccess(clipboard: Pick<Clipboard, 'writeText'>) {
 }
 function enter(value: string) {
   fireEvent.change(screen.getByRole('textbox', { name: 'Coordenadas' }), { target: { value } })
-  fireEvent.click(screen.getByRole('button', { name: 'Convertir' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }))
 }
 
 describe('Módulo de coordenadas', () => {
   it('conserva el campo accesible sin etiqueta ni indicación redundante', () => {
     render(<CoordinatesModule />)
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveAttribute('placeholder', 'coordenadas')
+    expect(screen.queryByText('Convertir')).not.toBeInTheDocument()
     expect(screen.queryByText('Coordenadas')).not.toBeInTheDocument()
     expect(screen.queryByText('DD · DMS · DMM · UTM')).not.toBeInTheDocument()
   })
@@ -66,13 +73,17 @@ describe('Módulo de coordenadas', () => {
     await Promise.resolve()
     expect(copied).toBe('')
   })
-  it('Maps es un hipervínculo separado de Copiar enlace', () => {
+  it.each(['click', 'Enter', ' '])('Maps copia su URL sin navegación mediante %s', async key => {
+    let copied = ''
+    clipboardAccess({ writeText: async value => { copied = value } })
     render(<CoordinatesModule />); enter('37, -2')
-    const link = screen.getByRole('link', { name: 'Enlace de Google Maps' })
-    expect(link).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=37%2C-2')
-    expect(link).toHaveAttribute('target', '_blank')
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeEnabled()
+    const rows = screen.getAllByRole('button', { name: /^Copiar / })
+    expect(rows.map(row => row.querySelector('dt')?.textContent)).toEqual(['DD', 'DMS', 'DMM', 'UTM', 'Maps'])
+    const row = screen.getByRole('button', { name: 'Copiar Maps' })
+    if (key === 'click') fireEvent.click(row); else fireEvent.keyDown(row, { key })
+    await waitFor(() => expect(copied).toBe('https://www.google.com/maps/search/?api=1&query=37%2C-2'))
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copiar enlace' })).not.toBeInTheDocument()
   })
   it('el fallo de copia de fila se anuncia sin ocupar espacio visible', async () => {
     clipboardAccess({ writeText: async () => { throw new Error('permiso') } })
@@ -89,14 +100,14 @@ describe('Módulo de coordenadas', () => {
     enter('38, -3'); await act(async () => reject(new Error('permiso')))
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
   })
-  it('comienza vacío y convierte a los cuatro formatos sin pedir red', () => {
+  it('comienza vacío y muestra cinco filas sin pedir red', () => {
     render(<CoordinatesModule />)
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveValue('')
-    expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /^Copiar / })).not.toBeInTheDocument()
     enter('37.060234. -2.002295')
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toHaveValue('37.060234, -2.002295')
     for (const format of ['DD', 'DMS', 'DMM', 'UTM']) expect(screen.getByLabelText(`Resultado ${format}`)).not.toHaveTextContent(/^$/)
-    expect(screen.getByRole('link', { name: 'Enlace de Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295')
+    expect(screen.getByLabelText('Resultado Maps')).toHaveTextContent('https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295')
   })
 
   it('editar elimina conversiones y enlace anteriores; inválida conserva todo el texto', () => {
@@ -105,9 +116,9 @@ describe('Módulo de coordenadas', () => {
     const invalid = ' 30I. 588700, 4101800 '
     fireEvent.change(input, { target: { value: invalid } })
     expect(screen.getByLabelText('Resultado DD')).toBeEmptyDOMElement()
-    expect(screen.queryByRole('link', { name: 'Enlace de Google Maps' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Convertir' }))
+    expect(screen.getByLabelText('Resultado Maps')).toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: /^Copiar / })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }))
     expect(input).toHaveValue(invalid)
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('alert')).toHaveTextContent(/banda/i)
@@ -121,29 +132,48 @@ describe('Módulo de coordenadas', () => {
     const writeText = vi.fn(async (value: string) => { clipboard = value })
     clipboardAccess({ writeText })
     render(<CoordinatesModule />); enter('37.060234, -2.002295')
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar enlace' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar Maps' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Enlace copiado'))
     expect(clipboard).toBe('https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295')
     writeText.mockRejectedValueOnce(new Error('permiso'))
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar enlace' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar Maps' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/copia.*manualmente/i))
-    expect(screen.getByRole('link', { name: 'Enlace de Google Maps' })).toHaveTextContent('https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295')
+    expect(screen.getByLabelText('Resultado Maps')).toHaveTextContent('https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295')
   })
 
   it('un resultado asíncrono de copia no confirma un enlace anterior tras editar', async () => {
     let finish!: () => void
     clipboardAccess({ writeText: () => new Promise<void>(resolve => { finish = resolve }) })
     render(<CoordinatesModule />); enter('37, -2')
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar enlace' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar Maps' }))
     enter('38, -3'); finish()
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  })
+
+  it('el aviso expira a cinco segundos, reintentar reinicia el plazo y no habilita copia', () => {
+    vi.useFakeTimers()
+    render(<CoordinatesModule />); enter('30I 588700 4101800')
+    const input = screen.getByRole('textbox', { name: 'Coordenadas' })
+    input.focus()
+    act(() => vi.advanceTimersByTime(4999))
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.submit(input.closest('form')!)
+    act(() => vi.advanceTimersByTime(4999))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    expect(input).toHaveValue('30I 588700 4101800')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Copiar / })).not.toBeInTheDocument()
+    for (const format of ['DD', 'DMS', 'DMM', 'UTM', 'Maps']) expect(screen.getByLabelText(`Resultado ${format}`)).toBeEmptyDOMElement()
   })
 
   it('dos dedos bloquean controles y no cambian contenido', () => {
     render(<ViewportContext.Provider value={{ blocked: true, blockedRef: { current: true } }}><CoordinatesModule /></ViewportContext.Provider>)
     expect(screen.getByRole('textbox', { name: 'Coordenadas' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Convertir' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /^Copiar / })).not.toBeInTheDocument()
   })
 
   it('no recupera coordenadas después de desmontar y volver a abrir', () => {

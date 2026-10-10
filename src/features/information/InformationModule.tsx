@@ -6,6 +6,8 @@ import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { Separator } from '../../components/ui/separator'
 import { useViewportInteraction } from '../../layout/ViewportContext'
+import { ICON_CATALOG } from '../elements/iconCatalog'
+import { Eye, EyeOff } from 'lucide-react'
 import './information.css'
 
 export function InformationModule({ store, selectedId, onSelect }: { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void }) {
@@ -17,13 +19,17 @@ export function InformationModule({ store, selectedId, onSelect }: { store: Docu
   const root = useRef<HTMLDivElement>(null)
   return <div ref={root} className="information-module">
     {selected ? <>
-      <div className="information-text">{selected.information}</div>
-      {selected.isUnit && <>
-        <Separator />
+      <div className="information-identity">
+        {selected.visual.type === 'asset' ? <img src={ICON_CATALOG[selected.visual.assetId].path} alt="" /> : <span className="information-emoji" aria-hidden="true">{selected.visual.value}</span>}
+        <div><strong>{selected.name}</strong><span className="information-pin" aria-label={selected.pinVisible ? 'Pin visible' : 'Pin oculto'}>{selected.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}{selected.pinVisible ? 'Pin visible en Pizarra' : 'Pin oculto en Pizarra'}</span></div>
+      </div>
+      {selected.isUnit && <div className="information-operative">
         <Badge variant="outline" className="information-status" aria-label="Estado operativo">{status ? <><span aria-hidden="true">{status.icon}</span> {status.status}</> : 'Sin estado'}</Badge>
-        {status && <p className="information-phase">Fase: <span>{status.phase}</span></p>}
-        <div className="information-tags" aria-label="Etiquetas">{selected.operational.tags.map(tag => <Badge key={tag} className="unit-tag">{tag}</Badge>)}</div>
-      </>}
+        {status && <><p className="information-phase">Fase: <span>{status.phase}</span></p><p className="information-description">{status.description}</p></>}
+      </div>}
+      <Separator />
+      <div className="information-text">{selected.information}</div>
+      {selected.isUnit && <div className="information-tags" aria-label="Etiquetas">{selected.operational.tags.map(tag => <Badge key={tag} className="unit-tag">{tag}</Badge>)}</div>}
     </> : units.length ? <div className="information-units">{units.map(unit => <Button key={unit.id} aria-label={`Seleccionar ${unit.name}`} disabled={blocked}
       onClick={() => {
         if (blockedRef.current) return

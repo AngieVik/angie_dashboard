@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { MODULE_REGISTRY } from '../../src/layout/moduleRegistry'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { openModule, loadDocument, noPageScroll, savedDocument } from './acceptance-helpers'
 
@@ -59,14 +60,14 @@ test('título no se autoextiende y el aviso expira sin validar coordenadas', asy
   await page.clock.install({ time: new Date('2026-10-05T10:00:00Z') })
   await page.clock.pauseAt(new Date('2026-10-05T10:00:01Z'))
   const input = page.getByRole('textbox', { name: 'Coordenadas', exact: true })
-  await input.fill('30I 588700 4101800'); await page.getByRole('button', { name: 'Convertir', exact: true }).click()
+  await input.fill('30I 588700 4101800'); await page.getByRole('button', { name: 'Validar coordenadas y mostrar formatos', exact: true }).click()
   await page.clock.fastForward(4999); await expect(input).toHaveAttribute('aria-invalid', 'true')
-  await page.getByRole('button', { name: 'Convertir', exact: true }).click()
+  await page.getByRole('button', { name: 'Validar coordenadas y mostrar formatos', exact: true }).click()
   await page.clock.fastForward(4999); await expect(input).toHaveAttribute('aria-invalid', 'true')
   await page.clock.fastForward(1); await expect(input).toHaveAttribute('aria-invalid', 'false')
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(input).toHaveValue('30I 588700 4101800')
-  await expect(page.getByRole('button', { name: 'Copiar enlace', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /^Copiar / })).toHaveCount(0)
   await expect(page.getByLabel('Resultado DD', { exact: true })).toBeEmpty()
 })
 
@@ -153,14 +154,14 @@ test('los diez módulos escalan herramientas y contenido sin escalar sus marcos'
   await openModule(page, 'Elementos')
   await zoom(page, 50)
   await zoom(page, 150, 'Zoom de Elementos')
-  await page.getByRole('button', { name: 'Añadir', exact: true }).click()
+  await page.getByRole('button', { name: 'Crear', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Nombre', exact: true })).toBeVisible()
   await page.screenshot({ path: info.outputPath('combined-zoom.png') })
 })
 
 test('Elementos ajusta preview e información sin alturas vacías ni scroll innecesario', async ({ page }, info) => {
   await page.goto('/'); await openModule(page, 'Elementos')
-  await page.getByRole('button', { name: 'Añadir', exact: true }).click()
+  await page.getByRole('button', { name: 'Crear', exact: true }).click()
   await expect(page.locator('.element-editor legend')).toHaveCount(0)
   await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Punto norte')
   const information = page.getByRole('textbox', { name: 'Información', exact: true })
@@ -170,8 +171,8 @@ test('Elementos ajusta preview e información sin alturas vacías ni scroll inne
   await expect.poll(async () => (await information.boundingBox())!.height).toBeGreaterThan(initial * 2)
   await information.fill('')
   await expect.poll(async () => (await information.boundingBox())!.height).toBe(initial)
-  const slider = page.getByRole('slider', { name: 'Escala del icono' })
-  await slider.fill('0.49')
+  const scale = page.getByRole('spinbutton', { name: 'Escala', exact: true })
+  await scale.fill('49'); await scale.press('Tab')
   await expect.poll(() => page.locator('.element-preview').evaluate(el => el.clientHeight)).toBeLessThan(70)
   const metrics = await page.locator('.element-preview').evaluate(el => ({ h: el.clientHeight, sh: el.scrollHeight, w: el.clientWidth, sw: el.scrollWidth }))
   expect(metrics.sh).toBeLessThanOrEqual(metrics.h); expect(metrics.sw).toBeLessThanOrEqual(metrics.w)
@@ -244,4 +245,66 @@ test('reloj compacto, formatos permanentes y Cuaderno con tirador fino', async (
   await page.getByRole('button', { name: 'Nota', exact: true }).click()
   expect(await page.locator('.notebook-handle').evaluate(el => el.getBoundingClientRect().width)).toBeLessThanOrEqual(10)
   await page.screenshot({ path: info.outputPath('notebook.png') })
+})
+test('regresión zoom compartido: reducir y ampliar conserva el área útil en todos los módulos', async ({ page }, info) => {
+  await page.goto('/')
+  const fixture = createEmptyDocument('Zoom sin desbordamiento')
+  for (const id of Object.keys(MODULE_REGISTRY) as (keyof typeof MODULE_REGISTRY)[]) {
+    fixture.moduleLayouts[id] = { x: 0, y: 0, width: 600, height: 480, referenceSize: { width: 1440, height: 864 } }
+  }
+  await loadDocument(page, fixture)
+  for (const [id, definition] of Object.entries(MODULE_REGISTRY)) {
+    await openModule(page, definition.name)
+    const region = page.locator('.module-frame').filter({ has: page.getByRole('heading', { name: definition.name, exact: true }) })
+    if (id === 'clock') await region.getByRole('button', { name: 'T-Minus', exact: true }).press('Enter')
+    for (const percent of ['clock', 'calculator', 'board'].includes(id) ? [100, 75, 50, 125, 100] : [75, 100]) {
+      await zoom(page, percent, `Zoom de ${definition.name}`)
+      await expect.poll(() => region.evaluate(node => {
+        const content = node.querySelector('.module-content')!, inner = node.querySelector('.module-scaled-content')!
+        return Math.abs(inner.getBoundingClientRect().width - content.clientWidth)
+      })).toBeLessThanOrEqual(1)
+      expect(await region.locator('.module-content').evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
+    }
+    if (id === 'clock') {
+      const enlarged = structuredClone(fixture)
+      enlarged.moduleLayouts.clock!.width = 800
+      await zoom(page, 75, 'Zoom de Reloj'); await loadDocument(page, enlarged)
+      expect(await region.locator('.module-content').evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
+      await loadDocument(page, fixture)
+    }
+    if (['clock', 'calculator', 'board'].includes(id)) {
+      await zoom(page, 75, `Zoom de ${definition.name}`)
+      await region.screenshot({ path: info.outputPath(`${id}-75.png`) })
+    }
+    await page.getByRole('button', { name: `Cerrar ${definition.name}`, exact: true }).press('Enter')
+  }
+  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts).toEqual(fixture.moduleLayouts)
+  await noPageScroll(page)
+})
+
+test('regresión Pizarra: lienzo cubre su ventana y rueda comparte zoom con el pie', async ({ page }, info) => {
+  await page.goto('/')
+  const fixture = createEmptyDocument('Pizarra y zoom')
+  fixture.moduleLayouts.board = { x: 0, y: 0, width: 600, height: 480, referenceSize: { width: 1440, height: 864 } }
+  await loadDocument(page, fixture); await openModule(page, 'Pizarra')
+  const region = page.getByRole('region', { name: 'Pizarra', exact: true }), surface = region.getByTestId('board-surface')
+  for (const value of [100, 146, 41, 100]) {
+    await zoom(page, value, 'Zoom de Pizarra')
+    await expect.poll(() => surface.evaluate(node => {
+      const content = node.closest('.module-content')!, canvas = node.querySelector('canvas')!
+      return Math.abs(canvas.getBoundingClientRect().width - content.clientWidth)
+    })).toBeLessThanOrEqual(1)
+    await expect.poll(() => surface.evaluate(node => Math.abs(node.querySelector('canvas')!.getBoundingClientRect().height - node.parentElement!.getBoundingClientRect().height))).toBeLessThanOrEqual(1)
+    if (value === 146 || value === 41) await region.screenshot({ path: info.outputPath(`board-${value}.png`) })
+  }
+  const box = (await surface.boundingBox())!
+  await surface.dispatchEvent('wheel', { deltaY: -Math.log(1.5) / .002, clientX: box.x + 30, clientY: box.y + 30 })
+  await expect(page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true })).toHaveValue('150')
+  await expect(page.getByRole('spinbutton', { name: 'Zoom actual', exact: true })).toHaveValue('100')
+  await zoom(page, 75, 'Zoom de Pizarra')
+  await surface.dispatchEvent('wheel', { deltaY: Math.log(1.5) / .002, ctrlKey: true, clientX: box.x + 30, clientY: box.y + 30 })
+  await expect(page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true })).toHaveValue('50')
+  await expect(surface).toHaveAttribute('data-scale', '1')
+  await expect.poll(async () => (await savedDocument(page))?.moduleLayouts).toEqual(fixture.moduleLayouts)
+  await noPageScroll(page)
 })

@@ -64,7 +64,7 @@ describe('base de Angie Dashboard', () => {
     const module = (id: string) => document.querySelector<HTMLElement>(`[data-module="${id}"]`)!
     fireEvent.pointerDown(screen.getByRole('heading', { name: 'Información' }), { pointerId: 1 })
     expect([module('elements').style.zIndex, module('coordinates').style.zIndex, module('information').style.zIndex]).toEqual(['1', '2', '3'])
-    fireEvent.focus(screen.getByRole('button', { name: 'Añadir' }))
+    fireEvent.focus(screen.getByRole('button', { name: 'Crear' }))
     expect([module('coordinates').style.zIndex, module('information').style.zIndex, module('elements').style.zIndex]).toEqual(['1', '2', '3'])
     fireEvent.focus(screen.getByRole('button', { name: 'Cerrar Coordenadas' }))
     expect([module('information').style.zIndex, module('elements').style.zIndex, module('coordinates').style.zIndex]).toEqual(['1', '2', '3'])

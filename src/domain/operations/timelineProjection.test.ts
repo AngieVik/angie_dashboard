@@ -4,8 +4,8 @@ import { serializeDocument } from '../document/serializeDocument'
 import { migrateDocument } from '../document/migrateDocument'
 import { createElement, duplicateElement, deleteElement } from '../../features/elements/elementCommands'
 import { changeElementStatus } from './changeStatus'
-import { addManualTimelineEntry, editManualTimelineEntry, deleteManualTimelineEntry, deleteTimelineEntry, undoAutomaticTimelineEntry, canUndoAutomaticTimelineEntry } from '../../features/timeline/timelineCommands'
-import { getCurrentEntryId, getTimelineEntryText, projectUnitStatus } from './timelineProjection'
+import { addManualTimelineEntry, editManualTimelineEntry, deleteManualTimelineEntry, deleteTimelineEntry, correctCurrentStatusEntry } from '../../features/timeline/timelineCommands'
+import { getCurrentEntryId, getTimelineEntryText, projectUnitStatus, isCurrentTimelineEntry } from './timelineProjection'
 
 function setup() {
   const document = createEmptyDocument()
@@ -56,23 +56,31 @@ describe('selección explícita e historial V3', () => {
     expect(new Set(third.timeline.map(e => e.id)).size).toBe(3)
     expect(third.elements[0]?.operational?.currentEntryId).toBe(third.timeline[2]!.id)
   })
-  it('corrección provisional de Actual conserva historial y deja sin estado sin recuperar anterior', () => {
+  it('corrección de Actual conserva historial y deja sin estado sin recuperar anterior', () => {
     const { document, unit } = setup()
     const first = changeElementStatus(document, unit.id, 'Disponible', new Date())
     const second = changeElementStatus(first, unit.id, 'Activada', new Date())
-    const before = structuredClone(second)
-    const result = undoAutomaticTimelineEntry(second, second.timeline[1]!.id)
-    expect(result.success).toBe(true)
-    if (!result.success) throw new Error(result.message)
-    expect(result.document.elements[0]?.operational).toMatchObject({ status: null, currentEntryId: null })
-    expect(result.document.timeline).toHaveLength(2)
-    expect(result.document.timeline[1]).toMatchObject({ revisions: [{ kind: 'correction' }] })
-    expect(canUndoAutomaticTimelineEntry(result.document, first.timeline[0]!.id)).toBe(false)
-    expect(second).toEqual(before)
-    const loaded = migrateDocument(JSON.parse(serializeDocument(result.document)))
-    expect(loaded).toMatchObject({ success: true, document: result.document })
-    const next = changeElementStatus(result.document, unit.id, 'Activada', new Date())
+    const candidate = structuredClone(second), entry = candidate.timeline[1]!
+    correctCurrentStatusEntry(candidate, entry.id, { currentEntryId: entry.id, status: 'Activada', revisionCount: 0 }, new Date().toISOString())
+    expect(candidate.elements[0]?.operational).toMatchObject({ status: null, currentEntryId: null })
+    expect(candidate.timeline).toHaveLength(2)
+    expect(candidate.timeline[1]).toMatchObject({ revisions: [{ kind: 'correction' }] })
+    expect(isCurrentTimelineEntry(candidate, first.timeline[0]!)).toBe(false)
+    expect(second.timeline[1]!.revisions).toEqual([])
+    expect(migrateDocument(JSON.parse(serializeDocument(candidate)))).toMatchObject({ success: true, document: candidate })
+    const next = changeElementStatus(candidate, unit.id, 'Activada', new Date())
     expect(next.timeline[2]).toMatchObject({ previousStatus: null, nextStatus: 'Activada' })
+  })
+  it.each([0, 2])('Disponible repetido: borrar índice %s conserva o retira únicamente la referencia explícita', deletedIndex => {
+    const { document, unit } = setup()
+    const first = changeElementStatus(document, unit.id, 'Disponible', new Date())
+    const second = changeElementStatus(first, unit.id, 'Activada', new Date())
+    const third = changeElementStatus(second, unit.id, 'Disponible', new Date())
+    deleteTimelineEntry(third, third.timeline[deletedIndex]!.id.toUpperCase(), new Date().toISOString())
+    expect(third.elements[0]?.operational).toMatchObject({ status: deletedIndex === 0 ? 'Disponible' : null, currentEntryId: deletedIndex === 0 ? third.timeline[2]!.id : null })
+    expect(isCurrentTimelineEntry(third, third.timeline[0]!)).toBe(false)
+    expect(isCurrentTimelineEntry(third, third.timeline[2]!)).toBe(deletedIndex === 0)
+    expect(migrateDocument(JSON.parse(serializeDocument(third)))).toMatchObject({ success: true, document: third })
   })
   it('editar/eliminar manual conserva el original, UUID, fechas y revisiones', () => {
     const { document } = setup()
@@ -90,7 +98,7 @@ describe('selección explícita e historial V3', () => {
     const selected = changeElementStatus(document, unit.id, 'Disponible', new Date())
     deleteElement(selected, unit.id)
     expect(selected.timeline).toHaveLength(1)
-    expect(canUndoAutomaticTimelineEntry(selected, selected.timeline[0]!.id)).toBe(false)
+    expect(isCurrentTimelineEntry(selected, selected.timeline[0]!)).toBe(false)
     expect(migrateDocument(JSON.parse(serializeDocument(selected))).success).toBe(true)
   })
 })

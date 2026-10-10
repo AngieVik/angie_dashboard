@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useValidationNotice } from './useValidationNotice'
+import { TooltipProvider } from './tooltip'
 import { CoordinatesModule } from '../../features/coordinates/CoordinatesModule'
 import { CalculatorModule } from '../../features/calculator/CalculatorModule'
 import { ElementEditor } from '../../features/elements/ElementEditor'
@@ -36,10 +37,10 @@ describe('avisos de validación de fase 4', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
   it('Coordenadas retira aviso y resaltado sin convertir ni habilitar copia', () => {
-    vi.useFakeTimers(); render(<CoordinatesModule />)
+    vi.useFakeTimers(); render(<CoordinatesModule />, { wrapper: TooltipProvider })
     const input = screen.getByRole('textbox', { name: 'Coordenadas' })
     fireEvent.change(input, { target: { value: '30I 588700 4101800' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Convertir' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }))
     act(() => vi.advanceTimersByTime(4999))
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('alert')).toBeVisible()
@@ -48,7 +49,7 @@ describe('avisos de validación de fase 4', () => {
     expect(input).toHaveAttribute('aria-invalid', 'false')
     expect(input).not.toHaveAttribute('aria-describedby')
     expect(input).toHaveValue('30I 588700 4101800')
-    expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /^Copiar / })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Resultado DD')).toBeEmptyDOMElement()
   })
   it('Calculadora conserva operación inválida sin resultado al expirar; reintentar muestra el error', () => {
@@ -63,9 +64,10 @@ describe('avisos de validación de fase 4', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('División por cero')
   })
   it('editor vacío no crea al expirar ni pierde borrador', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
     vi.useFakeTimers(); const save = vi.fn()
     render(<ElementEditor onSave={save} onCancel={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Crear elemento' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Crear' }))
     expect(screen.getByRole('alert')).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveAccessibleDescription(screen.getByRole('alert').textContent!)

@@ -542,6 +542,7 @@
             }
           ]
         },
+        "nameFontSize": { "type": "number", "minimum": 8, "maximum": 72 },
         "pinVisible": {
           "type": "boolean"
         }

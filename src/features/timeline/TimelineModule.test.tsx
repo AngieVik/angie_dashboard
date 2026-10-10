@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createDocumentStore } from '../document/documentStore'
 import { createElement } from '../elements/elementCommands'
@@ -35,6 +35,7 @@ describe('Interfaz del registro', () => {
     act(() => store.mutateDocument(document => { document.timeline[0]!.revisions[0]!.recordedAt = '2099-01-01T00:00:00Z' }))
     const before = store.getSnapshot().document
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar entrada' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar entrada' }))
     expect(screen.getByRole('alert')).toHaveTextContent('recordedAt')
     expect(store.getSnapshot().document).toBe(before)
   })
@@ -50,22 +51,22 @@ describe('Interfaz del registro', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar entrada' }))
     expect(store.getSnapshot().document.timeline[0]).toMatchObject({ occurredAt: original.occurredAt, text: 'Acceso norte cerrado', revisions: [{ kind: 'text', text: 'Acceso abierto' }] })
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar entrada' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar entrada' }))
     expect(store.getSnapshot().document.timeline[0]).toMatchObject({ revisions: [{ kind: 'text' }, { kind: 'delete' }] })
     expect(screen.queryByText('Acceso abierto')).not.toBeInTheDocument()
   })
-  it('ofrece Deshacer solo en la última entrada elegible y conserva el nombre histórico', async () => {
+  it('conserva el nombre histórico tras eliminar la unidad sin ofrecer corrección', async () => {
     const store = await setup()
-    let id = ''
-    act(() => store.mutateDocument(document => { id = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' }).id }))
-    act(() => store.mutateDocument(document => Object.assign(document, changeElementStatus(document, id, 'Activada', new Date()))))
-    act(() => store.mutateDocument(document => Object.assign(document, changeElementStatus(document, id, 'Aproximandose', new Date()))))
-    expect(screen.getAllByRole('button', { name: 'Deshacer' })).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'Editar entrada' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
-    expect(store.getSnapshot().document.elements[0]?.operational?.status).toBeNull()
-    act(() => store.mutateDocument(document => { document.elements = [] }))
+    act(() => store.mutateDocument(document => {
+      const unit = createElement(document, { name: 'Tango', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
+      Object.assign(document, changeElementStatus(document, unit.id, 'Activada', new Date()))
+      Object.assign(document, changeElementStatus(document, unit.id, 'Aproximandose', new Date()))
+      document.elements = []
+    }))
     expect(screen.getAllByText(/Tango/)).toHaveLength(2)
-    expect(screen.queryByRole('button', { name: 'Deshacer' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Actual', { exact: true })).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar entrada' })[1]!)
+    expect(screen.queryByRole('button', { name: 'Corregir estado actual' })).not.toBeInTheDocument()
   })
   it('sigue nuevas entradas solo cuando se estaba leyendo el final', async () => {
     const store = await setup(), list = screen.getByRole('log')
@@ -90,5 +91,76 @@ describe('Interfaz del registro', () => {
     expect(time).toHaveAttribute('datetime', '2016-12-31T23:59:60Z')
     expect(time.getAttribute('title')).toContain('01/01/2017')
     expect(time.getAttribute('title')).toContain('00:59:60')
+  })
+})
+
+describe('entrega 9: editor y confirmaciones', () => {
+  async function automatic() {
+    const store = await setup()
+    act(() => store.mutateDocument(document => {
+      const unit = createElement(document, { name: 'Tango 9', visual: { type: 'emoji', value: '🚑', scale: 1 }, isUnit: true, information: '' })
+      Object.assign(document, changeElementStatus(document, unit.id, 'Disponible', new Date()))
+      Object.assign(document, changeElementStatus(document, unit.id, 'Activada', new Date()))
+      addManualTimelineEntry(document, 'Radio comprobada', new Date())
+    }))
+    return store
+  }
+  it('marca Actual por referencia, edita automáticas sin transición y cancela borrado sin revisión', async () => {
+    const store = await automatic(), before = store.getSnapshot().document
+    expect(screen.queryByRole('button', { name: 'Deshacer' })).not.toBeInTheDocument()
+    expect(screen.getAllByText('Actual', { exact: true })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Editar entrada' })).toHaveLength(3)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar entrada' })[0]!)
+    expect(screen.queryByRole('button', { name: 'Corregir estado actual' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Texto de entrada'), { target: { value: 'Primer aviso por radio' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar entrada' }))
+    expect(screen.getByText('Primer aviso por radio')).toBeInTheDocument()
+    expect(store.getSnapshot().document.elements).toEqual(before.elements)
+    const revised = store.getSnapshot().document
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar entrada' })[1]!)
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Tango 9')
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Sin estado')
+    expect(store.getSnapshot().document).toBe(revised)
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar' }))
+    expect(store.getSnapshot().document).toBe(revised)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar entrada' })[1]!)
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar entrada' }))
+    expect(store.getSnapshot().document.elements[0]?.operational).toMatchObject({ status: null, currentEntryId: null })
+    expect(screen.queryByText('Actual', { exact: true })).not.toBeInTheDocument()
+    expect(screen.getByText('Primer aviso por radio')).toBeInTheDocument()
+  })
+  it('previsualiza corrección separada del texto, cancela y rechaza confirmación concurrente', async () => {
+    const store = await automatic()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar entrada' })[1]!)
+    const before = store.getSnapshot().document
+    fireEvent.change(screen.getByLabelText('Texto de entrada'), { target: { value: 'Borrador sin guardar' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Corregir estado actual' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Tango 9')
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Sin estado')
+    expect(store.getSnapshot().document).toBe(before)
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar' }))
+    expect(store.getSnapshot().document).toBe(before)
+    fireEvent.click(screen.getByRole('button', { name: 'Corregir estado actual' }))
+    act(() => store.mutateDocument(document => Object.assign(document, changeElementStatus(document, document.elements[0]!.id, 'Interviniendo', new Date()))))
+    const concurrent = store.getSnapshot().document
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Confirmar corrección' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/cambió|vigente|Actual/)
+    expect(store.getSnapshot().document).toBe(concurrent)
+  })
+  it('confirma corrección sin guardar borrador y permite editar después el texto corregido', async () => {
+    const store = await automatic()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar entrada' })[1]!)
+    fireEvent.change(screen.getByLabelText('Texto de entrada'), { target: { value: 'Borrador sin guardar' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Corregir estado actual' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Confirmar corrección' }))
+    expect(store.getSnapshot().document.elements[0]?.operational).toMatchObject({ status: null, currentEntryId: null })
+    expect(store.getSnapshot().document.timeline[1]!.revisions).toMatchObject([{ kind: 'correction' }])
+    expect(screen.getByText('Corregida', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByText('Borrador sin guardar')).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar entrada' })[1]!)
+    expect(screen.queryByRole('button', { name: 'Corregir estado actual' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Texto de entrada'), { target: { value: 'Aviso corregido' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar entrada' }))
+    expect(screen.getByText('Aviso corregido')).toBeInTheDocument()
   })
 })

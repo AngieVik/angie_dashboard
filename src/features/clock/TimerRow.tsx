@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { SquareX } from 'lucide-react'
 import { Input } from '../../components/ui/input'
+import { Textarea } from '../../components/ui/textarea'
+import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 import { calculateTimerValue, formatDuration, normalizeDuration } from './timerEngine'
 import type { TimerRecord } from './timerTypes'
 import type { TimerStore } from './timerStore'
@@ -12,6 +14,7 @@ const STATUS_LABELS = { idle: 'Inactivo', running: 'En marcha', paused: 'Pausado
 export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; index: number; now: number; store: TimerStore }) {
   const row = useRef<HTMLDivElement>(null)
   const resetControl = useRef<HTMLButtonElement>(null)
+  const note = useAutoGrowingTextarea(timer.note)
   const [fields, setFields] = useState(() => formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds).split(':'))
   const snapshot = calculateTimerValue(timer, now), name = `${TIMER_LABELS[timer.kind]} ${index}`
   function normalize() {
@@ -31,12 +34,12 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
     next?.focus()
   }
   const time = <output className="technical-data timer-value" aria-label="Tiempo">{formatDuration(snapshot.valueSeconds)}</output>
-  return <div ref={row} className="timer-row" role="group" aria-label={name} data-alert={snapshot.alertActive}
+  return <div ref={row} className="timer-row" role="group" aria-label={name} aria-description={STATUS_LABELS[snapshot.status]} data-alert={snapshot.alertActive}
     onClick={event => {
       if (snapshot.alertActive && !(event.target as HTMLElement).closest('button, input, textarea')) recognize()
     }}>
-    <div className="timer-heading"><span>{name}</span><span className="timer-status">{STATUS_LABELS[snapshot.status]}</span>
-      <Button aria-label="Cerrar temporizador" onClick={close}><SquareX aria-hidden="true" /></Button></div>
+    <div className="timer-heading"><span>{name}</span>
+      <Button className="timer-close document-button" aria-label="Cerrar temporizador" onClick={close}><SquareX aria-hidden="true" /></Button></div>
     <div className="timer-main">
       {snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
       <div className="timer-controls">
@@ -57,6 +60,6 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
           }} />
       </span>)}
     </div>}
-    <Input aria-label="Nota" placeholder="Nota libre" className="timer-note" value={timer.note} onChange={event => store.setNote(timer.id, event.target.value)} />
+    <Textarea ref={note} rows={1} aria-label="Nota" placeholder="anotación" className="timer-note" value={timer.note} onChange={event => store.setNote(timer.id, event.target.value)} />
   </div>
 }
