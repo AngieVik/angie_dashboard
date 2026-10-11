@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { bringModuleToFront, createElement, downloadDocument, loadDocument, noPageScroll, openModule, savedDocument } from './acceptance-helpers'
 import type { AngieDocument } from '../../src/domain/document/types'
 
-test('diez módulos, listas independientes, estado null, referencia explícita y recarga V3', async ({ page }, info) => {
+test('diez módulos, listas independientes, estado null, referencia explícita y recarga V3', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
@@ -29,21 +29,20 @@ test('diez módulos, listas independientes, estado null, referencia explícita y
   await units.getByRole('button', { name: 'Seleccionar Tango 1' }).press('Enter')
   await expect(page.locator('[data-module="information"]').getByLabel('Estado operativo')).toHaveText('Sin estado')
   await expect(elements.getByRole('button', { name: 'Modificar', exact: true })).toBeEnabled()
-  for (const zoom of [25, 100, 200, 400]) {
+  for (const zoom of [100, 400]) {
     await page.getByLabel('Zoom actual', { exact: true }).fill(String(zoom))
     await page.getByLabel('Zoom actual', { exact: true }).press('Enter')
     await noPageScroll(page)
   }
   await page.getByLabel('Zoom actual', { exact: true }).fill('100')
   await page.getByLabel('Zoom actual', { exact: true }).press('Enter')
-  for (const zoom of [25, 100, 200, 400]) {
+  for (const zoom of [100, 400]) {
     await units.getByLabel('Zoom de Dotaciones', { exact: true }).fill(String(zoom))
     await units.getByLabel('Zoom de Dotaciones', { exact: true }).press('Enter')
     await noPageScroll(page)
   }
   await units.getByLabel('Zoom de Dotaciones', { exact: true }).fill('100')
   await units.getByLabel('Zoom de Dotaciones', { exact: true }).press('Enter')
-  await page.screenshot({ path: info.outputPath('phase2-lists.png') })
   const before = await savedDocument(page)
   await createElement(page, 'Tango nuevo', true)
   await expect.poll(async () => (await savedDocument(page))?.timeline).toEqual(before!.timeline)

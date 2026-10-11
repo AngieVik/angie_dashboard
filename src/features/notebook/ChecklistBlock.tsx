@@ -14,27 +14,41 @@ function ItemText({ text, index, disabled, onEdit }: { text: string; index: numb
 
 export function ChecklistBlock({ block, disabled, onAdd, onEdit, onCheck, onDelete }: {
   block: Extract<NotebookBlock, { type: 'checklist' }>; disabled: boolean
-  onAdd: (afterItemId?: string) => void; onEdit: (id: string, text: string) => void
+  onAdd: (afterItemId?: string, initial?: { text: string; checked: boolean }) => void; onEdit: (id: string, text: string) => void
   onCheck: (id: string, checked: boolean) => void; onDelete: (id: string) => void
 }) {
-  const addControl = useRef<HTMLButtonElement>(null)
   const root = useRef<HTMLDivElement>(null)
   const pendingFocus = useRef<number | null>(null)
   useLayoutEffect(() => {
     const index = pendingFocus.current
     if (index === null) return
     pendingFocus.current = null
-    if (index < 0) addControl.current?.focus()
-    else root.current?.querySelectorAll('textarea')[index]?.focus()
+    root.current?.querySelectorAll('textarea')[index]?.focus()
   }, [block.items])
   return <div ref={root} className="notebook-checklist">
-    <ul aria-label="Elementos del checklist">{block.items.map((item, index) => <li key={item.id} data-item-id={item.id} data-checked={item.checked}>
-      <input type="checkbox" aria-label={`Marcar elemento ${index + 1}`} checked={item.checked} disabled={disabled}
-        onChange={event => onCheck(item.id, event.target.checked)} />
-      <ItemText text={item.text} index={index} disabled={disabled} onEdit={text => onEdit(item.id, text)} />
-      <HelpTooltip text="Eliminar elemento"><Button className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled} onClick={() => { pendingFocus.current = Math.min(index, block.items.length - 2); onDelete(item.id) }}><Minus aria-hidden="true" /></Button></HelpTooltip>
-      <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" aria-label={`Añadir elemento después de ${index + 1}`} disabled={disabled} onClick={() => { pendingFocus.current = index + 1; onAdd(item.id) }}><Plus aria-hidden="true" /></Button></HelpTooltip>
+    <ul aria-label="Elementos del checklist">{(block.items.length ? block.items : [undefined]).map((item, index) => <li key={item?.id ?? 'empty'} data-item-id={item?.id} data-checked={item?.checked ?? false}>
+      <input type="checkbox" aria-label={`Marcar elemento ${index + 1}`} checked={item?.checked ?? false} disabled={disabled}
+        onChange={event => {
+          if (item) onCheck(item.id, event.target.checked)
+          else { pendingFocus.current = 0; onAdd(undefined, { text: '', checked: event.target.checked }) }
+        }} />
+      <div className="notebook-item-field">
+        <ItemText text={item?.text ?? ''} index={index} disabled={disabled} onEdit={text => {
+          if (item) onEdit(item.id, text)
+          else { pendingFocus.current = 0; onAdd(undefined, { text, checked: false }) }
+        }} />
+        <div className="notebook-item-actions">
+          <HelpTooltip text="Eliminar elemento"><Button className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled || !item} onClick={() => {
+            if (!item) return
+            pendingFocus.current = Math.max(0, Math.min(index, block.items.length - 2))
+            onDelete(item.id)
+          }}><Minus aria-hidden="true" /></Button></HelpTooltip>
+          <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" aria-label={item ? `Añadir elemento después de ${index + 1}` : 'Añadir elemento'} disabled={disabled} onClick={() => {
+            pendingFocus.current = item ? index + 1 : 0
+            onAdd(item?.id)
+          }}><Plus aria-hidden="true" /></Button></HelpTooltip>
+        </div>
+      </div>
     </li>)}</ul>
-    {block.items.length === 0 && <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" ref={addControl} aria-label="Añadir elemento" disabled={disabled} onClick={() => { pendingFocus.current = 0; onAdd() }}><Plus aria-hidden="true" /></Button></HelpTooltip>}
   </div>
 }

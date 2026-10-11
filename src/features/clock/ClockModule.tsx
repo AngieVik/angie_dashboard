@@ -1,6 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
-import { Play, Pause } from 'lucide-react'
+import { Watch, RotateCcwClock, AlarmClock, Play, Pause } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Alert } from '../../components/ui/alert'
 import { spanishClock } from './timerEngine'
@@ -33,9 +33,26 @@ export function ClockModule({ store }: { store: TimerStore }) {
       else requestSpace({ width: 300, height })
     } finally { delete node.dataset.sizing }
   }, [timers.length, requestSpace])
+  useLayoutEffect(() => {
+    const node = root.current, output = node?.querySelector<HTMLOutputElement>('.clock-esp')
+    if (!node || !output) return
+    const context = document.createElement('canvas').getContext('2d')
+    if (!context) return
+    let cancelled = false
+    function fitDigits() {
+      if (cancelled) return
+      const style = getComputedStyle(output!)
+      context!.font = `${style.fontStyle} ${style.fontWeight} 1000px ${style.fontFamily}`
+      const width = Array.from(output!.children).reduce((total, part) => total + context!.measureText(part.textContent ?? '').width, 0) / 1000
+      if (width > 0) node!.style.setProperty('--clock-text-width', String(width))
+    }
+    fitDigits()
+    if (document.fonts.status !== 'loaded') void document.fonts.ready.then(fitDigits)
+    return () => { cancelled = true }
+  }, [clock.esp])
   useEffect(() => () => store.alarm.stopPreview(), [store])
-  return <div ref={root} className="clock-module" style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
-    <div className="clock-reference"><span>Digital Watch</span><span className="clock-seasons"><span className={clock.season === 'ST' ? 'clock-season-active' : ''}>UTC+2 [ST]</span> - <span className={clock.season === 'WT' ? 'clock-season-active' : ''}>UTC+1 [WT]</span></span><span>ESP</span></div>
+  return <div ref={root} className="clock-module" style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s`, '--clock-timer-count': timers.length } as CSSProperties}>
+    <div className="clock-reference"><span className="clock-season-active">UTC+2 [ST]</span><span>ESP</span></div>
     <div className="clock-face technical-data">
       <output className="clock-esp" aria-label="Hora española">
         <span>{clock.esp.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(3, 5)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(6, 8)}</span>
@@ -45,9 +62,9 @@ export function ClockModule({ store }: { store: TimerStore }) {
       </div>
     </div>
     <div className="clock-add-controls">
-      <Button disabled={!ready} onClick={() => addTimer('tzero')}>T-Zero</Button>
-      <Button disabled={!ready} onClick={() => addTimer('tminus')}>T-Minus</Button>
-      <Button disabled={!ready} onClick={() => addTimer('advisory')}>Advisories</Button>
+      <Button aria-label="T-Zero" title="T-Zero" disabled={!ready} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
+      <Button aria-label="T-Minus" title="T-Minus" disabled={!ready} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
+      <Button aria-label="Advisories" title="Advisories" disabled={!ready} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
       <Button aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview document-button" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
         onClick={() => { if (alarm.preview) store.alarm.stopPreview(); else void store.alarm.startPreview() }}>
         {alarm.preview ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}

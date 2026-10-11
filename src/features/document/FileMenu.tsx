@@ -1,5 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
 import { Alert } from '../../components/ui/alert'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import {
@@ -12,20 +13,42 @@ import { getDocumentStore, useDocumentStore } from './documentStore'
 import type { DocumentStore } from './documentStore'
 
 export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore }) {
-  const { fileBusy } = useDocumentStore(store)
+  const { fileBusy, document } = useDocumentStore(store)
   const input = useRef<HTMLInputElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const nameInput = useRef<HTMLInputElement>(null)
+  const [editingName, setEditingName] = useState(false)
+  const [name, setName] = useState('')
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button>Archivo</Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuTrigger asChild><Button ref={trigger}>Archivo</Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (editingName) event.preventDefault() }}>
           <DropdownMenuGroup>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => store.newDocument()}>Nuevo</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => input.current?.click()}>Cargar</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument() }}>Guardar</DropdownMenuItem>
+            <DropdownMenuItem data-document-name disabled={fileBusy} onSelect={() => {
+              setName(store.getSnapshot().document.document.title)
+              setEditingName(true)
+            }}>{document.document.title || 'Introducir nombre'}</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+      <AlertDialog open={editingName} onOpenChange={setEditingName}>
+        <AlertDialogContent onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}
+          onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
+          <AlertDialogTitle>Introducir nombre</AlertDialogTitle>
+          <AlertDialogDescription>Nombre del documento para identificarlo al guardar.</AlertDialogDescription>
+          <form className="document-name-form" onSubmit={event => { event.preventDefault(); store.setTitle(name); setEditingName(false) }}>
+            <Input ref={nameInput} aria-label="Título del documento" placeholder="Nombre del documento" value={name} onChange={event => setName(event.target.value)} />
+            <div className="document-dialog-actions">
+              <AlertDialogCancel asChild><Button type="button">Cancelar</Button></AlertDialogCancel>
+              <Button type="submit">Aceptar</Button>
+            </div>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
       <input ref={input} type="file" accept=".json,application/json" aria-label="Cargar documento JSON" hidden
         onChange={event => {
           const file = event.target.files?.[0]

@@ -13,6 +13,19 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   const sliderPointer = useRef(false)
+  const input = useRef<HTMLInputElement>(null)
+  const replaceInput = useRef(true)
+  useEffect(() => {
+    const node = input.current
+    if (!node) return
+    function prepare(event: InputEvent) {
+      if (!replaceInput.current) return
+      replaceInput.current = false
+      if (event.inputType.startsWith('insert')) node!.value = ''
+    }
+    node.addEventListener('beforeinput', prepare)
+    return () => node.removeEventListener('beforeinput', prepare)
+  }, [])
   const Icon = side === 'right' ? GitCommitHorizontal : GitCommitVertical
   useEffect(() => {
     if (!open) return
@@ -31,16 +44,19 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
   }, [open, disabled, scale])
   function commit() {
     if (draft !== null && draft.trim() && Number.isFinite(Number(draft))) {
-      onChange(Math.min(400, Math.max(25, Number(draft))) / 100)
+      onChange(Math.min(200, Math.max(25, Number(draft))) / 100)
     }
     setDraft(null)
+    replaceInput.current = true
   }
   const percentage = <>
-    <input type="number" inputMode="decimal" aria-label={label} title={label} min={25} max={400} step={1}
-      disabled={disabled} value={draft ?? percent} onChange={event => setDraft(event.target.value)} onBlur={commit}
+    <input ref={input} type="number" inputMode="decimal" aria-label={label} title={label} min={25} max={200} step={1}
+      disabled={disabled} value={draft ?? percent}
+      onFocus={() => { replaceInput.current = true }} onPointerDown={() => { replaceInput.current = true }}
+      onChange={event => { replaceInput.current = false; setDraft(event.target.value) }} onBlur={commit}
       onKeyDown={event => {
         if (event.key === 'Enter') { event.preventDefault(); commit() }
-        if (event.key === 'Escape') { event.preventDefault(); setDraft(null) }
+        if (event.key === 'Escape') { event.preventDefault(); setDraft(null); replaceInput.current = true }
       }} /><span aria-hidden="true">%</span>
   </>
   return <div className="zoom-control technical-data">
@@ -54,7 +70,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
         onPointerCancelCapture={() => { sliderPointer.current = false }}
         onKeyDownCapture={() => { sliderPointer.current = false }} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <div className="zoom-popover-label"><span>{label}</span><output>{percent} %</output></div>
-        <Slider label={label} value={percent} min={25} max={400} disabled={disabled} onValueChange={value => {
+        <Slider label={label} value={percent} min={25} max={200} midpoint={100} disabled={disabled} onValueChange={value => {
           const nearest = Math.round(value / 10) * 10
           const percent = sliderPointer.current && Math.abs(value - nearest) <= 2 ? nearest : value
           setDraft(null); onChange(percent / 100)

@@ -230,7 +230,7 @@ textarea {
 }
 
 .app-header { flex-wrap: nowrap; flex: 0 0 36px; height: 36px; min-height: 36px; padding: 3px 8px; gap: 6px; overflow-x: auto; overflow-y: hidden; }
-.app-header .document-title { flex: 0 0 clamp(120px, 23vw, 360px); width: clamp(120px, 23vw, 360px); min-width: 120px; height: 26px; padding: 2px 5px; }
+.document-name-form .document-title { display: block; width: 100%; margin-bottom: 12px; }
 .app-header .magnet-button { margin-left: auto; }
 .app-header .document-button { height: 26px; padding: 2px 6px; line-height: 20px; white-space: nowrap; }
 .app-header .origin-button, .app-header .fit-button { display: grid; place-items: center; padding: 3px; }
@@ -239,14 +239,17 @@ textarea {
 .app-header::before { display: none; }
 .app-logo { display: block; width: 24px; height: 24px; object-fit: contain; }
 .zoom-control { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 2px; margin: 0; color: var(--color-text-secondary); font-size: 12px; }
-.zoom-control input { appearance: textfield; width: 4ch; min-width: 0; padding: 1px 0; border: 0; border-bottom: 1px solid #555B60; background: transparent; color: var(--color-text); text-align: right; font: inherit; }
+.zoom-control input { appearance: textfield; width: 4ch; min-width: 0; padding: 1px 0; border: 0; background: transparent; color: var(--color-text); text-align: right; font: inherit; }
 .zoom-control input::-webkit-inner-spin-button, .zoom-control input::-webkit-outer-spin-button { appearance: none; margin: 0; }
-.module-controls { display: flex; flex: 0 0 25px; align-items: center; gap: 6px; padding: 0 26px 0 0; overflow: hidden; background: var(--color-module); }
+.module-controls { display: flex; flex: 0 0 20px; align-items: center; gap: 3px; padding: 0 22px 0 2px; overflow: hidden; background: var(--color-module); }
+.module-controls .zoom-control { gap: 1px; font-size: 11px; line-height: 1; }
+.module-controls .zoom-control input { height: 18px; padding: 0; }
+.module-controls .zoom-trigger { width: 18px; height: 18px; border-radius: 2px; }
 .module-scaled-content { container-type: inline-size; min-width: 0; min-height: 0; }
 .open-modules { display: flex; flex: 0 0 auto; align-items: center; gap: 0; }
 .open-modules .document-button, .app-header .magnet-button { width: 26px; padding: 0; }
 .open-modules .document-button[aria-pressed="true"] { color: var(--color-text); border-color: var(--color-hover-border); }
-.app-header .magnet-button[aria-pressed="true"] { color: #E8DA92; border-color: var(--color-selection-border); box-shadow: var(--shadow-selection); }
+.app-header .magnet-button[aria-pressed="true"] { color: #78C99A; border-color: var(--color-accent-red); box-shadow: 0 0 6px rgb(120 201 154 / 20%); }
 /* Intrinsic measurement excludes window size, scroll viewports and empty space. */
 .module-frame[data-fitting] .module-header { width: max-content; }
 .module-frame[data-fitting] .module-header h2 { flex: none; }
@@ -271,17 +274,18 @@ textarea {
 .module-frame { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--color-frame-border); border-radius: 4px;
   background: var(--color-module);
   box-shadow: var(--shadow-panel); }
-.module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 5px;
+.module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 24px 0 5px;
   border-bottom: 1px solid #080B0D; background: var(--surface-header);
   box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); cursor: move; touch-action: none; user-select: none; }
-.module-header::before { content: ''; flex: 0 0 2px; height: 11px; background: var(--color-active-border); }
 .module-icon { flex: none; width: 14px; height: 14px; color: #A1AEB7; pointer-events: none; }
 .module-header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.025em; }
 .module-fit, .module-close { display: grid; place-items: center; flex: none; width: 21px; height: 21px; padding: 0; border: 1px solid transparent; border-radius: 2px; color: var(--color-text-secondary); background: transparent; cursor: pointer; line-height: 1; }
+.module-close { margin-left: -3px; }
+.module-content[hidden], .module-controls[hidden] { display: none; }
 .module-fit svg, .module-close svg { width: 15px; height: 15px; }
 .module-fit:hover { color: var(--color-text); border-color: var(--color-selection-border); }
 .module-close:hover { color: var(--color-text); border-color: var(--color-accent-red); }
-.module-content { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; font-size: var(--font-size-body); }
+.module-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: none; font-size: var(--font-size-body); }
 .logical-workspace .module-frame .module-content .document-button:not(.board-pin):not(.quick-note *, .quick-note-measure *) { font-size: var(--control-font-size); }
 .logical-workspace .module-frame .module-content :is(input, select, textarea, label):not(.quick-note *, .quick-note-measure *) { font-size: var(--field-font-size); }
 .module-content h3 { font-size: var(--font-size-title); }
@@ -346,7 +350,7 @@ textarea {
 .zoom-trigger svg { width: 15px; height: 15px; pointer-events: none; }
 .ui-popover, .ui-tooltip { z-index: 15; border: 1px solid var(--color-frame-border); border-radius: 3px; background: var(--surface-overlay); box-shadow: var(--shadow-panel); color: var(--color-text); font-family: var(--font-interface); font-size: 13px; overflow: auto; }
 .ui-popover { width: 210px; max-width: min(calc(100vw - 16px), var(--radix-popover-content-available-width)); max-height: var(--radix-popover-content-available-height); padding: 10px; }
-.ui-tooltip { max-width: min(calc(100vw - 16px), var(--radix-tooltip-content-available-width)); max-height: var(--radix-tooltip-content-available-height); padding: 5px 8px; }
+.ui-tooltip { max-width: min(240px, calc(100vw - 16px), var(--radix-tooltip-content-available-width)); max-height: var(--radix-tooltip-content-available-height); padding: 3px 6px; background: linear-gradient(160deg, rgb(43 52 59 / 85%), rgb(23 25 27 / 85%)); box-shadow: 0 2px 6px rgb(0 0 0 / 25%); font-size: 11px; line-height: 1.3; }
 .zoom-popover-label { display: flex; justify-content: space-between; gap: 8px; color: var(--color-text-secondary); }
 .zoom-popover-label output { font-family: var(--font-technical); white-space: nowrap; }
 .ui-slider { position: relative; display: flex; align-items: center; width: 100%; height: 26px; touch-action: none; user-select: none; }
@@ -408,6 +412,8 @@ textarea {
   display: flex; align-items: center; justify-content: center; width: 24px; min-width: 24px; height: 24px; min-height: 24px;
   color: var(--color-text-secondary);
 }
+.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="false"]) > .react-resizable-handle-se { width: 20px; min-width: 20px; height: 20px; min-height: 20px; }
+.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="true"]) > .react-resizable-handle-se { bottom: 2.5px; }
 .react-resizable-handle svg, .window-resize svg { width: 15px; height: 15px; pointer-events: none; }
 .react-resizable-handle-se:hover, .window-resize:hover { color: var(--color-text); }
 

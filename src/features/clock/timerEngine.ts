@@ -35,7 +35,7 @@ export function startTimer(timer: TimerRecord, now: number): TimerRecord {
 }
 export function pauseTimer(timer: TimerRecord, now: number): TimerRecord {
   const settled = settleTimer(timer, now)
-  if (settled.status !== 'running' || settled.kind === 'advisory') return settled
+  if (settled.status !== 'running') return settled
   return { ...settled, status: 'paused', elapsedMs: elapsed(settled, now), startedAt: null }
 }
 export function resetTimer(timer: TimerRecord): TimerRecord {

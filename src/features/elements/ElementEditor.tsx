@@ -69,7 +69,6 @@ export function ElementEditor({ element, onSave, formId, isUnit = false }: {
       </div>
       <div className="element-scale-control">
         <Slider label="Escala del icono" min={25} max={300} value={Math.round(scale * 100)} onValueChange={value => setScale(value / 100)} disabled={blocked} />
-        <EditorNumber label="Escala" min={25} max={300} value={Math.round(scale * 100)} onValueChange={value => setScale(value / 100)} /><span aria-hidden="true">%</span>
       </div>
       <Textarea ref={informationRef} rows={1} aria-label="Información" placeholder="Información" value={information} onChange={event => setInformation(event.target.value)} />
       {error && <p id={`${nameId}-error`} role="alert">{error}</p>}

@@ -5,15 +5,16 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: 'dot',
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  // Casos comunes en escritorio; @mobile para gestos y @responsive en ambos.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    { name: 'desktop', grepInvert: /@mobile/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
+    { name: 'mobile', grep: /@mobile|@responsive/, use: { ...devices['Pixel 7'] } },
   ],
   webServer: {
     command: 'node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort',

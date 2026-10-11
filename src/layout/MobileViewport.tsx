@@ -8,11 +8,11 @@ export function MobileViewport({ children, state, size, bounds = size, headerHei
   children: ReactNode; state: ViewportState; size: Size; bounds?: Size; headerHeight?: number; onChange: (state: ViewportState) => void
 }) {
   const element = useRef<HTMLDivElement>(null)
-  const { blocked, blockedRef, boardNavigationRef, handlers } = useViewportGestures(state, size, bounds, onChange, element, headerHeight)
+  const { blocked, blockedRef, moduleNavigationRef, handlers } = useViewportGestures(state, size, bounds, onChange, element, headerHeight)
   return (
     <div ref={element} className="mobile-viewport" data-testid="mobile-viewport" data-gesturing={blocked}
       data-scale={state.scale} data-offset-x={state.offsetX} data-offset-y={state.offsetY} {...handlers}>
-      <ViewportContext.Provider value={{ blocked, blockedRef, boardNavigationRef }}>
+      <ViewportContext.Provider value={{ blocked, blockedRef, moduleNavigationRef }}>
         <div className="logical-workspace" style={{ width: bounds.width, height: bounds.height, transform: `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.scale})` }}>
           {children}
         </div>

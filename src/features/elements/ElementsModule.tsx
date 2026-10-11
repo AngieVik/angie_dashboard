@@ -66,7 +66,7 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, isUni
       }}>
         <section aria-label={isUnit ? 'Dotaciones' : 'Generales'}>
           <div className="element-rows">{document.elements.filter(element => element.isUnit === isUnit).map(element => {
-            return <div className="element-row" key={element.id} data-selected={element.id === selectedId}>
+            return <div className="element-row" key={element.id} data-selected={element.id === selectedId} data-unit={element.isUnit}>
               <Button className="document-button element-select" aria-label={`Seleccionar ${element.name}`} aria-pressed={element.id === selectedId} disabled={blocked}
                 onClick={() => { if (!blockedRef.current) onSelect(element.id) }}>
                 {element.visual.type === 'asset' ? <img src={ICON_CATALOG[element.visual.assetId].path} alt="" /> : <span className="element-row-emoji" aria-hidden="true">{element.visual.value}</span>}

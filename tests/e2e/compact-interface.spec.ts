@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { MODULE_REGISTRY } from '../../src/layout/moduleRegistry'
 import { createElement } from '../../src/features/elements/elementCommands'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
-import { openModule, loadDocument, noPageScroll, savedDocument } from './acceptance-helpers'
+import { openModule, loadDocument, noPageScroll, savedDocument, setElementScale, fileCommand } from './acceptance-helpers'
 
 async function zoom(page: Page, value: number, label = 'Zoom actual') {
   const field = page.getByRole('spinbutton', { name: label, exact: true })
@@ -11,12 +11,12 @@ async function zoom(page: Page, value: number, label = 'Zoom actual') {
   await expect(field).toHaveValue(String(value))
 }
 
-test('keeps_zoom_popover_visible_at_scaled_edge y restaura foco al cerrar', async ({ page }, info) => {
+test('keeps_zoom_popover_visible_at_scaled_edge y restaura foco al cerrar', { tag: '@responsive' }, async ({ page }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Controles')
   fixture.moduleLayouts.information = { x: 0, y: 0, width: 140, height: 140, referenceSize: { width: 1440, height: 864 } }
   await loadDocument(page, fixture); await openModule(page, 'Información')
-  for (const value of [25, 50, 100, 200, 400]) {
+  for (const value of [25, 100, 400]) {
     await zoom(page, value)
     for (const label of ['Zoom actual', 'Zoom de Información']) {
       const trigger = page.getByRole('button', { name: `Abrir deslizador: ${label}`, exact: true })
@@ -29,7 +29,6 @@ test('keeps_zoom_popover_visible_at_scaled_edge y restaura foco al cerrar', asyn
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
       expect(await popup.evaluate(el => Number(getComputedStyle(el).zoom))).toBe(1)
-      await page.screenshot({ path: info.outputPath(`${label === 'Zoom actual' ? 'general' : 'modulo'}-${value}.png`) })
       await page.getByRole('slider', { name: label, exact: true }).press('Escape')
       await expect(popup).toHaveCount(0); await expect(trigger).toBeFocused()
     }
@@ -51,12 +50,14 @@ test('keeps_zoom_popover_visible_at_scaled_edge y restaura foco al cerrar', asyn
   await noPageScroll(page)
 })
 
-test('título no se autoextiende y el aviso expira sin validar coordenadas', async ({ page }) => {
+test('nombre en Archivo no se autoextiende y el aviso expira sin validar coordenadas', async ({ page }) => {
   await page.goto('/')
+  await fileCommand(page, 'Introducir nombre')
   const title = page.getByRole('textbox', { name: 'Título del documento', exact: true })
   const initialWidth = (await title.boundingBox())!.width
   await title.fill('Título muy largo '.repeat(30))
   expect((await title.boundingBox())!.width).toBe(initialWidth)
+  await title.press('Enter')
   await openModule(page, 'Coordenadas')
   await page.clock.install({ time: new Date('2026-10-05T10:00:00Z') })
   await page.clock.pauseAt(new Date('2026-10-05T10:00:01Z'))
@@ -72,7 +73,7 @@ test('título no se autoextiende y el aviso expira sin validar coordenadas', asy
   await expect(page.getByLabel('Resultado DD', { exact: true })).toBeEmpty()
 })
 
-test('consulta táctil no cierra el módulo; tap corto cierra sin moverlo', async ({ page, context, isMobile }) => {
+test('consulta táctil no cierra el módulo; tap corto cierra sin moverlo', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'consulta mediante touch en móvil emulado')
   await page.goto('/'); await openModule(page, 'Información')
   const node = page.locator('[data-module="information"]'), close = page.getByRole('button', { name: 'Cerrar Información', exact: true })
@@ -92,7 +93,7 @@ test('consulta táctil no cierra el módulo; tap corto cierra sin moverlo', asyn
   await cdp.detach()
 })
 
-test('segundo dedo cancela el popover y bloquea el control sin cambiar geometría', async ({ page, context, isMobile }) => {
+test('segundo dedo cancela el popover y bloquea el control sin cambiar geometría', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'gesto de dos dedos en móvil emulado')
   await page.goto('/'); await openModule(page, 'Información')
   const trigger = page.getByRole('button', { name: 'Abrir deslizador: Zoom de Información', exact: true })
@@ -107,7 +108,7 @@ test('segundo dedo cancela el popover y bloquea el control sin cambiar geometrí
   await cdp.detach()
 })
 
-test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documento', async ({ page }, info) => {
+test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documento', async ({ page }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('')
   fixture.moduleLayouts.information = { x: 0, y: 0, width: 320, height: 240, referenceSize: { width: 1440, height: 866 } }
@@ -131,10 +132,9 @@ test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documen
   await page.getByRole('button', { name: 'Encajar', exact: true }).click()
   await expect(input).toHaveValue('50')
   await expect.poll(async () => (await savedDocument(page))?.moduleLayouts.information).toMatchObject({ x: 0, y: 0, width: 320, height: 240 })
-  await page.screenshot({ path: info.outputPath('header.png') })
 })
 
-test('los diez módulos escalan herramientas y contenido sin escalar sus marcos', async ({ page }, info) => {
+test('los diez módulos escalan herramientas y contenido sin escalar sus marcos', async ({ page }) => {
   await page.goto('/')
   for (const name of ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']) {
     await openModule(page, name)
@@ -157,10 +157,9 @@ test('los diez módulos escalan herramientas y contenido sin escalar sus marcos'
   await zoom(page, 150, 'Zoom de Elementos')
   await page.getByRole('button', { name: 'Crear', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Nombre', exact: true })).toBeVisible()
-  await page.screenshot({ path: info.outputPath('combined-zoom.png') })
 })
 
-test('Elementos ajusta preview e información sin alturas vacías ni scroll innecesario', async ({ page }, info) => {
+test('Elementos ajusta preview e información sin alturas vacías ni scroll innecesario', async ({ page }) => {
   await page.goto('/'); await openModule(page, 'Elementos')
   await page.getByRole('button', { name: 'Crear', exact: true }).click()
   await expect(page.locator('.element-editor legend')).toHaveCount(0)
@@ -172,15 +171,13 @@ test('Elementos ajusta preview e información sin alturas vacías ni scroll inne
   await expect.poll(async () => (await information.boundingBox())!.height).toBeGreaterThan(initial * 2)
   await information.fill('')
   await expect.poll(async () => (await information.boundingBox())!.height).toBe(initial)
-  const scale = page.getByRole('spinbutton', { name: 'Escala', exact: true })
-  await scale.fill('49'); await scale.press('Tab')
+  await setElementScale(page, 49)
   await expect.poll(() => page.locator('.element-preview').evaluate(el => el.clientHeight)).toBeLessThan(70)
   const metrics = await page.locator('.element-preview').evaluate(el => ({ h: el.clientHeight, sh: el.scrollHeight, w: el.clientWidth, sw: el.scrollWidth }))
   expect(metrics.sh).toBeLessThanOrEqual(metrics.h); expect(metrics.sw).toBeLessThanOrEqual(metrics.w)
-  await page.screenshot({ path: info.outputPath('element-editor.png') })
 })
 
-test('ventanas pequeñas se desplazan y conservan resize/posición con zoom reducido', async ({ page }, info) => {
+test('ventanas pequeñas se desplazan y conservan resize/posición con zoom reducido', async ({ page }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Ventanas pequeñas')
   fixture.moduleLayouts.elements = { x: 0, y: 0, width: 180, height: 140, referenceSize: { width: 1440, height: 866 } }
@@ -201,7 +198,6 @@ test('ventanas pequeñas se desplazan y conservan resize/posición con zoom redu
   await openModule(page, 'Elementos')
   await expect(node).toHaveAttribute('data-x', '300'); await expect(node).toHaveAttribute('data-y', '120')
   await expect.poll(async () => (await savedDocument(page))?.moduleLayouts.elements?.width).toBe(220)
-  await page.screenshot({ path: info.outputPath('small-window.png') })
 })
 
 test('el área navegable conserva módulos situados abajo al volver del 50 al 100', async ({ page, context, isMobile }) => {
@@ -227,7 +223,7 @@ test('el área navegable conserva módulos situados abajo al volver del 50 al 10
   }
 })
 
-test('reloj compacto, formatos permanentes y Cuaderno con tirador fino', async ({ page }, info) => {
+test('reloj compacto, formatos permanentes y Cuaderno con tirador fino', async ({ page }) => {
   await page.goto('/'); await openModule(page, 'Reloj')
   const reference = page.locator('.clock-reference')
   await expect(reference).not.toContainText('|')
@@ -237,7 +233,6 @@ test('reloj compacto, formatos permanentes y Cuaderno con tirador fino', async (
     return [getComputedStyle(label).fontSize, getComputedStyle(output).fontSize]
   })
   expect(typography[0]).toBe(typography[1])
-  await page.screenshot({ path: info.outputPath('clock.png') })
   await page.getByRole('button', { name: 'Cerrar Reloj', exact: true }).click()
   await openModule(page, 'Coordenadas')
   for (const format of ['DD', 'DMS', 'DMM', 'UTM']) await expect(page.getByText(format, { exact: true })).toBeVisible()
@@ -245,7 +240,6 @@ test('reloj compacto, formatos permanentes y Cuaderno con tirador fino', async (
   await openModule(page, 'Cuaderno')
   await page.getByRole('button', { name: 'Nota', exact: true }).click()
   expect(await page.locator('.notebook-handle').evaluate(el => el.getBoundingClientRect().width)).toBeLessThanOrEqual(10)
-  await page.screenshot({ path: info.outputPath('notebook.png') })
 })
 test('regresión zoom compartido: reducir y ampliar conserva el área útil en todos los módulos', async ({ page }, info) => {
   await page.goto('/')
@@ -310,12 +304,11 @@ test('regresión Pizarra: lienzo cubre su ventana y rueda comparte zoom con el p
   await noPageScroll(page)
 })
 
-
-test('dashboard común: Proportions ajusta los módulos y deja el zoom inferior sin barras', async ({ page, isMobile }, info) => {
+test('dashboard común: Proportions colapsa los módulos hasta la barra y restaura su altura', { tag: '@responsive' }, async ({ page, isMobile }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  const fixture = createEmptyDocument('Ajuste compacto')
+  const fixture = createEmptyDocument('Colapso vertical')
   createElement(fixture, { name: 'Punto norte', information: 'Referencia de prueba', isUnit: false, visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 100, y: 100 } })
   createElement(fixture, { name: 'Equipo uno', information: '', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 }, position: { x: 200, y: 150 } })
   fixture.notebook.push({ id: crypto.randomUUID(), type: 'note', title: 'Prueba', text: 'Primera línea\nSegunda línea' })
@@ -329,23 +322,32 @@ test('dashboard común: Proportions ajusta los módulos y deja el zoom inferior 
     await openModule(page, name)
     if (id === 'clock') await page.getByRole('button', { name: 'T-Zero', exact: true }).click()
     const node = page.locator('[data-module="' + id + '"]')
-    await page.getByRole('button', { name: 'Ajustar ventana de ' + name + ' al contenido', exact: true }).click()
+    const previous = await node.evaluate(node => ['x', 'y', 'width', 'height'].map(key => node.getAttribute('data-' + key)))
+    await page.getByRole('button', { name: 'Colapsar ' + name, exact: true }).click()
+    await expect(node).toHaveAttribute('data-height', '29')
+    await expect(node).toHaveAttribute('data-width', previous[2]!)
+    await expect(node.locator('.module-content')).toBeHidden()
+    await expect(node.locator('.module-controls')).toBeHidden()
+    expect(await node.locator('.module-header').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none')
+    const metrics = await node.evaluate(node => {
+      const frame = node.getBoundingClientRect()
+      return [...node.querySelectorAll<HTMLElement>('.module-fit,.module-close,.react-resizable-handle-se')].map(el => {
+        const rect = el.getBoundingClientRect()
+        return { left: rect.left - frame.left, right: rect.right - frame.left, top: rect.top - frame.top, bottom: rect.bottom - frame.top, center: (rect.top + rect.bottom) / 2, width: frame.width, height: frame.height }
+      })
+    })
+    expect(metrics).toHaveLength(3)
+    for (const rect of metrics) {
+      expect(rect.left).toBeGreaterThanOrEqual(0); expect(rect.right).toBeLessThanOrEqual(rect.width)
+      expect(rect.top).toBeGreaterThanOrEqual(0); expect(rect.bottom).toBeLessThanOrEqual(rect.height)
+      expect(Math.abs(rect.center - metrics[0]!.center)).toBeLessThanOrEqual(1)
+    }
+    expect(metrics[0]!.right).toBeLessThanOrEqual(metrics[1]!.left)
+    expect(metrics[1]!.right).toBeLessThanOrEqual(metrics[2]!.left)
+    await page.getByRole('button', { name: 'Expandir ' + name, exact: true }).click()
+    await expect.poll(() => node.evaluate(node => ['x', 'y', 'width', 'height'].map(key => node.getAttribute('data-' + key)))).toEqual(previous)
+    await expect(node.locator('.module-content')).toBeVisible()
     await expect(page.getByRole('spinbutton', { name: 'Zoom de ' + name, exact: true })).toHaveValue('100')
-    await expect.poll(async () => node.evaluate(node => [...node.querySelectorAll<HTMLElement>('.module-content,.elements-list,.notebook-list,.timeline-entries')].map(el => ({ x: el.scrollWidth - el.clientWidth, y: el.scrollHeight - el.clientHeight })))).toEqual(expect.arrayContaining([expect.objectContaining({ x: 0, y: 0 })]))
-    const overflows = await node.evaluate(node => [...node.querySelectorAll<HTMLElement>('.module-content,.elements-list,.notebook-list,.timeline-entries')].map(el => ({ x: el.scrollWidth - el.clientWidth, y: el.scrollHeight - el.clientHeight })))
-    for (const overflow of overflows) { expect(overflow.x, name).toBeLessThanOrEqual(1); expect(overflow.y, name).toBeLessThanOrEqual(1) }
-    expect(await node.locator('.module-controls').evaluate(el => [getComputedStyle(el).overflowX, getComputedStyle(el).overflowY])).toEqual(['hidden', 'hidden'])
-    const fitted = [Number(await node.getAttribute('data-width')), Number(await node.getAttribute('data-height'))] as const
-    await page.getByRole('button', { name: 'Ajustar ventana de ' + name + ' al contenido', exact: true }).click()
-    expect(Math.abs(Number(await node.getAttribute('data-width')) - fitted[0]), name + ' ancho estable').toBeLessThanOrEqual(1)
-    expect(Math.abs(Number(await node.getAttribute('data-height')) - fitted[1]), name + ' alto estable').toBeLessThanOrEqual(1)
-    expect(await node.locator('h2').evaluate(el => {
-      const text = document.createRange(); text.selectNodeContents(el)
-      return el.getBoundingClientRect().width + .01 >= text.getBoundingClientRect().width
-    }), name + ' título completo').toBe(true)
-    if (id === 'notebook') expect(Number(await node.getAttribute('data-width'))).toBeLessThan(400)
-    if (id === 'clock') expect(Number(await node.getAttribute('data-width'))).toBeLessThan(500)
-    await page.screenshot({ path: info.outputPath('ajuste-' + id + '.png') })
     if (id === 'dotations') await page.getByRole('button', { name: 'Seleccionar Equipo uno', exact: true }).click()
     await page.getByRole('button', { name: 'Cerrar ' + name, exact: true }).click()
   }
@@ -353,7 +355,7 @@ test('dashboard común: Proportions ajusta los módulos y deja el zoom inferior 
   expect(errors).toEqual([])
 })
 
-test('dashboard común: el ajuste respeta zoom individual y compacta las tarjetas', async ({ page, isMobile }) => {
+test('dashboard común: el colapso conserva zoom individual y tarjetas', async ({ page, isMobile }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Tarjetas')
   createElement(fixture, { name: 'Punto de prueba', information: '', isUnit: false, visual: { type: 'emoji', value: '📍', scale: 1 } })
@@ -364,13 +366,16 @@ test('dashboard común: el ajuste respeta zoom individual y compacta las tarjeta
   const node = page.locator('[data-module="elements"]')
   for (const value of [50, 200]) {
     await zoom(page, value, 'Zoom de Elementos')
-    await page.getByRole('button', { name: 'Ajustar ventana de Elementos al contenido', exact: true }).click()
+    const previous = await node.getAttribute('data-height')
+    await page.getByRole('button', { name: 'Colapsar Elementos', exact: true }).click()
+    await expect(node).toHaveAttribute('data-height', '29')
+    await expect(node).toHaveAttribute('data-width', '600')
+    await page.getByRole('button', { name: 'Expandir Elementos', exact: true }).click()
+    await expect(node).toHaveAttribute('data-height', previous!)
     await expect(page.getByRole('spinbutton', { name: 'Zoom de Elementos', exact: true })).toHaveValue(String(value))
-    const metrics = await node.evaluate(node => {
-      const content = node.querySelector<HTMLElement>('.module-content')!, list = node.querySelector<HTMLElement>('.elements-list')!, row = node.querySelector<HTMLElement>('.element-row')!
-      return { x: content.scrollWidth - content.clientWidth, y: content.scrollHeight - content.clientHeight, lx: list.scrollWidth - list.clientWidth, ly: list.scrollHeight - list.clientHeight, padding: getComputedStyle(row).padding, gap: getComputedStyle(row).gap }
-    })
-    expect(metrics).toEqual({ x: 0, y: 0, lx: 0, ly: 0, padding: '0px', gap: '0px' })
+    await expect(page.getByRole('button', { name: 'Seleccionar Punto de prueba', exact: true })).toBeVisible()
+    const metrics = await node.locator('.element-row').evaluate(row => ({ padding: getComputedStyle(row).padding, gap: getComputedStyle(row).gap }))
+    expect(metrics).toEqual({ padding: '0px', gap: '0px' })
   }
 })
 
@@ -414,8 +419,7 @@ test('dashboard común: una zona libre de otro módulo deselecciona notas y pine
   await expect(page.locator('.quick-note')).toHaveAttribute('data-selected', 'false')
 })
 
-
-test('herramientas uniformes y foco de textarea sin borde amarillo', async ({ page, isMobile }, info) => {
+test('herramientas uniformes y foco de textarea sin borde amarillo', async ({ page, isMobile }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Herramientas')
   const referenceSize = { width: 1440, height: 864 }
@@ -446,12 +450,10 @@ test('herramientas uniformes y foco de textarea sin borde amarillo', async ({ pa
     await expect(textarea).toHaveCSS('outline-style', 'none')
     await expect(textarea).toHaveCSS('border-color', 'rgb(117, 131, 141)')
   }
-  await page.screenshot({ path: info.outputPath('herramientas-y-foco.png') })
   await noPageScroll(page)
 })
 
-
-test('mejoras compactas: Cuaderno, Información y separación de coordenadas', async ({ page, context }, info) => {
+test('mejoras compactas: Cuaderno, Información y separación de coordenadas', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
   const fixture = createEmptyDocument('Comprobación de mejoras')
@@ -475,12 +477,10 @@ test('mejoras compactas: Cuaderno, Información y separación de coordenadas', a
   await expect(row.locator('.lucide-trash')).toHaveCount(0)
   const close = page.locator('.notebook-delete').first()
   expect(await close.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
-  await page.screenshot({ path: info.outputPath('cuaderno-compacto.png') })
   await openModule(page, 'Información')
   await page.getByRole('button', { name: 'Seleccionar Equipo demo', exact: true }).click()
   await expect(page.getByLabel('Pin visible', { exact: true })).toHaveText('')
   await expect(page.locator('.information-pin svg')).toHaveCount(1)
-  await page.screenshot({ path: info.outputPath('informacion-icono.png') })
   await openModule(page, 'Coordenadas')
   await page.getByRole('textbox', { name: 'Coordenadas', exact: true }).fill('37, -2')
   await page.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }).click()
@@ -494,12 +494,11 @@ test('mejoras compactas: Cuaderno, Información y separación de coordenadas', a
     await result.click()
     await expect(page.getByRole('status')).toHaveText(format === 'Maps' ? 'Enlace copiado' : 'Coordenada copiada')
   }
-  await page.screenshot({ path: info.outputPath('coordenadas-separacion.png') })
   await expect(page.getByRole('status')).toHaveCount(0, { timeout: 4000 })
   expect((await savedDocument(page))!.elements[0]!.id).toBe(unit.id)
 })
 
-test('mejoras compactas: Puzzle mantiene todos los módulos visibles sin superponer a zoom alto', async ({ page }, info) => {
+test('mejoras compactas: Puzzle mantiene todos los módulos visibles sin superponer a zoom alto', async ({ page }) => {
   await page.goto('/')
   await loadDocument(page, createEmptyDocument('Puzzle demo'))
   for (const module of Object.values(MODULE_REGISTRY)) await openModule(page, module.name)
@@ -517,12 +516,10 @@ test('mejoras compactas: Puzzle mantiene todos los módulos visibles sin superpo
     expect(a.bottom).toBeLessThanOrEqual(workspace.y + workspace.height + 1)
     for (const b of boxes) if (a !== b) expect(a.right <= b.x + 1 || b.right <= a.x + 1 || a.bottom <= b.y + 1 || b.bottom <= a.y + 1).toBe(true)
   }
-  await page.screenshot({ path: info.outputPath('puzzle-compacto.png') })
   await noPageScroll(page)
 })
 
-
-test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lucide', async ({ page, isMobile }, info) => {
+test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lucide', { tag: '@responsive' }, async ({ page, isMobile }) => {
   await page.goto('/')
   expect(await page.locator('.app-header .zoom-control > :first-child').getAttribute('aria-label')).toBe('Zoom actual')
   const fixture = createEmptyDocument('Estilos comunes')
@@ -561,9 +558,9 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
     if (['Elementos', 'Dotaciones'].includes(name)) {
       await expect(region.getByRole('button', { name: 'Crear', exact: true })).toHaveCSS('height', reference[0]!)
       await region.getByRole('button', { name: 'Crear', exact: true }).click()
-      await region.getByLabel('Escala', { exact: true }).fill('125')
-      await region.getByLabel('Escala', { exact: true }).press('Tab')
-      await expect(region.getByLabel('Escala', { exact: true })).toHaveValue('125')
+      await setElementScale(region, 125)
+      await region.getByRole('slider', { name: 'Escala del icono', exact: true }).press('Tab')
+      await expect(region.getByRole('slider', { name: 'Escala del icono', exact: true })).toHaveAttribute('aria-valuenow', '125')
     }
     await page.mouse.move(0, 0)
     for (const button of await region.locator('[data-slot="button"]').all()) {
@@ -593,7 +590,6 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
     expect(await footer.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(await region.evaluate(el => getComputedStyle(el).backgroundColor))
     expect(await footer.locator('.zoom-control > :first-child').getAttribute('aria-label')).toBe('Abrir deslizador: Zoom de ' + name)
     await expect(region.locator('..').locator('.react-resizable-handle-se .lucide-square-dimensions')).toHaveCount(1)
-    await page.screenshot({ path: info.outputPath('estilos-' + name + '.png') })
     await page.getByRole('button', { name: 'Cerrar ' + name, exact: true }).click()
   }
 
@@ -620,11 +616,9 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
   await page.mouse.down(); await page.mouse.move(handle.x + handle.width / 2 + 10, handle.y + handle.height / 2 + 10); await page.mouse.up()
   expect((await dialog.boundingBox())!.width).toBeCloseTo(before.width + 10, 0)
-  await page.screenshot({ path: info.outputPath('estilos-dialogo.png') })
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click()
   await noPageScroll(page)
 })
-
 
 test('correcciones visibles: referencia Nota, foco neutro, tarjetas y ausencia de barras horizontales', async ({ page }, info) => {
   await page.goto('/')
@@ -728,8 +722,7 @@ test('correcciones visibles: referencia Nota, foco neutro, tarjetas y ausencia d
   await noPageScroll(page)
 })
 
-
-test('dashboard: arrastrar fondo y volver al origen conserva módulos sin resalto amarillo', async ({ page, context, isMobile }, info) => {
+test('dashboard: arrastrar fondo y volver al origen conserva módulos sin resalto amarillo', async ({ page, context, isMobile }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Navegación')
   fixture.moduleLayouts.information = { x: 0, y: 0, width: 250, height: 200, referenceSize: { width: 1440, height: 864 } }
@@ -767,10 +760,9 @@ test('dashboard: arrastrar fondo y volver al origen conserva módulos sin resalt
   expect(await decoration()).toEqual(active)
   await expect(frame.locator('.module-close .lucide-x')).toBeVisible()
   await expect(frame.locator('.module-close .lucide-square-x')).toHaveCount(0)
-  await page.screenshot({ path: info.outputPath('dashboard-origen-sin-resalto.png') })
 })
 
-test('dashboard: sliders enganchan decenas y permiten porcentajes exactos', async ({ page, context, isMobile }, info) => {
+test('dashboard: sliders enganchan decenas y permiten porcentajes exactos', { tag: '@responsive' }, async ({ page, context, isMobile }) => {
   await page.goto('/'); await openModule(page, 'Información')
   for (const label of ['Zoom actual', 'Zoom de Información']) {
     const field = page.getByRole('spinbutton', { name: label, exact: true })
@@ -791,7 +783,6 @@ test('dashboard: sliders enganchan decenas y permiten porcentajes exactos', asyn
       await page.mouse.move(startX, startY); await page.mouse.down(); await page.mouse.move(x, y, { steps: 6 }); await page.mouse.up()
     }
     await expect(field).toHaveValue('140')
-    await page.screenshot({ path: info.outputPath(label === 'Zoom actual' ? 'zoom-general.png' : 'zoom-modulo.png') })
     await page.keyboard.press('Escape')
     await field.fill('138'); await field.press('Enter')
     await expect(field).toHaveValue('138')

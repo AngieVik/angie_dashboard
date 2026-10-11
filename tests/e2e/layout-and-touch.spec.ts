@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
-import { downloadDocument } from './acceptance-helpers'
+import { downloadDocument, expectDocumentTitle } from './acceptance-helpers'
 
 async function toggle(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -14,7 +14,7 @@ async function geometry(page: Page, id: string) {
     width: Number(el.getAttribute('data-width')), height: Number(el.getAttribute('data-height')),
   }))
 }
-test('abre y cierra los nueve marcos; conserva distribución, no visibilidad ni viewport', async ({ page }, info) => {
+test('abre y cierra los nueve marcos; conserva distribución, no visibilidad ni viewport', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('[data-module]')).toHaveCount(0)
   const names = ['Pizarra', 'Elementos', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']
@@ -32,7 +32,6 @@ test('abre y cierra los nueve marcos; conserva distribución, no visibilidad ni 
   const boardGeometry = { x: 0, y: 0, width: Math.min(720, available.width), height: Math.min(480, available.height) }
   expect(await geometry(page, 'board')).toEqual(boardGeometry)
   expect(await geometry(page, 'elements')).toEqual({ x: 0, y: 0, width: 300, height: 420 })
-  await page.screenshot({ path: info.outputPath('modules.png') })
   await page.reload()
   await expect(page.locator('[data-module]')).toHaveCount(0)
   await toggle(page, 'Pizarra')
@@ -89,7 +88,7 @@ test('sin hueco abre al tamaño inicial adaptado sobre el resto, sin aviso ni ex
   document.moduleLayouts.board = { x: 0, y: 0, width: 1600, height: 1000, referenceSize: { width: 1600, height: 1000 } }
   await page.goto('/')
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'layout.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
-  await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
+  await expectDocumentTitle(page, document.document.title)
   await toggle(page, 'Pizarra'); await toggle(page, 'Información')
   const unchanged = await geometry(page, 'board')
   const visible = await page.getByTestId('mobile-viewport').evaluate(el => ({ width: el.clientWidth, height: el.clientHeight }))
@@ -114,7 +113,7 @@ test('cargar geometrías ocupadas las adapta sin reescribirlas y exporta las ref
   const document = createEmptyDocument('Distribución importada')
   document.moduleLayouts = { board: { x: 0, y: 0, width: 720, height: 480, referenceSize: { width: 1600, height: 1000 } }, elements: { x: 0, y: 0, width: 300, height: 420, referenceSize: { width: 1600, height: 1000 } } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'layout.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
-  await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
+  await expectDocumentTitle(page, document.document.title)
   expect(await geometry(page, 'elements')).toEqual({ x: 0, y: 0, width: 300, height: 420 })
   const downloading = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click(); await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
@@ -126,22 +125,7 @@ test('cargar geometrías ocupadas las adapta sin reescribirlas y exporta las ref
   for (const layout of Object.values(json.moduleLayouts)) expect(Object.keys(layout as object)).toEqual(['x', 'y', 'width', 'height', 'referenceSize'])
 })
 
-test('abre y cierra con teclado y conserva el título y el foco accesible', async ({ page }) => {
-  await page.goto('/')
-  const view = page.getByRole('button', { name: 'Ver', exact: true })
-  await view.focus(); await page.keyboard.press('Enter')
-  await page.keyboard.press('Home'); await page.keyboard.press('Enter')
-  await expect(page.getByRole('region', { name: 'Pizarra', exact: true })).toBeVisible()
-  await view.focus(); await page.keyboard.press('Enter')
-  await page.keyboard.press('Home'); await page.keyboard.press('Enter')
-  await expect(page.getByRole('region', { name: 'Pizarra', exact: true })).toHaveCount(0)
-  await toggle(page, 'Pizarra')
-  const close = page.getByRole('button', { name: 'Cerrar Pizarra' })
-  await close.focus(); await page.keyboard.press('Enter')
-  await expect(page.locator('[data-module]')).toHaveCount(0)
-})
-
-test('cambiar pantalla y orientación conserva el JSON y volver recupera los anclajes guardados', async ({ page }, info) => {
+test('cambiar pantalla y orientación conserva el JSON y volver recupera los anclajes guardados', { tag: '@responsive' }, async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }) })
   const fixture = createEmptyDocument('Anclajes entre pantallas')
   fixture.moduleLayouts.information = { x: 640, y: 380, width: 320, height: 240, referenceSize: { width: 1600, height: 1000 } }
@@ -159,7 +143,6 @@ test('cambiar pantalla y orientación conserva el JSON y volver recupera los anc
     await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', '1')
     await expect(page.getByLabel('Zoom actual', { exact: true })).toHaveValue('100')
     expect(await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight])).toEqual([size.width, size.height])
-    await page.screenshot({ path: info.outputPath(`adaptive-${size.width}x${size.height}.png`) })
   }
   const usefulHeight = await page.getByTestId('mobile-viewport').evaluate(el => el.clientHeight)
   expect(await geometry(page, 'information')).toEqual({ x: 640, y: Math.round((usefulHeight - 240) / 2), width: 320, height: 240 })
@@ -169,7 +152,7 @@ test('cambiar pantalla y orientación conserva el JSON y volver recupera los anc
   expect(JSON.parse(await readFile((await (await download).path())!, 'utf8'))).toEqual(fixture)
 })
 
-test('controles y títulos mantienen tamaño uniforme al ampliar el módulo', async ({ page }, info) => {
+test('controles y títulos mantienen tamaño uniforme al ampliar el módulo', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
   const fixture = createEmptyDocument('Tipografía común')
   fixture.moduleLayouts = {
@@ -192,10 +175,9 @@ test('controles y títulos mantienen tamaño uniforme al ampliar el módulo', as
   expect(await controlFont('elements')).toBe(before)
   expect(await controlFont('elements')).toBe(13)
   expect(await titleFont('elements')).toBeLessThanOrEqual(18)
-  await page.screenshot({ path: info.outputPath('adaptive-type.png') })
 })
 
-test('un dedo mueve módulos y dos dedos cancelan también resize y controles', async ({ page, context, isMobile }) => {
+test('un dedo mueve módulos y dos dedos cancelan también resize y controles', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'requiere emulación táctil')
   await page.goto('/'); await toggle(page, 'Pizarra')
   const session = await context.newCDPSession(page)
@@ -221,7 +203,7 @@ test('un dedo mueve módulos y dos dedos cancelan también resize y controles', 
   await expect(page.getByRole('region', { name: 'Pizarra', exact: true })).toBeVisible()
 })
 
-test('el marco permite desplazar su contenido con un dedo sin desplazar la página', async ({ page, context, isMobile }) => {
+test('el marco permite desplazar su contenido con un dedo sin desplazar la página', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'desplazamiento táctil nativo')
   // Pizarra owns spatial gestures; test the generic frame on a list surface.
   await page.goto('/'); await toggle(page, 'Información')
@@ -263,7 +245,7 @@ test('encaja bajo la cabecera y mantiene centro lógico al rotar', async ({ page
   expect(fitted).toMatchObject({ scale: 1, x: 0, y: 0 })
 })
 
-test('dos dedos hacen zoom y pan y cancelan el arrastre de módulo sin accionar cierre', async ({ page, context, isMobile }) => {
+test('dos dedos hacen zoom y pan y cancelan el arrastre de módulo sin accionar cierre', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'gestos mediante emulación táctil Chromium')
   await page.goto('/'); await toggle(page, 'Pizarra')
   const original = await geometry(page, 'board')

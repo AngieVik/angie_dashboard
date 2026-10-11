@@ -2,15 +2,15 @@ import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
-import { bringModuleToFront, createElement, downloadDocument, fileCommand, loadDocument, noPageScroll, openModule, savedDocument } from './acceptance-helpers'
+import { bringModuleToFront, createElement, downloadDocument, fileCommand, loadDocument, noPageScroll, openModule, savedDocument, setDocumentTitle, expectDocumentTitle } from './acceptance-helpers'
 
-test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga', async ({ page }, info) => {
+test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga', { tag: '@responsive' }, async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
   await page.goto('/')
   await expect(page.locator('[data-module]')).toHaveCount(0)
-  await page.getByLabel('Título del documento').fill('Integración áé<>.JSON')
+  await setDocumentTitle(page, 'Integración áé<>.JSON')
   for (const name of ['Pizarra', 'Elementos', 'Operativo', 'Cuaderno']) await openModule(page, name)
   await createElement(page, 'Tango integración', true)
   const initialPosition = (await savedDocument(page))!.elements[0]!.position!
@@ -55,10 +55,9 @@ test('documento integrado: pines, estado, Cuaderno, JSON, Nuevo, carga y recarga
   await expect.poll(async () => (await savedDocument(page))?.elements).toEqual(exported.document.elements)
   await page.reload()
   await expect(page.locator('[data-module]')).toHaveCount(0)
-  await expect(page.getByLabel('Título del documento')).toHaveValue('Integración áé<>.JSON')
+  await expectDocumentTitle(page, 'Integración áé<>.JSON')
   await openModule(page, 'Pizarra')
   await expect(page.getByRole('button', { name: 'Seleccionar Tango integración' })).toHaveAttribute('aria-pressed', 'false')
   await noPageScroll(page)
-  await page.screenshot({ path: info.outputPath('document-recovered.png') })
   expect(errors).toEqual([])
 })

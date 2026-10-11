@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
-import { noPageScroll } from './acceptance-helpers'
+import { noPageScroll, setDocumentTitle, expectDocumentTitle } from './acceptance-helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('menuitemcheckbox', { name: 'Coordenadas', exact: true }).click()
 })
 
-test('cinco filas, copia Maps sin navegación, teclado, error sin alterar entrada y copia real incluso sin conexión', async ({ page, context }, info) => {
+test('cinco filas, copia Maps sin navegación, teclado, error sin alterar entrada y copia real incluso sin conexión', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const module = page.getByRole('region', { name: 'Coordenadas', exact: true })
   const input = module.getByRole('textbox', { name: 'Coordenadas', exact: true })
@@ -26,7 +26,6 @@ test('cinco filas, copia Maps sin navegación, teclado, error sin alterar entrad
   await copy.focus(); await page.keyboard.press('Enter')
   await expect(module.getByRole('status')).toHaveText('Enlace copiado')
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295')
-  await page.screenshot({ path: info.outputPath('coordinates.png') })
   for (const value of ['37°03\'36.8"N 2°00\'08.2"W', "37°03.614'N 2°00.137'W", '30S 588700 4101800']) {
     await input.fill(value); await input.press('Enter')
     await expect(module.getByLabel('Resultado DD')).toHaveText(/^37\./)
@@ -43,13 +42,12 @@ test('cinco filas, copia Maps sin navegación, teclado, error sin alterar entrad
     await expect(module.getByLabel('Resultado Maps')).toHaveText('')
   }
   expect(externalRequests).toEqual([])
-  await page.screenshot({ path: info.outputPath('coordinates-invalid.png') })
 })
 
 test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y vacío', async ({ page }) => {
   const input = page.getByRole('textbox', { name: 'Coordenadas', exact: true })
   await input.fill('37.060234, -2.002295'); await input.press('Enter')
-  await page.getByRole('textbox', { name: 'Título del documento' }).fill('Coordenadas Task 9')
+  await setDocumentTitle(page, 'Coordenadas Task 9')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
@@ -75,7 +73,7 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
   expect(Object.keys(JSON.parse(saved))).toHaveLength(8)
   for (const temporary of ['37.060234', '-2.002295', 'google.com/maps', 'normalizedInput', 'conversions']) expect(saved).not.toContain(temporary)
   await page.reload()
-  await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Coordenadas Task 9')
+  await expectDocumentTitle(page, 'Coordenadas Task 9')
   await expect(page.locator('[data-module]')).toHaveCount(0)
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Coordenadas', exact: true }).click()
@@ -84,7 +82,7 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
   await expect(page.getByRole('button', { name: /^Copiar / })).toHaveCount(0)
 })
 
-test('tamaño mínimo, error de portapapeles y scroll interno conservan el acceso a controles', async ({ page }, info) => {
+test('tamaño mínimo, error de portapapeles y scroll interno conservan el acceso a controles', async ({ page }) => {
   const document = createEmptyDocument('Mínimo Coordenadas')
   document.moduleLayouts.coordinates = { x: 0, y: 0, width: 260, height: 180, referenceSize: { width: 1600, height: 1000 } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
@@ -99,12 +97,11 @@ test('tamaño mínimo, error de portapapeles y scroll interno conservan el acces
   await expect(module.getByLabel('Resultado Maps')).toHaveText(new RegExp('^https://www[.]google[.]com/maps/search/[?]api=1&query='))
   expect(await module.locator('.module-content').evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
-  await page.screenshot({ path: info.outputPath('coordinates-minimum.png') })
   await page.getByRole('button', { name: 'Cerrar Coordenadas', exact: true }).focus(); await page.keyboard.press('Enter')
   await expect(module).toHaveCount(0)
 })
 
-test('cinco filas copiables sin navegación, scroll interior y zoom 100/150', async ({ page, context, isMobile }, info) => {
+test('cinco filas copiables sin navegación, scroll interior y zoom 100/150', { tag: '@responsive' }, async ({ page, context, isMobile }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const module = page.getByRole('region', { name: 'Coordenadas', exact: true })
   const input = module.getByRole('textbox', { name: 'Coordenadas', exact: true })
@@ -124,7 +121,6 @@ test('cinco filas copiables sin navegación, scroll interior y zoom 100/150', as
     await expect(module.getByRole('link')).toHaveCount(0)
     await expect(module.getByRole('button', { name: 'Copiar enlace', exact: true })).toHaveCount(0)
     await module.locator('.module-content').evaluate(node => { node.scrollLeft = 0; node.scrollTop = 0 })
-    await page.screenshot({ path: info.outputPath(`coordinates-${width}-zoom${zoom}.png`) })
     for (const [format, expected] of [
       ['DD', '37.060234, -2.002295'], ['DMS', '37°03\'36.8"N 2°00\'08.3"W'], ['DMM', "37°03.614'N 2°00.138'W"],
       ['Maps', 'https://www.google.com/maps/search/?api=1&query=37.060234%2C-2.002295'],
@@ -147,7 +143,6 @@ test('cinco filas copiables sin navegación, scroll interior y zoom 100/150', as
     const labelRect = (await dmm.boundingBox())!, contentRect = (await module.locator('.module-content').boundingBox())!
     expect(labelRect.x).toBeGreaterThanOrEqual(contentRect.x)
     expect(labelRect.x + labelRect.width).toBeLessThanOrEqual(contentRect.x + contentRect.width)
-    if (zoom === 150) await page.screenshot({ path: info.outputPath('coordinates-260-zoom150-rows.png') })
     const maps = module.getByLabel('Resultado Maps', { exact: true })
     await expect(maps).toHaveCSS('overflow-x', 'auto')
     expect(await maps.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true)

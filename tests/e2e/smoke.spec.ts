@@ -17,7 +17,7 @@ const icons = [
   { file: 'icon-maskable-512.png', size: 512, maskable: true },
 ]
 
-test('carga sin errores, con cabecera, fuentes locales y sin scroll', async ({ page }, testInfo) => {
+test('carga sin errores, con cabecera, fuentes locales y sin scroll', { tag: '@responsive' }, async ({ page }) => {
   const errors: string[] = []
   const externalRequests: string[] = []
   const loadedFonts = new Set<string>()
@@ -89,7 +89,6 @@ test('carga sin errores, con cabecera, fuentes locales y sin scroll', async ({ p
   expect(bounds.main.bottom).toBe(bounds.viewportHeight)
   expect(externalRequests).toEqual([])
   expect(errors).toEqual([])
-  await page.screenshot({ path: testInfo.outputPath('shell.png') })
 })
 
 test('integra los siete iconos PWA con dimensiones, transparencia y zona segura correctas', async ({ page }) => {

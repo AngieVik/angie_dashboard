@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { createElement } from '../features/elements/elementCommands'
@@ -140,12 +140,19 @@ describe('base de Angie Dashboard', () => {
     expect(magnet.compareDocumentPosition(screen.getByRole('button', { name: 'Encajar' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(store.getSnapshot().document).toEqual(before)
   })
-  it('integra Archivo y el título editable con el documento activo', async () => {
+  it('edita el nombre desde Archivo sin mantener una entrada de título en la barra', async () => {
+    const store = getDocumentStore()
+    await act(async () => { await store.newDocument() })
     render(<App />)
-    expect(screen.getByRole('button', { name: 'Archivo' })).toBeInTheDocument()
-    const title = screen.getByRole('textbox', { name: 'Título del documento' })
+    const header = screen.getByRole('banner')
+    expect(within(header).queryByRole('textbox', { name: 'Título del documento' })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Archivo' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Introducir nombre' }))
+    const title = await screen.findByRole('textbox', { name: 'Título del documento' })
     fireEvent.change(title, { target: { value: 'Preparación norte' } })
-    await waitFor(() => expect(title).toHaveValue('Preparación norte'))
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
+    expect(store.getSnapshot().document.document.title).toBe('Preparación norte')
+    expect(screen.queryByRole('textbox', { name: 'Título del documento' })).not.toBeInTheDocument()
   })
   it('muestra la cabecera con el nombre de la aplicación', () => {
     render(<App />)

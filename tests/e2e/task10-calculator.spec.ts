@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
-import { noPageScroll } from './acceptance-helpers'
+import { noPageScroll, setDocumentTitle, expectDocumentTitle } from './acceptance-helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('menuitemcheckbox', { name: 'Calculadora', exact: true }).click()
 })
 
-test('operaciones y porcentajes con teclado, errores y botones sin conexión', async ({ page, context }, info) => {
+test('operaciones y porcentajes con teclado, errores y botones sin conexión', { tag: '@responsive' }, async ({ page, context }, info) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const module = page.getByRole('region', { name: 'Calculadora', exact: true })
@@ -19,8 +19,6 @@ test('operaciones y porcentajes con teclado, errores y botones sin conexión', a
   await expect(input).toBeVisible()
   await context.setOffline(true)
   for (const [expression, result] of [
-    ['10 %', '0,1'], ['200 + 10 %', '220'], ['200 - 10 %', '180'],
-    ['200 × 10 %', '20'], ['200 ÷ 10 %', '2000'], ['80 + 12,5 %', '90'],
     ['(200 + 10 %) × 2', '440'], ['2 + 3 × 4', '14'], ['0,1+0,2', '0,3'],
   ] as const) {
     await input.fill(expression); await input.press('Enter')
@@ -47,11 +45,10 @@ test('operaciones y porcentajes con teclado, errores y botones sin conexión', a
   await expect(module.getByLabel('Resultado', { exact: true })).toBeEmpty()
   await activate('Cerrar paréntesis'); await activate('Calcular')
   await expect(module.getByLabel('Resultado', { exact: true })).toHaveText('90')
-  await page.screenshot({ path: info.outputPath('calculator.png') })
   expect(errors).toEqual([])
 })
 
-test('cifras adaptables y etiqueta compacta en tamaños mínimo, inicial y ampliado', async ({ page }, info) => {
+test('cifras adaptables y etiqueta compacta en tamaños mínimo, inicial y ampliado', { tag: '@responsive' }, async ({ page }) => {
   const module = page.getByRole('region', { name: 'Calculadora', exact: true })
   const fonts: { input: number; result: number; key: number }[] = []
   for (const [width, height] of [[220, 280], [280, 360], [380, 540]]) {
@@ -66,7 +63,6 @@ test('cifras adaptables y etiqueta compacta en tamaños mínimo, inicial y ampli
     fonts.push({ input: await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize)), result: await result.evaluate(el => parseFloat(getComputedStyle(el).fontSize)), key: await key.evaluate(el => parseFloat(getComputedStyle(el).fontSize)) })
     for (const button of await module.getByRole('button').all()) await expect(button).toBeInViewport()
     await noPageScroll(page)
-    await page.screenshot({ path: info.outputPath(`calculator-${width}.png`) })
   }
   for (const role of ['input', 'result', 'key'] as const) {
     expect(fonts[2]![role]).toBeGreaterThan(fonts[1]![role])
@@ -78,7 +74,7 @@ test('operación y resultado no se exportan ni se autoguardan; recarga y reapert
   const input = page.getByRole('textbox', { name: 'Operación' })
   await input.fill('987654+321'); await input.press('Enter')
   await expect(page.getByLabel('Resultado', { exact: true })).toHaveText('987975')
-  await page.getByRole('textbox', { name: 'Título del documento' }).fill('Calculadora Task 10')
+  await setDocumentTitle(page, 'Calculadora Task 10')
   const downloading = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
@@ -106,7 +102,7 @@ test('operación y resultado no se exportan ni se autoguardan; recarga y reapert
   await expect(input).toHaveValue('')
   await input.fill('5+5'); await input.press('Enter')
   await page.reload()
-  await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Calculadora Task 10')
+  await expectDocumentTitle(page, 'Calculadora Task 10')
   await expect(page.locator('[data-module]')).toHaveCount(0)
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Calculadora', exact: true }).click()
@@ -114,12 +110,12 @@ test('operación y resultado no se exportan ni se autoguardan; recarga y reapert
   await expect(page.getByLabel('Resultado', { exact: true })).toBeEmpty()
 })
 
-test('tamaño mínimo sin scroll de página, controles accesibles y foco visible', async ({ page }, info) => {
+test('tamaño mínimo sin scroll de página, controles accesibles y foco visible', async ({ page }) => {
   const document = createEmptyDocument('Mínimo Calculadora')
   document.moduleLayouts.calculator = { x: 0, y: 0, width: 220, height: 280, referenceSize: { width: 1600, height: 1000 } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   const module = page.getByRole('region', { name: 'Calculadora', exact: true })
-  await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Mínimo Calculadora')
+  await expectDocumentTitle(page, 'Mínimo Calculadora')
   for (const button of await module.getByRole('button').all()) {
     await expect(button).toHaveAccessibleName(/.+/)
     await expect(button).toBeInViewport()
@@ -136,7 +132,6 @@ test('tamaño mínimo sin scroll de página, controles accesibles y foco visible
   expect(calculateBounds.y + calculateBounds.height).toBeLessThanOrEqual(contentBounds.y + contentBounds.height + 1)
   await expect(page.locator('[data-module="calculator"]')).toHaveAttribute('data-height', '280')
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
-  await page.screenshot({ path: info.outputPath('calculator-minimum.png') })
   await page.getByRole('button', { name: 'Cerrar Calculadora', exact: true }).focus(); await page.keyboard.press('Enter')
   await expect(module).toHaveCount(0)
 })

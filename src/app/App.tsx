@@ -5,7 +5,6 @@ import { ZoomControl } from '../layout/ZoomControl'
 import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
 import { repositionModules } from '../layout/repositionModules'
 import { HelpTooltip, TooltipProvider } from '../components/ui/tooltip'
-import { Input } from '../components/ui/input'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import { ViewMenu } from '../features/view/ViewMenu'
@@ -173,13 +172,11 @@ export function App() {
     activate(id)
   }
   return (
-    <TooltipProvider delayDuration={500}><div className="app-shell">
+    <TooltipProvider delayDuration={800}><div className="app-shell">
       <header className="app-header" style={{ zoom: viewport.state.scale }}>
         <h1><img className="app-logo" src="/assets/elements/icon_chincheta.png" alt="Angie Dashboard" /></h1>
         <FileMenu store={store} />
         <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} triggerRef={viewTrigger} />
-        <Input aria-label="Título del documento" placeholder="Título"
-          value={document.document.title} onChange={event => store.setTitle(event.target.value)} />
         <HelpTooltip text="Volver al origen"><Button className="origin-button" aria-label="Volver al origen" onClick={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}><LocateFixed size={19} aria-hidden="true" /></Button></HelpTooltip>
         <nav className="open-modules" aria-label="Módulos abiertos">
           {open.map(({ id }) => {

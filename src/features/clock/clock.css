@@ -1,33 +1,39 @@
-.clock-module { container: clock / inline-size; display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; padding: 0; font-size: var(--font-size-body); font-family: "Rajdhani", var(--font-technical); --control-font-size: min(3.3cqi, 14px); --field-font-size: min(5cqi, 22px); }
+/* Resolve clock sizes outside local zoom, using the available content width. */
+.module-scaled-content:has(> .clock-module) { container-type: normal; }
+.module-content:has(> .module-scaled-content > .clock-module) { container-type: inline-size; overflow-x: auto; }
+.clock-module { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; font-size: var(--font-size-body); font-family: "Rajdhani", var(--font-technical); --control-font-size: min(3.3cqi, 14px); --field-font-size: min(5cqi, 22px); }
 .clock-module[data-sizing] { height: auto; }
-.clock-module[data-sizing] .clock-face { flex: none; }
+.clock-module[data-sizing] .clock-face, .module-frame[data-fitting] .clock-face { flex: none; container-type: normal; }
+.clock-module[data-sizing] .timer-list, .module-frame[data-fitting] .timer-list { flex: none; grid-auto-rows: auto; }
+.clock-module[data-sizing] :is(.timer-row, .timer-main), .module-frame[data-fitting] :is(.timer-row, .timer-main) { container-type: normal; }
+.clock-module[data-sizing] .timer-main, .module-frame[data-fitting] .timer-main { flex: none; }
 .app-shell .clock-module .lucide { width: min(15px, 5cqi); height: min(15px, 5cqi); }
 .clock-module .technical-data { font-family: "Rajdhani", var(--font-technical); }
-.clock-reference { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0 min(5px, 1cqi); flex: none; white-space: nowrap; font-size: min(2.7cqi, 12px); color: var(--color-text-secondary); }
+.clock-reference { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 min(5px, 1cqi); flex: none; white-space: nowrap; font-size: min(2.7cqi, 12px); color: var(--color-text-secondary); }
 .clock-reference > span:last-child { justify-self: end; }
-.clock-seasons { text-align: center; }
-.clock-reference > span:first-child { color: var(--color-text); }
 .clock-reference .clock-season-active { color: var(--color-accent-yellow); }
-.clock-face { display: flex; flex: 1 0 auto; flex-direction: column; align-items: center; justify-content: center; min-width: 0; padding: 0; font-family: inherit; font-size: min(17cqi, 160px); font-variant-numeric: tabular-nums; }
-.clock-esp { display: flex; line-height: 1; text-align: center; font-size: inherit; font-weight: 600; letter-spacing: .025em; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
-.clock-zulu { display: flex; align-items: baseline; justify-content: center; flex-wrap: nowrap; gap: 0 min(5px, 1cqi); color: var(--color-text-secondary); font-size: min(3.5cqi, 20px); line-height: 1.3; }
+.clock-face { container-type: size; display: flex; flex: 3 1 0; flex-direction: column; align-self: stretch; align-items: center; justify-content: flex-start; min-width: 0; min-height: 0; padding: 0 min(4px, 1cqi); font-family: inherit; font-size: calc(max(0px, 100cqi - min(8px, 2cqi)) / var(--clock-text-width, 3.596)); font-variant-numeric: tabular-nums; }
+.clock-esp { display: flex; flex: none; justify-content: center; gap: 0; width: 100%; padding: 0; line-height: 1; text-align: center; font-size: min(1em, max(0px, calc(100cqb - min(3.5cqi, 20px) * 1.3))); font-weight: 600; letter-spacing: 0; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
+.clock-zulu { display: flex; flex: none; align-items: baseline; justify-content: center; flex-wrap: nowrap; gap: 0 min(5px, 1cqi); color: var(--color-text-secondary); font-size: min(3.5cqi, 20px); line-height: 1.3; }
 .clock-zulu-label, .clock-zulu output { font-size: inherit; font-family: inherit; white-space: nowrap; }
-.clock-add-controls { display: grid; flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)) min(22px, 6cqi); align-items: center; gap: min(2px, .5cqi); margin: 0; }
+.clock-add-controls { display: grid; flex: none; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: 0; margin: 0; }
 .module-content .clock-module .document-button { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 0; height: min(20px, 7cqi); min-height: 0; padding: 0 min(4px, 1cqi); line-height: 1; font-family: inherit; border-color: #495158; background: linear-gradient(180deg, #303539, #191d20); color: #c5ccd1; box-shadow: inset 0 1px rgb(255 255 255 / 7%); }
 .module-content .clock-module .document-button:hover:not(:disabled) { background: linear-gradient(180deg, #434b51, #252b30); }
-.module-content .clock-module .clock-preview, .module-content .clock-module .clock-preview:hover:not(:disabled) { justify-self: end; width: min(22px, 6cqi); padding: 0; border: 0; background: transparent; box-shadow: none; }
+.module-content .clock-module .clock-add-controls .document-button, .module-content .clock-module .clock-add-controls .document-button:hover:not(:disabled) { width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .clock-module [role="alert"] { flex: none; margin: 3px 0; font-size: var(--font-size-body); }
-.timer-list { display: flex; flex-direction: column; flex: none; gap: min(2px, .5cqi); padding: 0; }
-.timer-list:empty { flex: 0; }
-.timer-row { display: flex; flex: none; flex-direction: column; min-width: 0; padding: 0 min(3px, 1cqi); border: 1px solid var(--color-border); border-radius: 2px; background: linear-gradient(180deg, #202528, #191c1f); }
-.timer-heading { display: flex; align-items: center; gap: min(2px, .5cqi); font-size: min(12px, 4cqi); font-weight: 600; color: var(--color-text-secondary); }
-.module-content .clock-module .timer-close { margin-left: auto; width: min(20px, 6cqi); height: min(18px, 6cqi); min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.timer-list { display: grid; flex: var(--clock-timer-count, 1) 1 0; min-height: 0; grid-auto-rows: minmax(0, 1fr); gap: min(2px, .5cqi); padding: 0; }
+.timer-list:empty { display: none; }
+.timer-row { container-type: size; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0 min(3px, 1cqi); border: 1px solid var(--color-border); border-radius: 2px; background: linear-gradient(180deg, #202528, #191c1f); }
+.timer-heading { display: flex; flex: none; align-items: center; gap: min(2px, .5cqi); font-size: min(12px, 4cqi, 25cqb); line-height: 1; font-weight: 600; color: var(--color-text-secondary); }
+.module-content .clock-module .timer-close { margin-left: auto; width: min(20px, 6cqi); height: min(18px, 6cqi, 30cqb); min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .module-content .clock-module .timer-close:hover { background: transparent; color: var(--color-text); }
-.timer-main { display: flex; align-items: center; justify-content: space-between; gap: 0 min(6px, 1cqi); margin: 0; }
-.timer-value { font-family: inherit; font-weight: 600; font-size: min(8cqi, 40px); line-height: 1; white-space: nowrap; }
-.timer-controls { display: flex; flex: none; gap: min(2px, .5cqi); }
-.clock-module .timer-controls .document-button { flex: none; width: min(24px, 8cqi); padding: 0; }
-.app-shell .clock-module input.timer-duration { flex: none; align-self: flex-start; width: 9ch; max-width: 100%; height: min(26px, 8cqi); min-height: 0; padding: 0; border: 0; border-bottom: 1px solid #555b60; background: transparent; box-shadow: none; font-family: inherit; font-variant-numeric: tabular-nums; letter-spacing: .04em; text-align: center; }
+.app-shell .clock-module .timer-heading .lucide { width: min(15px, 5cqi, 25cqb); height: min(15px, 5cqi, 25cqb); }
+.timer-main { container-type: size; display: flex; flex: 1 1 0; min-height: 0; align-items: center; gap: 0 min(6px, 1cqi); margin: 0; --field-font-size: min(5cqi, 22px, 75cqb); }
+.timer-value { flex: none; font-family: inherit; font-weight: 600; font-size: min(8cqi, 40px, 100cqb); line-height: 1; white-space: nowrap; }
+.timer-controls { display: flex; flex: none; gap: min(2px, .5cqi); margin-left: auto; }
+.module-content .clock-module .timer-controls .document-button, .module-content .clock-module .timer-controls .document-button:hover:not(:disabled) { flex: none; width: min(24px, 8cqi); height: min(20px, 7cqi, 100cqb); padding: 0; border: 0; background: transparent; box-shadow: none; }
+.app-shell .clock-module .timer-main .lucide { width: min(15px, 5cqi, 75cqb); height: min(15px, 5cqi, 75cqb); }
+.app-shell .clock-module input.timer-duration { flex: none; width: 9ch; max-width: 100%; height: min(26px, 8cqi, 100cqb); min-height: 0; padding: 0; border: 0; border-bottom: 1px solid #555b60; background: transparent; box-shadow: none; font-family: inherit; font-variant-numeric: tabular-nums; letter-spacing: .04em; line-height: 1; text-align: center; }
 .timer-duration:disabled { color: var(--color-text-secondary); opacity: .8; }
 .module-content .clock-module .timer-acknowledge { width: auto; height: auto; min-height: 0; padding: 0; border: none; background: transparent; box-shadow: none; }
 .timer-row[data-alert="true"] { border-color: #fff; outline: 1px solid #fff; animation: timer-alarm var(--alarm-cycle) steps(1, end) infinite; cursor: pointer; }

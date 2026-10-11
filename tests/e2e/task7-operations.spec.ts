@@ -5,7 +5,7 @@ import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 import { createElement } from '../../src/features/elements/elementCommands'
 import type { AngieDocument } from '../../src/domain/document/types'
 import { changeElementStatus } from '../../src/domain/operations/changeStatus'
-import { bringModuleToFront, noPageScroll } from './acceptance-helpers'
+import { bringModuleToFront, noPageScroll, expectDocumentTitle } from './acceptance-helpers'
 
 async function open(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
@@ -24,7 +24,7 @@ function fixture() {
 }
 async function load(page: Page, document: AngieDocument) {
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'task7.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
-  await expect(page.getByLabel('Título del documento')).toHaveValue(document.document.title)
+  await expectDocumentTitle(page, document.document.title)
 }
 async function saved(page: Page): Promise<AngieDocument> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -62,7 +62,7 @@ test('sin selección Información muestra Sin dotaciones', async ({ page }) => {
   await expect(page.locator('[data-module="information"]').getByText('Sin dotaciones')).toBeVisible()
 })
 
-test('Información: ocho estados con color y fase, tamaños mínimo, inicial y ampliado', async ({ page }, info) => {
+test('Información: ocho estados con color y fase, tamaños mínimo, inicial y ampliado', async ({ page }) => {
   const states = [
     ['Disponible', 'Alerta', '🟢'], ['Activada', 'Alarma', '🟡'], ['Aproximandose', 'Aproximación', '🔵'],
     ['Interviniendo', 'Asistencia', '🔴'], ['Trasladando', 'Transporte', '💠'], ['Transfiriendo', 'Transferencia', '🟠'],
@@ -83,13 +83,12 @@ test('Información: ocho estados con color y fase, tamaños mínimo, inicial y a
       await expect(information.getByLabel('Estado operativo')).toHaveText(`${icon} ${status}`)
       await expect(information.getByText(phase, { exact: true })).toBeVisible()
       await expect(information.getByText('Sector norte', { exact: true })).toHaveCount(1)
-      if (status === 'Trasladando') await page.screenshot({ path: info.outputPath(`information-${width}.png`) })
       await noPageScroll(page)
     }
   }
 })
 
-test('selección compartida, ocho estados, etiquetas y registro cerrado con recuperación/JSON/corrección', async ({ page }, info) => {
+test('selección compartida, ocho estados, etiquetas y registro cerrado con recuperación/JSON/corrección', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   const document = fixture(); await load(page, document)
   for (const name of ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo']) await open(page, name)
@@ -161,7 +160,6 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await timeline.getByRole('textbox', { name: 'Texto de entrada' }).fill('Acceso abierto 🚧')
   await timeline.getByRole('button', { name: 'Guardar entrada' }).click()
   await expect.poll(async () => (await saved(page)).timeline[6]).toMatchObject({ text: 'Acceso cerrado', occurredAt, revisions: [{ kind: 'text', text: 'Acceso abierto 🚧' }] })
-  await page.screenshot({ path: info.outputPath('task7-modules.png') })
   const json = await exportJson(page)
   expect(json.elements[0]!.operational).toEqual({ status: null, currentEntryId: null, notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
   expect(json.timeline).toHaveLength(7); expect(Object.keys(json)).toHaveLength(8)
@@ -184,7 +182,7 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   expect(errors).toEqual([])
 })
 
-test('registro ascendente sigue el final y conserva lectura antigua; controles en tamaños mínimos sin scroll de página', async ({ page }, info) => {
+test('registro ascendente sigue el final y conserva lectura antigua; controles en tamaños mínimos sin scroll de página', async ({ page }) => {
   const document = fixture()
   document.moduleLayouts.information = { x: 0, y: 0, width: 220, height: 140, referenceSize: { width: 1600, height: 1000 } }
   document.moduleLayouts.operations = { x: 220, y: 0, width: 240, height: 200, referenceSize: { width: 1600, height: 1000 } }
@@ -213,10 +211,9 @@ test('registro ascendente sigue el final y conserva lectura antigua; controles e
   await expect(ops.getByRole('button', { name: 'Trasladando', exact: true })).toHaveCSS('outline-style', 'solid')
   expect(await ops.locator('.module-content').evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await page.evaluate(() => ({ width: window.document.documentElement.scrollWidth, height: window.document.documentElement.scrollHeight }))).toEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
-  await page.screenshot({ path: info.outputPath('task7-minimum.png') })
 })
 
-test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial sin recuperar estados al corregir', async ({ page }, info) => {
+test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial sin recuperar estados al corregir', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   const document = fixture(), unit = document.elements[0]!
   for (const other of document.elements.slice(1)) if (other.isUnit) Object.assign(other.operational, { status: null, currentEntryId: null })
@@ -234,12 +231,10 @@ test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial s
   await expect(timeline.getByText('00:59:60', { exact: true })).toHaveAttribute('datetime', '2016-12-31T23:59:60Z')
   await expect(timeline.getByText('Actual', { exact: true })).toHaveCount(0)
   await expect(timeline.locator('li[data-current="true"]')).toHaveCount(1)
-  await page.screenshot({ path: info.outputPath('registro-100.png') })
   await timeline.locator('li[data-current="true"]').getByRole('button', { name: 'Editar entrada' }).click()
   await expect(timeline.getByRole('textbox', { name: 'Texto de entrada' })).toContainText('Activada')
   await timeline.getByRole('button', { name: 'Corregir estado actual' }).click()
   await expect(page.getByRole('alertdialog')).toContainText('Sin estado')
-  await page.screenshot({ path: info.outputPath('registro-confirmacion.png') })
   await page.getByRole('alertdialog').getByRole('button', { name: 'Confirmar corrección' }).click()
   await expect.poll(async () => (await saved(page)).elements[0]!.operational?.status).toBeNull()
   await expect(timeline.locator('li[data-current="true"]')).toHaveCount(0)
@@ -250,7 +245,6 @@ test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial s
   await zoom.fill('150'); await zoom.press('Enter')
   await expect(timeline.getByRole('textbox', { name: 'Acontecimiento' })).toBeInViewport()
   await noPageScroll(page)
-  await page.screenshot({ path: info.outputPath('registro-150.png') })
   const check = timeline.getByRole('button', { name: 'Añadir entrada' })
   await timeline.getByRole('textbox', { name: 'Acontecimiento' }).fill('Comprobación de scroll interno')
   await check.scrollIntoViewIfNeeded()
@@ -260,7 +254,6 @@ test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial s
     return button.left >= panel.left - 1 && button.right <= panel.right + 1
   })).toBe(true)
   await noPageScroll(page)
-  await page.screenshot({ path: info.outputPath('registro-150-scroll.png') })
   await check.click()
   await expect.poll(async () => (await saved(page)).timeline.at(-1)).toMatchObject({ type: 'manual', text: 'Comprobación de scroll interno' })
   await expect(timeline.locator('li[data-current="true"]')).toHaveCount(0)

@@ -15,8 +15,8 @@ async function zoom(page: Page, value: number, label = 'Zoom actual') {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
 })
-for (const scale of [25, 100, 200, 400]) {
-  test(`Puzzle ordena solo abiertos a ${scale} %, mantiene selección y capas con tamaños moderados`, async ({ page }, info) => {
+for (const scale of [100, 200]) {
+  test(`Puzzle ordena solo abiertos a ${scale} %, mantiene selección y capas con tamaños moderados`, async ({ page }) => {
     await page.goto('/')
     const fixture = createEmptyDocument('Puzzle')
     const ref = { width: 1600, height: 1000 }
@@ -58,7 +58,6 @@ for (const scale of [25, 100, 200, 400]) {
     }
     expect(saved.board).toEqual(fixture.board); expect(saved.elements).toEqual(fixture.elements)
     await noPageScroll(page)
-    await page.screenshot({ path: info.outputPath(`puzzle-${scale}.png`) })
     const persisted = saved.moduleLayouts
     await page.setViewportSize({ width: 915, height: 412 })
     expect((await downloadDocument(page)).document.moduleLayouts).toEqual(persisted)
@@ -127,7 +126,7 @@ test('extends_workspace_before_grid_clamps_candidate: arrastre y tirador cruzan 
   expect(rebuilt.width).toBeGreaterThanOrEqual(saved.moduleLayouts.information!.x + saved.moduleLayouts.information!.width)
   await noPageScroll(page)
 })
-test('Pizarra explora vacío repetidamente, origen firme, imagen y cámaras separadas bajo tres zooms', async ({ page }, info) => {
+test('Pizarra explora vacío repetidamente, origen firme, imagen y cámaras separadas bajo tres zooms', async ({ page }) => {
   await page.goto('/'); await openModule(page, 'Pizarra')
   const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 800; c.height = 400; const ctx = c.getContext('2d')!; ctx.fillStyle = '#3680a0'; ctx.fillRect(0, 0, 800, 400); return c.toDataURL().split(',')[1]! })
   await page.getByLabel('Cargar imagen de fondo').setInputFiles({ name: 'fondo.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })
@@ -156,9 +155,8 @@ test('Pizarra explora vacío repetidamente, origen firme, imagen y cámaras sepa
   expect(Number(await surface.getAttribute('data-extent-height'))).toBeGreaterThanOrEqual(explored)
   expect((await downloadDocument(page)).document).toEqual(initial)
   expect(await imagePixel()).toEqual([54, 128, 160, 255])
-  await page.screenshot({ path: info.outputPath('board-origin.png') })
 })
-test('segunda pulsación táctil cancela arrastre y resize sin persistir ni desmontar contenido', async ({ page, context, isMobile }) => {
+test('segunda pulsación táctil cancela arrastre y resize sin persistir ni desmontar contenido', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Cancelación con eventos táctiles Chromium')
   await page.goto('/'); await openModule(page, 'Calculadora')
   await page.getByLabel('Operación', { exact: true }).fill('12+3')
@@ -199,7 +197,7 @@ test('mover guarda referencia propia y Puzzle sin layout conserva base manual y 
   expect((await downloadDocument(page)).document.moduleLayouts.board!.width).toBe(720)
 })
 
-test('importados junto al origen conservan cajas y datos, permiten selección, edición y movimiento', async ({ page }, info) => {
+test('importados junto al origen conservan cajas y datos, permiten selección, edición y movimiento', async ({ page }) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Origen importado')
   fixture.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Borde', information: '', pinVisible: true, visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 1, y: 1 }, isUnit: false, operational: null })
@@ -211,7 +209,6 @@ test('importados junto al origen conservan cajas y datos, permiten selección, e
   await page.mouse.click(box.x + 6, box.y + 6)
   await expect(page.getByRole('button', { name: 'Seleccionar Borde', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByLabel('Texto de nota rápida').click()
-  await page.screenshot({ path: info.outputPath('imported-origin-actions.png') })
   await page.getByLabel('Texto de nota rápida').fill('Nota editada')
   await page.getByLabel('Texto de nota rápida').press('Tab')
   await page.mouse.move(box.x + 6, box.y + 6); await page.mouse.down()

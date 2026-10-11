@@ -36,22 +36,23 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
     onClick={event => {
       if (snapshot.alertActive && !(event.target as HTMLElement).closest('button, input, textarea')) recognize()
     }}>
-    <div className="timer-heading"><span>{name}</span>
+    <div className="timer-heading"><span>{TIMER_LABELS[timer.kind]}</span>
       <Button className="timer-close document-button" aria-label="Cerrar temporizador" onClick={close}><X aria-hidden="true" /></Button></div>
     <div className="timer-main">
       {snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
+      {timer.kind !== 'tzero' && <Input aria-label="Duración inicial" title="Duración inicial (hh:mm:ss)"
+        className="technical-data timer-duration" inputMode="numeric" maxLength={8} placeholder="00:00:00"
+        disabled={timer.status !== 'idle'} value={durationText} onBlur={normalize} onChange={event => {
+          if (/^(?:[0-9]{0,6}|[0-9]{0,2}(?::[0-9]{0,2}){1,2})$/.test(event.target.value)) setDurationText(event.target.value)
+        }} />}
       <div className="timer-controls">
-        <Button aria-label="Iniciar" title="Iniciar" disabled={snapshot.status === 'running' || snapshot.status === 'completed'} onClick={start}><Play aria-hidden="true" /></Button>
-        {timer.kind === 'advisory' ? <Button ref={resetControl} aria-label="Desactivar" title="Desactivar" onClick={() => store.deactivate(timer.id)}><Square aria-hidden="true" /></Button> : <>
-          <Button aria-label="Pausar" title="Pausar" disabled={snapshot.status !== 'running'} onClick={() => store.pause(timer.id)}><Pause aria-hidden="true" /></Button>
-          <Button ref={resetControl} aria-label="Reiniciar" title="Reiniciar" onClick={() => store.reset(timer.id)}><Square aria-hidden="true" /></Button>
-        </>}
+        <Button aria-label={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'} title={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'}
+          disabled={snapshot.status === 'completed'} onClick={() => { if (snapshot.status === 'running') store.pause(timer.id); else start() }}>
+          {snapshot.status === 'running' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+        </Button>
+        <Button ref={resetControl} aria-label={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'} title={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'}
+          onClick={() => { if (timer.kind === 'advisory') store.deactivate(timer.id); else store.reset(timer.id) }}><Square aria-hidden="true" /></Button>
       </div>
     </div>
-    {timer.kind !== 'tzero' && <Input aria-label="Duración inicial" title="Duración inicial (hh:mm:ss)"
-      className="technical-data timer-duration" inputMode="numeric" maxLength={8} placeholder="00:00:00"
-      disabled={timer.status !== 'idle'} value={durationText} onBlur={normalize} onChange={event => {
-        if (/^(?:[0-9]{0,6}|[0-9]{0,2}(?::[0-9]{0,2}){1,2})$/.test(event.target.value)) setDurationText(event.target.value)
-      }} />}
   </div>
 }

@@ -1,16 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, PointerEvent, RefObject, TouchEvent as ReactTouchEvent } from 'react'
 import type { Size, ViewportState } from './layoutTypes'
 import { pan, zoomAt } from './viewportMath'
-import type { BoardNavigation } from './ViewportContext'
+import type { ModuleNavigation } from './ViewportContext'
 
 interface Point { x: number; y: number }
 export function useViewportGestures(state: ViewportState, size: Size, bounds: Size, onChange: (state: ViewportState) => void, element: RefObject<HTMLDivElement | null>, headerHeight = 0) {
   const pointers = useRef(new Map<number, Point>())
   const origin = useRef({ left: 0, top: 0 })
-  const origins = useRef(new Map<number, boolean>())
-  const boardNavigationRef = useRef<BoardNavigation | null>(null)
-  const gestureOwner = useRef<'main' | 'board' | 'cancel' | null>(null)
+  const moduleNavigationRef = useRef<ModuleNavigation | null>(null)
+  const gestureOwner = useRef<'main' | 'module' | 'cancel' | null>(null)
+  const moduleGesture = useRef<{ navigation: ModuleNavigation; scale: number } | null>(null)
   const blockedRef = useRef(false)
   const suppressClick = useRef(false)
   const nativeTouches = useRef<Touch[]>([])
@@ -21,6 +21,9 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   // Both fingers use one reference, so transient clamping between their events
   // cannot change the final scale of a translation.
   const config = useRef({ state, size, bounds, onChange, headerHeight })
+  const latest = useRef({ state, size, bounds, onChange, headerHeight })
+  latest.current = { state, size, bounds, onChange, headerHeight }
+  useLayoutEffect(() => { if (!pointers.current.size) current.current = state }, [state])
   function pair() {
     const [a, b] = [...pointers.current.values()]
     return a && b ? { midpoint: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, distance: Math.hypot(a.x - b.x, a.y - b.y) } : null
@@ -46,7 +49,6 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       }
     }
     pointers.current.set(event.pointerId, point(event))
-    origins.current.set(event.pointerId, Boolean(boardNavigationRef.current?.element.contains(event.target as Node)))
     if (pointers.current.size >= 2) {
       const entering = !blockedRef.current
       drag.current = null
@@ -55,12 +57,11 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       suppressClick.current = true
       setBlocked(true)
       if (entering) {
-        const surfaces = [...origins.current.values()]
-        gestureOwner.current = surfaces.every(Boolean) ? 'board' : surfaces.some(Boolean) ? 'cancel' : 'main'
-        if (gestureOwner.current === 'board') boardNavigationRef.current?.gesture(boardPair())
+        const navigation = moduleNavigationRef.current
+        moduleGesture.current = navigation ? { navigation, scale: navigation.scale } : null
+        gestureOwner.current = navigation ? 'module' : 'main'
       } else {
         gestureOwner.current = 'cancel'
-        boardNavigationRef.current?.gesture(null)
       }
       previous.current = pair()
       event.preventDefault(); event.stopPropagation()
@@ -77,10 +78,6 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       for (const id of pointers.current.keys()) element.current?.setPointerCapture?.(id)
     }
   }
-  function boardPair(): [Point, Point] | null {
-    const [a, b] = [...pointers.current.values()], rect = origin.current
-    return a && b ? [{ x: a.x + rect.left, y: a.y + rect.top }, { x: b.x + rect.left, y: b.y + rect.top }] : null
-  }
   function move(event: PointerEvent) {
     if (!pointers.current.has(event.pointerId)) return
     pointers.current.set(event.pointerId, point(event))
@@ -96,21 +93,15 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       return
     }
     event.preventDefault(); event.stopPropagation()
-    const boardRect = boardNavigationRef.current?.element.getBoundingClientRect()
-    if (boardRect && gestureOwner.current !== 'cancel') {
-      const board = boardNavigationRef.current!.element, hit = board.ownerDocument.elementFromPoint?.(event.clientX, event.clientY)
-      // During navigation content ignores pointer events. Hit testing its frame
-      // still distinguishes a visible board from a window layered above it.
-      const visible = !hit || board.contains(hit) || Boolean(board.closest('[data-module]')?.contains(hit))
-      const inside = visible && event.clientX >= boardRect.left && event.clientX <= boardRect.right && event.clientY >= boardRect.top && event.clientY <= boardRect.bottom
-      if (inside !== origins.current.get(event.pointerId)) {
-        gestureOwner.current = 'cancel'; boardNavigationRef.current?.gesture(null)
-      }
-    }
-    if (gestureOwner.current === 'board') { boardNavigationRef.current?.gesture(boardPair()); return }
     if (gestureOwner.current === 'cancel') return
     const next = pair(), old = previous.current
     if (next && old && old.distance > 0) {
+      if (gestureOwner.current === 'module') {
+        const owner = moduleGesture.current
+        if (!owner || moduleNavigationRef.current?.element !== owner.navigation.element) { gestureOwner.current = 'cancel'; return }
+        owner.navigation.zoom(owner.scale * next.distance / old.distance, { x: old.midpoint.x + origin.current.left, y: old.midpoint.y + origin.current.top })
+        return
+      }
       const settings = config.current
       const zoomed = zoomAt(settings.state, settings.state.scale * next.distance / old.distance, old.midpoint, settings.size, settings.bounds)
       const headerDelta = settings.headerHeight * (zoomed.scale - settings.state.scale)
@@ -122,14 +113,34 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   function end(event: PointerEvent) {
     if (drag.current?.pointerId === event.pointerId) drag.current = null
     pointers.current.delete(event.pointerId)
-    origins.current.delete(event.pointerId)
     if (blockedRef.current) { event.preventDefault(); event.stopPropagation() }
     previous.current = pair()
-    if (pointers.current.size < 2) { boardNavigationRef.current?.gesture(null); if (blockedRef.current) gestureOwner.current = 'cancel' }
+    if (pointers.current.size < 2 && blockedRef.current) gestureOwner.current = 'cancel'
     if (!pointers.current.size) { blockedRef.current = false; setBlocked(false); gestureOwner.current = null }
   }
+  useEffect(() => {
+    const node = element.current
+    if (!node) return
+    function wheel(event: WheelEvent) {
+      if (!event.ctrlKey) return
+      event.preventDefault(); event.stopPropagation()
+      if (blockedRef.current || pointers.current.size || !event.deltaY) return
+      const settings = latest.current
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? settings.size.height : 1
+      const factor = Math.exp(-event.deltaY * unit * .002)
+      const navigation = moduleNavigationRef.current
+      if (navigation) { navigation.zoom(navigation.scale * factor, { x: event.clientX, y: event.clientY }); return }
+      const rect = node!.getBoundingClientRect()
+      const zoomed = zoomAt(current.current, current.current.scale * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top }, settings.size, settings.bounds)
+      const headerDelta = settings.headerHeight * (zoomed.scale - current.current.scale)
+      current.current = pan(zoomed, 0, -headerDelta, { ...settings.size, height: Math.max(1, settings.size.height - headerDelta) }, settings.bounds)
+      settings.onChange(current.current)
+    }
+    node.addEventListener('wheel', wheel, { capture: true, passive: false })
+    return () => node.removeEventListener('wheel', wheel, true)
+  }, [element])
   return {
-    blocked, blockedRef, boardNavigationRef,
+    blocked, blockedRef, moduleNavigationRef,
     handlers: {
       onPointerDownCapture: start, onPointerMoveCapture: move,
       onPointerUpCapture: end, onPointerCancelCapture: end,

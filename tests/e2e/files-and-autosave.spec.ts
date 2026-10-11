@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
-import { downloadDocument, openModule, savedDocument } from './acceptance-helpers'
+import { downloadDocument, openModule, savedDocument, setDocumentTitle, expectDocumentTitle } from './acceptance-helpers'
 
 for (const version of [1, 2]) for (const origin of ['archivo', 'IndexedDB'] as const) {
   test(`V${version} real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V3`, async ({ page }) => {
@@ -28,7 +28,7 @@ for (const version of [1, 2]) for (const origin of ['archivo', 'IndexedDB'] as c
       }, JSON.parse(source))
       await page.reload()
     }
-    await expect(page.getByLabel('Título del documento')).toHaveValue(legacy.document.title)
+    await expectDocumentTitle(page, legacy.document.title)
     await expect.poll(() => savedDocument(page)).toEqual(converted)
     const exported = await downloadDocument(page)
     expect(exported.document).toEqual(converted)
@@ -65,18 +65,16 @@ async function command(page: import('@playwright/test').Page, name: string) {
   await page.getByRole('menuitem', { name, exact: true }).click()
 }
 
-test('título, autoguardado real, recarga, descarga, carga segura y Nuevo', async ({ page }, testInfo) => {
+test('título, autoguardado real, recarga, descarga, carga segura y Nuevo', { tag: '@responsive' }, async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   // Exercise the download path available on browsers without a native picker.
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }) })
   await page.goto('/')
-  const title = page.getByRole('textbox', { name: 'Título del documento' })
-  await title.fill('Servicio áé_1<>.JSON')
+  await setDocumentTitle(page, 'Servicio áé_1<>.JSON')
   await expect.poll(() => persistedTitle(page)).toBe('Servicio áé_1<>.JSON')
   await page.reload()
-  await expect(title).toHaveValue('Servicio áé_1<>.JSON')
-  await page.screenshot({ path: testInfo.outputPath('recovered-document.png') })
+  await expectDocumentTitle(page, 'Servicio áé_1<>.JSON')
   const downloaded = page.waitForEvent('download')
   await command(page, 'Guardar')
   const download = await downloaded
@@ -90,26 +88,25 @@ test('título, autoguardado real, recarga, descarga, carga segura y Nuevo', asyn
   for (const invalid of ['{', '{"format":"otro"}', '{"format":"angie-dashboard","formatVersion":2}']) {
     await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from(invalid) })
     await expect(page.getByRole('alert')).toBeVisible()
-    await expect(title).toHaveValue('Servicio áé_1<>.JSON')
+    await expectDocumentTitle(page, 'Servicio áé_1<>.JSON')
     expect(await persistedTitle(page)).toBe('Servicio áé_1<>.JSON')
   }
   json.document.title = 'Importado'
   await command(page, 'Cargar')
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'valid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })
-  await expect(title).toHaveValue('Importado')
+  await expectDocumentTitle(page, 'Importado')
   await expect.poll(() => persistedTitle(page)).toBe('Importado')
   await command(page, 'Nuevo')
-  await expect(title).toHaveValue('')
+  await expectDocumentTitle(page, '')
   await expect.poll(() => persistedTitle(page)).toBe('')
   await page.reload()
-  await expect(title).toHaveValue('')
+  await expectDocumentTitle(page, '')
   expect(await readFile((await download.path())!, 'utf8')).toBe(text)
   await expect(page.getByRole('main')).toBeEmpty()
   expect(errors).toEqual([])
-  await page.screenshot({ path: testInfo.outputPath('document-header.png') })
 })
 
-test('selector compatible: vínculo, cambio de título, cancelación y permiso denegado', async ({ page }, testInfo) => {
+test('selector compatible: vínculo, cambio de título, cancelación y permiso denegado', async ({ page }) => {
   await page.addInitScript(() => {
     const state = { picks: [] as string[], contents: [] as string[], denied: false, cancel: false }
     Object.assign(window, { fileTest: state })
@@ -126,15 +123,14 @@ test('selector compatible: vínculo, cambio de título, cancelación y permiso d
     } })
   })
   await page.goto('/')
-  const title = page.getByRole('textbox', { name: 'Título del documento' })
-  await title.fill('Uno')
+  await setDocumentTitle(page, 'Uno')
   await command(page, 'Guardar')
   await command(page, 'Guardar')
   expect(await page.evaluate(() => (window as unknown as { fileTest: { picks: string[] } }).fileTest.picks)).toEqual(['Uno.json'])
-  await title.fill('Dos')
+  await setDocumentTitle(page, 'Dos')
   await page.evaluate(() => { (window as unknown as { fileTest: { cancel: boolean } }).fileTest.cancel = true })
   await command(page, 'Guardar')
-  await expect(title).toHaveValue('Dos')
+  await expectDocumentTitle(page, 'Dos')
   await expect(page.getByRole('alert')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { fileTest: { contents: string[] } }).fileTest.contents.length)).toBe(2)
   await page.evaluate(() => { (window as unknown as { fileTest: { cancel: boolean } }).fileTest.cancel = false })
@@ -142,18 +138,16 @@ test('selector compatible: vínculo, cambio de título, cancelación y permiso d
   await page.evaluate(() => { (window as unknown as { fileTest: { denied: boolean } }).fileTest.denied = true })
   await command(page, 'Guardar')
   await expect(page.getByRole('button', { name: 'Descargar JSON' })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('save-fallback.png') })
-  await title.fill('Últimos cambios')
+  await setDocumentTitle(page, 'Últimos cambios')
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Descargar JSON' }).click()
   expect((await downloaded).suggestedFilename()).toBe('Últimos cambios.json')
   await expect.poll(() => persistedTitle(page)).toBe('Últimos cambios')
 })
 
-test('IndexedDB bloqueado: trabajo en memoria, exportación y recuperación confirmada', async ({ page }, testInfo) => {
+test('IndexedDB bloqueado: trabajo en memoria, exportación y recuperación confirmada', async ({ page }) => {
   await page.goto('/')
-  const title = page.getByRole('textbox', { name: 'Título del documento' })
-  await title.fill('Documento en disco')
+  await setDocumentTitle(page, 'Documento en disco')
   await expect.poll(() => persistedTitle(page)).toBe('Documento en disco')
   await page.addInitScript(() => {
     const original = indexedDB.open.bind(indexedDB)
@@ -163,8 +157,7 @@ test('IndexedDB bloqueado: trabajo en memoria, exportación y recuperación conf
   })
   await page.reload()
   await expect(page.getByRole('alert')).toContainText('Autoguardado no disponible')
-  await title.fill('Trabajo en memoria')
-  await page.screenshot({ path: testInfo.outputPath('autosave-unavailable.png') })
+  await setDocumentTitle(page, 'Trabajo en memoria')
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Guardar JSON', exact: true }).click()
   const download = await downloaded
@@ -172,11 +165,9 @@ test('IndexedDB bloqueado: trabajo en memoria, exportación y recuperación conf
   await page.evaluate(() => { (window as unknown as { restoreDatabase: () => void }).restoreDatabase() })
   await page.getByRole('button', { name: 'Reintentar' }).click()
   await expect(page.getByRole('alertdialog')).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('confirm-recovery.png') })
-  // A modal deliberately hides the header from the accessibility tree.
-  await expect(page.getByLabel('Título del documento')).toHaveValue('Trabajo en memoria')
   await page.getByRole('button', { name: 'Conservar cambios actuales' }).click()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
+  await expectDocumentTitle(page, 'Trabajo en memoria')
   await expect.poll(() => persistedTitle(page)).toBe('Trabajo en memoria')
   await expect(page.getByText('Autoguardado no disponible')).toHaveCount(0)
 })
@@ -194,7 +185,12 @@ test('Archivo se acciona por teclado y el título conserva foco visible', async 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: 'Ver', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Volver al origen', exact: true })).toBeFocused()
+  await trigger.focus()
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('End'); await page.keyboard.press('Enter')
   const title = page.getByRole('textbox', { name: 'Título del documento' })
   await expect(title).toBeFocused()
   await expect(title).toHaveCSS('outline-style', 'solid')
+  await page.keyboard.press('Escape')
+  await expect(trigger).toBeFocused()
 })

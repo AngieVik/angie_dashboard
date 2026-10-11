@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { createElement, downloadDocument, loadDocument, noPageScroll, openModule, savedDocument } from './acceptance-helpers'
+import { createElement, downloadDocument, loadDocument, noPageScroll, openModule, savedDocument, setDocumentTitle } from './acceptance-helpers'
 
-test('sin red: documento, selección, estados, coordenadas, calculadora, Cuaderno y JSON', async ({ page, context }, info) => {
+test('sin red: documento, selección, estados, coordenadas, calculadora, Cuaderno y JSON', { tag: '@responsive' }, async ({ page, context }) => {
   const errors: string[] = [], external: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', request => { if (new URL(request.url()).origin !== 'http://127.0.0.1:4173') external.push(request.url()) })
@@ -9,7 +9,7 @@ test('sin red: documento, selección, estados, coordenadas, calculadora, Cuadern
   await page.goto('/')
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   await context.setOffline(true); await page.reload()
-  await page.getByLabel('Título del documento').fill('Trabajo offline')
+  await setDocumentTitle(page, 'Trabajo offline')
   await openModule(page, 'Elementos'); await createElement(page, 'Tango offline', true, '🚗')
   await openModule(page, 'Operativo')
   await page.getByRole('region', { name: 'Operativo', exact: true }).getByRole('button', { name: 'Transfiriendo', exact: true }).click()
@@ -52,6 +52,5 @@ test('sin red: documento, selección, estados, coordenadas, calculadora, Cuadern
   await expect(notebook.getByLabel('Texto del elemento 1')).toHaveValue('Revisar radio 📻')
   await expect(notebook.getByRole('checkbox', { name: 'Marcar elemento 1' })).toBeChecked()
   await noPageScroll(page)
-  await page.screenshot({ path: info.outputPath('offline-notebook.png') })
   expect(errors).toEqual([]); expect(external).toEqual([])
 })

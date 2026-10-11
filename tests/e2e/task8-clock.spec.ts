@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-test('composición compacta y jerarquía horaria en tamaños reducido, inicial y ampliado', async ({ page, isMobile }, info) => {
+test('composición compacta y jerarquía horaria en tamaños reducido, inicial y ampliado', { tag: '@responsive' }, async ({ page, isMobile }, info) => {
   await page.clock.install({ time: new Date('2026-01-01T12:04:05Z') })
   await page.clock.pauseAt(new Date('2026-01-01T12:04:06Z'))
   await openClock(page)
@@ -81,7 +81,6 @@ test('composición compacta y jerarquía horaria en tamaños reducido, inicial y
       await noPageScroll(page)
       for (const button of await clock.locator('.clock-add-controls button').all()) await expect(button).toBeInViewport()
       fonts.push(measure.espFont); observations.push({ orientation, size, ...measure })
-      await page.screenshot({ path: info.outputPath(`clock-${orientation}-${size}.png`) })
     }
     expect(fonts[1]!).toBeGreaterThan(fonts[0]!)
     if (orientation === 'vertical') expect(fonts[2]!).toBeGreaterThanOrEqual(fonts[1]!) // width is capped by the physical viewport
@@ -117,7 +116,7 @@ test('Sonido cambia su acción y cede el MP3 real a una alarma', async ({ page }
   await expect(playing).toBeEnabled(); await expect.poll(() => playback(page)).toMatchObject({ paused: true })
 })
 
-test('reloj, controles por teclado, normalización, pausa y mínimo con scroll interno', async ({ page }, info) => {
+test('reloj, controles por teclado, normalización, pausa y mínimo con scroll interno', async ({ page }) => {
   await openClock(page)
   const clock = page.locator('[data-module="clock"]')
   await expect(clock.getByLabel('Hora española')).toHaveText(/\d{2}:\d{2}:\d{2}/)
@@ -136,13 +135,11 @@ test('reloj, controles por teclado, normalización, pausa y mínimo con scroll i
   await duration.fill('abc'); await expect(duration).toHaveValue('01:30:00')
   await clock.getByRole('button', { name: 'Advisories', exact: true }).click()
   await expect(clock.getByRole('group', { name: 'Advisory 1', exact: true }).getByRole('button', { name: 'Desactivar' })).toBeVisible()
-  await page.screenshot({ path: info.outputPath('clock.png') })
   const document = createEmptyDocument()
   document.moduleLayouts.clock = { x: 0, y: 0, width: 320, height: 260, referenceSize: { width: 1600, height: 1000 } }
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
   expect(await clock.locator('.module-content').evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
-  await page.screenshot({ path: info.outputPath('clock-minimum.png') })
 })
 
 test('prueba con MP3 real en bucle se detiene al cerrar; JSON y recarga conservan temporizadores aparte', async ({ page }) => {
@@ -175,7 +172,7 @@ test('prueba con MP3 real en bucle se detiene al cerrar; JSON y recarga conserva
   expect(resource.ok()).toBe(true); expect((await resource.body()).byteLength).toBe(13859)
 })
 
-test('alertas simultáneas, suspensión por marcas de tiempo, desactivar y reconocer', async ({ page }, info) => {
+test('alertas simultáneas, suspensión por marcas de tiempo, desactivar y reconocer', async ({ page }) => {
   await openClock(page)
   await page.clock.install({ time: new Date('2026-01-01T12:00:00Z') })
   await page.clock.pauseAt(new Date('2026-01-01T12:00:01Z'))
@@ -195,7 +192,6 @@ test('alertas simultáneas, suspensión por marcas de tiempo, desactivar y recon
   const minus = clock.getByRole('group', { name: 'T-Minus 1', exact: true }), advisory = clock.getByRole('group', { name: 'Advisory 1', exact: true })
   await expect(minus).toHaveCSS('border-top-color', 'rgb(255, 255, 255)')
   await expect(minus).toHaveCSS('animation-duration', '0.5s')
-  await page.screenshot({ path: info.outputPath('clock-alarms.png') })
   await advisory.getByRole('button', { name: 'Desactivar', exact: true }).click()
   await expect(advisory.getByLabel('Tiempo')).toHaveText('00:00:00')
   await expect(clock.locator('.timer-row[data-alert="true"]')).toHaveCount(1)

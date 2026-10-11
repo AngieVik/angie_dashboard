@@ -7,14 +7,14 @@ import { useLayoutEffect } from 'react'
 import { useViewportInteraction } from './ViewportContext'
 
 function BoardNavigationProbe({ change }: { change: () => void }) {
-  const { boardNavigationRef } = useViewportInteraction()
+  const { moduleNavigationRef } = useViewportInteraction()
   useLayoutEffect(() => {
-    if (!boardNavigationRef) return
+    if (!moduleNavigationRef) return
     const element = screen.getByTestId('board-probe')
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 100, right: 500, bottom: 400, width: 400, height: 300 } as DOMRect)
-    boardNavigationRef.current = { element, gesture: points => { if (points) change() } }
-    return () => { boardNavigationRef.current = null }
-  }, [boardNavigationRef, change])
+    moduleNavigationRef.current = { element, scale: 1, zoom: change }
+    return () => { moduleNavigationRef.current = null }
+  }, [moduleNavigationRef, change])
   return <div data-testid="board-probe">Pizarra</div>
 }
 
@@ -63,7 +63,7 @@ describe('viewport lógico bajo la cabecera', () => {
     fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 140, clientY: 400 })
     expect(change).toHaveBeenLastCalledWith({ scale: 1, offsetX: 0, offsetY: 0 })
   })
-  it('dos dedos sobre otro módulo superpuesto a la pizarra pertenecen al dashboard', () => {
+  it('el pellizco fuera del módulo seleccionado sigue dirigiendo su zoom', () => {
     const main = vi.fn(), board = vi.fn()
     render(<MobileViewport state={{ scale: 1, offsetX: 0, offsetY: 0 }} size={{ width: 800, height: 500 }} onChange={main}>
       <BoardNavigationProbe change={board} /><button>Módulo al frente</button>
@@ -74,14 +74,14 @@ describe('viewport lógico bajo la cabecera', () => {
       fireEvent.pointerDown(front, { pointerId: 1, clientX: 200, clientY: 200 })
       fireEvent.pointerDown(front, { pointerId: 2, clientX: 300, clientY: 200 })
       fireEvent.pointerMove(screen.getByTestId('mobile-viewport'), { pointerId: 2, clientX: 350, clientY: 200 })
-      expect(main).toHaveBeenCalled()
-      expect(board).not.toHaveBeenCalled()
+      expect(main).not.toHaveBeenCalled()
+      expect(board).toHaveBeenCalled()
     } finally {
       if (descriptor) Object.defineProperty(document, 'elementFromPoint', descriptor)
       else delete (document as Partial<Document>).elementFromPoint
     }
   })
-  it('dos dedos en pizarra navegan solo su cámara; cruzar superficies cancela hasta levantar todos', () => {
+  it('el pellizco conserva el módulo seleccionado al cruzar superficies', () => {
     const main = vi.fn(), board = vi.fn()
     render(<MobileViewport state={{ scale: 1, offsetX: 0, offsetY: 0 }} size={{ width: 800, height: 500 }} onChange={main}>
       <BoardNavigationProbe change={board} /><button>Fuera</button>
@@ -95,20 +95,20 @@ describe('viewport lógico bajo la cabecera', () => {
     const calls = board.mock.calls.length
     fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 550, clientY: 200 })
     fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 300, clientY: 200 })
-    expect(board).toHaveBeenCalledTimes(calls)
+    expect(board).toHaveBeenCalledTimes(calls + 2)
     fireEvent.pointerUp(viewport, { pointerId: 2 }); fireEvent.pointerUp(viewport, { pointerId: 1 })
     board.mockClear()
     fireEvent.pointerDown(surface, { pointerId: 3, clientX: 200, clientY: 200 })
     fireEvent.pointerDown(screen.getByRole('button'), { pointerId: 4, clientX: 600, clientY: 200 })
     fireEvent.pointerMove(viewport, { pointerId: 4, clientX: 650, clientY: 200 })
-    expect(board).not.toHaveBeenCalled()
+    expect(board).toHaveBeenCalled()
     expect(main).not.toHaveBeenCalled()
     fireEvent.pointerUp(viewport, { pointerId: 4 }); fireEvent.pointerUp(viewport, { pointerId: 3 })
     fireEvent.pointerDown(screen.getByRole('button'), { pointerId: 5, clientX: 600, clientY: 200 })
     fireEvent.pointerDown(screen.getByRole('button'), { pointerId: 6, clientX: 700, clientY: 200 })
     fireEvent.pointerMove(viewport, { pointerId: 6, clientX: 750, clientY: 200 })
-    expect(main).toHaveBeenCalled()
-    expect(board).not.toHaveBeenCalled()
+    expect(main).not.toHaveBeenCalled()
+    expect(board).toHaveBeenCalled()
   })
   it('encaja al 100 % anclado al origen incluso con extensión virtual', () => {
     expect(fit({ width: 800, height: 700 }, { width: 800, height: 700 })).toEqual({ scale: 1, offsetX: 0, offsetY: 0 })

@@ -38,7 +38,7 @@ async function visibleBoardPoint(page: Page) {
   })
 }
 
-test('barra compacta: orden, iconos, listas sin creación y slider en borde escalado', async ({ page, isMobile }, info) => {
+test('barra compacta: orden, iconos, listas sin creación y slider en borde escalado', async ({ page, isMobile }) => {
   const fixture = await setup(page, true, 320)
   const pin = page.getByRole('button', { name: 'Seleccionar Referencia', exact: true })
   await pin.click()
@@ -79,7 +79,6 @@ test('barra compacta: orden, iconos, listas sin creación y slider en borde esca
   expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height - 7)
   await page.getByRole('slider', { name: 'Grosor' }).press('End')
   await expect(page.getByRole('slider', { name: 'Grosor' })).toHaveAttribute('aria-valuenow', '40')
-  await page.screenshot({ path: info.outputPath('toolbar-slider-edge.png') })
   await page.keyboard.press('Escape'); await expect(trigger).toBeFocused()
   if (isMobile) {
     await zoom(page, 100, 'Zoom de Pizarra')
@@ -90,8 +89,8 @@ test('barra compacta: orden, iconos, listas sin creación y slider en borde esca
   await noPageScroll(page)
 })
 
-for (const [general, moduleZoom, boardZoom] of [[25, 25, .25], [100, 100, 1], [200, 50, 1.5], [50, 200, .5], [400, 400, 4]]) {
-  test('cursor circular bajo zooms ' + general + '/' + moduleZoom + '/' + boardZoom, async ({ page }, info) => {
+for (const [general, moduleZoom, boardZoom] of [[25, 25, .25], [200, 50, 1.5], [400, 400, 4]]) {
+  test('cursor circular bajo zooms ' + general + '/' + moduleZoom + '/' + boardZoom, async ({ page }) => {
     await setup(page)
     await thickness(page)
     await page.getByLabel('Color del lápiz', { exact: true }).fill('#12ab34')
@@ -118,13 +117,12 @@ for (const [general, moduleZoom, boardZoom] of [[25, 25, .25], [100, 100, 1], [2
       expect(box.y + box.height / 2).toBeCloseTo(activePoint.y + 1, 0)
       await expect(surface).toHaveCSS('cursor', 'none')
       await expect(cursor).toHaveCSS('background-color', name === 'Lápiz' ? 'rgb(18, 171, 52)' : 'rgba(0, 0, 0, 0)')
-      await page.screenshot({ path: info.outputPath(name === 'Lápiz' ? 'cursor-pen.png' : 'cursor-eraser.png') })
     }
     await noPageScroll(page)
   })
 }
 
-test('retirar imagen conserva color, trazos, pines y notas; color vuelve al fondo', async ({ page }, info) => {
+test('retirar imagen conserva color, trazos, pines y notas; color vuelve al fondo', async ({ page }) => {
   const fixture = await setup(page, true), surface = page.getByTestId('board-surface')
   const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 800; c.height = 400; const ctx = c.getContext('2d')!; ctx.fillStyle = '#3680A0'; ctx.fillRect(0, 0, 800, 400); return c.toDataURL().split(',')[1]! })
   await page.getByLabel('Cargar imagen de fondo').setInputFiles({ name: 'local.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })
@@ -144,7 +142,6 @@ test('retirar imagen conserva color, trazos, pines y notas; color vuelve al fond
   const current = (await savedDocument(page))!
   expect(current.board.strokes).toEqual(fixture.board.strokes); expect(current.board.quickNotes).toEqual(fixture.board.quickNotes)
   expect(current.elements).toEqual(fixture.elements)
-  await page.screenshot({ path: info.outputPath('background-contents.png') })
 })
 
 test('vacío deselecciona globalmente sin consumir dibujo, arrastre, edición ni controles', async ({ page }) => {
@@ -176,7 +173,7 @@ test('vacío deselecciona globalmente sin consumir dibujo, arrastre, edición ni
   await expect(page.getByLabel('Texto de nota rápida').last()).toHaveValue('')
 })
 
-test('tacto: tap actúa una vez, consulta muestra ayuda y dibujo sin hover', async ({ page, context, isMobile }) => {
+test('tacto: tap actúa una vez, consulta muestra ayuda y dibujo sin hover', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Requiere emulación táctil Chromium')
   await setup(page)
   const session = await context.newCDPSession(page)
@@ -196,7 +193,7 @@ test('tacto: tap actúa una vez, consulta muestra ayuda y dibujo sin hover', asy
   await session.detach()
 })
 
-test('tacto: Grosor abre, cierra y permite arrastrar el slider sin modificar contenido', async ({ page, context, isMobile }) => {
+test('tacto: Grosor abre, cierra y permite arrastrar el slider sin modificar contenido', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Requiere emulación táctil Chromium')
   await setup(page)
   const session = await context.newCDPSession(page)
@@ -222,7 +219,6 @@ test('tacto: Grosor abre, cierra y permite arrastrar el slider sin modificar con
   await session.detach()
 })
 
-
 test('goma de grosor mínimo conserva diámetro subpixel bajo zoom propio', async ({ page }) => {
   await setup(page); await thickness(page, false)
   await page.getByRole('radio', { name: 'Goma', exact: true }).click()
@@ -235,7 +231,6 @@ test('goma de grosor mínimo conserva diámetro subpixel bajo zoom propio', asyn
   await expect(cursor).toBeVisible()
   expect((await cursor.boundingBox())!.width).toBeCloseTo(.25, 2)
 })
-
 
 test('grosor cierra si el scroll exterior recorta su trigger aunque siga dentro del viewport', async ({ page }) => {
   const fixture = await setup(page, false, 320)

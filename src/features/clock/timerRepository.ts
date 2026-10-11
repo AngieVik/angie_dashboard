@@ -43,7 +43,6 @@ function validateTimers(value: unknown): TimerRecord[] {
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_TIMER_SECONDS || item.elapsedMs > limit * 1000) return invalid()
     if (item.alertActive && item.status !== 'completed') return invalid()
     if (item.kind === 'tzero' && (item.status === 'completed' || item.alertActive)) return invalid()
-    if (item.kind === 'advisory' && item.status === 'paused') return invalid()
     if (item.status === 'completed' && item.elapsedMs !== limit * 1000) return invalid()
     if (item.status === 'idle' && item.elapsedMs !== 0) return invalid()
   }

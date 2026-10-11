@@ -67,7 +67,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
     setExplored(previous => ({ width: Math.max(previous.width, (size.width - next.offsetX) / next.scale),
       height: Math.max(previous.height, (size.height - next.offsetY) / next.scale) }))
   }, [size])
-  const navigation = useBoardViewportGestures(view, size, bounds, navigate, surface)
+  const navigation = useBoardViewportGestures(view, size, bounds, navigate, surface, state.mode === 'select')
   useEffect(() => {
     if (size.width && size.height) onViewChange?.({ x: Math.max(0, (size.width / 2 - view.offsetX) / view.scale), y: Math.max(0, (size.height / 2 - view.offsetY) / view.scale) })
   }, [view, size, onViewChange])

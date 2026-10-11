@@ -105,7 +105,9 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
         </div>
       })}
     </dl>
-    {copyMessage && <p role="status" className="coordinates-copy-status">{copyMessage}</p>}
-    {rowCopyError && <p role="status" className="coordinates-copy-error">{rowCopyError}</p>}
+    <div className="coordinates-notices">
+      {copyMessage && <p role="status" className="coordinates-copy-status">{copyMessage}</p>}
+      {rowCopyError && <p role="status" className="coordinates-copy-error">{rowCopyError}</p>}
+    </div>
   </div>
 }

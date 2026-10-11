@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { bringModuleToFront, createElement, loadDocument, noPageScroll, openModule, savedDocument } from './acceptance-helpers'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
 
-test('pizarra integrada: tacto de un dedo, prioridad de dos dedos y recuperación offline', async ({ page, context, isMobile }, info) => {
+test('pizarra integrada: tacto de un dedo, prioridad de dos dedos y recuperación offline', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Solo emulación Android con tacto Chromium')
   await page.goto('/')
   await openModule(page, 'Pizarra'); await openModule(page, 'Elementos')
@@ -26,7 +26,7 @@ test('pizarra integrada: tacto de un dedo, prioridad de dos dedos y recuperació
   await touch('touchStart', [a]); await touch('touchMove', [{ ...a, x: a.x + 4 }])
   await touch('touchStart', [{ ...a, x: a.x + 4 }, b])
   await touch('touchMove', [{ ...a, x: a.x - 15 }, { ...b, x: b.x + 15 }]); await touch('touchEnd', [])
-  const scale = Number(await page.getByTestId('board-surface').getAttribute('data-scale'))
+  const scale = Number(await page.locator('[data-module="board"] .module-scaled-content').getAttribute('data-scale'))
   expect(scale).toBeGreaterThan(1)
   await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', '1')
   expect((await savedDocument(page))?.board).toEqual(before.board)
@@ -39,11 +39,10 @@ test('pizarra integrada: tacto de un dedo, prioridad de dos dedos y recuperació
   await expect(page.getByRole('button', { name: 'Seleccionar Tango táctil' })).toHaveAttribute('aria-pressed', 'false')
   expect((await savedDocument(page))?.elements).toEqual(before.elements)
   await noPageScroll(page)
-  await page.screenshot({ path: info.outputPath('mobile-board-offline.png') })
   await session.detach()
 })
 
-test('dos dedos sobre Información superpuesta navegan dashboard aunque haya pizarra detrás', async ({ page, context, isMobile }) => {
+test('dos dedos sobre Información superpuesta amplían el módulo seleccionado', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Solo emulación Android con tacto Chromium')
   await page.goto('/')
   const document = createEmptyDocument(), size = await page.getByTestId('mobile-viewport').evaluate(el => ({ width: el.clientWidth, height: el.clientHeight }))
@@ -58,13 +57,14 @@ test('dos dedos sobre Información superpuesta navegan dashboard aunque haya piz
   const a = { x: rect.x + 70, y: rect.y + 60, id: 1 }, b = { x: rect.x + 170, y: a.y, id: 2 }
   const before = await savedDocument(page)
   await touch('touchStart', [a, b]); await touch('touchMove', [{ ...a, x: a.x - 10 }, { ...b, x: b.x + 10 }]); await touch('touchEnd', [])
-  expect(Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))).toBeGreaterThan(1)
+  await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', '1')
+  expect(Number(await page.locator('.module-frame[data-active="true"] .module-scaled-content').getAttribute('data-scale'))).toBeGreaterThan(1)
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-scale', '1')
   expect(await savedDocument(page)).toEqual(before)
   await session.detach()
 })
 
-test('gesto cruzado cancela ambas cámaras y contenido hasta levantar todos; fuera navega solo dashboard', async ({ page, context, isMobile }) => {
+test('el pellizco conserva el módulo seleccionado al cruzar superficies sin guardar trazos', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Solo emulación Android con tacto Chromium')
   await page.goto('/'); await openModule(page, 'Pizarra')
   await page.getByRole('radio', { name: 'Lápiz', exact: true }).click()
@@ -83,7 +83,8 @@ test('gesto cruzado cancela ambas cámaras y contenido hasta levantar todos; fue
   const outsideA = { x: header.x + 140, y: b.y, id: 1 }, outsideB = { x: header.x + 240, y: b.y, id: 2 }
   await touch('touchStart', [outsideA, outsideB])
   await touch('touchMove', [{ ...outsideA, x: outsideA.x - 15 }, { ...outsideB, x: outsideB.x + 15 }]); await touch('touchEnd', [])
-  expect(Number(await page.getByTestId('mobile-viewport').getAttribute('data-scale'))).toBeGreaterThan(1)
+  await expect(page.getByTestId('mobile-viewport')).toHaveAttribute('data-scale', '1')
+  expect(Number(await page.locator('[data-module="board"] .module-scaled-content').getAttribute('data-scale'))).toBeGreaterThan(1)
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-scale', '1')
   expect(await savedDocument(page)).toEqual(before)
   await session.detach()

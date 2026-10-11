@@ -33,7 +33,7 @@ async function zoom(page: Page, label: string, value: number) {
   await input.fill(String(value)); await input.press('Enter')
 }
 
-test('entrega 8: selectores iguales, 1–8 columnas, abreviaturas y ambos zooms', async ({ page, isMobile }, info) => {
+test('entrega 8: selectores iguales, 1–8 columnas, abreviaturas y ambos zooms', { tag: '@responsive' }, async ({ page, isMobile }) => {
   await setup(page)
   const ops = page.getByRole('region', { name: 'Operativo', exact: true })
   const grid = ops.getByRole('group', { name: 'Estado operativo' })
@@ -60,7 +60,6 @@ test('entrega 8: selectores iguales, 1–8 columnas, abreviaturas y ambos zooms'
   await expect.poll(() => notes.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(initialHeight * 1.5)
   await notes.fill('')
   await expect.poll(() => notes.evaluate(node => node.getBoundingClientRect().height)).toBe(initialHeight)
-  await page.screenshot({ path: info.outputPath('operations-100.png') })
   await zoom(page, 'Zoom de Operativo', 150)
   await zoom(page, 'Zoom actual', 75)
   await expect(grid.locator('.operations-state-abbr').first()).toBeVisible()
@@ -68,14 +67,13 @@ test('entrega 8: selectores iguales, 1–8 columnas, abreviaturas y ambos zooms'
   await expect(grid.getByRole('button', { name: 'Disponible', exact: true })).toContainText('DISP')
   await expect(grid.getByRole('button', { name: 'Operativa', exact: true })).toContainText('REAC')
   await expect(grid.getByRole('button', { name: 'Inoperativa', exact: true })).toContainText('⚫')
-  await page.screenshot({ path: info.outputPath('operations-narrow-zoom.png') })
   await notes.scrollIntoViewIfNeeded()
   await expect(notes).toBeInViewport()
   await noPageScroll(page)
   await expect.poll(async () => (await savedDocument(page))?.timeline.length).toBe(0)
 })
 
-test('entrega 8: consulta táctil de estado/fase no cambia datos y tap corto cambia una vez', async ({ page, context, isMobile }) => {
+test('entrega 8: consulta táctil de estado/fase no cambia datos y tap corto cambia una vez', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Emulación táctil Chromium')
   await setup(page)
   const button = page.getByRole('region', { name: 'Operativo', exact: true }).getByRole('button', { name: 'Interviniendo', exact: true })
@@ -96,7 +94,7 @@ test('entrega 8: consulta táctil de estado/fase no cambia datos y tap corto cam
   await session.detach()
 })
 
-test('entrega 8: Información conserva identidad, descripción fija, texto libre y etiquetas', async ({ page }, info) => {
+test('entrega 8: Información conserva identidad, descripción fija, texto libre y etiquetas', async ({ page }) => {
   await setup(page, 340, true)
   const ops = page.getByRole('region', { name: 'Operativo', exact: true })
   const panel = page.getByRole('region', { name: 'Información', exact: true })
@@ -110,7 +108,6 @@ test('entrega 8: Información conserva identidad, descripción fija, texto libre
   await expect(panel.locator('.information-description')).toHaveText('Aislamiento y control, triaje, soporte vital y estabilización.')
   await expect(panel.locator('.information-text')).toHaveText(LONG_INFO)
   await expect(panel.getByLabel('Etiquetas')).toHaveText('Sector norte')
-  await page.screenshot({ path: info.outputPath('information-100.png') })
   await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'Operativa', exact: true }).click()
   await expect(panel.locator('.information-description')).toHaveText('Reactivación del recurso y retorno a su punto de cobertura.')
@@ -119,7 +116,6 @@ test('entrega 8: Información conserva identidad, descripción fija, texto libre
   await zoom(page, 'Zoom actual', 75)
   await bringModuleToFront(page, 'Información')
   await noPageScroll(page)
-  await page.screenshot({ path: info.outputPath('information-narrow-zoom.png') })
   await panel.getByLabel('Etiquetas').scrollIntoViewIfNeeded()
   await expect(panel.getByLabel('Etiquetas')).toBeInViewport()
   await expect.poll(async () => (await savedDocument(page))?.timeline.length).toBe(2)

@@ -1,9 +1,10 @@
-import { useRef } from 'react'
+import { useContext, useLayoutEffect, useRef } from 'react'
 import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
 import { HelpTooltip } from '../../components/ui/tooltip'
 import { Button } from '../../components/ui/button'
 import { X, GripVertical } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
+import { ModuleSizeContext } from '../../layout/ModuleSizeContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { NoteBlock } from './NoteBlock'
@@ -15,15 +16,31 @@ import './notebook.css'
 export function NotebookModule({ store }: { store: DocumentStore }) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
+  const root = useRef<HTMLDivElement>(null)
+  const requestSpace = useContext(ModuleSizeContext)
   const list = useRef<HTMLOListElement>(null)
   const noteControl = useRef<HTMLButtonElement>(null)
   const checklistControl = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    const node = root.current
+    if (!node) return
+    const fitHeight = () => requestSpace({ width: 0, height: node.scrollHeight }, { fitHeight: true })
+    fitHeight()
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fitHeight)
+    observer?.observe(node)
+    return () => observer?.disconnect()
+  }, [requestSpace])
   function mutate(command: (document: AngieDocument) => void) {
     if (!blockedRef.current) store.mutateDocument(command)
   }
   const reorder = useNotebookReorder(document.notebook, list, (id, targetId) => mutate(document => reorderNotebookBlock(document, id, targetId)))
-  function add(type: NotebookBlock['type']) { mutate(document => { addNotebookBlock(document, type) }) }
-  return <div className="notebook-module">
+  function add(type: NotebookBlock['type']) {
+    mutate(document => {
+      const block = addNotebookBlock(document, type)
+      if (block.type === 'checklist') addChecklistItem(document, block.id)
+    })
+  }
+  return <div ref={root} className="notebook-module">
     <div className="notebook-toolbar">
       <Button ref={noteControl} disabled={blocked} onClick={() => add('note')}>Nota</Button>
       <Button ref={checklistControl} disabled={blocked} onClick={() => add('checklist')}>Checklist</Button>
@@ -40,7 +57,10 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
         }}><X aria-hidden="true" /></Button></HelpTooltip>
         {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
           <ChecklistBlock block={block} disabled={blocked}
-            onAdd={afterItemId => mutate(document => { addChecklistItem(document, block.id, afterItemId) })}
+            onAdd={(afterItemId, initial) => mutate(document => {
+              const item = addChecklistItem(document, block.id, afterItemId)
+              if (initial) { item.text = initial.text; item.checked = initial.checked }
+            })}
             onEdit={(id, text) => mutate(document => editChecklistItem(document, block.id, id, text))}
             onCheck={(id, checked) => mutate(document => setChecklistItemChecked(document, block.id, id, checked))}
             onDelete={id => mutate(document => deleteChecklistItem(document, block.id, id))} />}

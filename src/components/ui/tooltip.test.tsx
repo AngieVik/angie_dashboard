@@ -10,13 +10,13 @@ function touch(node: HTMLElement, type: string, values: Record<string, unknown> 
 }
 afterEach(() => vi.useRealTimers())
 describe('ayudas táctiles', () => {
-  it('un segundo dedo fuera del control cancela la ayuda antes de los 500 ms', () => {
+  it('un segundo dedo fuera del control cancela la ayuda antes de los 800 ms', () => {
     vi.useFakeTimers()
     render(<TooltipProvider><HelpTooltip text="Ayuda"><Button>Acción</Button></HelpTooltip></TooltipProvider>)
     touch(screen.getByRole('button', { name: 'Acción' }), 'pointerdown')
     act(() => vi.advanceTimersByTime(250))
     touch(document.body, 'pointerdown', { pointerId: 2, isPrimary: false })
-    act(() => vi.advanceTimersByTime(500))
+    act(() => vi.advanceTimersByTime(800))
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
   it('tap ejecuta una acción; consulta mantenida abre ayuda y consume solo su propio click', () => {
@@ -25,7 +25,7 @@ describe('ayudas táctiles', () => {
     const button = screen.getByRole('button', { name: 'Acción' })
     touch(button, 'pointerdown'); touch(button, 'pointerup'); fireEvent.click(button)
     expect(action).toHaveBeenCalledTimes(1)
-    touch(button, 'pointerdown'); act(() => vi.advanceTimersByTime(499))
+    touch(button, 'pointerdown'); act(() => vi.advanceTimersByTime(799))
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     act(() => vi.advanceTimersByTime(1))
     expect(screen.getByRole('tooltip')).toHaveTextContent('Ayuda')
@@ -39,10 +39,10 @@ describe('ayudas táctiles', () => {
     const { unmount } = render(<TooltipProvider><HelpTooltip text="Ayuda"><Button>Acción</Button></HelpTooltip></TooltipProvider>)
     const button = screen.getByRole('button', { name: 'Acción' })
     touch(button, 'pointerdown'); touch(button, 'pointermove', { clientX: 30 })
-    act(() => vi.advanceTimersByTime(500))
+    act(() => vi.advanceTimersByTime(800))
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     touch(button, 'pointerdown'); touch(button, 'pointercancel')
-    act(() => vi.advanceTimersByTime(500))
+    act(() => vi.advanceTimersByTime(800))
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     touch(button, 'pointerdown'); unmount()
     expect(vi.getTimerCount()).toBe(0)

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { setDocumentTitle, expectDocumentTitle } from './acceptance-helpers'
 import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createEmptyDocument } from '../../src/domain/document/defaultDocument'
@@ -46,7 +47,7 @@ test.beforeEach(async ({ page, context, isMobile }) => {
   }
 })
 
-test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll de página', async ({ page, isMobile }, info) => {
+test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll de página', async ({ page, isMobile }) => {
   const document = createEmptyDocument('Alturas Cuaderno')
   document.moduleLayouts.notebook = { x: 0, y: 0, width: 360, height: 420, referenceSize: { width: 1440, height: 900 } }
   document.notebook = [
@@ -95,7 +96,6 @@ test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll
   }
   await resizeWidth(-100, 260); await expect.poll(height).toBeGreaterThan(wideHeight)
   await resizeWidth(100, 360); await expect.poll(height).toBe(wideHeight)
-  await page.screenshot({ path: info.outputPath('notebook-loaded-wide.png') })
   expect(await module.getByRole('button', { name: 'Reordenar bloque 1' }).evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(30)
   document.notebook = [
     { id: crypto.randomUUID(), type: 'note', title: '', text: 'Preparación\n📻 Revisar canal' },
@@ -122,7 +122,6 @@ test('altura real de una fila, crecimiento, borrado y ajuste al ancho sin scroll
     expect(Number(await frame.getAttribute('data-height'))).toBeGreaterThanOrEqual(height * .8 - 1)
     expect(bounds.y).toBeLessThan(viewport.height)
     expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
-    await page.screenshot({ path: info.outputPath(`notebook-${label}-layout.png`) })
   }
 })
 
@@ -181,7 +180,7 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   await module.getByRole('textbox', { name: 'Texto de nota' }).last().fill('Bloque temporal')
   await module.locator('[data-block-id]').last().getByRole('button', { name: 'Eliminar bloque' }).click()
   await expect(module.locator('[data-block-id]')).toHaveCount(2)
-  await page.getByRole('textbox', { name: 'Título del documento' }).fill('Cuaderno Task 11')
+  await setDocumentTitle(page, 'Cuaderno Task 11')
   const downloading = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Guardar', exact: true }).click()
@@ -193,14 +192,13 @@ test('CRUD sin conexión, teclado, autoguardado, exportación, recarga y carga c
   ])
   expect(Object.keys(exported)).toHaveLength(8)
   await expect.poll(async () => (await saved(page)).notebook).toEqual(exported.notebook)
-  await page.screenshot({ path: info.outputPath('notebook.png') })
   await module.screenshot({ path: info.outputPath('notebook-detail.png') })
   await page.getByRole('button', { name: 'Cerrar Cuaderno' }).click(); await open(page)
   await expect(checkbox).toBeChecked()
   await expect(module.getByRole('textbox', { name: 'Texto de nota' })).toHaveValue('Preparación\n⚠ Acceso norte → sur\n📻 Radio')
   await page.reload()
   await expect(page.locator('[data-module]')).toHaveCount(0)
-  await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Cuaderno Task 11')
+  await expectDocumentTitle(page, 'Cuaderno Task 11')
   await open(page)
   await expect(checkbox).toBeChecked()
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
@@ -243,12 +241,12 @@ test('reordena con ratón o tacto solo desde el tirador sin mover el módulo', a
   await session.detach()
 })
 
-test('tamaño mínimo, lista con scroll interno, nombres accesibles y foco visible', async ({ page, context, isMobile }, info) => {
+test('tamaño mínimo, lista con scroll interno, nombres accesibles y foco visible', async ({ page, context, isMobile }) => {
   const document = createEmptyDocument('Mínimo Cuaderno')
   document.moduleLayouts.notebook = { x: 0, y: 0, width: 260, height: 220, referenceSize: { width: 1600, height: 1000 } }
   document.notebook = Array.from({ length: 8 }, (_, index) => ({ id: crypto.randomUUID(), type: 'note', title: 'Nota', text: `Bloque ${index + 1}\n📻 Preparación` }))
   await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'minimum.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
-  await expect(page.getByRole('textbox', { name: 'Título del documento' })).toHaveValue('Mínimo Cuaderno')
+  await expectDocumentTitle(page, 'Mínimo Cuaderno')
   const module = page.getByRole('region', { name: 'Cuaderno', exact: true }), list = module.getByRole('list', { name: 'Bloques del Cuaderno' })
   expect(await list.evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true)
   expect(await module.locator('.module-content').evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true)
@@ -273,10 +271,9 @@ test('tamaño mínimo, lista con scroll interno, nombres accesibles y foco visib
   await expect.poll(() => list.evaluate(node => node.scrollTop)).toBeGreaterThan(0)
   expect(await module.locator('[data-block-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-block-id')))).toEqual(ids)
   expect(await page.evaluate(() => [window.document.documentElement.scrollWidth, window.document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
-  await page.screenshot({ path: info.outputPath('notebook-minimum.png') })
 })
 
-test('dos dedos cancelan el reordenado sin perder datos', async ({ page, context, isMobile }) => {
+test('dos dedos cancelan el reordenado sin perder datos', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'requiere emulación táctil Chromium')
   await add(page, 'Nota'); await add(page, 'Checklist')
   const module = page.locator('[data-module="notebook"]'), session = await context.newCDPSession(page)
@@ -296,8 +293,7 @@ test('dos dedos cancelan el reordenado sin perder datos', async ({ page, context
   await session.detach()
 })
 
-
-test('checklist mantiene el + a la derecha al añadir y eliminar todas las filas', async ({ page }, info) => {
+test('checklist mantiene el + a la derecha al añadir y eliminar todas las filas', async ({ page }) => {
   await add(page, 'Checklist')
   const checklist = page.locator('.notebook-checklist')
   const right = async () => {
@@ -313,7 +309,6 @@ test('checklist mantiene el + a la derecha al añadir y eliminar todas las filas
   expect(plus.x).toBeGreaterThanOrEqual(minus.x + minus.width - 1)
   await checklist.getByRole('textbox').fill('Comprobar radio\nConfirmar canal')
   expect(await right()).toBeCloseTo(emptyRight, 0)
-  await page.screenshot({ path: info.outputPath('checklist-plus-derecha.png') })
   await checklist.getByRole('button', { name: 'Añadir elemento después de 1', exact: true }).click()
   expect(await right()).toBeCloseTo(emptyRight, 0)
   await checklist.getByRole('button', { name: 'Eliminar elemento 2', exact: true }).click()

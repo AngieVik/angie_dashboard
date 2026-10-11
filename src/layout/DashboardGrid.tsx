@@ -99,7 +99,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
         <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
           style={{ zIndex: layers.indexOf(id) + 1 }}
           onPointerDown={() => onActive(id)} onFocusCapture={() => onActive(id)}>
-          <ModuleFrame id={id} generation={generation} active={active === id} onClose={() => onClose(id)} onFit={size => {
+          <ModuleFrame id={id} height={layout.height} generation={generation} active={active === id} onClose={() => onClose(id)} onFit={size => {
             if (!blockedRef.current) { const next = { ...layout, ...size }; onGrow?.(next); onLayout(id, next, 'resize') }
           }}>{renderModule?.(id)}</ModuleFrame>
         </div>

@@ -36,7 +36,7 @@ export function HelpTooltip({ text, children }: { text: string; children: ReactE
       if (hold.current || !event.isPrimary) { cancel(); setOpen(false); return }
       consulted.current = false
       hold.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY }
-      timer.current = setTimeout(() => { if (!blockedRef.current && hold.current) { consulted.current = true; setOpen(true) } }, 500)
+      timer.current = setTimeout(() => { if (!blockedRef.current && hold.current) { consulted.current = true; setOpen(true) } }, 800)
     }}
     onPointerMoveCapture={event => {
       if (hold.current && (blockedRef.current || Math.hypot(event.clientX - hold.current.x, event.clientY - hold.current.y) > 8)) { cancel(); setOpen(false) }

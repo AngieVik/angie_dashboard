@@ -76,7 +76,6 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
           {entry.type === 'status-change' && <p className="timeline-edit-context">{entry.unitName} · {entry.nextStatus}</p>}
           <textarea aria-label="Texto de entrada" aria-invalid={Boolean(error && errorField === 'edit')} aria-describedby={error && errorField === 'edit' ? errorId : undefined} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ ...editing, text: event.target.value })} />
           <div><Button type="submit" disabled={blocked}><Check aria-hidden="true" />Guardar entrada</Button><Button disabled={blocked} onClick={finishEditing}>Cancelar</Button></div>
-          {editing.expected && isCurrentTimelineEntry(document, entry) && <Button className="document-button timeline-correct" disabled={blocked} onClick={() => requestConfirmation(entry, 'correction')}>Corregir estado actual</Button>}
         </form> : <div className="timeline-entry-actions">
           <Button aria-label="Editar entrada" title="Editar entrada" disabled={blocked} onClick={() => {
             if (!blockedRef.current) setEditing({ id: entry.id, text: getTimelineEntryLabel(entry), expected: entry.type === 'status-change' && isCurrentTimelineEntry(document, entry) ? { currentEntryId: entry.id, status: entry.nextStatus, revisionCount: entry.revisions.length } : null })
@@ -90,9 +89,10 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
       if (blockedRef.current) return
       if (attempt(() => store.mutateDocument(document => { addManualTimelineEntry(document, text, new Date()) }), 'new')) { setText(''); newEntryInput.current?.focus() }
     }}>
-      <Button aria-label="Escribir acontecimiento" title="Escribir acontecimiento" disabled={blocked} onClick={() => { if (!blockedRef.current) newEntryInput.current?.focus() }}><PenLine aria-hidden="true" /></Button>
-      <Input ref={newEntryInput} aria-label="Acontecimiento" aria-invalid={Boolean(error && errorField === 'new')} aria-describedby={error && errorField === 'new' ? errorId : undefined} placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />
-      <Button type="submit" aria-label="Añadir entrada" title="Añadir entrada" disabled={blocked}><Check aria-hidden="true" /></Button>
+      <div className="timeline-add-field">
+        <Input ref={newEntryInput} aria-label="Acontecimiento" aria-invalid={Boolean(error && errorField === 'new')} aria-describedby={error && errorField === 'new' ? errorId : undefined} placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />
+        <Button type="submit" aria-label="Añadir entrada" title="Añadir entrada" disabled={blocked}><Check aria-hidden="true" /></Button>
+      </div>
     </form>
     {error && <p id={errorId} className="timeline-error" role="alert">{error}</p>}
     <AlertDialog open={confirmation !== null} onOpenChange={open => { if (!open) setConfirmation(null) }}>

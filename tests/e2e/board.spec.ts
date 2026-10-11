@@ -84,7 +84,7 @@ test('revisión adaptativa: superficie rectangular completa y herramientas en un
   expect(await page.getByRole('radio').first().locator('svg').count()).toBe(1)
 })
 
-test('canvas real: fondo, lápiz, goma, notas, JSON y recuperación', async ({ page }, info) => {
+test('canvas real: fondo, lápiz, goma, notas, JSON y recuperación', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await page.getByLabel('Color de fondo', { exact: true }).fill('#ffffff')
   await expect.poll(() => pixel(page, 0, 500, 500)).toEqual([255, 255, 255, 255])
@@ -120,7 +120,6 @@ test('canvas real: fondo, lápiz, goma, notas, JSON y recuperación', async ({ p
   expect(Object.keys(json.board)).toEqual(['backgroundColor', 'strokes', 'quickNotes'])
   expect(json.board.strokes.map(stroke => stroke.tool)).toEqual(['pen', 'eraser'])
   expect(json.board.strokes[1]?.color).toBeNull()
-  await page.screenshot({ path: info.outputPath('board-desktop-mobile.png') })
   await page.reload(); await expect(page.locator('[data-module]')).toHaveCount(0)
   await openBoard(page)
   await expect(page.getByTestId('board-surface')).toHaveAttribute('data-image-width', '0')
@@ -174,8 +173,8 @@ test('rueda sincronizada y modificadores navegan solo la pizarra y permiten dibu
   await page.mouse.move(rect.x + 3, rect.y + rect.height / 2)
   const x = Number(await surface.getAttribute('data-offset-x')), y = Number(await surface.getAttribute('data-offset-y'))
   await page.mouse.wheel(0, 80)
-  await expect.poll(async () => Number(await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).inputValue())).toBeLessThan(100)
-  expect(Number(await surface.getAttribute('data-offset-y'))).toBe(y)
+  await expect(page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true })).toHaveValue('100')
+  await expect.poll(async () => Number(await surface.getAttribute('data-offset-y'))).toBeLessThan(y)
   expect(Number(await surface.getAttribute('data-offset-x'))).toBe(x)
   await page.keyboard.down('Shift'); await page.mouse.wheel(0, 80); await page.keyboard.up('Shift')
   await expect.poll(async () => Number(await surface.getAttribute('data-offset-x'))).toBeLessThan(x)
@@ -192,7 +191,7 @@ test('rueda sincronizada y modificadores navegan solo la pizarra y permiten dibu
   expect((await saved(page)).board.strokes[0]?.points[0]?.x).toBeGreaterThan(1000)
 })
 
-test('notas: pulsación mantenida, edición, borrado y lienzo centrado al redimensionar', async ({ page }, info) => {
+test('notas: pulsación mantenida, edición, borrado y lienzo centrado al redimensionar', async ({ page }) => {
   await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
   await page.getByLabel('Texto de nota rápida').fill('Acceso norte')
   await page.getByLabel('Texto de nota rápida').press('Tab')
@@ -222,7 +221,6 @@ test('notas: pulsación mantenida, edición, borrado y lienzo centrado al redime
   expect(square.height).toBeCloseTo(area.height, 1)
   expect(square.x + square.width / 2).toBeCloseTo(area.x + area.width / 2, 1)
   expect(square.y + square.height / 2).toBeCloseTo(area.y + area.height / 2, 1)
-  await page.screenshot({ path: info.outputPath('board-minimum.png') })
   await page.getByRole('button', { name: 'Eliminar nota', exact: true }).click()
   await expect.poll(async () => (await saved(page)).board.quickNotes.length).toBe(0)
   expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))).toEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
@@ -239,7 +237,7 @@ test('herramientas y notas en sitio accesibles con teclado', async ({ page }) =>
   await expect.poll(async () => (await saved(page)).board.quickNotes[0]?.text).toBe('Acceso norte')
   await select.focus(); await expect(select).toHaveCSS('outline-style', 'solid')
 })
-test('tacto: un dedo dibuja y mueve notas; dos dedos cancelan ambos sin cambios persistentes', async ({ page, context, isMobile }) => {
+test('tacto: un dedo dibuja y mueve notas; dos dedos cancelan ambos sin cambios persistentes', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'requiere emulación táctil Chromium')
   const session = await context.newCDPSession(page)
   const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: { x: number; y: number; id: number }[]) => session.send('Input.dispatchTouchEvent', { type, touchPoints: points })
@@ -293,7 +291,7 @@ test('tacto: un dedo dibuja y mueve notas; dos dedos cancelan ambos sin cambios 
   await session.detach()
 })
 
-test('nota: ancho y alto independientes y geometría recuperada desde JSON', async ({ page }, info) => {
+test('nota: ancho y alto independientes y geometría recuperada desde JSON', async ({ page }) => {
   await page.getByRole('button', { name: 'Nota rápida', exact: true }).click()
   const body = page.getByLabel('Texto de nota rápida')
   await body.fill('Ruta norte'); await body.press('Tab')
@@ -322,9 +320,8 @@ test('nota: ancho y alto independientes y geometría recuperada desde JSON', asy
   await page.reload(); await openBoard(page)
   expect((await saved(page)).board.quickNotes[0]).toEqual(finalNote)
   await expect(body).toHaveCSS('font-size', '16px')
-  await page.screenshot({ path: info.outputPath('board-scaled-note.png') })
 })
-test('escena estable: notas heredadas y nuevas en ventanas horizontal y vertical; fondo completo y cámara temporal', async ({ page }, info) => {
+test('escena estable: notas heredadas y nuevas en ventanas horizontal y vertical; fondo completo y cámara temporal', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const document = createEmptyDocument()
   document.board.backgroundColor = '#223344'
@@ -348,15 +345,13 @@ test('escena estable: notas heredadas y nuevas en ventanas horizontal y vertical
       return [[1, 1], [canvas.width - 2, canvas.height - 2]].map(([x, y]) => [...ctx.getImageData(x!, y!, 1, 1).data])
     })).toEqual([[34, 51, 68, 255], [34, 51, 68, 255]])
     expect((await saved(page)).board).toEqual(document.board)
-    await page.screenshot({ path: info.outputPath(`board-notes-${shape}.png`) })
   }
   const json = await exportDocument(page)
   expect(json.board).toEqual(document.board)
   expect(Object.keys(json)).toHaveLength(8)
 })
 
-
-test('imagen editable: origen, movimiento negativo, escala proporcional y limpieza independiente', async ({ page }, info) => {
+test('imagen editable: origen, movimiento negativo, escala proporcional y limpieza independiente', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   const surface = page.getByTestId('board-surface')
   await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).fill('25')
@@ -378,7 +373,6 @@ test('imagen editable: origen, movimiento negativo, escala proporcional y limpie
   await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x - 200 * ratio, y - 100 * ratio, { steps: 5 }); await page.mouse.up()
   await expect.poll(async () => Number(await surface.getAttribute('data-image-display-width'))).toBeCloseTo(800, 0)
   await expect.poll(async () => Number(await surface.getAttribute('data-image-display-height'))).toBeCloseTo(400, 0)
-  await page.screenshot({ path: info.outputPath('imagen-editable.png') })
   await page.getByRole('radio', { name: 'Lápiz', exact: true }).click()
   await draw(page, [80, 120], [180, 120])
   await expect.poll(() => pixel(page, 1, 120, 120)).toEqual([214, 58, 58, 255])
@@ -387,7 +381,6 @@ test('imagen editable: origen, movimiento negativo, escala proporcional y limpie
   const cursorPoint = await canvasPoint(page, 200, 200)
   await page.mouse.move(cursorPoint.x, cursorPoint.y)
   await expect(page.locator('.board-tool-cursor')).toHaveCSS('box-shadow', /rgb\(255, 255, 255\).*rgb\(0, 0, 0\)/)
-  await page.screenshot({ path: info.outputPath('cursor-contraste.png') })
   await page.getByRole('button', { name: 'Borrar todos los trazos' }).click()
   await expect.poll(() => pixel(page, 1, 120, 120)).toEqual([0, 0, 0, 0])
   await expect.poll(() => pixel(page, 0, 120, 120)).toEqual([54, 128, 160, 255])
@@ -398,8 +391,7 @@ test('imagen editable: origen, movimiento negativo, escala proporcional y limpie
   expect(errors).toEqual([])
 })
 
-
-test('imagen táctil: un dedo mueve y dos dedos cancelan la edición pendiente', async ({ page, context, isMobile }) => {
+test('imagen táctil: un dedo mueve y dos dedos cancelan la edición pendiente', { tag: '@mobile' }, async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'requiere emulación táctil Chromium')
   await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).fill('25')
   await page.getByRole('spinbutton', { name: 'Zoom de Pizarra', exact: true }).press('Enter')
