@@ -1,11 +1,11 @@
 .notebook-module { display: flex; flex-direction: column; height: auto; min-height: 0; overflow: hidden; }
-.notebook-toolbar { flex: 0 0 auto; padding: 5px 8px; border-bottom: 1px solid var(--color-border); background: var(--surface-header); box-shadow: inset 0 1px 0 rgb(242 242 240 / 6%); }
-.notebook-toolbar { display: flex; gap: 0; }
+.notebook-toolbar { flex: 0 0 auto; padding: 4px var(--section-gap); border-bottom: 1px solid var(--color-border); background: var(--surface-header); box-shadow: inset 0 1px 0 rgb(242 242 240 / 6%); }
+.notebook-toolbar { display: flex; gap: var(--control-gap); }
 .notebook-toolbar .document-button { padding: 1px 9px; font-size: var(--font-size-body); }
 .notebook-list { flex: 0 0 auto; min-height: 0; margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; list-style: none; overflow-anchor: none; }
-.notebook-block { display: grid; grid-template-columns: 20px minmax(0, 1fr) 20px; gap: 0; margin-bottom: 0; padding: 0; border: 1px solid #343A3E; border-radius: 3px; background: linear-gradient(145deg, #212528, #17191B); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
+.notebook-block { display: grid; grid-template-columns: 20px minmax(0, 1fr) 20px; gap: 0; margin-bottom: 0; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--surface-inset); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
 .notebook-block[data-dragging="true"] { opacity: 0.65; }
-.notebook-block[data-drop-target="true"] { border-color: var(--color-accent-yellow); box-shadow: inset 0 0 0 1px var(--color-accent-yellow); }
+.notebook-block[data-drop-target="true"] { border-color: var(--color-selection-border); box-shadow: inset 0 0 0 1px var(--color-selection-border); }
 .app-shell .notebook-module button.notebook-handle[aria-label] { grid-column: 1; grid-row: 1; width: 20px; height: 100%; min-height: 0; align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0 2px; border: 0; background: transparent; box-shadow: none; touch-action: none; cursor: grab; user-select: none; }
 .notebook-grip { display: flex; gap: 0; height: 24px; align-self: center; }
 .notebook-grip::before, .notebook-grip::after { content: ''; width: 1px; background: var(--color-text-secondary); opacity: .65; }
@@ -17,15 +17,12 @@
 .notebook-checklist ul { padding: 0; margin: 0; list-style: none; }
 .notebook-checklist li { display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 4px; margin-bottom: 0; }
 .notebook-checklist li:last-child { margin-bottom: 0; }
-.notebook-checklist input[type="checkbox"] { appearance: none; width: 14px; height: 14px; margin: 0; padding: 0; border: 1px solid var(--color-border); border-radius: 2px; background: #0c0d0e; }
-.notebook-checklist input[type="checkbox"]:checked { background: var(--color-accent-red); box-shadow: inset 0 0 0 2px #0c0d0e; }
-.notebook-checklist input[type="checkbox"]:focus-visible { outline: 1px solid var(--color-selection-border); outline-offset: 2px; }
 .notebook-item-field { position: relative; min-width: 0; }
 .notebook-checklist .notebook-item-field textarea { padding-right: 44px; }
 .notebook-item-actions { position: absolute; inset-block: 0; right: 2px; display: flex; align-items: center; }
 .notebook-checklist li[data-checked="true"] textarea { color: var(--color-text-secondary); }
 
 .app-shell .notebook-module button.notebook-delete[aria-label] { grid-column: 3; grid-row: 1; align-self: center; display: grid; place-items: center; width: 20px; min-width: 20px; height: 20px; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
-.app-shell .notebook-module button.notebook-delete[aria-label]:hover:not(:disabled) { background: transparent; color: var(--color-text); }
+.app-shell .notebook-module button.notebook-delete[aria-label]:hover:not(:disabled) { background: transparent; color: var(--color-accent-red); }
 .app-shell .notebook-module button.notebook-item-control[aria-label] { display: grid; place-items: center; width: 20px; min-width: 20px; height: 20px; min-height: 0; padding: 0; }
 .notebook-handle svg, .notebook-delete svg, .notebook-item-control svg { width: 16px; height: 16px; }

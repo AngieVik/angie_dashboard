@@ -448,7 +448,7 @@ test('herramientas uniformes y foco de textarea sin borde amarillo', async ({ pa
   for (const textarea of await textareas.all()) {
     await textarea.focus()
     await expect(textarea).toHaveCSS('outline-style', 'none')
-    await expect(textarea).toHaveCSS('border-color', 'rgb(117, 131, 141)')
+    await expect(textarea).toHaveCSS('border-color', 'rgb(214, 58, 58)')
   }
   await noPageScroll(page)
 })
@@ -535,25 +535,45 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
     const s = getComputedStyle(node), surface = getComputedStyle(node.closest('.ui-input-group') ?? node)
     return [s.fontSize, s.fontFamily, s.lineHeight, s.padding, surface.borderRadius, surface.borderWidth, surface.backgroundColor, surface.boxShadow]
   }
+  await expect(page.locator('.app-shell')).toHaveCSS('color', 'rgb(242, 242, 242)')
   await openModule(page, 'Cuaderno')
-  const reference = await page.getByRole('button', { name: 'Nota', exact: true }).evaluate(buttonStyle)
-  await page.getByRole('button', { name: 'Nota', exact: true }).click()
+  const referenceButton = page.getByRole('button', { name: 'Nota', exact: true })
+  await page.mouse.move(0, 0)
+  const reference = await referenceButton.evaluate(buttonStyle)
+  expect(reference.slice(0, 2)).toEqual(['22px', '13px'])
+  if (!isMobile) {
+    await referenceButton.hover()
+    await expect(referenceButton).toHaveCSS('border-color', 'rgb(214, 58, 58)')
+  }
+  await referenceButton.click()
   await page.getByRole('button', { name: 'Checklist', exact: true }).click()
-  await page.getByRole('button', { name: 'Añadir elemento', exact: true }).click()
   const note = page.getByLabel('Texto de nota', { exact: true })
   await note.fill('Una línea de prueba')
+  await note.blur()
+  const inputReference = await note.evaluate(fieldStyle)
+  expect(inputReference[6]).toBe('rgb(17, 17, 17)')
+  const checkbox = page.getByRole('checkbox', { name: 'Marcar elemento 1', exact: true })
+  await checkbox.check()
+  await expect(checkbox).toBeChecked()
+  await expect(checkbox).toHaveCSS('background-color', 'rgb(214, 58, 58)')
+  await expect(checkbox).toHaveCSS('width', '14px')
+  expect(await checkbox.evaluate(el => getComputedStyle(el, '::after').content)).toBe('"✓"')
   await page.getByRole('button', { name: 'Cerrar Cuaderno', exact: true }).click()
   await openModule(page, 'Dotaciones')
   await page.getByRole('button', { name: 'Seleccionar Equipo de pruebas', exact: true }).click()
+  await expect(page.locator('.element-row[data-selected="true"]')).toHaveCSS('border-color', 'rgb(214, 58, 58)')
   await page.getByRole('button', { name: 'Cerrar Dotaciones', exact: true }).click()
   await openModule(page, 'Operativo')
   const annotation = page.getByLabel('Anotación', { exact: true })
   await annotation.fill('Anotación de referencia')
-  const inputReference = await annotation.evaluate(fieldStyle)
+  await expect(annotation).toHaveCSS('background-color', 'rgb(17, 17, 17)')
+  await expect(annotation).toHaveCSS('border-color', 'rgb(214, 58, 58)')
   await page.getByRole('button', { name: 'Cerrar Operativo', exact: true }).click()
   for (const name of ['Cuaderno', 'Reloj', 'Elementos', 'Dotaciones', 'Calculadora', 'Coordenadas']) {
     await openModule(page, name)
-    const region = page.getByRole('region', { name, exact: true })
+    const region = page.locator('.module-frame').filter({ has: page.getByRole('heading', { name, exact: true }) })
+    await expect(region).toHaveCSS('background-color', 'rgb(24, 24, 24)')
+    await expect(region.getByRole('heading', { name, exact: true })).toHaveCSS('font-size', '13px')
     if (name === 'Reloj') await region.getByRole('button', { name: 'T-Minus', exact: true }).click()
     if (['Elementos', 'Dotaciones'].includes(name)) {
       await expect(region.getByRole('button', { name: 'Crear', exact: true })).toHaveCSS('height', reference[0]!)
@@ -561,25 +581,36 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
       await setElementScale(region, 125)
       await region.getByRole('slider', { name: 'Escala del icono', exact: true }).press('Tab')
       await expect(region.getByRole('slider', { name: 'Escala del icono', exact: true })).toHaveAttribute('aria-valuenow', '125')
+      const hide = region.getByRole('checkbox', { name: 'Ocultar', exact: true })
+      await hide.check()
+      await expect(hide).toHaveCSS('background-color', 'rgb(214, 58, 58)')
+      await expect(hide).toHaveCSS('width', '14px')
     }
     await page.mouse.move(0, 0)
-    for (const button of await region.locator('[data-slot="button"]').all()) {
-      const text = await button.textContent()
-      if (text?.trim()) expect(await button.evaluate(buttonStyle), name + ': ' + text).toEqual(reference)
+    for (const button of await region.locator('[data-slot="button"][data-text-button]').all()) {
+      // Numeric keypads and timer controls keep their adaptive geometry and technical fonts.
+      if (await button.evaluate(el => Boolean(el.closest('.calculator-keypad,.clock-module')))) continue
+      expect(await button.evaluate(buttonStyle), name + ': ' + await button.textContent()).toEqual(reference)
     }
     for (const field of await region.locator('input:not([type="checkbox"]):not([type="radio"]), textarea, select').all()) {
-      if (await field.evaluate(el => !!el.closest('.zoom-control'))) continue
-      const expected = [...inputReference]
-      // Native selects keep the browser's line-height; their box shares the field height.
-      if (await field.evaluate(el => el.tagName === 'SELECT')) expected[2] = 'normal'
-      expect(await field.evaluate(fieldStyle), name + ': ' + await field.getAttribute('aria-label')).toEqual(expected)
-      if (await field.evaluate(el => el.tagName === 'TEXTAREA')) {
-        await field.focus()
-        await expect(field).toHaveCSS('outline-style', 'none')
-        await expect(field).toHaveCSS('border-color', 'rgb(117, 131, 141)')
+      if (!await field.isVisible() || await field.evaluate(el => Boolean(el.closest('.zoom-control')) || getComputedStyle(el).opacity === '0')) continue
+      await field.blur()
+      if (name === 'Reloj') {
+        await expect(field).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+        await expect(field).toHaveCSS('font-family', /Rajdhani/)
+      } else {
+        const expected = [...inputReference]
+        // Native selectors retain browser line-height; checklist rows reserve space for +/-.
+        if (await field.evaluate(el => el.tagName === 'SELECT')) expected[2] = 'normal'
+        if (await field.evaluate(el => Boolean(el.closest('.notebook-item-field')))) expected[3] = '4px 44px 4px 6px'
+        expect(await field.evaluate(fieldStyle), name + ': ' + await field.getAttribute('aria-label')).toEqual(expected)
       }
+      await field.focus()
+      await expect(field).toHaveCSS('outline-style', 'none')
+      await expect(field).toHaveCSS('border-bottom-color', 'rgb(214, 58, 58)')
     }
     if (name === 'Calculadora') {
+      await expect(region.getByRole('button', { name: '7', exact: true })).toHaveCSS('font-family', /monospace/)
       await region.getByLabel('Operación', { exact: true }).fill('7+5')
       await region.getByLabel('Operación', { exact: true }).press('Enter')
       await expect(region.getByLabel('Resultado', { exact: true })).toHaveText('12')
@@ -592,16 +623,16 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
     await expect(region.locator('..').locator('.react-resizable-handle-se .lucide-square-dimensions')).toHaveCount(1)
     await page.getByRole('button', { name: 'Cerrar ' + name, exact: true }).click()
   }
-
   await openModule(page, 'Registro cronológico')
   const timeline = page.getByRole('region', { name: 'Registro cronológico', exact: true })
   await timeline.getByLabel('Acontecimiento', { exact: true }).fill('Revisión de material')
   await timeline.getByRole('button', { name: 'Añadir entrada', exact: true }).click()
   await timeline.getByRole('button', { name: 'Editar entrada', exact: true }).click()
   const entry = timeline.getByLabel('Texto de entrada', { exact: true })
+  await entry.blur()
   expect(await entry.evaluate(fieldStyle)).toEqual(inputReference)
   await entry.focus()
-  await expect(entry).toHaveCSS('outline-style', 'none')
+  await expect(entry).toHaveCSS('border-color', 'rgb(214, 58, 58)')
   await page.mouse.move(0, 0)
   for (const label of ['Guardar entrada', 'Cancelar']) expect(await timeline.getByRole('button', { name: label, exact: true }).evaluate(buttonStyle)).toEqual(reference)
   await timeline.getByRole('button', { name: 'Cancelar', exact: true }).click()
@@ -619,8 +650,7 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click()
   await noPageScroll(page)
 })
-
-test('correcciones visibles: referencia Nota, foco neutro, tarjetas y ausencia de barras horizontales', async ({ page }, info) => {
+test('correcciones visibles: referencia Nota, foco rojo, tarjetas y ausencia de barras horizontales', async ({ page }, info) => {
   await page.goto('/')
   const fixture = createEmptyDocument('Correcciones de interfaz')
   const units = ['Equipo norte', 'Equipo sur'].map(name => createElement(fixture, { name, information: 'Información de prueba', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 } }))
@@ -656,8 +686,8 @@ test('correcciones visibles: referencia Nota, foco neutro, tarjetas y ausencia d
       await field.focus()
       expect(await field.evaluate(el => {
         const own = getComputedStyle(el), group = el.closest('.ui-input-group')
-        return own.outlineStyle === 'none' && (own.borderBottomWidth === '0px' || own.borderBottomColor === 'rgb(117, 131, 141)')
-          && (!group || (getComputedStyle(group).outlineStyle === 'none' && getComputedStyle(group).borderColor === 'rgb(117, 131, 141)'))
+        return own.outlineStyle === 'none' && (own.borderBottomWidth === '0px' || own.borderBottomColor === 'rgb(214, 58, 58)')
+          && (!group || (getComputedStyle(group).outlineStyle === 'none' && getComputedStyle(group).borderColor === 'rgb(214, 58, 58)'))
       }), name + ': ' + await field.getAttribute('aria-label')).toBe(true)
     }
     const scrolling = region.locator('.module-content,.element-editor,.elements-list,.timeline-entries,.coordinates-results dd')

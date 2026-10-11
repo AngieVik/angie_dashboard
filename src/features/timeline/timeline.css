@@ -2,7 +2,7 @@
 .timeline-entries { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 0; overflow-anchor: none; }
 .timeline-entries ol { list-style: none; padding: 0; margin: 0; }
 .timeline-entries li { display: flex; align-items: center; padding: 0; border-bottom: 1px solid var(--color-border); font-size: 13px; }
-.timeline-entries li[data-editing="true"] { flex-direction: column; align-items: stretch; background: var(--color-row-selected, #252F36); }
+.timeline-entries li[data-editing="true"] { flex-direction: column; align-items: stretch; background: var(--color-selected); }
 .timeline-entry-line { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 8px; }
 .timeline-entry-line time { flex-shrink: 0; color: var(--color-text-secondary); font-size: 12px; }
 .timeline-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
@@ -13,9 +13,9 @@
 .timeline-entry-actions .document-button:last-child:hover { color: var(--color-accent-red); }
 .timeline-edit { display: flex; flex-direction: column; gap: 0; padding: 0; }
 .timeline-edit-context { margin: 0; color: var(--color-text-secondary); font-size: 12px; }
-.timeline-edit textarea { width: 100%; min-height: 45px; resize: vertical; padding: 4px; border: 1px solid var(--color-border); border-radius: 2px; background: var(--color-input, #1C1F21); color: var(--color-text); font: inherit; }
-.timeline-edit > div, .timeline-confirm-actions { display: flex; flex-wrap: wrap; gap: 0; }
-.timeline-module .timeline-edit .document-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 6px; }
+.timeline-edit textarea { width: 100%; min-height: 45px; resize: vertical; padding: 4px; border: 1px solid var(--color-border); border-radius: 2px; background: var(--color-field); color: var(--color-text); font: inherit; }
+.timeline-edit > div, .timeline-confirm-actions { display: flex; flex-wrap: wrap; gap: var(--control-gap); }
+.timeline-module .timeline-edit .document-button { display: inline-flex; align-items: center; gap: var(--control-gap); font-size: var(--control-font-size); padding: 1px 9px; }
 .timeline-add { flex: 0 0 auto; display: flex; align-items: center; gap: 0; padding: 6px 24px 8px 6px; background: var(--color-module); }
 .timeline-add-field { position: relative; flex: 1; min-width: 0; }
 .timeline-module .timeline-add-field .document-title { width: 100%; min-width: 0; height: 25px; padding-right: 32px; font-size: 13px; }

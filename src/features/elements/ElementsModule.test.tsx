@@ -130,7 +130,7 @@ describe('listas y editor de entrega 6', () => {
     const store = await setup()
     act(() => store.mutateDocument(d => { createElement(d, { name: 'Ruta', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 } }) }))
     click('Modificar'); change('Nombre', 'Ruta norte'); change('Tamaño de letra del nombre', '24')
-    expect(screen.queryByRole('spinbutton', { name: 'Escala', exact: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton', { name: 'Escala' })).not.toBeInTheDocument()
     const slider = screen.getByRole('slider', { name: 'Escala del icono' })
     fireEvent.keyDown(slider, { key: 'End' })
     for (let step = 300; step > 200; step -= 10) fireEvent.keyDown(slider, { key: 'PageDown' })
