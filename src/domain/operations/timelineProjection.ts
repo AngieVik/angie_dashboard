@@ -32,6 +32,6 @@ export function getTimelineEntryLabel(entry: TimelineEntry): string {
   const text = getTimelineEntryText(entry)
   if (text !== null) return text
   if (entry.type === 'manual') return entry.text
-  const previous = entry.previousStatus === null ? 'Sin estado' : `${entry.previousStatus} ${OPERATIONAL_STATUSES.find(item => item.status === entry.previousStatus)!.icon}`
-  return `${entry.unitName} · ${previous} → ${entry.nextStatus} ${OPERATIONAL_STATUSES.find(item => item.status === entry.nextStatus)!.icon}`
+  if (entry.nextStatus === 'Personalizada') return `${entry.unitName} · ${entry.customLabel ?? 'Personalizada'}`
+  return `${entry.unitName} · ${entry.nextStatus} ${OPERATIONAL_STATUSES.find(item => item.status === entry.nextStatus)!.icon}`
 }

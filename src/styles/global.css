@@ -249,7 +249,7 @@ textarea {
 .open-modules { display: flex; flex: 0 0 auto; align-items: center; gap: 0; }
 .open-modules .document-button, .app-header .magnet-button { width: 26px; padding: 0; }
 .open-modules .document-button[aria-pressed="true"] { color: var(--color-text); border-color: var(--color-hover-border); }
-.app-header .magnet-button[aria-pressed="true"] { color: var(--color-accent-red); border-color: var(--color-selection-border); box-shadow: var(--shadow-selection); }
+.app-header .magnet-button[aria-pressed="true"] { color: var(--color-text); border-color: var(--color-selection-border); box-shadow: var(--shadow-selection); }
 /* Intrinsic measurement excludes window size, scroll viewports and empty space. */
 .module-frame[data-fitting] .module-header { width: max-content; }
 .module-frame[data-fitting] .module-header h2 { flex: none; }
@@ -274,9 +274,9 @@ textarea {
 .module-frame { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--color-frame-border); border-radius: 4px;
   background: var(--color-module);
   box-shadow: var(--shadow-panel); }
-.module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 24px 0 5px;
+.module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 24px 0 0;
   border-bottom: 1px solid #080808; background: var(--surface-header);
-  box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); cursor: move; touch-action: none; user-select: none; }
+  box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); cursor: pointer; touch-action: none; user-select: none; }
 .module-icon { flex: none; width: 14px; height: 14px; color: var(--color-text-secondary); pointer-events: none; }
 .module-header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.025em; }
 .module-fit, .module-close { display: grid; place-items: center; flex: none; width: 21px; height: 21px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-field); color: var(--color-text-secondary); background: transparent; cursor: pointer; line-height: 1; }
@@ -293,7 +293,7 @@ textarea {
 .app-header .technical-data { font-size: var(--font-size-technical); }
 .react-grid-item { transition: none; }
 .react-grid-item.react-grid-placeholder { background: var(--color-frame-border); opacity: 0.12; }
-.react-resizable-handle { touch-action: none; }
+.react-resizable-handle, .window-resize { touch-action: none; user-select: none; -webkit-user-select: none; }
 .react-resizable-handle::after { border-color: var(--color-text-secondary); }
 .react-resizable-handle-n, .react-resizable-handle-s { width: calc(100% - 40px); height: 6px; left: 20px; margin: 0; transform: none; }
 .react-resizable-handle-e, .react-resizable-handle-w { height: calc(100% - 40px); width: 6px; top: 20px; margin: 0; transform: none; }
@@ -304,9 +304,9 @@ textarea {
 .logical-workspace .react-grid-item > .react-resizable-handle-se { opacity: 1; }
 .logical-workspace .react-grid-item > .react-resizable-handle-se, .quick-note-resize, .window-resize {
   position: absolute; right: 0; bottom: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 0;
-  background: transparent; cursor: se-resize; touch-action: none;
+  background: transparent; cursor: pointer; touch-action: none;
 }
-.quick-note-resize::before { content: ''; position: absolute; right: 2px; bottom: 2px; width: 11px; height: 11px; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-text-secondary) 3px 4px); pointer-events: none; }
+.quick-note-resize::before { content: ''; position: absolute; right: 2px; bottom: 2px; width: 11px; height: 11px; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-accent-red) 3px 4px); pointer-events: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle-se::after { display: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle::after { border-color: var(--color-text-secondary); }
 .logical-workspace .react-grid-item > .react-resizable-handle-n,
@@ -334,7 +334,7 @@ textarea {
   background: var(--color-field);
   color: var(--color-text);
 }
-.document-title:hover:not(:disabled), .element-editor select:hover:not(:disabled), .element-editor textarea:hover:not(:disabled), .operations-notes textarea:hover:not(:disabled) { border-color: var(--color-active-border); }
+.document-title:where(:not(:is(.timeline-module, .notebook-module, .calculator-module, .coordinates-module, .element-editor) *)):hover:not(:disabled), .operations-notes textarea:hover:not(:disabled) { border-color: var(--color-active-border); }
 .document-title:disabled, select:disabled, textarea:disabled { opacity: .5; }
 [data-slot="input"][aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--color-accent-red); }
 .ui-badge { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 6px; border: 1px solid var(--color-field-border); border-radius: var(--radius-control); background: var(--color-selected); color: var(--color-tag); font-size: var(--font-size-body); overflow-wrap: anywhere; }
@@ -378,7 +378,7 @@ textarea {
 .app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete)):hover:not(:disabled) {
   border-color: var(--color-hover-border); background: var(--surface-button-hover); color: var(--color-text);
 }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])):focus-visible { outline: none; border-color: var(--color-active-border); }
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])):focus-visible { outline: none; }
 
 /* Compact text actions follow the notebook toolbar; icon tools keep their geometry. */
 :where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)) {
@@ -404,18 +404,20 @@ textarea {
   font-family: var(--font-interface); font-size: var(--field-font-size); line-height: 1.4;
 }
 :is(.app-shell, .document-dialog, .ui-popover) :is(input, select):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *)) { height: var(--field-height); }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *)):hover:not(:disabled) { border-color: var(--color-active-border); }
+:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *, :is(.timeline-module, .notebook-module, .calculator-module, .coordinates-module, .element-editor) *)):hover:not(:disabled) { border-color: var(--color-active-border); }
 :is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--color-accent-red); }
 :is(.app-shell, .document-dialog, .ui-popover) textarea[aria-invalid="true"]:focus-visible { border-color: var(--color-accent-red); }
 
 .logical-workspace .react-grid-item > .react-resizable-handle-se, .window-resize {
   display: flex; align-items: center; justify-content: center; width: 24px; min-width: 24px; height: 24px; min-height: 24px;
-  color: var(--color-text-secondary);
+  border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; box-shadow: none; color: var(--color-text-secondary);
 }
 .logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="false"]) > .react-resizable-handle-se { width: 20px; min-width: 20px; height: 20px; min-height: 20px; }
-.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="true"]) > .react-resizable-handle-se { bottom: 2.5px; }
+.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="true"]) > .react-resizable-handle-se { top: 2px; bottom: auto; }
 .react-resizable-handle svg, .window-resize svg { width: 15px; height: 15px; pointer-events: none; }
-.react-resizable-handle-se:hover, .window-resize:hover { color: var(--color-text); }
+.logical-workspace .react-grid-item > .react-resizable-handle-se:hover, .window-resize:hover:not(:disabled) {
+  border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text);
+}
 
 /* Module scrolling remains available without visible scrollbar tracks. */
 .app-shell .app-header { scrollbar-width: auto; }
@@ -436,8 +438,72 @@ textarea {
 :is(.notebook-checklist, .element-name-hidden) input[type="checkbox"]:hover:not(:disabled), .ui-radio-item:hover:not(:disabled) { border-color: var(--color-hover-border); }
 :is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea)::placeholder { color: var(--color-text-secondary); opacity: 1; }
 :is(.app-shell, .document-dialog, .ui-popover) input[type="checkbox"]:disabled, .ui-radio-item:disabled { opacity: .5; }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], .zoom-control *, .ui-input-group *, .quick-note *, .quick-note-measure *)):focus-visible { box-shadow: inset 0 0 0 1px var(--color-active-border); }
-/* Borderless zoom inputs keep their geometry and expose focus on their wrapper. */
-.zoom-control:focus-within { box-shadow: inset 0 -1px var(--color-active-border); }
-:is(.app-shell, .document-dialog, .ui-popover)::selection, :is(.app-shell, .document-dialog, .ui-popover) ::selection { background: color-mix(in srgb, var(--color-accent-red) 60%, var(--color-background)); color: var(--color-text); }
 :is(.app-shell, .document-dialog, .ui-popover) option { background: var(--color-field); color: var(--color-text); }
+
+/* Shared navigation model: stable containers, scalable typography. */
+.module-scaled-content {
+  width: 100%; height: 100%; min-width: 0; min-height: 0;
+  font-size: var(--font-size-body);
+  --control-height: calc(22px * var(--module-zoom, 1));
+  --field-height: calc(28.2px * var(--module-zoom, 1));
+  --control-font-size: calc(13px * var(--module-zoom, 1));
+  --field-font-size: calc(13px * var(--module-zoom, 1));
+  --font-size-body: calc(14px * var(--module-zoom, 1));
+  --font-size-title: calc(16px * var(--module-zoom, 1));
+  --font-size-technical: calc(13px * var(--module-zoom, 1));
+}
+.module-header .module-icon { pointer-events: auto; cursor: pointer; outline: none; }
+.module-header .module-icon svg { pointer-events: none; }
+.module-header .module-icon:focus-visible { border-color: var(--color-hover-border); }
+.module-frame[data-icon-only="true"] .module-header { padding: 0; gap: 0; justify-content: center; border-bottom: 0; }
+.module-frame[data-icon-only="true"]:not([data-fitting]) .module-header > :not(.module-icon) { display: none; }
+.react-grid-item:has(> .module-frame[data-icon-only="true"]) > .react-resizable-handle { display: none; }
+.module-scaled-content[data-kind="module"] .lucide { flex-shrink: 0; width: calc(15px * var(--module-zoom)); height: calc(15px * var(--module-zoom)); }
+.module-scaled-content[data-measuring="true"],
+.module-scaled-content[data-measuring="true"] > *,
+.module-scaled-content[data-measuring="true"] :is(.elements-list,.element-rows,.timeline-entries,.timeline-entries ol,.operations-counters,.operations-cards,.coordinates-results,.notebook-list) { height: auto; min-height: 0; }
+.module-scaled-content[data-measuring="true"] :is(.element-row,.timeline-entries li,.coordinates-results > div) { flex: none; }
+.module-scaled-content[data-measuring="true"] .calculator-keypad { flex: none; grid-template-rows: repeat(6, minmax(calc(22px * var(--module-zoom)), auto)); }
+
+.module-scaled-content[data-measuring="true"] :is(.clock-face,.timer-row,.timer-main) { container-type: normal; flex: none; }
+.module-scaled-content[data-measuring="true"] .timer-list { flex: none; grid-auto-rows: auto; }
+
+/* Module actions share the app's red selection and interaction finishes. */
+.module-frame[data-active="true"] { border-color: var(--color-selection-border); box-shadow: var(--shadow-panel), var(--shadow-selection); }
+.module-menu-content { z-index: 100; }
+.module-action-error { margin: 4px; color: var(--color-accent-yellow); }
+.logical-workspace .react-grid-item.react-draggable-dragging { transform: translate(var(--module-drag-x, var(--module-x)), var(--module-drag-y, var(--module-y))) !important; }
+.module-frame[data-fitting] { height: auto; }
+.module-frame[data-fitting] .module-content { flex: none; height: auto; overflow: visible; }
+.module-frame[data-fitting] .module-scaled-content > .information-module { display: flex; width: max-content; }
+.module-frame[data-fitting] .information-card { flex: none; height: auto; min-height: 0; }
+.module-frame[data-fitting] :is(.information-phase, .information-description, .information-tags)[hidden] { display: block; }
+.module-frame[data-fitting] .information-tags { display: flex; }
+
+.module-frame[data-fitting][data-icon-only="true"] .module-header { padding: 0 24px 0 0; gap: 5px; }
+.module-frame[data-fitting][data-icon-only="true"] .module-header h2 { display: block; }
+.module-frame[data-fitting][data-icon-only="true"] .module-header :is(.module-fit, .module-close) { display: grid; }
+
+/* Header controls share bare icons and retain their hit areas. */
+.app-shell button.module-button[aria-label]:has(> svg.lucide) {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 25px; min-width: 25px; height: 25px; min-height: 25px; padding: 0;
+  border: 1px solid transparent; border-radius: var(--radius-control);
+  background: transparent; box-shadow: none; color: var(--color-text-secondary);
+}
+.app-shell button.module-button[aria-label]:has(> svg.lucide):is(:hover:not(:disabled), :focus-visible) {
+  border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text);
+}
+.app-shell button.module-button[aria-label]:has(> svg.lucide)[aria-pressed="true"] {
+  color: var(--color-accent-red);
+}
+
+.document-workspace-content { width: 100%; height: 100%; min-height: 0; }
+
+.document-save-indicator { flex: none; font-size: 10px; color: var(--color-text-secondary); }
+.document-save-indicator[data-state="saved"] { color: var(--color-text-secondary); }
+.document-save-indicator:is([data-state="pending"], [data-state="saving"]) { color: var(--color-accent-yellow); }
+.document-save-indicator[data-state="error"] { color: var(--color-accent-red); }
+.document-save-details { display: flex; flex-direction: column; gap: 3px; max-width: 280px; padding: 6px; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+.document-recovery-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.document-dialog-actions { flex-wrap: wrap; }

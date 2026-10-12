@@ -2,7 +2,7 @@
 .board-toolbar { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; min-width: 0; min-height: 32px; padding: 3px 5px; border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); overflow-x: auto; overflow-y: hidden; }
 .board-toolbar .document-button { display: grid; place-items: center; flex: none; width: 25px; height: 25px; padding: 0; border: 1px solid transparent; background: transparent; color: var(--color-text-secondary); }
 .board-toolbar .document-button:hover:not(:disabled) { border-color: var(--color-hover-border); background: var(--surface-button-hover); color: var(--color-text); }
-.board-toolbar .document-button[aria-checked="true"] { border-color: var(--color-accent-red); background: var(--color-selected); box-shadow: inset 0 -2px 0 var(--color-accent-red); color: var(--color-text); }
+.board-toolbar .document-button[aria-checked="true"] { border-color: var(--color-accent-red); background: var(--color-selected); box-shadow: none; color: var(--color-text); }
 .board-toolbar .ui-separator { height: 18px; align-self: center; margin-inline: 3px; }
 .board-color-control { position: relative; display: flex; flex: none; }
 .board-color-control input { position: absolute; inset: 0; width: 25px; height: 25px; opacity: 0; pointer-events: none; }

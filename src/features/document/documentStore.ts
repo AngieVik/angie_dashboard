@@ -1,180 +1,267 @@
 import { useSyncExternalStore } from 'react'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
-import type { AngieDocument } from '../../domain/document/types'
+import type { AngieDocument, DocumentModuleId } from '../../domain/document/types'
 import { createBrowserFilePlatform, loadVisibleDocument, saveVisibleDocument } from '../../platform/files/fileAccess'
-import type { DocumentFile, FileAccessContext, SaveOutcome } from '../../platform/files/fileAccess'
-import { DocumentRepository } from '../../storage/documentRepository'
-import type { ActiveDocumentRepository } from '../../storage/documentRepository'
+import type { DocumentFile, FileAccessContext, SaveFileHandle, SaveOutcome } from '../../platform/files/fileAccess'
+import { DocumentRepository, DocumentConflictError, normalizeSession } from '../../storage/documentRepository'
+import type { ActiveDocumentRepository, DocumentSession, LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
 import { createAutosave } from '../../storage/autosave'
 
 export interface DocumentSnapshot {
   document: AngieDocument
   documentGeneration: number
+  ready: boolean
+  openModules: DocumentModuleId[]
   autosaveUnavailable: boolean
+  autosaveSaving: boolean
+  localSavedAt: string | null
+  storageConflict: boolean
+  recoveredPrevious: boolean
   recoveryPending: boolean
+  replacementBlocked: boolean
+  replacing: boolean
+  recoverable: RecoverableDocument[]
   fileBusy: boolean
+  fileDirty: boolean
+  fileSavedAt: string | null
+  downloadStartedAt: string | null
   fileMessage: string | null
   fileMessageRevision: number
   downloadFallback: (() => Promise<SaveOutcome>) | null
 }
-
+interface Replacement extends LocalDocument { handle?: SaveFileHandle; fileDirty: boolean }
 export function createDocumentStore(repository: ActiveDocumentRepository, initialContext: FileAccessContext) {
   let state: DocumentSnapshot = {
-    document: createEmptyDocument(), documentGeneration: 0, autosaveUnavailable: false, recoveryPending: false,
-    fileBusy: false, fileMessage: null, fileMessageRevision: 0, downloadFallback: null,
+    document: createEmptyDocument(), documentGeneration: 0, ready: false, openModules: [],
+    autosaveUnavailable: false, autosaveSaving: false, localSavedAt: null, storageConflict: false, recoveredPrevious: false,
+    recoveryPending: false, replacementBlocked: false, replacing: false, recoverable: [],
+    fileBusy: false, fileDirty: false, fileSavedAt: null, downloadStartedAt: null,
+    fileMessage: null, fileMessageRevision: 0, downloadFallback: null,
   }
   let revision = 0
+  let localRevision = 0
   let fileOperation = 0
   let needsRecovery = true
-  let recoveryCandidate: AngieDocument | null = null
+  let recoveryCandidate: LocalDocument | null = null
+  let pendingReplacement: Replacement | null = null
   let initialization: Promise<void> | undefined
   let recoveryOperation: Promise<void> | undefined
+  let useOpenPicker = true
   let fileContext = { ...initialContext }
   const listeners = new Set<() => void>()
+  const now = () => (initialContext.now?.() ?? new Date()).toISOString()
+  const session = (): DocumentSession => ({ openModules: state.openModules })
   function update(patch: Partial<DocumentSnapshot>) {
     state = { ...state, ...patch, fileMessageRevision: 'fileMessage' in patch ? state.fileMessageRevision + 1 : state.fileMessageRevision }
     listeners.forEach(listener => listener())
   }
-  const autosave = createAutosave(repository, available => update({ autosaveUnavailable: !available }))
-  const persist = () => !needsRecovery && !state.recoveryPending ? autosave.save(state.document) : Promise.resolve()
-  function resetFileContext() {
-    fileContext = { platform: initialContext.platform, now: initialContext.now }
+  const autosave = createAutosave(repository, (available, error) => {
+    const conflict = error instanceof DocumentConflictError
+    update({ autosaveUnavailable: !available, storageConflict: available ? false : conflict || state.storageConflict })
+  })
+  async function persist() {
+    if (needsRecovery || state.recoveryPending || state.replacing) return false
+    const captured = localRevision, generation = state.documentGeneration
+    update({ autosaveSaving: true })
+    const saved = await autosave.save(state.document, session())
+    if (generation === state.documentGeneration) update({
+      ...(saved ? { localSavedAt: now() } : {}),
+      ...(captured === localRevision ? { autosaveSaving: false } : {}),
+    })
+    return saved
   }
+  function resetFileContext() { fileContext = { platform: initialContext.platform, now: initialContext.now } }
   async function recover() {
     try {
       const recovered = await repository.loadActive()
+      const recoveredSession = await repository.loadActiveSession?.() ?? { openModules: [] }
       needsRecovery = false
-      if (recovered && revision > 0) {
-        recoveryCandidate = recovered
-        update({ recoveryPending: true, autosaveUnavailable: false })
+      if (recovered && localRevision > 0) {
+        recoveryCandidate = { document: recovered, session: recoveredSession }
+        update({ ready: true, recoveryPending: true, autosaveUnavailable: false })
       } else {
-        if (recovered) update({ document: recovered, documentGeneration: state.documentGeneration + 1 })
-        update({ autosaveUnavailable: false })
-        await persist()
+        if (recovered) update({ document: recovered, openModules: recoveredSession.openModules, documentGeneration: state.documentGeneration + 1, fileDirty: true })
+        update({ ready: true, autosaveUnavailable: false, storageConflict: false, localSavedAt: repository.lastSavedAt ?? null, recoveredPrevious: repository.recoverySource === 'previous' })
+        if (!recovered || repository.needsUpgrade) await persist()
       }
     } catch {
       needsRecovery = true
-      update({ autosaveUnavailable: true })
+      update({ ready: true, autosaveSaving: false, autosaveUnavailable: true })
     }
   }
   function mutateDocument(mutate: (document: AngieDocument) => void) {
+    if (state.replacing) throw new Error('Espera a que termine la sustitución del documento.')
     const candidate = structuredClone(state.document)
     mutate(candidate)
-    // A mutation cannot change document identity or creation time.
-    candidate.document = {
-      ...candidate.document,
-      id: state.document.document.id,
-      createdAt: state.document.document.createdAt,
-      updatedAt: state.document.document.updatedAt,
-    }
+    candidate.document = { ...candidate.document, id: state.document.document.id, createdAt: state.document.document.createdAt, updatedAt: state.document.document.updatedAt }
     if (serializeDocument(candidate) === serializeDocument(state.document)) return
-    const now = new Date().toISOString()
-    candidate.document.updatedAt = now < candidate.document.createdAt ? candidate.document.createdAt : now
+    const instant = now()
+    candidate.document.updatedAt = instant < candidate.document.createdAt ? candidate.document.createdAt : instant
     serializeDocument(candidate)
-    revision++
-    update({ document: candidate })
+    revision++; localRevision++
+    update({ document: candidate, fileDirty: true })
     void persist()
   }
-  function applySaveOutcome(outcome: SaveOutcome) {
-    if (outcome.status === 'fallback') update({
-      fileMessage: outcome.message,
-      downloadFallback: () => saveVisibleDocument(state.document, {
-        platform: { download: initialContext.platform.download }, now: initialContext.now,
-      }),
+  function applyReplacement(candidate: Replacement, protectedLocally: boolean) {
+    revision++; localRevision++; fileOperation++
+    resetFileContext()
+    if (candidate.handle) fileContext.link = { handle: candidate.handle, title: candidate.document.document.title }
+    pendingReplacement = null
+    update({ document: candidate.document, openModules: candidate.session.openModules, documentGeneration: state.documentGeneration + 1,
+      fileBusy: false, replacing: false, replacementBlocked: false, fileMessage: null, downloadFallback: null,
+      fileDirty: candidate.fileDirty, fileSavedAt: null, downloadStartedAt: null,
+      autosaveSaving: false, ...(protectedLocally ? { localSavedAt: now(), autosaveUnavailable: false, storageConflict: false } : {}),
+    })
+  }
+  async function replace(candidate: Replacement) {
+    update({ fileBusy: true, replacing: true, fileMessage: null, downloadFallback: null })
+    await autosave.flush()
+    try {
+      if (needsRecovery || state.recoveryPending || state.storageConflict || state.autosaveUnavailable) throw new Error('No se puede proteger el documento hasta resolver su recuperación local.')
+      if (repository.replaceActive) await repository.replaceActive(candidate.document, candidate.session)
+      else {
+        await repository.saveActive(state.document, session())
+        await repository.saveActive(candidate.document, candidate.session)
+      }
+      applyReplacement(candidate, true)
+    } catch (error) {
+      pendingReplacement = candidate
+      update({ fileBusy: false, replacing: false, replacementBlocked: true, autosaveUnavailable: true,
+        storageConflict: error instanceof DocumentConflictError || state.storageConflict,
+        fileMessage: 'No se pudo proteger el documento anterior. Exporta el JSON o cancela antes de continuar.',
+      })
+    }
+  }
+  function applySaveOutcome(outcome: SaveOutcome, savedRevision: number) {
+    if (outcome.status === 'fallback') update({ fileMessage: outcome.message,
+      downloadFallback: () => saveVisibleDocument(state.document, { platform: { download: initialContext.platform.download }, now: initialContext.now }),
     })
     else if (outcome.status === 'error') update({ fileMessage: outcome.message, downloadFallback: null })
-    else update({ fileMessage: null, downloadFallback: null })
+    else update({ fileMessage: null, downloadFallback: null,
+      ...(outcome.status === 'saved' ? { fileSavedAt: now(), downloadStartedAt: null, fileDirty: revision !== savedRevision } : {}),
+      ...(outcome.status === 'downloaded' ? { downloadStartedAt: now() } : {}),
+    })
   }
-
+  async function load(file: DocumentFile, handle?: SaveFileHandle) {
+    const operation = ++fileOperation, initialRevision = revision
+    update({ fileBusy: true, fileMessage: null, downloadFallback: null })
+    const result = await loadVisibleDocument(file)
+    if (operation !== fileOperation) return
+    if (result.status === 'error') update({ fileBusy: false, fileMessage: result.message })
+    else if (revision !== initialRevision) update({ fileBusy: false, fileMessage: 'El documento cambió durante la lectura. Vuelve a cargar el archivo para reemplazarlo.' })
+    else await replace({ document: result.document, session: session(), handle, fileDirty: result.migrated })
+  }
   return {
     getSnapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     initialize() { initialization ??= recover(); return initialization },
     mutateDocument,
     setTitle(title: string) { mutateDocument(document => { document.document.title = title }) },
-    newDocument() {
-      fileOperation++
-      revision++
-      resetFileContext()
-      update({ document: createEmptyDocument(), documentGeneration: state.documentGeneration + 1, fileBusy: false, fileMessage: null, downloadFallback: null })
+    setOpenModules(ids: DocumentModuleId[]) {
+      if (!state.ready || state.replacing) return
+      const openModules = normalizeSession({ openModules: ids }).openModules
+      if (JSON.stringify(openModules) === JSON.stringify(state.openModules)) return
+      localRevision++
+      update({ openModules })
       void persist()
     },
-    async loadDocument(file: DocumentFile) {
+    async newDocument() {
       if (state.fileBusy) return
-      const operation = ++fileOperation
+      if (!state.ready) await (initialization ??= recover())
+      await replace({ document: createEmptyDocument(), session: session(), fileDirty: false })
+    },
+    async loadDocument(file: DocumentFile) { if (!state.fileBusy) await load(file) },
+    hasOpenPicker: () => Boolean(initialContext.platform.pickOpen && useOpenPicker),
+    async openDocument() {
+      if (state.fileBusy || !initialContext.platform.pickOpen) return
       const initialRevision = revision
-      update({ fileBusy: true, fileMessage: null, downloadFallback: null })
-      const result = await loadVisibleDocument(file)
-      if (operation !== fileOperation) return
-      if (result.status === 'error') update({ fileBusy: false, fileMessage: result.message })
-      else if (revision !== initialRevision) update({
-        fileBusy: false,
-        fileMessage: 'El documento cambió durante la lectura. Vuelve a cargar el archivo para reemplazarlo.',
-      })
-      else {
-        revision++
-        resetFileContext()
-        update({ document: result.document, documentGeneration: state.documentGeneration + 1, fileBusy: false })
-        await persist()
+      update({ fileBusy: true, fileMessage: null })
+      try {
+        const selected = await initialContext.platform.pickOpen()
+        if (initialRevision !== revision) { update({ fileBusy: false, fileMessage: 'El documento cambió durante la selección. Vuelve a cargar el archivo.' }); return }
+        await load(selected.file, selected.handle)
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) useOpenPicker = false
+        update({ fileBusy: false, fileMessage: error instanceof DOMException && error.name === 'AbortError' ? null : 'No se pudo abrir el archivo. Puedes cargarlo desde el selector de archivos.' })
       }
     },
-    async saveDocument() {
+    async saveDocument(saveAs = false) {
       if (state.fileBusy) return
-      const operation = ++fileOperation
+      const operation = ++fileOperation, savedRevision = revision
       update({ fileBusy: true, fileMessage: null, downloadFallback: null })
-      const outcome = await saveVisibleDocument(state.document, fileContext)
+      const outcome = await saveVisibleDocument(state.document, fileContext, saveAs)
       if (operation !== fileOperation) return
       update({ fileBusy: false })
-      applySaveOutcome(outcome)
+      applySaveOutcome(outcome, savedRevision)
     },
     async downloadJson() {
       if (state.fileBusy) return
+      const savedRevision = revision
       update({ fileBusy: true })
-      // Use the latest in-memory document even if IndexedDB is unavailable.
-      const outcome = await saveVisibleDocument(state.document, {
-        platform: { download: initialContext.platform.download }, now: initialContext.now,
-      })
+      const outcome = await saveVisibleDocument(state.document, { platform: { download: initialContext.platform.download }, now: initialContext.now })
       update({ fileBusy: false })
-      applySaveOutcome(outcome)
+      applySaveOutcome(outcome, savedRevision)
     },
     async acceptDownloadFallback() {
       if (!state.downloadFallback || state.fileBusy) return
-      const download = state.downloadFallback
+      const download = state.downloadFallback, savedRevision = revision
       update({ fileBusy: true })
       const outcome = await download()
       update({ fileBusy: false })
-      applySaveOutcome(outcome)
+      applySaveOutcome(outcome, savedRevision)
     },
     retryAutosave() {
       if (recoveryOperation) return recoveryOperation
       recoveryOperation = (async () => {
-        if (needsRecovery) await recover()
+        await autosave.flush()
+        if (needsRecovery || state.storageConflict) await recover()
         else await persist()
       })().finally(() => { recoveryOperation = undefined })
       return recoveryOperation
     },
     async confirmRecovery(accept: boolean) {
-      if (!state.recoveryPending || !recoveryCandidate) return
+      if (!state.recoveryPending || !recoveryCandidate || state.fileBusy) return
       if (accept) {
-        revision++
-        resetFileContext()
-        update({ document: recoveryCandidate, documentGeneration: state.documentGeneration + 1, fileMessage: null, downloadFallback: null })
+        const candidate = recoveryCandidate
+        recoveryCandidate = null
+        update({ recoveryPending: false, storageConflict: false })
+        applyReplacement({ ...candidate, fileDirty: true }, true)
+      } else {
+        update({ recoveryPending: false, storageConflict: false })
+        await replace({ document: state.document, session: session(), fileDirty: state.fileDirty })
+        if (!state.replacementBlocked) recoveryCandidate = null
       }
-      recoveryCandidate = null
-      update({ recoveryPending: false })
-      await persist()
+    },
+    cancelReplacement() { pendingReplacement = null; update({ replacementBlocked: false, fileMessage: null }) },
+    discardReplacement() {
+      if (!pendingReplacement || state.fileBusy) return
+      const candidate = pendingReplacement
+      applyReplacement(candidate, false)
+      void persist()
+    },
+    async refreshRecoverable() {
+      try { update({ recoverable: await repository.listRecoverable?.() ?? [] }) }
+      catch { update({ fileMessage: 'No se pudieron consultar los documentos recuperables.' }) }
+    },
+    async restoreDocument(key: string) {
+      if (state.fileBusy || !repository.loadRecoverable) return
+      const initialRevision = revision
+      update({ fileBusy: true })
+      try {
+        const candidate = await repository.loadRecoverable(key)
+        if (!candidate) { update({ fileBusy: false, fileMessage: 'La copia ya no está disponible.' }); return }
+        if (revision !== initialRevision) { update({ fileBusy: false, fileMessage: 'El documento cambió. Vuelve a seleccionar la copia.' }); return }
+        await replace({ ...candidate, fileDirty: true })
+      } catch { update({ fileBusy: false, fileMessage: 'No se pudo recuperar la copia. Se conserva el documento actual.' }) }
     },
     flushAutosave: () => autosave.flush(),
   }
 }
-
 export type DocumentStore = ReturnType<typeof createDocumentStore>
 let browserStore: DocumentStore | undefined
 export function getDocumentStore(): DocumentStore {
   browserStore ??= createDocumentStore(new DocumentRepository(), { platform: createBrowserFilePlatform() })
   return browserStore
 }
-export function useDocumentStore(store: DocumentStore = getDocumentStore()) {
-  return useSyncExternalStore(store.subscribe, store.getSnapshot)
-}
+export function useDocumentStore(store: DocumentStore = getDocumentStore()) { return useSyncExternalStore(store.subscribe, store.getSnapshot) }

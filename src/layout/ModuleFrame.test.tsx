@@ -39,7 +39,7 @@ describe('espacio solicitado por un módulo', () => {
     expect(fit).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: 'Expandir Reloj' })).toHaveAttribute('aria-expanded', 'false')
   })
-  it('amplía al zoom individual y suma la cabecera y footer sin encoger', () => {
+  it('amplía medidas internas sin doble zoom y recoge al quitar contenido', () => {
     const fit = vi.fn()
     render(<TooltipProvider><ModuleFrame id="clock" active onClose={() => {}} onFit={fit}><Request /></ModuleFrame></TooltipProvider>)
     const frame = screen.getByRole('region')
@@ -49,12 +49,12 @@ describe('espacio solicitado por un módulo', () => {
     const zoom = screen.getByRole('spinbutton', { name: 'Zoom de Reloj' })
     fireEvent.change(zoom, { target: { value: '200' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
-    expect(fit).toHaveBeenLastCalledWith({ width: 602, height: 454 })
+    expect(fit).toHaveBeenLastCalledWith({ width: 302, height: 254 })
     Object.defineProperties(frame, { offsetWidth: { value: 800 }, offsetHeight: { value: 600 } })
     fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
     expect(fit).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Recoger' }))
-    expect(fit).toHaveBeenLastCalledWith({ width: 800, height: 254 })
+    expect(fit).toHaveBeenLastCalledWith({ width: 800, height: 154 })
     expect(frame.style.width).toBe('')
   })
 })

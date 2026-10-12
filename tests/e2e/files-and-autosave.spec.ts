@@ -3,13 +3,13 @@ import { expect, test } from '@playwright/test'
 import { downloadDocument, openModule, savedDocument, setDocumentTitle, expectDocumentTitle } from './acceptance-helpers'
 
 for (const version of [1, 2]) for (const origin of ['archivo', 'IndexedDB'] as const) {
-  test(`V${version} real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V3`, async ({ page }) => {
+  test(`V${version} real desde ${origin}: conserva datos ocultos, convierte, autoguarda y exporta V4`, async ({ page }) => {
     const legacy = JSON.parse(await readFile(version === 1 ? 'src/domain/document/fixtures/complete.json' : 'src/domain/document/fixtures/v2-complete.json', 'utf8'))
-    const converted = JSON.parse(await readFile('src/domain/document/fixtures/v3-complete.json', 'utf8'))
+    const converted = { ...JSON.parse(await readFile('src/domain/document/fixtures/v3-complete.json', 'utf8')), formatVersion: 4 }
     const source = JSON.stringify(version === 1 ? { ...legacy, filters: { visibleStatuses: [] } } : legacy)
     await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
     await page.goto('/')
-    await expect.poll(async () => (await savedDocument(page))?.formatVersion).toBe(3)
+    await expect.poll(async () => (await savedDocument(page))?.formatVersion).toBe(4)
     if (origin === 'archivo') {
       await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'legacy.json', mimeType: 'application/json', buffer: Buffer.from(source) })
     } else {
@@ -102,7 +102,7 @@ test('título, autoguardado real, recarga, descarga, carga segura y Nuevo', { ta
   await page.reload()
   await expectDocumentTitle(page, '')
   expect(await readFile((await download.path())!, 'utf8')).toBe(text)
-  await expect(page.getByRole('main')).toBeEmpty()
+  await expect(page.locator('[data-module]')).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
@@ -129,7 +129,7 @@ test('selector compatible: vínculo, cambio de título, cancelación y permiso d
   expect(await page.evaluate(() => (window as unknown as { fileTest: { picks: string[] } }).fileTest.picks)).toEqual(['Uno.json'])
   await setDocumentTitle(page, 'Dos')
   await page.evaluate(() => { (window as unknown as { fileTest: { cancel: boolean } }).fileTest.cancel = true })
-  await command(page, 'Guardar')
+  await command(page, 'Guardar como')
   await expectDocumentTitle(page, 'Dos')
   await expect(page.getByRole('alert')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { fileTest: { contents: string[] } }).fileTest.contents.length)).toBe(2)

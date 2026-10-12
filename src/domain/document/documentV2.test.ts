@@ -22,7 +22,7 @@ function expectedV2() {
 describe('contrato histórico V2', () => {
   it('crea ocho raíces vigentes sin filtros', () => {
     const document = createEmptyDocument()
-    expect(document.formatVersion).toBe(3)
+    expect(document.formatVersion).toBe(4)
     expect(Object.keys(document)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts'])
   })
 
@@ -34,7 +34,7 @@ describe('contrato histórico V2', () => {
     expect(result.success).toBe(true)
     if (!result.success) throw new Error(JSON.stringify(result.errors))
     expect(result.migrated).toBe(true)
-    expect(result.document).toEqual(v3)
+    expect(result.document).toEqual({ ...v3, formatVersion: 4 })
     result.document.document.title = 'Copia independiente'
     expect(source).toEqual(before)
   })

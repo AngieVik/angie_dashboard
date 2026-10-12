@@ -1,9 +1,11 @@
 import { migrateDocument } from '../../domain/document/migrateDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
+import { validateEmbeddedImage } from './embeddedImage'
 import type { AngieDocument } from '../../domain/document/types'
 
 export interface SaveFileHandle {
   queryPermission(options: { mode: 'readwrite' }): Promise<PermissionState>
+  requestPermission?(options: { mode: 'readwrite' }): Promise<PermissionState>
   createWritable(): Promise<{
     write(text: string): Promise<void>
     close(): Promise<void>
@@ -13,6 +15,7 @@ export interface SaveFileHandle {
 
 export interface FilePlatform {
   pickSave?: (suggestedName: string) => Promise<SaveFileHandle>
+  pickOpen?: () => Promise<{ file: DocumentFile; handle: SaveFileHandle }>
   download(text: string, filename: string): void
 }
 
@@ -28,7 +31,7 @@ export type SaveOutcome =
   | { status: 'error'; message: string }
 
 export type LoadOutcome =
-  | { status: 'loaded'; document: AngieDocument }
+  | { status: 'loaded'; document: AngieDocument; migrated: boolean }
   | { status: 'error'; message: string }
 
 export type DocumentFile = Pick<File, 'text'>
@@ -51,7 +54,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Error desconocido'
 }
 
-export async function saveVisibleDocument(document: AngieDocument, context: FileAccessContext): Promise<SaveOutcome> {
+export async function saveVisibleDocument(document: AngieDocument, context: FileAccessContext, saveAs = false): Promise<SaveOutcome> {
   let text: string
   try {
     text = serializeDocument(document)
@@ -74,9 +77,11 @@ export async function saveVisibleDocument(document: AngieDocument, context: File
   let picking = false
   try {
     let handle: SaveFileHandle
-    if (context.link && context.link.title === title) {
+    if (context.link && !saveAs) {
       handle = context.link.handle
-      if (await handle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+      let permission = await handle.queryPermission({ mode: 'readwrite' })
+      if (permission === 'prompt' && handle.requestPermission) permission = await handle.requestPermission({ mode: 'readwrite' })
+      if (permission !== 'granted') {
         throw new Error('No hay permiso para actualizar el archivo vinculado')
       }
     } else {
@@ -110,7 +115,8 @@ export async function loadVisibleDocument(file: DocumentFile): Promise<LoadOutco
   try {
     const result = migrateDocument(JSON.parse(await file.text()))
     if (!result.success) return { status: 'error', message: result.errors.map(error => error.message).join('\n') }
-    return { status: 'loaded', document: result.document }
+    if (result.document.board.backgroundImage) await validateEmbeddedImage(result.document.board.backgroundImage.dataUrl)
+    return { status: 'loaded', document: result.document, migrated: result.migrated }
   } catch (error) {
     return { status: 'error', message: `No se pudo leer el JSON: ${errorMessage(error)}` }
   }
@@ -118,12 +124,18 @@ export async function loadVisibleDocument(file: DocumentFile): Promise<LoadOutco
 
 export function createBrowserFilePlatform(): FilePlatform {
   const browser = window as Window & {
+    showOpenFilePicker?: (options: { multiple: false; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<(SaveFileHandle & { getFile(): Promise<File> })[]>
     showSaveFilePicker?: (options: {
       suggestedName: string
       types: { description: string; accept: Record<string, string[]> }[]
     }) => Promise<SaveFileHandle>
   }
   return {
+    pickOpen: browser.showOpenFilePicker ? async () => {
+      const [handle] = await browser.showOpenFilePicker!({ multiple: false, types: [{ description: 'Documento Angie Dashboard JSON', accept: { 'application/json': ['.json'] } }] })
+      if (!handle) throw new DOMException('Cancelado', 'AbortError')
+      return { file: await handle.getFile(), handle }
+    } : undefined,
     pickSave: browser.showSaveFilePicker
       ? suggestedName => browser.showSaveFilePicker!({
         suggestedName,

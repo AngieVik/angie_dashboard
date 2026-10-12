@@ -29,16 +29,16 @@ it('ocupación de nombres de pines visibles; ignora ocultos, trazos y fondo', as
   const hidden = createElement(document, { name: 'Oculto', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 }, position: { x: 500, y: 500 } })
   hidden.pinVisible = false
   document.board.strokes.push({ id: crypto.randomUUID(), tool: 'pen', color: '#000000', width: 40, points: [{ x: 12, y: 12 }] })
-  expect(getQuickNoteObstacles(document.board, document.elements, () => 200)).toEqual([{ x: 100, y: 68, width: 200, height: 64 }])
+  expect(getQuickNoteObstacles(document.board, document.elements, () => 200)).toEqual([{ x: 168, y: 68, width: 64, height: 64 }, { x: 100, y: 138, width: 200, height: 22 }])
 })
 
-it('letra grande independiente del icono ocupa toda la altura del pin', async () => {
+it('letra grande independiente ocupa su caja exterior al icono', async () => {
   const { getQuickNoteObstacles } = await import('./findQuickNotePlacement')
   const { createEmptyDocument } = await import('../../domain/document/defaultDocument')
   const { createElement } = await import('../elements/elementCommands')
   const d = createEmptyDocument()
   createElement(d, { name: 'CP', isUnit: false, information: '', nameFontSize: 72, visual: { type: 'emoji', value: '📍', scale: .25 }, position: { x: 200, y: 100 } })
-  expect(getQuickNoteObstacles(d.board, d.elements, () => 50)).toEqual([{ x: 175, y: 18, width: 50, height: 90 }])
+  expect(getQuickNoteObstacles(d.board, d.elements, () => 50)).toEqual([{ x: 192, y: 92, width: 16, height: 16 }, { x: 175, y: 114, width: 50, height: 90.5 }])
   d.elements[0]!.nameHidden = true
   expect(getQuickNoteObstacles(d.board, d.elements, () => 50)).toEqual([{ x: 192, y: 92, width: 16, height: 16 }])
 })

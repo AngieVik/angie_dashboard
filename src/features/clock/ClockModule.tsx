@@ -33,23 +33,6 @@ export function ClockModule({ store }: { store: TimerStore }) {
       else requestSpace({ width: 300, height })
     } finally { delete node.dataset.sizing }
   }, [timers.length, requestSpace])
-  useLayoutEffect(() => {
-    const node = root.current, output = node?.querySelector<HTMLOutputElement>('.clock-esp')
-    if (!node || !output) return
-    const context = document.createElement('canvas').getContext('2d')
-    if (!context) return
-    let cancelled = false
-    function fitDigits() {
-      if (cancelled) return
-      const style = getComputedStyle(output!)
-      context!.font = `${style.fontStyle} ${style.fontWeight} 1000px ${style.fontFamily}`
-      const width = Array.from(output!.children).reduce((total, part) => total + context!.measureText(part.textContent ?? '').width, 0) / 1000
-      if (width > 0) node!.style.setProperty('--clock-text-width', String(width))
-    }
-    fitDigits()
-    if (document.fonts.status !== 'loaded') void document.fonts.ready.then(fitDigits)
-    return () => { cancelled = true }
-  }, [clock.esp])
   useEffect(() => () => store.alarm.stopPreview(), [store])
   return <div ref={root} className="clock-module" style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s`, '--clock-timer-count': timers.length } as CSSProperties}>
     <div className="clock-reference"><span className="clock-season-active">UTC+2 [ST]</span><span>ESP</span></div>

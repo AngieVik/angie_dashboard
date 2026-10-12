@@ -142,7 +142,7 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   await expect(units.getByRole('button', { name: 'Seleccionar Tango 2' })).toHaveAttribute('aria-pressed', 'true')
   await bringModuleToFront(page, 'Operativo')
   await ops.getByRole('button', { name: 'Inoperativa', exact: true }).click()
-  await open(page, 'Registro cronológico')
+  await open(page, 'Registro')
   const timeline = page.locator('[data-module="timeline"]')
   await expect(timeline.locator('li[data-current="true"]')).toHaveCount(3)
   const latest = timeline.locator('li').filter({ hasText: 'Activada 🟡 → Aproximandose 🔵' })
@@ -164,7 +164,7 @@ test('selección compartida, ocho estados, etiquetas y registro cerrado con recu
   expect(json.elements[0]!.operational).toEqual({ status: null, currentEntryId: null, notes: 'Revisar radio\nCanal 4', tags: ['Sector sur'] })
   expect(json.timeline).toHaveLength(7); expect(Object.keys(json)).toHaveLength(8)
   await page.reload(); await expect(page.locator('[data-module]')).toHaveCount(0)
-  await open(page, 'Información'); await open(page, 'Registro cronológico')
+  await open(page, 'Información'); await open(page, 'Registro')
   await expect(information.getByRole('button', { name: 'Seleccionar Tango 1' })).toBeVisible()
   await expect(timeline.getByText('Acceso abierto 🚧', { exact: true })).toBeVisible()
   await load(page, json)
@@ -190,7 +190,7 @@ test('registro ascendente sigue el final y conserva lectura antigua; controles e
   document.timeline = Array.from({ length: 35 }, (_, index) => ({ id: crypto.randomUUID(), type: 'manual' as const, revisions: [], text: `Entrada ${index}`, occurredAt: new Date(Date.UTC(2026, 0, 1, 12, 0, index)).toISOString() }))
   for (const unit of document.elements) if (unit.isUnit) Object.assign(unit.operational, { status: null, currentEntryId: null })
   await load(page, document)
-  for (const name of ['Información', 'Operativo', 'Registro cronológico']) await open(page, name)
+  for (const name of ['Información', 'Operativo', 'Registro']) await open(page, name)
   const timeline = page.locator('[data-module="timeline"]'), log = timeline.getByRole('log')
   await expect(log.locator('time').first()).toHaveText('13:00:00')
   await expect(log.locator('time').last()).toHaveText('13:00:34')
@@ -226,7 +226,7 @@ test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial s
   ]
   if (unit.isUnit) unit.operational.currentEntryId = document.timeline[3]!.id
   document.moduleLayouts.timeline = { x: 0, y: 0, width: 340, height: 380, referenceSize: { width: 1440, height: 900 } }
-  await load(page, document); await open(page, 'Registro cronológico')
+  await load(page, document); await open(page, 'Registro')
   const timeline = page.locator('[data-module="timeline"]')
   await expect(timeline.getByText('00:59:60', { exact: true })).toHaveAttribute('datetime', '2016-12-31T23:59:60Z')
   await expect(timeline.getByText('Actual', { exact: true })).toHaveCount(0)
@@ -241,7 +241,7 @@ test('JSON admitido con UUID mixtos y segundo intercalar conserva el historial s
   await expect.poll(async () => (await saved(page)).timeline.slice(0, 3)).toEqual(document.timeline.slice(0, 3))
   await expect.poll(async () => (await saved(page)).timeline[3]!.revisions).toMatchObject([{ kind: 'correction' }])
   await expect(timeline.getByText('Corregida', { exact: true })).toBeVisible()
-  const zoom = timeline.getByRole('spinbutton', { name: 'Zoom de Registro cronológico', exact: true })
+  const zoom = timeline.getByRole('spinbutton', { name: 'Zoom de Registro', exact: true })
   await zoom.fill('150'); await zoom.press('Enter')
   await expect(timeline.getByRole('textbox', { name: 'Acontecimiento' })).toBeInViewport()
   await noPageScroll(page)
@@ -267,7 +267,7 @@ test('Registro entrega 9: borrar antigua y Actual conserva historial, JSON y aut
   for (const status of ['Disponible', 'Activada', 'Aproximandose'] as const) Object.assign(document, changeElementStatus(document, unit.id, status, new Date()))
   Object.assign(document, changeElementStatus(document, other.id, 'Inoperativa', new Date()))
   document.moduleLayouts.timeline = { x: 0, y: 0, width: 340, height: 380, referenceSize: { width: 1440, height: 900 } }
-  await load(page, document); await open(page, 'Registro cronológico')
+  await load(page, document); await open(page, 'Registro')
   const timeline = page.locator('[data-module="timeline"]')
   await expect(timeline.locator('li[data-current="true"]')).toHaveCount(2)
   const remove = async (entryId: string) => {
@@ -289,7 +289,7 @@ test('Registro entrega 9: borrar antigua y Actual conserva historial, JSON y aut
   expect(json.timeline[1]!.revisions).toMatchObject([{ kind: 'delete' }])
   expect(json.timeline[2]!.revisions).toMatchObject([{ kind: 'delete' }])
   expect(json.elements[0]!.operational).toMatchObject({ status: null, currentEntryId: null })
-  await page.reload(); await open(page, 'Registro cronológico')
+  await page.reload(); await open(page, 'Registro')
   await expect.poll(() => saved(page)).toEqual(json)
   await expect(timeline.locator('li')).toHaveCount(2)
   await load(page, json)

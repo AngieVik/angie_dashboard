@@ -11,7 +11,7 @@ describe('colocación de los diez módulos', () => {
       ['Información', [320, 240], [220, 140]], ['Operativo', [340, 320], [240, 200]],
       ['Coordenadas', [360, 280], [260, 180]], ['Reloj', [440, 260], [360, 260]],
       ['Calculadora', [280, 360], [220, 280]], ['Cuaderno', [360, 420], [260, 220]],
-      ['Registro cronológico', [420, 320], [280, 180]],
+      ['Registro', [420, 320], [280, 180]],
     ])
   })
   it('recupera exactamente una distribución guardada libre, incluso fuera de múltiplos de 20', () => {

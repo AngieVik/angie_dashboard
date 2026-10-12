@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import type { PointerEvent, RefObject } from 'react'
 import type { Position } from '../../domain/document/types'
 import type { Size } from '../../layout/layoutTypes'
@@ -17,21 +17,6 @@ export function useBoardViewportGestures(view: BoardViewportState, size: Size, b
     return { x: (point.x - rect.left) * size.width / rect.width, y: (point.y - rect.top) * size.height / rect.height }
   }, [surfaceRef])
   const apply = useCallback((next: BoardViewportState) => { current.current = next; settings.current.onChange(next) }, [])
-  useEffect(() => {
-    const element = surfaceRef.current
-    if (!element) return
-    function wheel(event: WheelEvent) {
-      // Ctrl + wheel is owned by the selected module's common zoom.
-      if (event.ctrlKey) return
-      event.preventDefault(); event.stopPropagation()
-      if (blockedRef.current) return
-      const config = settings.current, unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? config.size.height : 1
-      const rect = element!.getBoundingClientRect(), dx = event.deltaX * unit * config.size.width / rect.width, dy = event.deltaY * unit * config.size.height / rect.height
-      apply(panBoard(current.current, event.shiftKey ? -dy : -dx, event.shiftKey ? 0 : -dy, config.size, config.bounds))
-    }
-    element.addEventListener('wheel', wheel, { passive: false })
-    return () => element.removeEventListener('wheel', wheel)
-  }, [blockedRef, surfaceRef, apply])
   return {
     onPointerDownCapture: (event: PointerEvent<HTMLDivElement>) => {
       suppressClick.current = false

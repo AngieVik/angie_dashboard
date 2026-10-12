@@ -28,3 +28,8 @@ export function removeUnitTag(document: AngieDocument, id: string, index: number
   if (!Number.isInteger(index) || index < 0 || index >= data.tags.length) throw new Error('La etiqueta ya no existe.')
   data.tags.splice(index, 1)
 }
+
+export function setUnitNotesColor(document: AngieDocument, id: string, color: string) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) throw new Error('Color de anotación no válido.')
+  operational(document, id).notesColor = color
+}

@@ -1,10 +1,9 @@
-import { useContext, useLayoutEffect, useRef } from 'react'
+import { useRef } from 'react'
 import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
 import { HelpTooltip } from '../../components/ui/tooltip'
 import { Button } from '../../components/ui/button'
-import { X, GripVertical } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
-import { ModuleSizeContext } from '../../layout/ModuleSizeContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { NoteBlock } from './NoteBlock'
@@ -17,19 +16,9 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const root = useRef<HTMLDivElement>(null)
-  const requestSpace = useContext(ModuleSizeContext)
   const list = useRef<HTMLOListElement>(null)
   const noteControl = useRef<HTMLButtonElement>(null)
   const checklistControl = useRef<HTMLButtonElement>(null)
-  useLayoutEffect(() => {
-    const node = root.current
-    if (!node) return
-    const fitHeight = () => requestSpace({ width: 0, height: node.scrollHeight }, { fitHeight: true })
-    fitHeight()
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fitHeight)
-    observer?.observe(node)
-    return () => observer?.disconnect()
-  }, [requestSpace])
   function mutate(command: (document: AngieDocument) => void) {
     if (!blockedRef.current) store.mutateDocument(command)
   }
@@ -48,22 +37,24 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
     <ol className="notebook-list" aria-label="Bloques del Cuaderno" ref={list}>
       {document.notebook.map((block, index) => <li key={block.id} className="notebook-block" data-block-id={block.id} data-block-type={block.type}
         data-dragging={reorder.preview?.id === block.id} data-drop-target={reorder.preview?.targetId === block.id && reorder.preview.id !== block.id}>
-        <Button className="notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} title="Reordenar bloque · ↑ / ↓" disabled={blocked} {...reorder.handleProps(block.id)}><GripVertical aria-hidden="true" /></Button>
-        <HelpTooltip text="Eliminar bloque"><Button className="notebook-delete" aria-label="Eliminar bloque" disabled={blocked} onClick={() => {
-          if (blockedRef.current) return
-          const addControl = block.type === 'note' ? noteControl : checklistControl
-          addControl.current?.focus()
-          mutate(document => deleteNotebookBlock(document, block.id))
-        }}><X aria-hidden="true" /></Button></HelpTooltip>
-        {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
-          <ChecklistBlock block={block} disabled={blocked}
-            onAdd={(afterItemId, initial) => mutate(document => {
-              const item = addChecklistItem(document, block.id, afterItemId)
-              if (initial) { item.text = initial.text; item.checked = initial.checked }
-            })}
-            onEdit={(id, text) => mutate(document => editChecklistItem(document, block.id, id, text))}
-            onCheck={(id, checked) => mutate(document => setChecklistItemChecked(document, block.id, id, checked))}
-            onDelete={id => mutate(document => deleteChecklistItem(document, block.id, id))} />}
+        <Button className="notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} title="Arrastrar bloque · ↑ / ↓" disabled={blocked} {...reorder.handleProps(block.id)} />
+        <div className="notebook-block-content">
+          <HelpTooltip text="Eliminar bloque"><Button className="notebook-delete" aria-label="Eliminar bloque" disabled={blocked} onClick={() => {
+            if (blockedRef.current) return
+            const addControl = block.type === 'note' ? noteControl : checklistControl
+            addControl.current?.focus()
+            mutate(document => deleteNotebookBlock(document, block.id))
+          }}><X aria-hidden="true" /></Button></HelpTooltip>
+          {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
+            <ChecklistBlock block={block} disabled={blocked}
+              onAdd={(afterItemId, initial) => mutate(document => {
+                const item = addChecklistItem(document, block.id, afterItemId)
+                if (initial) { item.text = initial.text; item.checked = initial.checked }
+              })}
+              onEdit={(id, text) => mutate(document => editChecklistItem(document, block.id, id, text))}
+              onCheck={(id, checked) => mutate(document => setChecklistItemChecked(document, block.id, id, checked))}
+              onDelete={id => mutate(document => deleteChecklistItem(document, block.id, id))} />}
+        </div>
       </li>)}
     </ol>
   </div>

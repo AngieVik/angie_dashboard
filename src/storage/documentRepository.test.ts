@@ -4,7 +4,7 @@ import { createEmptyDocument } from '../domain/document/defaultDocument'
 import legacy from '../domain/document/fixtures/complete.json'
 import v2 from '../domain/document/fixtures/v2-complete.json'
 import complete from '../domain/document/fixtures/v3-complete.json'
-import { validateDocument } from '../domain/document/validateDocument'
+import { migrateDocument } from '../domain/document/migrateDocument'
 import { createDatabase } from './db'
 import { DocumentRepository } from './documentRepository'
 import { createTimerDatabase, TimerRepository } from '../features/clock/timerRepository'
@@ -26,38 +26,38 @@ describe('repositorio del documento activo', () => {
     const timers = new TimerRepository(timerDb)
     const timerData = { id: crypto.randomUUID(), note: 'Radio', kind: 'tzero' as const, status: 'idle' as const, elapsedMs: 0, startedAt: null, alertActive: false }
     await timers.saveTimers([timerData])
-    expect(await repository.loadActive()).toEqual(complete)
+    expect(await repository.loadActive()).toEqual({ ...complete, formatVersion: 4 })
     expect(await db.table('documents').get('active')).toEqual({ key: 'active', document: v2 })
     expect(await timers.loadTimers()).toEqual([timerData])
   })
-  it('recupera V1 como V3 sin cambiar el registro hasta el autoguardado posterior', async () => {
+  it('recupera V1 como V4 sin cambiar el registro hasta el autoguardado posterior', async () => {
     const { repository, db } = setup()
     const source = structuredClone(legacy)
     source.filters.visibleStatuses = []
     await db.table('documents').put({ key: 'active', document: source })
     const recovered = await repository.loadActive()
-    expect(recovered?.formatVersion).toBe(3)
+    expect(recovered?.formatVersion).toBe(4)
     expect(recovered?.elements).toHaveLength(source.elements.length)
     expect(recovered).not.toHaveProperty('filters')
     expect(await db.table('documents').get('active')).toEqual({ key: 'active', document: source })
     if (!recovered) throw new Error('No se recuperó el documento')
     await repository.saveActive(recovered)
     expect((await db.table('documents').get('active')).document).toEqual(recovered)
-    expect(await db.table('documents').count()).toBe(1)
+    expect(await db.table('documents').get('previous')).toBeDefined()
   })
-  it('guarda todo el contrato, recupera al reabrir y conserva un único documento activo', async () => {
+  it('guarda todo el contrato, recupera al reabrir y conserva el activo y su copia anterior', async () => {
     const { db, repository, indexedDB } = setup()
     expect(await repository.loadActive()).toBeNull()
-    const validated = validateDocument(complete)
+    const validated = migrateDocument(complete)
     if (!validated.success) throw new Error('Fixture inválido')
     await repository.saveActive(validated.document)
     db.close()
     const reopened = setup(indexedDB)
-    expect(await reopened.repository.loadActive()).toEqual(complete)
+    expect(await reopened.repository.loadActive()).toEqual({ ...complete, formatVersion: 4 })
     const next = createEmptyDocument('Nuevo')
     await reopened.repository.saveActive(next)
     expect(await reopened.repository.loadActive()).toEqual(next)
-    expect(await reopened.db.table('documents').count()).toBe(1)
+    expect(await reopened.db.table('documents').get('previous')).toBeDefined()
     await reopened.repository.clearActive()
     expect(await reopened.repository.loadActive()).toBeNull()
   })

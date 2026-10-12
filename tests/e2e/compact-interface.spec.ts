@@ -136,7 +136,7 @@ test('cabecera de una fila y zoom 25–400 sin huecos ni alteración del documen
 
 test('los diez módulos escalan herramientas y contenido sin escalar sus marcos', async ({ page }) => {
   await page.goto('/')
-  for (const name of ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']) {
+  for (const name of ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro']) {
     await openModule(page, name)
     const module = page.locator('.module-frame').filter({ has: page.getByRole('heading', { name, exact: true }) })
     const frame = await module.boundingBox()
@@ -623,8 +623,8 @@ test('estilos generales: acciones y campos uniformes, pie integrado y tirador Lu
     await expect(region.locator('..').locator('.react-resizable-handle-se .lucide-square-dimensions')).toHaveCount(1)
     await page.getByRole('button', { name: 'Cerrar ' + name, exact: true }).click()
   }
-  await openModule(page, 'Registro cronológico')
-  const timeline = page.getByRole('region', { name: 'Registro cronológico', exact: true })
+  await openModule(page, 'Registro')
+  const timeline = page.getByRole('region', { name: 'Registro', exact: true })
   await timeline.getByLabel('Acontecimiento', { exact: true }).fill('Revisión de material')
   await timeline.getByRole('button', { name: 'Añadir entrada', exact: true }).click()
   await timeline.getByRole('button', { name: 'Editar entrada', exact: true }).click()
@@ -662,7 +662,7 @@ test('correcciones visibles: referencia Nota, foco rojo, tarjetas y ausencia de 
   await expect(reference).toHaveCSS('height', '22px')
   await reference.screenshot({ path: info.outputPath('boton-nota-referencia.png') })
   await page.getByRole('button', { name: 'Cerrar Cuaderno', exact: true }).click()
-  for (const name of ['Reloj', 'Registro cronológico', 'Calculadora', 'Información', 'Elementos', 'Dotaciones', 'Coordenadas', 'Operativo']) {
+  for (const name of ['Reloj', 'Registro', 'Calculadora', 'Información', 'Elementos', 'Dotaciones', 'Coordenadas', 'Operativo']) {
     if (['Información', 'Operativo'].includes(name)) {
       await openModule(page, 'Dotaciones')
       await page.getByRole('button', { name: 'Seleccionar Equipo norte', exact: true }).click()
@@ -676,7 +676,7 @@ test('correcciones visibles: referencia Nota, foco rojo, tarjetas y ausencia de 
       await region.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }).click()
       await expect(region.getByRole('button', { name: 'Copiar Maps', exact: true })).toBeVisible()
     }
-    if (name === 'Registro cronológico') {
+    if (name === 'Registro') {
       await region.getByRole('textbox', { name: 'Acontecimiento', exact: true }).fill('Comprobar material, comunicaciones y punto de encuentro con el equipo norte.')
       await region.getByRole('button', { name: 'Añadir entrada', exact: true }).click()
     }

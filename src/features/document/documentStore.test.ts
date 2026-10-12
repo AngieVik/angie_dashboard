@@ -18,12 +18,12 @@ function setup(saved: AngieDocument | null = null) {
 }
 
 describe('documento activo y autoguardado', () => {
-  it('carga V1 sin modificar el archivo y exporta V3; rechaza V1 dañado sin reemplazo', async () => {
+  it('carga V1 sin modificar el archivo y exporta V4; rechaza V1 dañado sin reemplazo', async () => {
     const { store, download, local } = setup()
     await store.initialize()
     const source = JSON.stringify({ ...legacy, filters: { visibleStatuses: [] } })
     await store.loadDocument({ text: async () => source })
-    expect(store.getSnapshot().document.formatVersion).toBe(3)
+    expect(store.getSnapshot().document.formatVersion).toBe(4)
     expect(store.getSnapshot().document.elements).toHaveLength(legacy.elements.length)
     expect(store.getSnapshot().document.document.updatedAt).toBe(legacy.document.updatedAt)
     await store.saveDocument()
@@ -51,7 +51,7 @@ describe('documento activo y autoguardado', () => {
     const sameDocument = JSON.stringify(store.getSnapshot().document)
     await store.loadDocument({ text: async () => sameDocument })
     expect(store.getSnapshot().documentGeneration).toBe(generation + 1)
-    store.newDocument()
+    await store.newDocument()
     expect(store.getSnapshot().documentGeneration).toBe(generation + 2)
   })
   it('una carga pendiente no reemplaza una edición posterior a su inicio', async () => {
@@ -113,7 +113,7 @@ describe('documento activo y autoguardado', () => {
     const { store, local } = setup(createEmptyDocument('Anterior'))
     await store.initialize()
     const oldId = store.getSnapshot().document.document.id
-    store.newDocument()
+    await store.newDocument()
     await store.flushAutosave()
     expect(local()?.document.title).toBe('')
     expect(local()?.document.id).not.toBe(oldId)

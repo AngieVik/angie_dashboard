@@ -1,7 +1,7 @@
 import type { DocumentElement, Position } from '../../domain/document/types'
 import type { Size, ViewportState } from '../../layout/layoutTypes'
 import type { Board } from './boardTypes'
-import { getPinBox } from '../elements/iconCatalog'
+import { getPinNameLayout, getRotatedPinBox } from '../elements/pinPresentation'
 
 export type BoardViewportState = ViewportState
 export interface BoardBounds { left: number; top: number; right: number; bottom: number }
@@ -15,10 +15,12 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
   for (const stroke of board.strokes) for (const point of stroke.points) include(point.x, point.y, stroke.width / 2, stroke.width / 2)
   for (const note of board.quickNotes) include(note.position.x, note.position.y, note.width / 2, note.height / 2)
   for (const element of elements) if (element.pinVisible && element.position) {
-    const box = getPinBox(element.visual)
-    // The label ends at the icon's bottom and can extend above a small icon.
-    const height = Math.max(box.height, element.nameHidden ? 0 : (element.nameFontSize ?? 16) * 1.25)
-    include(element.position.x, element.position.y + (box.height - height) / 2, Math.max(box.width, element.nameHidden ? 0 : 200 * element.visual.scale) / 2, height / 2)
+    const box = getRotatedPinBox(element.visual)
+    include(element.position.x, element.position.y, box.width / 2, box.height / 2)
+    if (!element.nameHidden) {
+      const name = getPinNameLayout(element)
+      include(element.position.x + name.offset.x, element.position.y + name.offset.y, name.width / 2, name.height / 2)
+    }
   }
   return bounds
 }
@@ -48,7 +50,7 @@ export function panBoard(view: BoardViewportState, dx: number, dy: number, _size
   return { ...view, offsetX: Math.max(-bounds.right * view.scale, Math.min(0, view.offsetX + dx)),
     offsetY: Math.max(-bounds.bottom * view.scale, Math.min(0, view.offsetY + dy)) }
 }
-export function zoomBoardAt(view: BoardViewportState, requestedScale: number, point: Position, size: Size, bounds: BoardBounds): BoardViewportState {
-  const scale = Math.max(.25, Math.min(4, requestedScale)), ratio = scale / view.scale
-  return panBoard({ scale, offsetX: point.x - (point.x - view.offsetX) * ratio, offsetY: point.y - (point.y - view.offsetY) * ratio }, 0, 0, size, bounds)
+export function zoomBoardAt(view: BoardViewportState, requestedScale: number, _point: Position, _size: Size, _bounds: BoardBounds): BoardViewportState {
+  const scale = Number.isFinite(requestedScale) ? Math.max(.25, Math.min(2, requestedScale)) : view.scale, ratio = scale / view.scale
+  return { scale, offsetX: Math.min(0, view.offsetX * ratio), offsetY: Math.min(0, view.offsetY * ratio) }
 }

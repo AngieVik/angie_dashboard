@@ -147,3 +147,77 @@ test('reloj compacto reduce letras y tarjetas y recoge altura hacia arriba al ce
   expect(await clock.locator('.module-content').evaluate(node => node.scrollHeight <= node.clientHeight + 1)).toBe(true)
   await clock.screenshot({ path: info.outputPath('clock-collected.png') })
 })
+
+test('tirador redimensiona sin seleccionar texto al pulsar y arrastrar', async ({ page }) => {
+  await page.goto('/'); await openModule(page, 'Dotaciones')
+  const fixture = createEmptyDocument('Redimensionado sin selección')
+  fixture.moduleLayouts.dotations = { x: 30, y: 30, width: 440, height: 550, referenceSize: { width: 1440, height: 900 } }
+  await loadDocument(page, fixture)
+  const module = page.locator('[data-module="dotations"]')
+  await module.getByRole('button', { name: 'Crear', exact: true }).click()
+  const handle = module.locator(':scope > .react-resizable-handle-se')
+  const selection = () => page.evaluate(() => window.getSelection()?.toString() ?? '')
+  const initialWidth = Number(await module.getAttribute('data-width'))
+  const box = (await handle.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 8 })
+  expect(await selection()).toBe('')
+  await page.mouse.up()
+  expect(Number(await module.getAttribute('data-width'))).toBeGreaterThan(initialWidth)
+  expect(await selection()).toBe('')
+  // Rapid repeated presses and dragging back across the editor must not start a text range.
+  await handle.click({ clickCount: 2 })
+  const repeated = (await handle.boundingBox())!
+  await page.mouse.move(repeated.x + repeated.width / 2, repeated.y + repeated.height / 2)
+  await page.mouse.down({ clickCount: 3 })
+  expect(await selection()).toBe('')
+  await page.mouse.up({ clickCount: 3 })
+  const next = (await handle.boundingBox())!
+  await page.mouse.move(next.x + next.width / 2, next.y + next.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(next.x - 100, next.y - 80, { steps: 8 })
+  expect(await selection()).toBe('')
+  await page.mouse.up()
+  await module.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Unidad usable')
+  await expect(module.getByRole('textbox', { name: 'Nombre', exact: true })).toHaveValue('Unidad usable')
+})
+
+for (const interruption of ['cancelar', 'perder foco', 'soltar fuera'] as const) {
+  test(`Registro libera redimensionado al ${interruption} y permite seguir trabajando`, async ({ page }) => {
+    await page.goto('/')
+    // Use the module id to reproduce the gesture independently of its visible rename.
+    await page.getByRole('button', { name: 'Ver', exact: true }).click()
+    await page.getByRole('menuitemcheckbox', { name: /^Registro/ }).click()
+    const fixture = createEmptyDocument('Registro recuperable')
+    fixture.moduleLayouts.timeline = { x: 30, y: 30, width: 420, height: 320, referenceSize: { width: 1440, height: 900 } }
+    await loadDocument(page, fixture)
+    const module = page.locator('[data-module="timeline"]'), handle = module.locator(':scope > .react-resizable-handle-se')
+    const dimensions = () => module.evaluate(node => { const box = node.getBoundingClientRect(); return { width: box.width, height: box.height } })
+    const box = (await handle.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 25, y + 20, { steps: 5 })
+    await expect(module).toHaveClass(/resizing/)
+    if (interruption === 'cancelar') await handle.dispatchEvent('pointercancel', { pointerId: 1, pointerType: 'mouse', clientX: x + 25, clientY: y + 20 })
+    else if (interruption === 'perder foco') await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    else await page.evaluate(() => {
+      // A button released outside the browser may deliver no mouseup to the document.
+      document.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', buttons: 0, bubbles: true }))
+    })
+    await expect(module).not.toHaveClass(/resizing/)
+    const stopped = await dimensions()
+    await page.mouse.move(x + 100, y + 80, { steps: 5 })
+    expect(await dimensions()).toEqual(stopped)
+    await page.mouse.up(); await page.mouse.move(x + 130, y + 90)
+    expect(await dimensions()).toEqual(stopped)
+    await expect(page.getByRole('region', { name: 'Registro', exact: true })).toBeVisible()
+    await module.getByRole('textbox', { name: 'Acontecimiento', exact: true }).fill('Trabajo recuperado')
+    await module.getByRole('textbox', { name: 'Acontecimiento', exact: true }).press('Enter')
+    await expect(module.getByRole('log')).toContainText('Trabajo recuperado')
+    // A new ordinary resize must work without restarting or remounting the module.
+    const next = (await handle.boundingBox())!
+    await page.mouse.move(next.x + next.width / 2, next.y + next.height / 2); await page.mouse.down()
+    await page.mouse.move(next.x + next.width / 2 + 20, next.y + next.height / 2 + 15, { steps: 5 }); await page.mouse.up()
+    expect((await dimensions()).width).toBeGreaterThan(stopped.width)
+    await expect(module).not.toHaveClass(/resizing/)
+  })
+}

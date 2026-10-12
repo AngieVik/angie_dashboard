@@ -36,7 +36,7 @@ function setup() {
 }
 
 describe('guardado visible', () => {
-  it('valida, guarda con selector y reutiliza el handle solo con el mismo título y permiso', async () => {
+  it('valida, guarda con selector y reutiliza el handle con permiso aunque cambie el título', async () => {
     const test = setup()
     const document = createEmptyDocument('Operación<> Á.JSON')
     const original = structuredClone(document)
@@ -50,8 +50,8 @@ describe('guardado visible', () => {
     expect(test.pickSave).toHaveBeenCalledTimes(1)
     document.document.title = 'Otro título'
     await saveVisibleDocument(document, test.context)
-    expect(test.pickSave).toHaveBeenCalledTimes(2)
-    expect(test.pickSave).toHaveBeenLastCalledWith('Otro título.json')
+    expect(test.pickSave).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(test.content()).document.title).toBe('Otro título')
   })
 
   it('descarga si no hay selector', async () => {
@@ -72,7 +72,7 @@ describe('guardado visible', () => {
     document.document.title = 'Nuevo nombre'
     const snapshot = structuredClone(document)
     test.pickSave.mockRejectedValueOnce(new DOMException('Cancelado', 'AbortError'))
-    expect((await saveVisibleDocument(document, test.context)).status).toBe('cancelled')
+    expect((await saveVisibleDocument(document, test.context, true)).status).toBe('cancelled')
     expect(test.content()).toBe(oldContent)
     expect(test.context.link).toBe(oldLink)
     expect(test.download).not.toHaveBeenCalled()
@@ -149,5 +149,35 @@ describe('carga validada', () => {
     if (result.status === 'error') expect(result.message).toContain('board.backgroundColor')
     else throw new Error('Debía rechazar el documento')
     expect(JSON.stringify(document)).toBe(text)
+  })
+})
+
+
+describe('guardado vinculado V4', () => {
+  it('renombrar conserva el destino y Guardar como elige otro sin perder el anterior al cancelar', async () => {
+    const test = setup()
+    const document = createEmptyDocument('Servicio')
+    await saveVisibleDocument(document, test.context)
+    document.document.title = 'Servicio corregido'
+    await saveVisibleDocument(document, test.context)
+    expect(test.pickSave).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(test.content()).document.title).toBe('Servicio corregido')
+    const link = test.context.link
+    test.pickSave.mockRejectedValueOnce(new DOMException('Cancelado', 'AbortError'))
+    expect((await saveVisibleDocument(document, test.context, true)).status).toBe('cancelled')
+    expect(test.context.link).toBe(link)
+    await saveVisibleDocument(document, test.context, true)
+    expect(test.pickSave).toHaveBeenCalledTimes(3)
+  })
+  it('solicita permiso solo al guardar cuando el vínculo necesita autorización', async () => {
+    const test = setup()
+    const document = createEmptyDocument('Servicio')
+    await saveVisibleDocument(document, test.context)
+    vi.mocked(test.handle.queryPermission).mockResolvedValue('prompt')
+    Object.assign(test.handle, { requestPermission: async () => 'granted' })
+    document.document.title = 'Actualizado'
+    expect((await saveVisibleDocument(document, test.context)).status).toBe('saved')
+    expect(JSON.parse(test.content()).document.title).toBe('Actualizado')
+    expect(test.pickSave).toHaveBeenCalledTimes(1)
   })
 })

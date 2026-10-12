@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { createEmptyDocument } from './defaultDocument'
 import { validateDocumentV1 as validateDocument } from './validateDocumentV1'
-import { validateDocument as validateDocumentV3 } from './validateDocument'
+import { validateDocument as validateCurrentDocument } from './validateDocument'
 import v3Complete from './fixtures/v3-complete.json'
 import v2Valid from './fixtures/v2-valid.json'
 import { migrateDocument } from './migrateDocument'
@@ -38,19 +38,19 @@ function expectRejected(input: unknown, path: string) {
   expect(input).toEqual(before)
 }
 
-describe('documento vacío V3', () => {
+describe('documento vacío V4', () => {
   it('crea las ocho raíces con estructura completa y valores iniciales', () => {
     const before = Date.now()
     const document = createEmptyDocument()
     expect(document).toEqual({
-      ...v2Valid, formatVersion: 3,
+      ...v2Valid, formatVersion: 4,
       document: { id: expect.any(String), title: '', createdAt: expect.any(String), updatedAt: expect.any(String) },
     })
     expect(document.document.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
     expect(document.document.updatedAt).toBe(document.document.createdAt)
     expect(Date.parse(document.document.createdAt)).toBeGreaterThanOrEqual(before)
     expect(Date.parse(document.document.createdAt)).toBeLessThanOrEqual(Date.now())
-    expect(validateDocumentV3(document).success).toBe(true)
+    expect(validateCurrentDocument(document).success).toBe(true)
   })
 
   it('conserva exactamente el título y genera documentos independientes', () => {
@@ -258,18 +258,18 @@ describe('validación estricta del contrato V1', () => {
 })
 
 describe('infraestructura de migración', () => {
-  it('convierte V1 a V3 sin tocar el original', () => {
+  it('convierte V1 a V4 sin tocar el original', () => {
     const input = structuredClone(complete)
     const result = migrateDocument(input)
     expect(result.success).toBe(true)
     if (!result.success) throw new Error(JSON.stringify(result.errors))
     expect(result.migrated).toBe(true)
-    expect(result.document).toEqual(v3Complete)
+    expect(result.document).toEqual({ ...v3Complete, formatVersion: 4 })
     result.document.document.title = 'Copia'
     expect(input).toEqual(complete)
   })
 
-  it.each([['ajeno', foreign, 'format'], ['futuro', { ...future, formatVersion: 4 }, 'formatVersion'], ['antiguo no reconocido', unrecognizedOld, 'formatVersion'], ['V1 incoherente', altered('elements.0.operational', null), 'elements[0].operational']])('rechaza %s sin documento sustituto', (_, input, path) => {
+  it.each([['ajeno', foreign, 'format'], ['futuro', { ...future, formatVersion: 5 }, 'formatVersion'], ['antiguo no reconocido', unrecognizedOld, 'formatVersion'], ['V1 incoherente', altered('elements.0.operational', null), 'elements[0].operational']])('rechaza %s sin documento sustituto', (_, input, path) => {
     const before = structuredClone(input)
     const result = migrateDocument(input)
     expect(result.success).toBe(false)
@@ -280,7 +280,7 @@ describe('infraestructura de migración', () => {
   })
 
   it.each([
-    [unrecognizedOld, 'unsupported-old-version'], [{ ...future, formatVersion: 4 }, 'future-version'],
+    [unrecognizedOld, 'unsupported-old-version'], [{ ...future, formatVersion: 5 }, 'future-version'],
     [foreign, 'invalid-format'], [{}, 'invalid-format'],
     [{ format: 'angie-dashboard', formatVersion: '1' }, 'invalid-version'],
     [{ format: 'angie-dashboard', formatVersion: 1.5 }, 'invalid-version'],
@@ -302,19 +302,19 @@ describe('infraestructura de migración', () => {
 
 describe('serialización segura', () => {
   it('exporta dos espacios y un salto final conservando todos los arrays y el título', () => {
-    const result = validateDocumentV3(v3Complete)
+    const result = validateCurrentDocument({ ...v3Complete, formatVersion: 4 })
     if (!result.success) throw new Error(JSON.stringify(result.errors))
     const before = structuredClone(result.document)
     const json = serializeDocument(result.document)
-    expect(json.startsWith('{\n  "format": "angie-dashboard",\n  "formatVersion": 3,\n')).toBe(true)
+    expect(json.startsWith('{\n  "format": "angie-dashboard",\n  "formatVersion": 4,\n')).toBe(true)
     expect(json.endsWith('}\n')).toBe(true)
-    expect(JSON.parse(json)).toEqual(v3Complete)
+    expect(JSON.parse(json)).toEqual({ ...v3Complete, formatVersion: 4 })
     expect(result.document).toEqual(before)
-    expect(validateDocumentV3(JSON.parse(json)).success).toBe(true)
+    expect(validateCurrentDocument(JSON.parse(json)).success).toBe(true)
   })
 
   it('rechaza un documento inválido antes de serializar sin corregirlo', () => {
-    const result = validateDocumentV3(v3Complete)
+    const result = validateCurrentDocument({ ...v3Complete, formatVersion: 4 })
     if (!result.success) throw new Error(JSON.stringify(result.errors))
     result.document.board.strokes[0]!.width = Infinity
     expect(() => serializeDocument(result.document)).toThrow(/board\.strokes\[0\]\.width/)

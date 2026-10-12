@@ -7,7 +7,7 @@ describe('cámara rectangular de pizarra', () => {
     const document = createEmptyDocument()
     document.elements.push({ id: '00000000-0000-4000-8000-000000000001', name: 'Nombre largo', pinVisible: true, information: '', isUnit: false, operational: null,
       visual: { type: 'emoji', value: '📍', scale: 3 }, position: { x: 1500, y: 1500 } })
-    expect(getBoardBounds({ width: 300, height: 300 }, document.board, document.elements)).toEqual({ left: 0, top: 0, right: 1800, bottom: 1596 })
+    expect(getBoardBounds({ width: 300, height: 300 }, document.board, document.elements)).toEqual({ left: 0, top: 0, right: 1800, bottom: 1628 })
   })
   it.each([{ width: 700, height: 300 }, { width: 300, height: 700 }])('usa píxeles estables en $width × $height', size => {
     const view = { scale: 1, offsetX: 0, offsetY: 0 }
@@ -37,12 +37,12 @@ describe('cámara rectangular de pizarra', () => {
     document.board.strokes.push({ id: '00000000-0000-4000-8000-000000000002', tool: 'pen', color: '#000000', width: 40, points: [{ x: 1900, y: 2000 }] })
     expect(getBoardBounds({ width: 300, height: 300 }, document.board, document.elements)).toEqual({ left: 0, top: 0, right: 1920, bottom: 2020 })
   })
-  it('ancla zoom al puntero y limita entre 0.25 y 4', () => {
+  it('ancla zoom a la esquina visible y limita entre 0.25 y 2', () => {
     const size = { width: 700, height: 300 }, bounds = { left: 0, top: 0, right: 3000, bottom: 3000 }
     const view = { scale: 1, offsetX: -100, offsetY: -200 }
-    expect(zoomBoardAt(view, 2, { x: 200, y: 100 }, size, bounds)).toEqual({ scale: 2, offsetX: -400, offsetY: -500 })
+    expect(zoomBoardAt(view, 2, { x: 200, y: 100 }, size, bounds)).toEqual({ scale: 2, offsetX: -200, offsetY: -400 })
     expect(zoomBoardAt(view, .01, { x: 200, y: 100 }, size, bounds).scale).toBe(.25)
-    expect(zoomBoardAt(view, 10, { x: 200, y: 100 }, size, bounds).scale).toBe(4)
+    expect(zoomBoardAt(view, 10, { x: 200, y: 100 }, size, bounds).scale).toBe(2)
   })
 })
 
@@ -69,11 +69,11 @@ it('invierte los tres zooms para que cursor y punto compartan centro lógico', (
     { scale: .5, offsetX: 0, offsetY: -10 }, { width: 400, height: 300 })).toEqual({ x: 120, y: 80 })
 })
 
-it('centrado recupera letra de 72 px cuando el icono mide 16 px', () => {
+it('centrado recupera nombre exterior de 72 px cuando el icono mide 16 px', () => {
   const d = createEmptyDocument()
   d.elements.push({ id: crypto.randomUUID(), name: 'CP', nameFontSize: 72, pinVisible: true, information: '', isUnit: false, operational: null,
     visual: { type: 'emoji', value: '📍', scale: .25 }, position: { x: 200, y: 100 } })
-  expect(initialBoardView({ width: 100, height: 100 }, d.board, d.elements)).toEqual({ scale: 1, offsetX: -150, offsetY: -13 })
+  expect(initialBoardView({ width: 100, height: 100 }, d.board, d.elements)).toEqual({ scale: 1, offsetX: -150, offsetY: -98.25 })
   d.elements[0]!.nameHidden = true
   expect(initialBoardView({ width: 100, height: 100 }, d.board, d.elements)).toEqual({ scale: 1, offsetX: -150, offsetY: -50 })
 })

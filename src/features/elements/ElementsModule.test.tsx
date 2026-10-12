@@ -19,9 +19,144 @@ async function setup(isUnit = false) {
   return store
 }
 function click(name: string) { fireEvent.click(screen.getByRole('button', { name })) }
-function change(name: string, value: string) { fireEvent.change(name === 'Emoji' ? screen.getByRole('textbox', { name }) : screen.getByLabelText(name, { exact: true }), { target: { value } }) }
+function change(name: string, value: string) {
+  if (name === 'Giro del pin' || name === 'Tamaño de letra del nombre') { slide(name, Number(value)); return }
+  fireEvent.change(name === 'Emoji' ? screen.getByRole('textbox', { name }) : screen.getByLabelText(name, { exact: true }), { target: { value } })
+}
+function slide(name: string, value: number) {
+  const slider = screen.getByRole('slider', { name }), min = Number(slider.getAttribute('aria-valuemin'))
+  fireEvent.keyDown(slider, { key: 'Home' })
+  for (let current = min; current + 10 <= value; current += 10) fireEvent.keyDown(slider, { key: 'PageUp' })
+  for (let step = (value - min) % 10; step > 0; step--) fireEvent.keyDown(slider, { key: 'ArrowRight' })
+}
 
 describe('listas y editor de entrega 6', () => {
+  it.each(['PNG', 'Emoji'])('previsualización mantiene su contenedor durante todo el giro (%s)', async representation => {
+    const store = await setup(true)
+    click('Crear'); change('Nombre', 'Unidad Demo')
+    if (representation === 'Emoji') { fireEvent.click(screen.getByRole('radio', { name: 'Emoji' })); change('Emoji', '🚑') }
+    click('Crear'); click('Modificar')
+    const id = store.getSnapshot().document.elements[0]!.id
+    const preview = screen.getByRole('img', { name: 'Previsualización del elemento' })
+    const scene = preview.querySelector<HTMLElement>('.element-preview-scene')!
+    const pin = preview.querySelector<HTMLElement>('.element-preview-pin')!
+    for (const offset of [undefined, { x: 0, y: -90 }, { x: 0, y: 90 }, { x: -150, y: 0 }, { x: 150, y: 0 }, 'Ocultar'] as const) {
+      slide('Giro del pin', 0)
+      if (offset === 'Ocultar') fireEvent.click(screen.getByRole('checkbox', { name: 'Ocultar' }))
+      else act(() => store.mutateDocument(d => updateElement(d, id, { nameOffset: offset })))
+      const initial = { width: scene.style.width, height: scene.style.height, left: pin.style.left, top: pin.style.top }
+      for (const angle of [30, 45, 90, 180, 270, 360]) {
+        slide('Giro del pin', angle)
+        expect({ width: scene.style.width, height: scene.style.height, left: pin.style.left, top: pin.style.top }).toEqual(initial)
+      }
+    }
+  })
+  it('previsualización del nombre elige color sin selector de posición antes de crear', async () => {
+    const store = await setup()
+    click('Crear'); change('Nombre', 'Norte'); click('Amarillo / negro')
+    expect(screen.queryByRole('group', { name: 'Posición del nombre' })).not.toBeInTheDocument()
+    const previewName = within(screen.getByRole('img', { name: 'Previsualización del elemento' })).getByText('Norte')
+    expect(previewName).toHaveStyle({ left: '50px', top: '117px', backgroundColor: '#fde047', color: '#111111' })
+    expect(store.getSnapshot().document.elements).toEqual([])
+    click('Crear')
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ nameColor: 'yellow' })
+    expect(store.getSnapshot().document.elements[0]!.nameOffset).toBeUndefined()
+    click('Modificar')
+    expect(within(screen.getByRole('img', { name: 'Previsualización del elemento' })).getByText('Norte')).toHaveStyle({ left: '50px', top: '117px', backgroundColor: '#fde047' })
+  })
+  it.each([false, true])('Aplicar crea una sola vez y mantiene el menú Crear (%s)', async isUnit => {
+    const store = await setup(isUnit)
+    click('Crear'); change('Nombre', 'Norte'); click('Amarillo / negro')
+    const form = screen.getByRole('form', { name: 'Crear elemento' })
+    const apply = screen.getByRole('button', { name: 'Aplicar' })
+    expect(apply.parentElement).toBe(screen.getByRole('button', { name: 'Crear' }).parentElement)
+    expect(apply.parentElement).toBe(screen.getByRole('button', { name: 'Atrás' }).parentElement)
+    click('Aplicar')
+    expect(screen.getByRole('form', { name: 'Crear elemento' })).toBe(form)
+    expect(screen.getByRole('button', { name: 'Crear' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
+    expect(store.getSnapshot().document.elements).toHaveLength(1)
+    const element = store.getSnapshot().document.elements[0]!
+    expect(element).toMatchObject({ name: 'Norte', isUnit, nameColor: 'yellow', position: { x: 1400, y: 1800 } })
+    click('Aplicar'); change('Información', 'Canal 5'); click('Aplicar')
+    expect(store.getSnapshot().document.elements).toHaveLength(1)
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ id: element.id, information: 'Canal 5' })
+    change('Nombre', 'Descartar'); click('Atrás')
+    expect(store.getSnapshot().document.elements[0]!.name).toBe('Norte')
+  })
+  it('Aplicar en Crear permite finalizar con Crear sin duplicar el pin', async () => {
+    const store = await setup(true)
+    click('Crear'); click('Aplicar')
+    const element = store.getSnapshot().document.elements[0]!
+    expect(element.name).toBe('D1')
+    expect(screen.getByRole('form', { name: 'Crear elemento' })).toBeVisible()
+    change('Información', 'Canal final'); click('Aplicar')
+    expect(store.getSnapshot().document.elements).toHaveLength(1)
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ id: element.id, name: 'D1', information: 'Canal final' })
+    change('Nombre', 'Unidad final'); click('Crear')
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    expect(store.getSnapshot().document.elements).toHaveLength(1)
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ id: element.id, name: 'Unidad final', information: 'Canal final' })
+  })
+  it('Aplicar modifica sin cerrar, Atrás descarta solo lo posterior y Guardar cierra', async () => {
+    const store = await setup()
+    click('Crear'); change('Nombre', 'Norte'); click('Crear'); click('Modificar')
+    const id = store.getSnapshot().document.elements[0]!.id
+    act(() => store.mutateDocument(d => updateElement(d, id, { nameOffset: { x: 156, y: 0 } })))
+    change('Nombre', 'Sur'); click('Verde / blanco'); click('Aplicar')
+    expect(screen.getByRole('form', { name: 'Modificar elemento' })).toBeVisible()
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ id, name: 'Sur', nameColor: 'green', nameOffset: { x: 156, y: 0 } })
+    change('Nombre', 'Descartar'); click('Rojo / blanco'); click('Atrás')
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ id, name: 'Sur', nameColor: 'green', nameOffset: { x: 156, y: 0 } })
+    click('Modificar'); change('Nombre', 'Este'); click('Guardar')
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    expect(store.getSnapshot().document.elements).toHaveLength(1)
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ id, name: 'Este', nameColor: 'green', nameOffset: { x: 156, y: 0 } })
+  })
+  it('Atrás conserva color y posición personalizada sin aplicar el borrador del nombre', async () => {
+    const store = await setup()
+    act(() => store.mutateDocument(d => { createElement(d, { name: 'CP', information: '', isUnit: false, nameColor: 'blue', nameOffset: { x: -80, y: 100 }, visual: { type: 'emoji', value: '📍', scale: 1 } }) }))
+    const before = structuredClone(store.getSnapshot().document)
+    click('Modificar'); click('Rojo / blanco'); click('Atrás')
+    expect(store.getSnapshot().document).toEqual(before)
+    click('Modificar'); change('Información', 'Canal 6'); click('Guardar')
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ nameColor: 'blue', nameOffset: { x: -80, y: 100 }, information: 'Canal 6' })
+  })
+  it('Aplicar rechaza emoji vacío y no crea un pin', async () => {
+    const store = await setup()
+    click('Crear'); fireEvent.click(screen.getByRole('radio', { name: 'Emoji' })); click('Aplicar')
+    expect(screen.getByRole('alert')).toHaveTextContent('Escribe o pega un emoji.')
+    expect(store.getSnapshot().document.elements).toEqual([])
+    expect(screen.getByRole('form', { name: 'Crear elemento' })).toBeVisible()
+  })
+
+  it.each([false, true])('crear y modificar previsualizan y guardan giro e inversiones con nombre derecho (%s)', async isUnit => {
+    const store = await setup(isUnit)
+    click('Crear'); change('Nombre', 'Norte')
+    expect(screen.queryByRole('spinbutton', { name: 'Giro del pin' })).not.toBeInTheDocument()
+    const scaleSlider = screen.getByRole('slider', { name: 'Escala del icono' })
+    const rotationSlider = screen.getByRole('slider', { name: 'Giro del pin' })
+    expect(scaleSlider.compareDocumentPosition(rotationSlider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(rotationSlider).toHaveAttribute('aria-valuemin', '0')
+    expect(rotationSlider).toHaveAttribute('aria-valuemax', '360')
+    change('Giro del pin', '90')
+    click('Invertir horizontalmente'); click('Invertir verticalmente')
+    const preview = screen.getByRole('img', { name: 'Previsualización del elemento' })
+    expect(preview.querySelector('img')).toHaveStyle({ transform: 'rotate(90deg) scale(-1, -1)' })
+    expect(within(preview).getByText('Norte')).toHaveStyle({ transform: 'translate(-50%, -50%)' })
+    click('Crear')
+    expect(store.getSnapshot().document.elements[0]!.visual).toMatchObject({ rotation: 90, flipX: true, flipY: true })
+    const id = store.getSnapshot().document.elements[0]!.id
+    act(() => store.mutateDocument(d => updateElement(d, id, { nameOffset: { x: -80, y: 100 }, nameColor: 'yellow' })))
+    click('Modificar'); change('Giro del pin', '360'); click('Invertir verticalmente'); click('Guardar')
+    expect(store.getSnapshot().document.elements[0]).toMatchObject({ nameOffset: { x: -80, y: 100 }, nameColor: 'yellow', visual: { rotation: 360, flipX: true, flipY: false } })
+    click('Modificar'); change('Giro del pin', '45'); click('Atrás')
+    expect(store.getSnapshot().document.elements[0]!.visual.rotation).toBe(360)
+    click('Modificar'); fireEvent.click(screen.getByRole('radio', { name: 'Emoji' })); change('Emoji', '📍')
+    expect(within(screen.getByRole('img', { name: 'Previsualización del elemento' })).getByText('📍')).toHaveStyle({ transform: 'rotate(360deg) scale(-1, 1)' })
+    click('Guardar')
+    expect(store.getSnapshot().document.elements[0]!.visual).toMatchObject({ type: 'emoji', value: '📍', rotation: 360, flipX: true, flipY: false })
+  })
   it.each([false, true])('reutiliza Crear en cabecera y descarta borrador con Atrás (%s)', async isUnit => {
     const store = await setup(isUnit)
     const create = screen.getByRole('button', { name: 'Crear' })
@@ -48,6 +183,7 @@ describe('listas y editor de entrega 6', () => {
     expect(screen.getByText('Norte')).toBeVisible()
     click('Modificar')
     expect(screen.getByRole('checkbox', { name: 'Ocultar' })).toBeChecked()
+    expect(screen.queryByRole('slider', { name: 'Tamaño de letra del nombre' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Ocultar' })); click('Guardar')
     expect(store.getSnapshot().document.elements[0]?.nameHidden).toBe(false)
   })
@@ -105,16 +241,21 @@ describe('listas y editor de entrega 6', () => {
     expect(screen.getByRole('button', { name: 'Seleccionar CP' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'Crear' })).toHaveFocus()
   })
-  it('permite borrar y teclear números sin limitar valores transitorios', async () => {
-    await setup()
-    click('Crear')
-    change('Tamaño de letra del nombre', '')
-    expect(screen.getByLabelText('Tamaño de letra del nombre')).toHaveValue(null)
-    change('Tamaño de letra del nombre', '3')
-    expect(screen.getByLabelText('Tamaño de letra del nombre')).toHaveValue(3)
-    change('Tamaño de letra del nombre', '32')
-    fireEvent.blur(screen.getByLabelText('Tamaño de letra del nombre'))
-    expect(screen.getByLabelText('Tamaño de letra del nombre')).toHaveValue(32)
+  it('slider pequeño de letra se oculta con el nombre y conserva su valor al mostrar y guardar', async () => {
+    const store = await setup()
+    click('Crear'); change('Nombre', 'Ruta')
+    expect(screen.queryByRole('spinbutton', { name: 'Tamaño de letra del nombre' })).not.toBeInTheDocument()
+    const slider = screen.getByRole('slider', { name: 'Tamaño de letra del nombre' })
+    fireEvent.keyDown(slider, { key: 'Home' }); expect(slider).toHaveAttribute('aria-valuenow', '8')
+    fireEvent.keyDown(slider, { key: 'End' }); expect(slider).toHaveAttribute('aria-valuenow', '72')
+    slide('Tamaño de letra del nombre', 32)
+    expect(within(screen.getByRole('img', { name: 'Previsualización del elemento' })).getByText('Ruta')).toHaveStyle({ fontSize: '32px' })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Ocultar' }))
+    expect(screen.queryByRole('slider', { name: 'Tamaño de letra del nombre' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Ocultar' }))
+    expect(screen.getByRole('slider', { name: 'Tamaño de letra del nombre' })).toHaveAttribute('aria-valuenow', '32')
+    click('Crear'); expect(store.getSnapshot().document.elements[0]!.nameFontSize).toBe(32)
+    click('Modificar'); expect(screen.getByRole('slider', { name: 'Tamaño de letra del nombre' })).toHaveAttribute('aria-valuenow', '32')
   })
   it('catálogo por módulo y legado conservado al guardar solo nombre', async () => {
     const store = await setup(true)

@@ -57,7 +57,7 @@ describe('módulo Pizarra', () => {
     vi.stubGlobal('createImageBitmap', vi.fn(() => new Promise<ImageBitmap>((_resolve, fail) => { reject = fail })))
     const { store, view, Harness } = await setup()
     const before = structuredClone(store.getSnapshot().document)
-    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
     view.rerender(<Harness visible={false} />)
     await act(async () => reject(new Error('Imagen ilegible')))
     view.rerender(<Harness />)
@@ -108,7 +108,7 @@ describe('módulo Pizarra', () => {
     resize(700, 300); resize(300, 700)
     expect(screen.getByTestId('board-surface')).toHaveAttribute('data-offset-y', camera)
     expect(store.getSnapshot().document).toEqual(before)
-    act(() => store.newDocument())
+    await act(async () => { await store.newDocument() })
     expect(screen.getByTestId('board-surface')).toHaveAttribute('data-offset-x', '0')
     expect(screen.getByTestId('board-surface')).toHaveAttribute('data-offset-y', '0')
     expect(onViewChange).toHaveBeenLastCalledWith({ x: 200, y: 200 })
@@ -187,11 +187,11 @@ describe('módulo Pizarra', () => {
     expect(store.getSnapshot().document.board.strokes).toEqual([])
   })
 
-  it('conserva imagen al cerrar el módulo y ante errores; cargar el mismo JSON la descarta y libera', async () => {
+  it('conserva imagen al cerrar el módulo y ante errores; cargar el JSON restaura el fondo portable', async () => {
     const close = vi.fn()
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 800, height: 400, close }))
     const { store, view, Harness, local } = await setup()
-    const upload = () => fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    const upload = () => fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
     upload()
     await waitFor(() => expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('800x400'))
     view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
@@ -202,18 +202,18 @@ describe('módulo Pizarra', () => {
     expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('800x400')
     expect(close).not.toHaveBeenCalled()
     await store.flushAutosave()
-    expect(Object.keys(local().board)).toEqual(['backgroundColor', 'strokes', 'quickNotes'])
+    expect(local().board.backgroundImage?.dataUrl).toMatch(/^data:image\/png;base64,/)
     await act(() => store.loadDocument({ text: async () => JSON.stringify(store.getSnapshot().document) }))
-    expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('Sin imagen')
-    expect(close).toHaveBeenCalledOnce()
+    await waitFor(() => expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('800x400'))
+    expect(close).toHaveBeenCalledTimes(2)
   })
 
   it('una decodificación tardía no reintroduce una imagen tras Nuevo', async () => {
     let complete!: (bitmap: ImageBitmap) => void
     vi.stubGlobal('createImageBitmap', vi.fn(() => new Promise<ImageBitmap>(resolve => { complete = resolve })))
     const { store } = await setup()
-    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
-    act(() => store.newDocument())
+    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
+    await act(async () => { await store.newDocument() })
     const close = vi.fn()
     await act(async () => { complete({ width: 800, height: 400, close } as unknown as ImageBitmap) })
     expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('Sin imagen')
@@ -235,7 +235,7 @@ it('conserva extensión de contenido borrado y cámara explorada al redimensiona
 
 
 describe('herramientas 5B', () => {
-  it('retirar imagen libera el recurso y conserva todo el documento y el color', async () => {
+  it('retirar imagen libera el recurso y conserva el resto del documento y el color', async () => {
     const close = vi.fn()
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 800, height: 400, close }))
     const { store } = await setup()
@@ -245,13 +245,15 @@ describe('herramientas 5B', () => {
       document.board.strokes.push({ id: crypto.randomUUID(), tool: 'pen', color: '#FFFFFF', width: 4, points: [{ x: 40, y: 40 }] })
       createElement(document, { name: 'Punto', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 } })
     }))
-    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
     await waitFor(() => expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('800x400'))
     const before = structuredClone(store.getSnapshot().document)
     fireEvent.click(screen.getByRole('button', { name: 'Borrar imagen de fondo' }))
     expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('Sin imagen')
     expect(close).toHaveBeenCalledOnce()
-    expect(store.getSnapshot().document).toEqual(before)
+    const { backgroundImage: removed, ...remainingBoard } = before.board
+    expect(removed).toBeDefined()
+    expect(store.getSnapshot().document).toEqual({ ...before, document: { ...before.document, updatedAt: expect.any(String) }, board: remainingBoard })
   })
   it.each(['Lápiz', 'Goma'])('un clic vacío con %s deselecciona sin perder el punto; terminar arrastre conserva selección', async name => {
     const { store, onSelect } = await setup(), surface = screen.getByTestId('board-surface')
@@ -301,7 +303,7 @@ it('borrar imagen pendiente cancela su decodificación tardía sin cambiar el do
   let complete!: (bitmap: ImageBitmap) => void
   vi.stubGlobal('createImageBitmap', vi.fn(() => new Promise<ImageBitmap>(resolve => { complete = resolve })))
   const { store } = await setup(), before = structuredClone(store.getSnapshot().document)
-  fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+  fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
   fireEvent.click(screen.getByRole('button', { name: 'Borrar imagen de fondo' }))
   const close = vi.fn()
   await act(async () => complete({ width: 800, height: 400, close } as unknown as ImageBitmap))
@@ -347,7 +349,7 @@ it('cerrar confirma el texto activo y Nuevo descarta el borrador de otra generac
   view.rerender(<Harness />)
   const body = screen.getByLabelText('Texto de nota rápida')
   act(() => body.focus()); fireEvent.change(body, { target: { value: 'No copiar' } })
-  act(() => store.newDocument())
+  await act(async () => { await store.newDocument() })
   expect(store.getSnapshot().document.board.quickNotes).toEqual([])
 })
 
@@ -361,10 +363,10 @@ it('el primer hueco usa la parte realmente visible cuando el dashboard recorta l
 
 
 describe('edición de imagen y limpieza', () => {
-  it('mueve y redimensiona fuera del origen con zoom; conserva geometría temporal al reabrir y ante errores', async () => {
+  it('mueve y redimensiona fuera del origen con zoom; guarda geometría portable al reabrir y ante errores', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 800, height: 400, close: vi.fn() }))
     const { store, view, Harness } = await setup()
-    const upload = () => fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    const upload = () => fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
     upload()
     let surface = screen.getByTestId('board-surface')
     await waitFor(() => expect(surface).toHaveAttribute('data-image-display-height', '500'))
@@ -379,12 +381,15 @@ describe('edición de imagen y limpieza', () => {
     fireEvent.pointerUp(surface, { pointerId: 1, clientX: 180, clientY: 190 })
     expect(surface).toHaveAttribute('data-image-x', '-80')
     expect(surface).toHaveAttribute('data-image-y', '-40')
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Redimensionar imagen se' }), { pointerId: 2, button: 0, clientX: 330, clientY: 215 })
-    fireEvent.pointerMove(surface, { pointerId: 2, clientX: 355, clientY: 227.5 })
-    fireEvent.pointerUp(surface, { pointerId: 2, clientX: 355, clientY: 227.5 })
+    expect(screen.getByRole('radio', { name: 'Mover y redimensionar imagen' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Redimensionar imagen se' }), { pointerId: 2, button: 0, clientX: 125, clientY: 125 })
+    fireEvent.pointerMove(surface, { pointerId: 2, clientX: 150, clientY: 137.5 })
+    expect(surface).toHaveAttribute('data-image-display-width', '1100')
+    fireEvent.pointerUp(surface, { pointerId: 2, clientX: 150, clientY: 137.5 })
     expect(surface).toHaveAttribute('data-image-display-width', '1100')
     expect(surface).toHaveAttribute('data-image-display-height', '550')
-    expect(store.getSnapshot().document).toEqual(before)
+    expect(store.getSnapshot().document.board.backgroundImage?.layout).toEqual({ x: -80, y: -40, width: 1100, height: 550 })
+    expect(store.getSnapshot().document.board.quickNotes).toEqual(before.board.quickNotes)
     view.rerender(<Harness visible={false} />); view.rerender(<Harness />)
     surface = screen.getByTestId('board-surface')
     expect(surface).toHaveAttribute('data-image-x', '-80')
@@ -398,7 +403,7 @@ describe('edición de imagen y limpieza', () => {
   it('cancelar o añadir otro dedo descarta el movimiento pendiente de la imagen', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 800, height: 400, close: vi.fn() }))
     const { view, Harness } = await setup(), surface = screen.getByTestId('board-surface')
-    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Mover y redimensionar imagen' })).toBeEnabled())
     fireEvent.click(screen.getByRole('radio', { name: 'Mover y redimensionar imagen' }))
     for (const cancel of ['pointer', 'blocked']) {
@@ -421,7 +426,7 @@ describe('edición de imagen y limpieza', () => {
       document.board.strokes.push({ id: crypto.randomUUID(), tool: 'pen', color: '#FFFFFF', width: 4, points: [{ x: 40, y: 40 }] })
       createElement(document, { name: 'Punto', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 } })
     }))
-    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File(['local'], 'mapa.png', { type: 'image/png' })] } })
+    fireEvent.change(screen.getByLabelText('Cargar imagen de fondo'), { target: { files: [new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1kAAAAASUVORK5CYII='), char => char.charCodeAt(0))], 'mapa.png', { type: 'image/png' })] } })
     await waitFor(() => expect(screen.getByLabelText('Imagen temporal')).toHaveTextContent('800x400'))
     const before = structuredClone(store.getSnapshot().document)
     fireEvent.click(screen.getByRole('button', { name: 'Borrar todos los trazos' }))

@@ -13,7 +13,9 @@ export async function setElementScale(scope: Page | Locator, value: number) {
 
 export async function openModule(page: Page, name: string) {
   await page.getByRole('button', { name: 'Ver', exact: true }).click()
-  await page.getByRole('menuitemcheckbox', { name, exact: true }).click()
+  const item = page.getByRole('menuitemcheckbox', { name, exact: true })
+  if (await item.getAttribute('aria-checked') === 'true') await page.keyboard.press('Escape')
+  else await item.click()
 }
 export async function bringModuleToFront(page: Page, name: string) {
   await page.getByRole('button', { name: `Cerrar ${name}`, exact: true }).focus()

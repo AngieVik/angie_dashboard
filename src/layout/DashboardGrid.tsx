@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import type { ReactNode } from 'react'
+import { Fragment, useEffect, useRef } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { SquareDimensions } from 'lucide-react'
 import GridLayout from 'react-grid-layout'
@@ -8,22 +8,29 @@ import { transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/co
 import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
-import { snapModulePosition } from './snapModulePosition'
+import { snapModulePosition, snapModuleSize } from './snapModulePosition'
 import { ModuleFrame } from './ModuleFrame'
+import type { ModuleActions } from './ModuleFrame'
 import { MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
+import { readNavigation, writeNavigation } from './navigationStorage'
 import { useViewportInteraction } from './ViewportContext'
 
 export interface OpenModule { id: ModuleId; layout: ModuleLayout }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
 
-export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onLayout, onGrow, renderModule, generation = 0, magnet = false }: {
+export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onLayout, onGrow, renderModule, generation = 0, magnet = false, navigationKey, viewOrigin = { x: 0, y: 0 }, revisions = {}, onReset, onActions }: {
   modules: readonly OpenModule[]; bounds: Size; visible?: Size; layers: readonly ModuleId[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void
   onClose: (id: ModuleId) => void; onLayout: (id: ModuleId, layout: ModuleLayout, kind?: 'move' | 'resize') => void
-  onGrow?: (candidate: ModuleLayout) => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number; magnet?: boolean
+  onActions?: (id: ModuleId, actions: ModuleActions | null) => void
+  viewOrigin?: { x: number; y: number }; revisions?: Partial<Record<ModuleId, number>>; onReset?: (id: ModuleId) => void
+  onGrow?: (candidate: ModuleLayout) => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number; magnet?: boolean; navigationKey?: string
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const activeLayout = useRef<Layout>([])
+  const draggedModule = useRef<ModuleId | null>(null)
+  const iconTap = useRef<{ pointerId: number; icon: HTMLButtonElement } | null>(null)
+  useEffect(() => { if (blocked) iconTap.current = null }, [blocked])
   const keepLayout = { ...noCompactor, allowOverlap: true, preventCollision: false, compact: (items: Layout, cols: number) => {
     const result = noCompactor.compact(items, cols)
     activeLayout.current = result
@@ -64,14 +71,40 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
   const layout = modules.map(({ id, layout }) => ({ i: id, x: layout.x, y: layout.y, w: layout.width, h: layout.height,
     minW: MODULE_REGISTRY[id].minimum[0], minH: MODULE_REGISTRY[id].minimum[1], maxW: bounds.width, maxH: bounds.height,
     isDraggable: !blocked, isResizable: !blocked }))
-  const origin: LayoutConstraint = { name: 'workspace-origin', constrainPosition: (_item, x, y) => ({ x: Math.max(0, x), y: Math.max(0, y) }) }
+  const origin: LayoutConstraint = { name: 'workspace-origin', constrainPosition: (_item, x, y) => ({ x: Math.max(viewOrigin.x, x), y: Math.max(viewOrigin.y, y) }) }
   const magneticEdges: LayoutConstraint = { name: 'magnetic-edges', constrainPosition: (item, x, y) => {
     if (!magnet || blockedRef.current) return { x, y }
     const next = snapModulePosition({ ...unpack(item, bounds), x, y }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale)
     return { x: next.x, y: next.y }
+  }, constrainSize: (item, w, h) => {
+    if (!magnet || blockedRef.current) return { w, h }
+    const next = snapModuleSize({ ...unpack(item, bounds), width: w, height: h }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale)
+    return { w: next.width, h: next.height }
   } }
+  function park(id: ModuleId, size: Size) {
+    if (blockedRef.current) return
+    const module = modules.find(module => module.id === id)
+    if (!module) return
+    const left = Math.ceil(viewOrigin.x), top = Math.ceil(viewOrigin.y)
+    const parked = modules.filter(other => other.id !== id && other.layout.height <= 29).map(other => other.layout)
+    let x = left, y = top
+    while (true) {
+      const occupied = parked.filter(other => y < other.y + other.height && y + size.height > other.y && x < other.x + other.width && x + size.width > other.x)
+      if (!occupied.length) break
+      x = Math.ceil(Math.max(...occupied.map(other => other.x + other.width)))
+      if (x + size.width > left + visible.width) { x = left; y += 29 }
+    }
+    const next = { ...module.layout, ...size, x, y }
+    onGrow?.(next); onLayout(id, next, 'resize'); onActive(id)
+  }
+  const showDrag: EventCallback = (_layout, _old, item, _placeholder, _event, node) => {
+    if (!node || !item || blockedRef.current) return
+    node.style.setProperty('--module-drag-x', Math.max(viewOrigin.x, item.x) + 'px')
+    node.style.setProperty('--module-drag-y', Math.max(viewOrigin.y, item.y) + 'px')
+  }
   function commit(kind: 'move' | 'resize'): EventCallback {
-    return (layout, _old, item) => {
+    return (layout, _old, item, _placeholder, _event, node) => {
+      node?.style.removeProperty('--module-drag-x'); node?.style.removeProperty('--module-drag-y')
       if (blockedRef.current || !item) return
       const finalItem = layout.find(candidate => candidate.i === item.i)
       if (finalItem) onLayout(item.i as ModuleId, unpack(finalItem, bounds), kind)
@@ -80,28 +113,59 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
   return (
     <div onPointerDownCapture={event => {
       if (blockedRef.current) return
+      draggedModule.current = null
+      iconTap.current = null
       const target = event.target as Element, container = target.closest<HTMLElement>('[data-module]')
-      if (!container || target.closest('button,input,textarea,select')) return
+      if (!container || target.closest('button:not(.module-icon),input,textarea,select')) return
+      const icon = target.closest<HTMLButtonElement>('.module-header .module-icon')
+      if (icon && event.pointerType === 'touch') iconTap.current = { pointerId: event.pointerId, icon }
       const resize = Boolean(target.closest('.react-resizable-handle'))
       if (!resize && !target.closest('.module-header')) return
       const module = modules.find(module => module.id === container.dataset.module)
+      if (resize && module && navigationKey && (module.layout.width > 27 && module.layout.height > 29)) {
+        const key = navigationKey + '.' + module.id
+        writeNavigation(key, { ...readNavigation(key), restoreSize: { width: module.layout.width, height: module.layout.height } })
+      }
       if (module) gesture.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, layout: module.layout, resize }
-    }}>
+    }} onPointerUpCapture={event => {
+      const tap = iconTap.current
+      if (!tap || tap.pointerId !== event.pointerId) return
+      iconTap.current = null
+      if (blockedRef.current || draggedModule.current) return
+      // react-draggable prevents the native touch click, even below its drag threshold.
+      // Keep a pointer click so the viewport can still cancel a multi-finger sequence.
+      tap.icon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+    }} onPointerCancelCapture={() => { iconTap.current = null }}>
     <GridLayout width={bounds.width} layout={layout} autoSize={false} style={{ height: bounds.height }}
       gridConfig={{ cols: bounds.width, rowHeight: 1, maxRows: bounds.height, margin: [0, 0], containerPadding: [0, 0] }}
       compactor={keepLayout}
-      constraints={[origin, magneticEdges, minMaxSize]}
+      constraints={[magneticEdges, origin, minMaxSize]}
       positionStrategy={{ ...transformStrategy, scale }}
-      dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button,input,textarea,select' }}
+      dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button:not(.module-icon),input,textarea,select' }}
       resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar módulo"><SquareDimensions aria-hidden="true" /></span> }}
-      onDragStop={commit('move')} onResizeStop={commit('resize')}>
+      onDragStart={(...args) => {
+        if (!blockedRef.current && args[2]) {
+          draggedModule.current = args[2].i as ModuleId
+          onActive(draggedModule.current)
+        }
+        showDrag(...args)
+      }} onDrag={showDrag} onDragStop={commit('move')} onResizeStop={commit('resize')}>
       {modules.map(({ id, layout }) => (
+        // RGL enters its pending drag state on press, before onDragStart runs.
+        // Keep the current position available until constrained drag coordinates exist.
         <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
-          style={{ zIndex: layers.indexOf(id) + 1 }}
-          onPointerDown={() => onActive(id)} onFocusCapture={() => onActive(id)}>
-          <ModuleFrame id={id} height={layout.height} generation={generation} active={active === id} onClose={() => onClose(id)} onFit={size => {
+          style={{ zIndex: layers.indexOf(id) + 1, '--module-x': layout.x + 'px', '--module-y': layout.y + 'px' } as CSSProperties}
+          onPointerDown={event => {
+            if (blockedRef.current || event.target instanceof Element && event.target.closest('.module-header') && !event.target.closest('button')) return
+            onActive(id)
+          }} onFocusCapture={() => { if (!blockedRef.current) onActive(id) }}
+          onClickCapture={event => {
+            // A completed icon drag must not also contract or restore the window.
+            if (draggedModule.current === id && event.detail !== 0) { event.preventDefault(); event.stopPropagation() }
+          }}>
+          <ModuleFrame onActions={onActions} key={navigationKey} id={id} width={layout.width} navigationKey={navigationKey ? navigationKey + '.' + id : undefined} height={layout.height} generation={generation} active={active === id} onFront={() => onActive(id)} onPark={size => park(id, size)} onReset={onReset ? () => onReset(id) : undefined} onClose={() => onClose(id)} onFit={size => {
             if (!blockedRef.current) { const next = { ...layout, ...size }; onGrow?.(next); onLayout(id, next, 'resize') }
-          }}>{renderModule?.(id)}</ModuleFrame>
+          }}><Fragment key={revisions[id] ?? 0}>{renderModule?.(id)}</Fragment></ModuleFrame>
         </div>
       ))}
     </GridLayout>

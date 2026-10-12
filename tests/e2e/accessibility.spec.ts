@@ -4,7 +4,7 @@ import { createElement as addElement } from '../../src/features/elements/element
 import { changeElementStatus } from '../../src/domain/operations/changeStatus'
 import { createElement, loadDocument, noPageScroll, openModule } from './acceptance-helpers'
 
-const modules = ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']
+const modules = ['Pizarra', 'Elementos', 'Dotaciones', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro']
 function fixture() {
   const document = createEmptyDocument('Accesibilidad V1')
   addElement(document, { name: 'Tango teclado', isUnit: true, visual: { type: 'emoji', value: '🚑', scale: 1 }, information: 'Radio · Canal 4', position: { x: 500, y: 500 } })
@@ -208,8 +208,8 @@ test('Cuaderno: eliminar bloque e ítem conserva foco en Añadir', async ({ page
 })
 
 test('Registro: guardar, cancelar, eliminar y corregir conservan foco en Acontecimiento', async ({ page }) => {
-  await page.goto('/'); await loadDocument(page, fixture()); await openModule(page, 'Registro cronológico')
-  const module = page.getByRole('region', { name: 'Registro cronológico', exact: true })
+  await page.goto('/'); await loadDocument(page, fixture()); await openModule(page, 'Registro')
+  const module = page.getByRole('region', { name: 'Registro', exact: true })
   const add = module.getByRole('textbox', { name: 'Acontecimiento' })
   for (const action of ['Guardar entrada', 'Cancelar']) {
     await module.locator('li[data-entry-type="manual"]').getByRole('button', { name: 'Editar entrada' }).press('Enter')

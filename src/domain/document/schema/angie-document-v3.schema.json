@@ -269,7 +269,8 @@
         "Trasladando",
         "Transfiriendo",
         "Operativa",
-        "Inoperativa"
+        "Inoperativa",
+        "Personalizada"
       ]
     },
     "position": {
@@ -420,6 +421,9 @@
                 "pushpin"
               ]
             },
+            "rotation": { "type": "number", "minimum": 0, "maximum": 360 },
+            "flipX": { "type": "boolean" },
+            "flipY": { "type": "boolean" },
             "scale": {
               "type": "number",
               "minimum": 0.25,
@@ -443,6 +447,9 @@
               "type": "string",
               "minLength": 1
             },
+            "rotation": { "type": "number", "minimum": 0, "maximum": 360 },
+            "flipX": { "type": "boolean" },
+            "flipY": { "type": "boolean" },
             "scale": {
               "type": "number",
               "minimum": 0.25,
@@ -490,6 +497,10 @@
               "type": "null"
             }
           ]
+        },
+        "notesColor": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
         }
       }
     },
@@ -542,6 +553,8 @@
             }
           ]
         },
+        "nameOffset": { "type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": { "x": { "type": "number" }, "y": { "type": "number" } } },
+        "nameColor": { "enum": ["dark", "light", "yellow", "blue", "green", "red"] },
         "nameHidden": { "type": "boolean" },
         "nameFontSize": { "type": "number", "minimum": 8, "maximum": 72 },
         "pinVisible": {
@@ -720,13 +733,19 @@
             "nextStatus": {
               "$ref": "#/$defs/status"
             },
+            "customLabel": { "type": "string", "minLength": 1 },
+            "customColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
             "revisions": {
               "type": "array",
               "items": {
                 "$ref": "#/$defs/revision"
               }
             }
-          }
+          },
+          "allOf": [{
+            "if": { "properties": { "nextStatus": { "const": "Personalizada" } }, "required": ["nextStatus"] },
+            "then": { "properties": { "customLabel": { "type": "string", "minLength": 1 } }, "required": ["customLabel"] }
+          }]
         }
       ]
     },

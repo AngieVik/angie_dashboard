@@ -1,15 +1,18 @@
 import type { DocumentElement, Position } from '../../domain/document/types'
 import type { Size } from '../../layout/layoutTypes'
 import type { Board } from './boardTypes'
-import { getPinBox } from '../elements/iconCatalog'
+import { getPinNameLayout, getRotatedPinBox } from '../elements/pinPresentation'
 
 export interface NotePlacementBox extends Size { x: number; y: number }
 export function getQuickNoteObstacles(board: Board, elements: readonly DocumentElement[], nameWidth: (element: DocumentElement) => number): NotePlacementBox[] {
   const boxes = board.quickNotes.map(note => ({ x: note.position.x - note.width / 2, y: note.position.y - note.height / 2, width: note.width, height: note.height }))
   for (const element of elements) if (element.pinVisible && element.position) {
-    const icon = getPinBox(element.visual), width = Math.max(icon.width, element.nameHidden ? 0 : nameWidth(element))
-    const height = Math.max(icon.height, element.nameHidden ? 0 : (element.nameFontSize ?? 16) * 1.25)
-    boxes.push({ x: element.position.x - width / 2, y: element.position.y + icon.height / 2 - height, width, height })
+    const icon = getRotatedPinBox(element.visual)
+    boxes.push({ x: element.position.x - icon.width / 2, y: element.position.y - icon.height / 2, ...icon })
+    if (!element.nameHidden) {
+      const name = getPinNameLayout(element, nameWidth(element))
+      boxes.push({ x: element.position.x + name.offset.x - name.width / 2, y: element.position.y + name.offset.y - name.height / 2, width: name.width, height: name.height })
+    }
   }
   return boxes
 }

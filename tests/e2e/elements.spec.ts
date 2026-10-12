@@ -543,3 +543,48 @@ test('cabecera única, nombres automáticos y ocultar nombre persisten sin dupli
   await expect(panel.locator('.element-row-text strong > span')).toHaveText(['ABCDEF', 'GHIJKL'])
   await expect(panel.locator('.element-row-status, .ui-badge')).toHaveCount(0)
 })
+
+test('editar conserva dotación al pulsar huecos y reparte colores flexibles sin selector de zona', async ({ page }, info) => {
+  await page.getByRole('button', { name: 'Cerrar Elementos', exact: true }).click()
+  await open(page, 'Dotaciones')
+  const fixture = createEmptyDocument('Editor de dotación')
+  createFixtureElement(fixture, { name: 'Unidad Demo', isUnit: true, information: '', visual: { type: 'asset', assetId: 'ambulance', scale: 1 }, position: { x: 250, y: 250 } })
+  fixture.moduleLayouts.dotations = { x: 0, y: 0, width: 440, height: 600, referenceSize: { width: 1440, height: 900 } }
+  fixture.moduleLayouts.board = { x: 500, y: 0, width: 500, height: 600, referenceSize: { width: 1440, height: 900 } }
+  await loadDocument(page, fixture)
+  const module = page.locator('[data-module="dotations"]')
+  await module.getByRole('button', { name: 'Modificar', exact: true }).click()
+  const editor = module.getByRole('form', { name: 'Modificar elemento' })
+  const pin = page.locator('.board-pin').getByRole('button', { name: 'Seleccionar Unidad Demo', exact: true })
+  await expect(pin).toHaveAttribute('aria-pressed', 'true')
+  await module.getByRole('img', { name: 'Previsualización del elemento' }).click({ position: { x: 2, y: 2 } })
+  await expect(editor).toBeVisible()
+  await expect(pin).toHaveAttribute('aria-pressed', 'true')
+  await module.locator('.elements-configure-actions').click({ position: { x: 400, y: 10 } })
+  await expect(editor).toBeVisible()
+  await expect(pin).toHaveAttribute('aria-pressed', 'true')
+  await expect(module.getByRole('group', { name: 'Posición del nombre' })).toHaveCount(0)
+  const colors = module.getByRole('group', { name: 'Colores del nombre' })
+  await expect(colors.getByRole('button')).toHaveCount(6)
+  for (const width of [240, 440]) {
+    await module.evaluate((node, width) => { (node as HTMLElement).style.width = `${width}px` }, width)
+    const row = await colors.evaluate(node => {
+      const box = node.getBoundingClientRect(), buttons = [...node.querySelectorAll('button')].map(button => button.getBoundingClientRect())
+      return { width: box.width, left: box.left, right: box.right, buttons: buttons.map(button => ({ width: button.width, left: button.left, right: button.right })), fits: node.scrollWidth <= node.clientWidth }
+    })
+    expect(row.fits).toBe(true)
+    expect(row.buttons[0]!.left).toBeCloseTo(row.left, 0)
+    expect(row.buttons.at(-1)!.right).toBeCloseTo(row.right, 0)
+    for (const button of row.buttons) expect(button.width).toBeCloseTo(row.buttons[0]!.width, 0)
+  }
+  await module.getByRole('button', { name: 'Azul / blanco', exact: true }).click()
+  await expect(pin).toHaveAttribute('aria-pressed', 'true')
+  expect(await module.locator('.element-preview-scene').evaluate(node => getComputedStyle(node).padding)).toBe('0px')
+  expect(await module.locator('.element-name-controls').evaluate(node => parseFloat(getComputedStyle(node).marginBottom))).toBeGreaterThan(6)
+  await module.screenshot({ path: info.outputPath('editor-compacto.png') })
+  // Once editing ends, an ordinary empty list area still clears selection.
+  await module.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(pin).toHaveAttribute('aria-pressed', 'true')
+  await module.locator('.elements-list').click({ position: { x: 10, y: 300 } })
+  await expect(pin).toHaveAttribute('aria-pressed', 'false')
+})

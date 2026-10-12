@@ -19,7 +19,7 @@ function BoardNavigationProbe({ change }: { change: () => void }) {
 }
 
 describe('viewport lógico bajo la cabecera', () => {
-  it('compensa el crecimiento de la cabecera para conservar el punto físico del pellizco', () => {
+  it('ancla a la esquina visible bajo la cabecera sin compensación por el puntero', () => {
     const change = vi.fn()
     render(<MobileViewport headerHeight={34} state={{ scale: 1, offsetX: 0, offsetY: 0 }} size={{ width: 800, height: 500 }} onChange={change}>{null}</MobileViewport>)
     const viewport = screen.getByTestId('mobile-viewport')
@@ -27,7 +27,7 @@ describe('viewport lógico bajo la cabecera', () => {
     fireEvent.pointerDown(viewport, { pointerId: 1, clientX: 100, clientY: 200 })
     fireEvent.pointerDown(viewport, { pointerId: 2, clientX: 200, clientY: 200 })
     fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 300, clientY: 200 })
-    expect(change).toHaveBeenLastCalledWith({ scale: 2, offsetX: -100, offsetY: -200 })
+    expect(change).toHaveBeenLastCalledWith({ scale: 2, offsetX: 0, offsetY: 0 })
   })
   it('añadir un tercer dedo cancela la continuación hasta levantarlos todos', () => {
     const change = vi.fn()
@@ -114,17 +114,17 @@ describe('viewport lógico bajo la cabecera', () => {
     expect(fit({ width: 800, height: 700 }, { width: 800, height: 700 })).toEqual({ scale: 1, offsetX: 0, offsetY: 0 })
     expect(fit({ width: 200, height: 150 }, { width: 320, height: 220 })).toEqual({ scale: 1, offsetX: 0, offsetY: 0 })
   })
-  it('limita el zoom a 0.25–4 también en una pantalla enorme', () => {
+  it('limita el zoom a 0.25–2 también en una pantalla enorme', () => {
     const size = { width: 800, height: 700 }
     expect(zoomAt(fit(size, size), 0.01, { x: 400, y: 350 }, size, size).scale).toBe(0.25)
-    expect(zoomAt(fit(size), 10, { x: 400, y: 350 }, size).scale).toBe(4)
+    expect(zoomAt(fit(size), 10, { x: 400, y: 350 }, size).scale).toBe(2)
     const huge = { width: 9600, height: 6000 }
     expect(fit(huge, huge).scale).toBe(1)
-    expect(zoomAt(fit(huge, huge), 10, { x: 4800, y: 3000 }, huge, huge).scale).toBe(4)
+    expect(zoomAt(fit(huge, huge), 10, { x: 4800, y: 3000 }, huge, huge).scale).toBe(2)
   })
-  it('mantiene el punto lógico bajo el centro del pellizco', () => {
+  it('mantiene el origen al pellizcar desde cualquier punto', () => {
     const size = { width: 800, height: 500 }
-    expect(zoomAt(fit(size, size), 2, { x: 200, y: 200 }, size, size)).toEqual({ scale: 2, offsetX: -200, offsetY: -200 })
+    expect(zoomAt(fit(size, size), 2, { x: 200, y: 200 }, size, size)).toEqual({ scale: 2, offsetX: 0, offsetY: 0 })
   })
   it('limita cada borde sin margen elástico ni huecos positivos', () => {
     const size = { width: 400, height: 300 }
@@ -169,7 +169,7 @@ describe('viewport lógico bajo la cabecera', () => {
     fireEvent.pointerDown(content, { pointerId: 2, clientX: 200, clientY: 100 })
     fireEvent.lostPointerCapture(content, { pointerId: 1 })
     fireEvent.pointerMove(screen.getByTestId('mobile-viewport'), { pointerId: 2, clientX: 300, clientY: 100 })
-    expect(change).toHaveBeenCalledWith({ scale: 2, offsetX: -100, offsetY: -100 })
+    expect(change).toHaveBeenCalledWith({ scale: 2, offsetX: 0, offsetY: 0 })
   })
   it('tras levantar dos dedos permite activar Cuaderno con teclado y sigue rechazando el clic residual táctil', () => {
     const click = vi.fn()

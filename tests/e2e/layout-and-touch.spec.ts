@@ -14,10 +14,10 @@ async function geometry(page: Page, id: string) {
     width: Number(el.getAttribute('data-width')), height: Number(el.getAttribute('data-height')),
   }))
 }
-test('abre y cierra los nueve marcos; conserva distribución, no visibilidad ni viewport', async ({ page }) => {
+test('abre y cierra los nueve marcos; conserva distribución y módulos abiertos al refrescar', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('[data-module]')).toHaveCount(0)
-  const names = ['Pizarra', 'Elementos', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro cronológico']
+  const names = ['Pizarra', 'Elementos', 'Información', 'Operativo', 'Coordenadas', 'Reloj', 'Calculadora', 'Cuaderno', 'Registro']
   for (const name of names) {
     await toggle(page, name)
     await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
@@ -33,8 +33,7 @@ test('abre y cierra los nueve marcos; conserva distribución, no visibilidad ni 
   expect(await geometry(page, 'board')).toEqual(boardGeometry)
   expect(await geometry(page, 'elements')).toEqual({ x: 0, y: 0, width: 300, height: 420 })
   await page.reload()
-  await expect(page.locator('[data-module]')).toHaveCount(0)
-  await toggle(page, 'Pizarra')
+  await expect(page.locator('[data-module]')).toHaveCount(2)
   expect(await geometry(page, 'board')).toEqual(boardGeometry)
   const bounds = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight, w: innerWidth, h: innerHeight }))
   expect(bounds.width).toBe(bounds.w); expect(bounds.height).toBe(bounds.h)

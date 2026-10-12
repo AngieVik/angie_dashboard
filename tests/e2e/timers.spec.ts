@@ -31,7 +31,7 @@ test('temporizadores independientes del documento, cierre de módulo, recarga y 
   await zero.getByRole('button', { name: 'Pausar', exact: true }).press('Enter')
   await page.clock.runFor(100)
   await page.reload()
-  await expect(page.locator('[data-module]')).toHaveCount(0)
+  await expect(page.locator('[data-module]')).toHaveCount(1)
   await openModule(page, 'Reloj')
   await expect(zero.getByLabel('Nota', { exact: true })).toHaveCount(0)
   await expect(zero.getByLabel('Tiempo', { exact: true })).toHaveText('00:00:40')

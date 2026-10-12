@@ -12,7 +12,7 @@ function migrated(source: unknown) {
   if (!result.success) throw new Error(JSON.stringify(result.errors))
   return result.document
 }
-describe('lectura y exportación V3', () => {
+describe('lectura histórica V3 y exportación V4', () => {
   it('congela V2 sin endurecer estado guardado ni relaciones nuevas', () => {
     const source = structuredClone(v2)
     source.elements[0]!.operational!.status = 'Inoperativa'
@@ -47,9 +47,9 @@ describe('lectura y exportación V3', () => {
     document.timeline[0]!.revisions.push({ id: crypto.randomUUID(), kind: 'delete', recordedAt: '2026-10-04T00:00:00Z' })
     expect(validateDocument(document).success).toBe(false)
   })
-  it('exporta ocho raíces V3 y no incluye estado temporal ni temporizadores', () => {
+  it('exporta ocho raíces V4 y no incluye estado temporal ni temporizadores', () => {
     const document = JSON.parse(serializeDocument(createEmptyDocument()))
-    expect(document.formatVersion).toBe(3)
+    expect(document.formatVersion).toBe(4)
     expect(Object.keys(document)).toEqual(['format', 'formatVersion', 'document', 'board', 'elements', 'notebook', 'timeline', 'moduleLayouts'])
   })
   it.each([v1, v2])('conserva origen, identidad, texto libre, fechas, iconos y geometrías al convertir', source => {
@@ -58,7 +58,7 @@ describe('lectura y exportación V3', () => {
     input.elements[0]!.information = 'Asignada / En camino / En destino'
     const before = structuredClone(input)
     const converted = migrated(input)
-    expect(converted.formatVersion).toBe(3)
+    expect(converted.formatVersion).toBe(4)
     expect(converted.document).toEqual(input.document)
     expect(converted.board.quickNotes[0]).toEqual({ ...v2.board.quickNotes[0], title: '', scale: 1 })
     expect(converted.elements[0]).toMatchObject({ information: input.elements[0]!.information, pinVisible: true, visual: input.elements[0]!.visual,

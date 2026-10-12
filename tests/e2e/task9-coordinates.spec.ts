@@ -44,7 +44,7 @@ test('cinco filas, copia Maps sin navegación, teclado, error sin alterar entrad
   expect(externalRequests).toEqual([])
 })
 
-test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y vacío', async ({ page }) => {
+test('JSON y autoguardado excluyen datos temporales; recargar mantiene el módulo abierto y vacía las entradas temporales', async ({ page }) => {
   const input = page.getByRole('textbox', { name: 'Coordenadas', exact: true })
   await input.fill('37.060234, -2.002295'); await input.press('Enter')
   await setDocumentTitle(page, 'Coordenadas Task 9')
@@ -74,9 +74,7 @@ test('JSON y autoguardado excluyen datos temporales; recargar comienza cerrado y
   for (const temporary of ['37.060234', '-2.002295', 'google.com/maps', 'normalizedInput', 'conversions']) expect(saved).not.toContain(temporary)
   await page.reload()
   await expectDocumentTitle(page, 'Coordenadas Task 9')
-  await expect(page.locator('[data-module]')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Ver', exact: true }).click()
-  await page.getByRole('menuitemcheckbox', { name: 'Coordenadas', exact: true }).click()
+  await expect(page.locator('[data-module]')).toHaveCount(1)
   await expect(input).toHaveValue('')
   await expect(page.getByLabel('Resultado DD')).toHaveText('')
   await expect(page.getByRole('button', { name: /^Copiar / })).toHaveCount(0)

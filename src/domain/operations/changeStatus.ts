@@ -9,9 +9,17 @@ function statusChangeEntry(unitId: string, unitName: string, previousStatus: Ope
 export function changeElementStatus(document: AngieDocument, elementId: string, nextStatus: OperationalStatus, now: Date): AngieDocument {
   const unit = document.elements.find(element => element.id === elementId)
   if (!unit?.isUnit) throw new Error('La dotación ya no existe.')
-  if (!DOCUMENT_STATUSES.includes(nextStatus)) throw new Error('Estado operativo desconocido.')
-  if (unit.operational.status === nextStatus) return document
+  if (nextStatus !== 'Personalizada' && !DOCUMENT_STATUSES.includes(nextStatus)) throw new Error('Estado operativo desconocido.')
+  const customLabel = nextStatus === 'Personalizada' ? unit.operational.notes.trim() : undefined
+  const customColor = nextStatus === 'Personalizada' ? unit.operational.notesColor : undefined
+  if (nextStatus === 'Personalizada' && !customLabel) throw new Error('Escribe el nombre del estado personalizado.')
+  const current = document.timeline.find(entry => entry.id.toLowerCase() === unit.operational.currentEntryId?.toLowerCase())
+  if (unit.operational.status === nextStatus && (nextStatus !== 'Personalizada' || current?.type === 'status-change' && current.customLabel === customLabel && current.customColor === customColor)) return document
   const entry = statusChangeEntry(unit.id, unit.name, unit.operational.status, nextStatus, now)
+  if (entry.type === 'status-change' && customLabel) {
+    entry.customLabel = customLabel
+    if (customColor) entry.customColor = customColor
+  }
   return {
     ...document,
     document: { ...document.document, updatedAt: entry.occurredAt < document.document.createdAt ? document.document.createdAt : entry.occurredAt },

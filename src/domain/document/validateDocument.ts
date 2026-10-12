@@ -1,8 +1,8 @@
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject } from 'ajv'
-import schema from './schema/angie-document-v3.schema.json'
-import type { AngieDocumentV3, ValidationIssue, ValidationResult } from './types'
+import schema from './schema/angie-document-v4.schema.json'
+import type { AngieDocumentV4, ValidationIssue, ValidationResult } from './types'
 import { isTimelineEntryDeleted, isTimelineEntryCorrected, projectUnitStatus } from '../operations/timelineProjection'
 
 const ajv = new Ajv2020({
@@ -15,7 +15,7 @@ const ajv = new Ajv2020({
   ownProperties: true,
 })
 addFormats(ajv)
-const validateSchema = ajv.compile<AngieDocumentV3>(schema)
+const validateSchema = ajv.compile<AngieDocumentV4>(schema)
 
 function issueFromSchema(error: ErrorObject): ValidationIssue {
   const parts = error.instancePath.split('/').slice(1).map(part => part.replace(/~1/g, '/').replace(/~0/g, '~'))
@@ -41,7 +41,7 @@ function issueFromSchema(error: ErrorObject): ValidationIssue {
     oneOf: 'debe coincidir con una única variante permitida',
     if: 'no cumple la relación condicional requerida',
   }
-  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V3'}` }
+  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V4'}` }
 }
 
 // Compare the complete UTC instant, including fractions finer than milliseconds.
@@ -58,13 +58,25 @@ function compareUtcDates(left: string, right: string): number {
   return a === b ? 0 : a < b ? -1 : 1
 }
 
-export function validateDocument(input: unknown): ValidationResult<AngieDocumentV3> {
+export function validateDocument(input: unknown): ValidationResult<AngieDocumentV4> {
   if (!validateSchema(input)) {
     return { success: false, errors: (validateSchema.errors ?? []).map(issueFromSchema) }
   }
 
   const errors: ValidationIssue[] = []
   const add = (path: string, message: string) => errors.push({ path, message: `${path} ${message}` })
+  const image = input.board.backgroundImage
+  if (image) {
+    try {
+      const base64 = image.dataUrl.slice(image.dataUrl.indexOf(',') + 1)
+      const prefix = atob(base64.slice(0, 16))
+      const png = image.dataUrl.startsWith('data:image/png;')
+      const valid = png ? [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => prefix.charCodeAt(index) === byte)
+        : prefix.charCodeAt(0) === 255 && prefix.charCodeAt(1) === 216 && prefix.charCodeAt(2) === 255
+      const byteLength = base64.length / 4 * 3 - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
+      if (!valid || base64.length % 4 !== 0 || byteLength > 50 * 1024 * 1024) add('board.backgroundImage.dataUrl', 'debe contener una imagen PNG o JPEG válida de hasta 50 MiB')
+    } catch { add('board.backgroundImage.dataUrl', 'no contiene una imagen base64 válida') }
+  }
   const ids = new Set<string>()
   const identify = (id: string, path: string) => {
     // UUID spelling is case-insensitive; references such as unitId are not owners.

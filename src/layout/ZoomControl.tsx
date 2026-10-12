@@ -62,7 +62,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
   return <div className="zoom-control technical-data">
     {side !== 'right' && percentage}
     <Popover open={open && !disabled} onOpenChange={setOpen}>
-      <HelpTooltip text={label}><PopoverTrigger asChild><Button ref={trigger} className="zoom-trigger" disabled={disabled}
+      <HelpTooltip text={label}><PopoverTrigger asChild><Button ref={trigger} className="module-button zoom-trigger" disabled={disabled}
         aria-label={`Abrir deslizador: ${label}`}><Icon aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
       <PopoverContent side={side} aria-label={label}
         onPointerDownCapture={() => { sliderPointer.current = true }}

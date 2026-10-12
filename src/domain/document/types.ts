@@ -3,14 +3,16 @@ export const DOCUMENT_STATUSES = [
   'Trasladando', 'Transfiriendo', 'Operativa', 'Inoperativa',
 ] as const
 
-export type OperationalStatus = typeof DOCUMENT_STATUSES[number]
+export type OperationalStatus = typeof DOCUMENT_STATUSES[number] | 'Personalizada'
 export type AssetId = 'ambulance' | 'pathfinder' | 'quad' | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
 export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'clock' | 'calculator' | 'notebook' | 'timeline'
 
 export interface Position { x: number; y: number }
-export type ElementVisual =
+export type PinNameColor = 'dark' | 'light' | 'yellow' | 'blue' | 'green' | 'red'
+export interface PinTransform { rotation?: number; flipX?: boolean; flipY?: boolean }
+export type ElementVisual = PinTransform & (
   | { type: 'asset'; assetId: AssetId; scale: number }
-  | { type: 'emoji'; value: string; scale: number }
+  | { type: 'emoji'; value: string; scale: number })
 
 export type BoardStroke = {
   id: string
@@ -19,7 +21,7 @@ export type BoardStroke = {
 } & ({ tool: 'pen'; color: string } | { tool: 'eraser'; color: null })
 
 export interface QuickNote { id: string; title: string; text: string; scale: number; position: Position; width: number; height: number }
-export interface UnitOperational { status: OperationalStatus | null; currentEntryId: string | null; notes: string; tags: string[] }
+export interface UnitOperational { status: OperationalStatus | null; currentEntryId: string | null; notes: string; notesColor?: string; tags: string[] }
 export type DocumentElement = {
   id: string
   name: string
@@ -28,6 +30,8 @@ export type DocumentElement = {
   position: Position | null
   nameFontSize?: number
   nameHidden?: boolean
+  nameOffset?: Position
+  nameColor?: PinNameColor
   pinVisible: boolean
   readonly isUnit: boolean
 } & (
@@ -53,6 +57,8 @@ export type TimelineEntry = { revisions: TimelineRevision[] } & (
     unitName: string
     previousStatus: OperationalStatus | null
     nextStatus: OperationalStatus
+    customLabel?: string
+    customColor?: string
   }
 )
 
@@ -69,7 +75,12 @@ export interface AngieDocumentV3 {
   moduleLayouts: Partial<Record<DocumentModuleId, ModuleLayout>>
 }
 
-export type AngieDocument = AngieDocumentV3
+export interface EmbeddedBoardImage { dataUrl: string; layout: { x: number; y: number; width: number; height: number } }
+export interface AngieDocumentV4 extends Omit<AngieDocumentV3, 'formatVersion' | 'board'> {
+  formatVersion: 4
+  board: AngieDocumentV3['board'] & { backgroundImage?: EmbeddedBoardImage }
+}
+export type AngieDocument = AngieDocumentV4
 
 export interface ValidationIssue { path: string; message: string }
 export type ValidationResult<T> =

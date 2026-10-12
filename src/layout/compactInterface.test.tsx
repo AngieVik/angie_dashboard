@@ -17,10 +17,10 @@ const render = (view: ReactNode) => renderView(<TooltipProvider>{view}</TooltipP
 describe('interfaz compacta aprobada', () => {
   afterEach(() => vi.unstubAllGlobals())
   const size = { width: 800, height: 600 }
-  it('admite 25–400 %, sin huecos positivos ni recientes al cambiar el área', () => {
+  it('admite 25–200 %, sin huecos positivos ni recientes al cambiar el área', () => {
     expect(zoomAt(fit(size), 0.5, { x: 0, y: 0 }, size)).toEqual({ scale: 0.5, offsetX: 0, offsetY: 0 })
     expect(zoomAt(fit(size), 0.01, { x: 0, y: 0 }, size).scale).toBe(0.25)
-    expect(zoomAt(fit(size), 10, { x: 0, y: 0 }, size).scale).toBe(4)
+    expect(zoomAt(fit(size), 10, { x: 0, y: 0 }, size).scale).toBe(2)
     expect(clamp({ scale: 1, offsetX: 80, offsetY: 60 }, size)).toEqual(fit(size))
     expect(fit(size, { width: 1200, height: 1000 })).toEqual({ scale: 1, offsetX: 0, offsetY: 0 })
     expect(resizeViewport({ scale: 2, offsetX: -50, offsetY: -60 }, size, { width: 600, height: 800 })).toEqual({ scale: 2, offsetX: -50, offsetY: -60 })
@@ -31,7 +31,7 @@ describe('interfaz compacta aprobada', () => {
   it('exporta ventanas menores que los antiguos mínimos, sin aceptar cero', () => {
     const document = createEmptyDocument()
     for (const id of Object.keys(MODULE_REGISTRY) as (keyof typeof MODULE_REGISTRY)[]) {
-      expect(MODULE_REGISTRY[id].minimum).toEqual([1, 1])
+      expect(MODULE_REGISTRY[id].minimum).toEqual([27, 29])
       document.moduleLayouts[id] = { x: 0, y: 0, width: 100, height: 80, referenceSize: size }
     }
     expect(validateDocument(document).success).toBe(true)
@@ -43,7 +43,8 @@ describe('interfaz compacta aprobada', () => {
     render(<ModuleFrame id="clock" active onClose={() => {}}>Reloj</ModuleFrame>)
     const field = screen.getByRole('spinbutton', { name: 'Zoom de Reloj' })
     fireEvent.change(field, { target: { value: '50' } }); fireEvent.keyDown(field, { key: 'Enter' })
-    expect(screen.getByRole('region', { name: 'Reloj' }).querySelector('.module-scaled-content')).toHaveStyle({ width: '100%', height: '100%', zoom: '0.5' })
+    expect(screen.getByRole('region', { name: 'Reloj' }).querySelector('.module-scaled-content')).toHaveAttribute('data-scale', '0.5')
+    expect(screen.getByRole('region', { name: 'Reloj' }).querySelector<HTMLElement>('.module-scaled-content')!.style.zoom).toBe('')
   })
   it('Proportions colapsa verticalmente y restaura altura, contenido y zoom', () => {
     const fit = vi.fn()
@@ -97,15 +98,15 @@ describe('interfaz compacta aprobada', () => {
     render(<ModuleFrame id="elements" active onClose={vi.fn()} />)
     const zoom = screen.getByRole('spinbutton', { name: 'Zoom de Elementos' })
     fireEvent.change(zoom, { target: { value: '800' } }); fireEvent.keyDown(zoom, { key: 'Enter' })
-    expect(zoom).toHaveValue(400)
+    expect(zoom).toHaveValue(200)
     fireEvent.change(zoom, { target: { value: '10' } }); fireEvent.keyDown(zoom, { key: 'Escape' })
-    expect(zoom).toHaveValue(400)
+    expect(zoom).toHaveValue(200)
     fireEvent.click(screen.getByRole('button', { name: 'Abrir deslizador: Zoom de Elementos' }))
     const slider = screen.getByRole('slider', { name: 'Zoom de Elementos' })
     fireEvent.keyDown(slider, { key: 'Home' })
     expect(zoom).toHaveValue(25)
     fireEvent.keyDown(slider, { key: 'End' })
-    expect(zoom).toHaveValue(400)
+    expect(zoom).toHaveValue(200)
   })
   it('cambiar generación cierra popovers y descarta entrada pendiente sin cambiar el zoom individual', () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })

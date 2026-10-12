@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, PointerEvent, RefObject, TouchEvent as ReactTouchEvent } from 'react'
 import type { Size, ViewportState } from './layoutTypes'
 import { pan, zoomAt } from './viewportMath'
@@ -78,6 +78,17 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       for (const id of pointers.current.keys()) element.current?.setPointerCapture?.(id)
     }
   }
+  function finishNativeInteraction(position: Point) {
+    const owner = element.current?.ownerDocument
+    if (nativeTouches.current.length) owner?.dispatchEvent(new TouchEvent('touchend', {
+      bubbles: true, touches: [], changedTouches: nativeTouches.current,
+    }))
+    owner?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: position.x + origin.current.left, clientY: position.y + origin.current.top }))
+    nativeTouches.current = []
+  }
+  const cancelPointer = useCallback((pointerId: number) => {
+    element.current?.dispatchEvent(new window.PointerEvent('pointercancel', { bubbles: true, pointerId }))
+  }, [element])
   function move(event: PointerEvent) {
     if (!pointers.current.has(event.pointerId)) return
     pointers.current.set(event.pointerId, point(event))
@@ -103,14 +114,14 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
         return
       }
       const settings = config.current
-      const zoomed = zoomAt(settings.state, settings.state.scale * next.distance / old.distance, old.midpoint, settings.size, settings.bounds)
-      const headerDelta = settings.headerHeight * (zoomed.scale - settings.state.scale)
-      const visible = { ...settings.size, height: Math.max(1, settings.size.height - headerDelta) }
-      current.current = pan(zoomed, next.midpoint.x - old.midpoint.x, next.midpoint.y - old.midpoint.y - headerDelta, visible, settings.bounds)
+      current.current = zoomAt(settings.state, settings.state.scale * next.distance / old.distance, { x: 0, y: 0 }, settings.size, settings.bounds)
       settings.onChange(current.current)
     }
   }
   function end(event: PointerEvent) {
+    const last = pointers.current.get(event.pointerId)
+    // RGL listens for mouse/touch completion, not pointercancel.
+    if (event.type === 'pointercancel' && last) finishNativeInteraction(last)
     if (drag.current?.pointerId === event.pointerId) drag.current = null
     pointers.current.delete(event.pointerId)
     if (blockedRef.current) { event.preventDefault(); event.stopPropagation() }
@@ -130,15 +141,23 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       const factor = Math.exp(-event.deltaY * unit * .002)
       const navigation = moduleNavigationRef.current
       if (navigation) { navigation.zoom(navigation.scale * factor, { x: event.clientX, y: event.clientY }); return }
-      const rect = node!.getBoundingClientRect()
-      const zoomed = zoomAt(current.current, current.current.scale * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top }, settings.size, settings.bounds)
-      const headerDelta = settings.headerHeight * (zoomed.scale - current.current.scale)
-      current.current = pan(zoomed, 0, -headerDelta, { ...settings.size, height: Math.max(1, settings.size.height - headerDelta) }, settings.bounds)
+      current.current = zoomAt(current.current, current.current.scale * factor, { x: 0, y: 0 }, settings.size, settings.bounds)
       settings.onChange(current.current)
     }
+    function blur() { for (const pointerId of pointers.current.keys()) cancelPointer(pointerId) }
+    function release(event: globalThis.PointerEvent) {
+      // The first movement after a release outside the browser can target any surface.
+      if (event.pointerType === 'mouse' && event.buttons === 0 && pointers.current.has(event.pointerId)) cancelPointer(event.pointerId)
+    }
     node.addEventListener('wheel', wheel, { capture: true, passive: false })
-    return () => node.removeEventListener('wheel', wheel, true)
-  }, [element])
+    window.addEventListener('blur', blur)
+    node.ownerDocument.addEventListener('pointermove', release, true)
+    return () => {
+      node.removeEventListener('wheel', wheel, true)
+      window.removeEventListener('blur', blur)
+      node.ownerDocument.removeEventListener('pointermove', release, true)
+    }
+  }, [element, cancelPointer])
   return {
     blocked, blockedRef, moduleNavigationRef,
     handlers: {
@@ -152,7 +171,10 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
         if (blockedRef.current || event.touches.length >= 2) event.stopPropagation()
         else nativeTouches.current = Array.from(event.nativeEvent.touches)
       },
-      onTouchMoveCapture: (event: ReactTouchEvent) => { if (blockedRef.current) event.stopPropagation() },
+      onTouchMoveCapture: (event: ReactTouchEvent) => {
+        if (blockedRef.current) event.stopPropagation()
+        else nativeTouches.current = Array.from(event.nativeEvent.touches)
+      },
       onTouchEndCapture: (event: ReactTouchEvent) => {
         if (suppressClick.current) event.stopPropagation()
         if (!event.touches.length) nativeTouches.current = []

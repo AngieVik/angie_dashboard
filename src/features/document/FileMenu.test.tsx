@@ -54,7 +54,7 @@ describe('Archivo y modo degradado', () => {
     expect(reopened).toHaveValue('Preparación norte')
     fireEvent.change(reopened, { target: { value: '' } })
     fireEvent.submit(reopened.closest('form')!)
-    expect(store.getSnapshot().document.document.title).toBe('')
+    await waitFor(() => expect(store.getSnapshot().document.document.title).toBe(''))
     fireEvent.keyDown(screen.getByRole('button', { name: 'Archivo' }), { key: 'ArrowDown' })
     expect(await screen.findByRole('menuitem', { name: 'Introducir nombre' })).toBeInTheDocument()
   })
@@ -81,7 +81,7 @@ describe('Archivo y modo degradado', () => {
     expect(JSON.parse(download.mock.calls[0]![0]).document.title).toBe('Recuperado')
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Nuevo' }))
-    expect(store.getSnapshot().document.document.title).toBe('')
+    await waitFor(() => expect(store.getSnapshot().document.document.title).toBe(''))
   })
 
   it('carga desde el input y un error conserva el documento', async () => {
@@ -107,5 +107,29 @@ describe('Archivo y modo degradado', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     await waitFor(() => expect(screen.queryByText('Autoguardado no disponible')).not.toBeInTheDocument())
     expect(store.getSnapshot().document.document.title).toBe('Sin IndexedDB')
+  })
+})
+
+
+describe('interfaz de guardado V4', () => {
+  it('ofrece Guardar como y distingue el dispositivo del archivo pendiente', async () => {
+    const { store } = await setup()
+    act(() => store.setTitle('Cambios'))
+    await act(async () => { await store.flushAutosave() })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Archivo' }), { key: 'ArrowDown' })
+    expect(await screen.findByRole('menuitem', { name: 'Guardar como' })).toBeInTheDocument()
+    expect(screen.getByText(/Guardado en este dispositivo/)).toBeInTheDocument()
+    expect(screen.getByText('Cambios pendientes de guardar en archivo')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Recuperar documento local' })).toBeInTheDocument()
+  })
+  it('impide sustituir el documento sin protección y permite cancelar desde el diálogo', async () => {
+    const { store } = await setup(true)
+    act(() => store.setTitle('En memoria'))
+    await act(async () => { await store.newDocument() })
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(store.getSnapshot().document.document.title).toBe('En memoria')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar sustitución' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(store.getSnapshot().document.document.title).toBe('En memoria')
   })
 })

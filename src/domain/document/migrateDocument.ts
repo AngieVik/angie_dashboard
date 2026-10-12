@@ -1,9 +1,10 @@
 import { validateDocument } from './validateDocument'
 import { validateDocumentV1 } from './validateDocumentV1'
 import { validateDocumentV2 } from './validateDocumentV2'
+import { validateDocumentV3 } from './validateDocumentV3'
 import type { AngieDocumentV1 } from './v1Types'
 import type { AngieDocumentV2, OperationalStatus as LegacyStatus } from './v2Types'
-import type { AngieDocumentV3, OperationalStatus, MigrationFailureCode, MigrationResult, ValidationResult } from './types'
+import type { AngieDocumentV3, AngieDocumentV4, OperationalStatus, MigrationFailureCode, MigrationResult, ValidationResult } from './types'
 
 interface DocumentMigration {
   targetVersion: number
@@ -48,11 +49,12 @@ function convertV2(input: unknown): AngieDocumentV3 {
   }
 }
 // Validate every original and intermediate contract without retroactive rules.
-const recognizedMigrations: ReadonlyMap<number, DocumentMigration> = new Map([
+const recognizedMigrations: ReadonlyMap<number, DocumentMigration> = new Map<number, DocumentMigration>([
   [1, { targetVersion: 2, validateSource: validateDocumentV1, migrate: convertV1 }],
   [2, { targetVersion: 3, validateSource: validateDocumentV2, migrate: convertV2 }],
+  [3, { targetVersion: 4, validateSource: validateDocumentV3, migrate: input => ({ ...input as AngieDocumentV3, formatVersion: 4 }) }],
 ])
-const currentVersion = 3
+const currentVersion = 4
 
 function reject(code: MigrationFailureCode, path: string, message: string): MigrationResult<never> {
   return { success: false, code, errors: [{ path, message: `${path} ${message}` }] }
@@ -63,7 +65,7 @@ function isEnvelope(input: unknown): input is { format: unknown; formatVersion?:
     && Object.hasOwn(input, 'format') && 'format' in input
 }
 
-export function migrateDocument(input: unknown): MigrationResult<AngieDocumentV3> {
+export function migrateDocument(input: unknown): MigrationResult<AngieDocumentV4> {
   if (!isEnvelope(input) || input.format !== 'angie-dashboard') {
     return reject('invalid-format', 'format', 'no identifica un documento Angie Dashboard')
   }

@@ -7,7 +7,7 @@ import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
 import { boardReducer, createBoardState } from './boardReducer'
-import { boardDelta, getBoardBounds, initialBoardView, toBoardPosition } from './boardViewport'
+import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition } from './boardViewport'
 import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { transformBoardImage } from './boardImageGeometry'
 import type { BoardImageLayout, ImageAction } from './boardImageGeometry'
@@ -17,6 +17,8 @@ import { findQuickNotePlacement, getQuickNoteObstacles } from './findQuickNotePl
 import { BoardPin } from '../elements/BoardPin'
 import { updateElement } from '../elements/elementCommands'
 import { useViewportInteraction } from '../../layout/ViewportContext'
+import { useModuleZoom } from '../../layout/ModuleZoomContext'
+import { readNavigation, writeNavigation } from '../../layout/navigationStorage'
 import './board.css'
 
 function Stroke({ stroke }: { stroke: BoardStroke }) {
@@ -27,9 +29,9 @@ function Stroke({ stroke }: { stroke: BoardStroke }) {
     lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
 }
 
-export function BoardModule({ store, imageSession, selectedId = null, onSelect, onViewChange, onOpenModule, selectionReset = 0 }: {
+export function BoardModule({ store, imageSession, selectedId = null, onSelect, onViewChange, onOpenModule, onEditElement, selectionReset = 0 }: {
   selectionReset?: number; store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
-  onViewChange?: (center: Position) => void; onOpenModule?: (id: 'dotations' | 'elements') => void
+  onViewChange?: (center: Position) => void; onOpenModule?: (id: 'dotations' | 'elements') => void; onEditElement?: (id: string) => void
 }) {
   const { document, documentGeneration } = useDocumentStore(store)
   const dismissImageError = imageSession.dismissError
@@ -46,7 +48,13 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
   const emptyPointer = useRef<{ id: number; x: number; y: number } | null>(null)
   const [cursor, setCursor] = useState<{ x: number; y: number; pixel: number } | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
-  const [view, setView] = useState({ scale: 1, offsetX: 0, offsetY: 0 })
+  const { scale, navigationKey, fitContentRef } = useModuleZoom()
+  const canvasKey = navigationKey ? navigationKey + '.canvas' : undefined
+  const [view, setView] = useState(() => readNavigation(canvasKey))
+  useLayoutEffect(() => {
+    setView(current => zoomBoardAt(current, scale, { x: 0, y: 0 }, { width: 0, height: 0 }, { left: 0, top: 0, right: 0, bottom: 0 }))
+  }, [scale])
+  useEffect(() => { writeNavigation(canvasKey, view) }, [canvasKey, view])
   const [explored, setExplored] = useState({ width: 0, height: 0 })
   const previousSize = useRef({ width: 0, height: 0 })
   const [imagePreview, setImagePreview] = useState<{ image: typeof imageSession.image; layout: BoardImageLayout } | null>(null)
@@ -57,6 +65,16 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
   const imageBounds = imageSession.image && imageLayout ? { right: Math.max(0, imageLayout.x + imageLayout.width), bottom: Math.max(0, imageLayout.y + imageLayout.height) } : { right: 0, bottom: 0 }
   const objectBounds = getBoardBounds({ width: 0, height: 0 }, document.board, document.elements)
   const actualBounds = { ...objectBounds, right: Math.max(objectBounds.right, imageBounds.right), bottom: Math.max(objectBounds.bottom, imageBounds.bottom) }
+  useLayoutEffect(() => {
+    if (!fitContentRef) return
+    const fitContent = () => {
+      setView(previous => ({ ...previous, offsetX: 0, offsetY: 0 }))
+      return { width: Math.max(320, actualBounds.right * scale, toolbar.current?.scrollWidth ?? 0),
+        height: Math.max(220, actualBounds.bottom * scale) + (toolbar.current?.offsetHeight ?? 0) }
+    }
+    fitContentRef.current = fitContent
+    return () => { if (fitContentRef.current === fitContent) fitContentRef.current = null }
+  }, [fitContentRef, actualBounds.right, actualBounds.bottom, scale])
   const contentBounds = { ...actualBounds, right: Math.max(size.width, actualBounds.right), bottom: Math.max(size.height, actualBounds.bottom) }
   const bounds = { ...contentBounds, right: Math.max(contentBounds.right, explored.width), bottom: Math.max(contentBounds.bottom, explored.height) }
   if (bounds.right > explored.width || bounds.bottom > explored.height) {
@@ -77,9 +95,7 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
     function measure() {
       const next = { width: node.clientWidth, height: node.clientHeight }, previous = previousSize.current
       if (!next.width || !next.height || (previous.width === next.width && previous.height === next.height)) return
-      const document = store.getSnapshot().document
       setSize(next)
-      setView(current => previous.width ? current : initialBoardView(next, document.board, document.elements))
       previousSize.current = next
     }
     measure()
@@ -234,7 +250,13 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
           {document.elements.filter(element => element.pinVisible).map(element =>
             <BoardPin key={element.id} element={element} surface={surface} view={view} viewportSize={size} selected={selectedId === element.id} enabled={state.mode === 'select'}
               onSelect={() => { dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
+              onEdit={() => {
+                if (blockedRef.current) return
+                dispatch({ type: 'select-note', id: null }); onSelect?.(element.id); onEditElement?.(element.id)
+              }}
               onMove={position => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { position })) }}
+              onNameMove={nameOffset => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { nameOffset })) }}
+              onNameColor={nameColor => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { nameColor })) }}
               onScale={scale => {
                 if (blockedRef.current) return
                 const visual = { ...element.visual, scale }

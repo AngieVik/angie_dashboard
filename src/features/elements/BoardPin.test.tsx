@@ -16,6 +16,72 @@ function setup() {
   return { onSelect, onMove, onScale, view, props, blockedRef }
 }
 describe('pin coordinado con la pizarra', () => {
+  it('nombre exterior se arrastra con zoom sin mover el pin y cancela con segundo dedo', () => {
+    vi.useFakeTimers()
+    const { view, props, onMove, blockedRef } = setup()
+    const onNameMove = vi.fn()
+    view.rerender(<ViewportContext.Provider value={{ blocked: false, blockedRef }}><BoardPin {...props} onNameMove={onNameMove} view={{ scale: 2, offsetX: 0, offsetY: 0 }} viewportSize={{ width: 500, height: 500 }} /></ViewportContext.Provider>)
+    const name = screen.getByRole('button', { name: 'Mover nombre de Tango 1' })
+    expect(screen.getByRole('button', { name: 'Seleccionar Tango 1' })).not.toContainElement(name)
+    expect(name).toHaveStyle({ left: '75px', top: '117px' })
+    fireEvent.pointerDown(name, { pointerId: 1, button: 0, clientX: 500, clientY: 500 })
+    act(() => vi.advanceTimersByTime(250))
+    fireEvent.pointerMove(name, { pointerId: 1, clientX: 580, clientY: 460 })
+    fireEvent.pointerUp(name, { pointerId: 1 })
+    expect(onNameMove).toHaveBeenCalledExactlyOnceWith({ x: 20, y: 57 })
+    expect(onMove).not.toHaveBeenCalled()
+    onNameMove.mockClear()
+    fireEvent.pointerDown(name, { pointerId: 2, button: 0, clientX: 500, clientY: 500 })
+    act(() => vi.advanceTimersByTime(250))
+    fireEvent.pointerMove(name, { pointerId: 2, clientX: 600, clientY: 500 })
+    blockedRef.current = true
+    view.rerender(<ViewportContext.Provider value={{ blocked: true, blockedRef }}><BoardPin {...props} onNameMove={onNameMove} /></ViewportContext.Provider>)
+    fireEvent.pointerUp(name, { pointerId: 2 })
+    expect(onNameMove).not.toHaveBeenCalled()
+  })
+  it('giro e inversiones afectan solo al icono y mover conserva la separación elegida', () => {
+    const { view, props } = setup()
+    const transformed = { ...element, nameOffset: { x: -100, y: 120 }, visual: { ...element.visual, rotation: 90, flipX: true, flipY: true } }
+    view.rerender(<BoardPin {...props} element={transformed} />)
+    expect(screen.getByRole('img', { name: 'Ambulancia' })).toHaveStyle({ transform: 'rotate(90deg) scale(-1, -1)' })
+    expect(screen.getByText('Tango 1')).toHaveStyle({ left: '-25px', top: '170px', transform: 'translate(-50%, -50%)' })
+    view.rerender(<BoardPin {...props} element={{ ...transformed, position: { x: 900, y: 1000 } }} />)
+    expect(document.querySelector('.board-pin')).toHaveStyle({ left: '900px', top: '1000px' })
+    expect(screen.getByText('Tango 1')).toHaveStyle({ left: '-25px', top: '170px' })
+  })
+  it('doble clic y doble tap abren paleta contrastada sin confundir arrastre', () => {
+    const { view, props, blockedRef } = setup()
+    const onNameColor = vi.fn()
+    view.rerender(<BoardPin {...props} onNameColor={onNameColor} />)
+    let name = screen.getByRole('button', { name: 'Mover nombre de Tango 1' })
+    fireEvent.doubleClick(name)
+    expect(screen.getByRole('dialog', { name: 'Colores del nombre' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Amarillo / negro' }))
+    expect(onNameColor).toHaveBeenCalledExactlyOnceWith('yellow')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    view.rerender(<BoardPin {...props} onNameColor={onNameColor} element={{ ...element, nameColor: 'yellow' }} />)
+    name = screen.getByRole('button', { name: 'Mover nombre de Tango 1' })
+    expect(name).toHaveStyle({ backgroundColor: '#fde047', color: '#111111' })
+    for (const pointerId of [11, 12]) {
+      fireEvent.pointerDown(name, { pointerId, pointerType: 'touch', button: 0, clientX: 500, clientY: 570 })
+      fireEvent.pointerUp(name, { pointerId, pointerType: 'touch', clientX: 500, clientY: 570 })
+    }
+    expect(screen.getByRole('dialog', { name: 'Colores del nombre' })).toBeVisible()
+    blockedRef.current = true
+    view.rerender(<ViewportContext.Provider value={{ blocked: true, blockedRef }}><BoardPin {...props} onNameColor={onNameColor} /></ViewportContext.Provider>)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    blockedRef.current = false
+    view.rerender(<ViewportContext.Provider value={{ blocked: false, blockedRef }}><BoardPin {...props} onNameColor={onNameColor} /></ViewportContext.Provider>)
+    name = screen.getByRole('button', { name: 'Mover nombre de Tango 1' })
+    vi.useFakeTimers()
+    fireEvent.pointerDown(name, { pointerId: 21, pointerType: 'touch', button: 0, clientX: 500, clientY: 570 })
+    act(() => vi.advanceTimersByTime(250))
+    fireEvent.pointerMove(name, { pointerId: 21, pointerType: 'touch', clientX: 580, clientY: 570 })
+    fireEvent.pointerUp(name, { pointerId: 21, pointerType: 'touch', clientX: 580, clientY: 570 })
+    fireEvent.pointerDown(name, { pointerId: 22, pointerType: 'touch', button: 0, clientX: 580, clientY: 570 })
+    fireEvent.pointerUp(name, { pointerId: 22, pointerType: 'touch', clientX: 580, clientY: 570 })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
   it('oculta solo el nombre y conserva el pin seleccionable', () => {
     const { view, props } = setup()
     view.rerender(<BoardPin {...props} element={{ ...element, nameHidden: true }} />)

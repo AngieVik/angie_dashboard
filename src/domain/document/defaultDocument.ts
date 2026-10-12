@@ -4,7 +4,7 @@ export function createEmptyDocument(title = ''): AngieDocument {
   const now = new Date().toISOString()
   return {
     format: 'angie-dashboard',
-    formatVersion: 3,
+    formatVersion: 4,
     document: { id: crypto.randomUUID(), title, createdAt: now, updatedAt: now },
     board: { backgroundColor: '#25282B', strokes: [], quickNotes: [] },
     elements: [],

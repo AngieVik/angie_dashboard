@@ -10,24 +10,38 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '../../components/ui/alert-dialog'
 import { getDocumentStore, useDocumentStore } from './documentStore'
-import type { DocumentStore } from './documentStore'
+import type { DocumentStore, DocumentSnapshot } from './documentStore'
+import { formatTimelineDate, formatTimelineTime } from '../timeline/timelineCommands'
+
+function saveLabels(snapshot: DocumentSnapshot) {
+  const local = !snapshot.ready ? 'Recuperando documento…' : snapshot.autosaveUnavailable ? 'Autoguardado no disponible' : snapshot.autosaveSaving ? 'Guardando en este dispositivo…' :
+    'Guardado en este dispositivo' + (snapshot.localSavedAt ? ' · ' + formatTimelineTime(snapshot.localSavedAt) : '')
+  const file = snapshot.fileDirty ? 'Cambios pendientes de guardar en archivo' : snapshot.fileSavedAt ? 'Archivo actualizado · ' + formatTimelineTime(snapshot.fileSavedAt) : 'Sin cambios pendientes de exportar'
+  return { local, file }
+}
 
 export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore }) {
-  const { fileBusy, document } = useDocumentStore(store)
+  const snapshot = useDocumentStore(store)
+  const { fileBusy, document, ready, recoverable } = snapshot
+  const labels = saveLabels(snapshot)
   const input = useRef<HTMLInputElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const nameInput = useRef<HTMLInputElement>(null)
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState('')
+  const [recovering, setRecovering] = useState(false)
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={open => { if (open) void store.refreshRecoverable() }}>
         <DropdownMenuTrigger asChild><Button ref={trigger}>Archivo</Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (editingName) event.preventDefault() }}>
+        <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (editingName || recovering) event.preventDefault() }}>
+          <div className="document-save-details"><span>{labels.local}</span><span>{labels.file}</span>{snapshot.downloadStartedAt && <span>Descarga iniciada · {formatTimelineTime(snapshot.downloadStartedAt)}</span>}</div>
           <DropdownMenuGroup>
-            <DropdownMenuItem disabled={fileBusy} onSelect={() => store.newDocument()}>Nuevo</DropdownMenuItem>
-            <DropdownMenuItem disabled={fileBusy} onSelect={() => input.current?.click()}>Cargar</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => { void store.newDocument() }}>Nuevo</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy} onSelect={() => { if (store.hasOpenPicker()) void store.openDocument(); else input.current?.click() }}>Cargar</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument() }}>Guardar</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument(true) }}>Guardar como</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => setRecovering(true)}>Recuperar documento local</DropdownMenuItem>
             <DropdownMenuItem data-document-name disabled={fileBusy} onSelect={() => {
               setName(store.getSnapshot().document.document.title)
               setEditingName(true)
@@ -35,6 +49,19 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+      <span role="status" className="document-save-indicator" data-state={snapshot.autosaveUnavailable ? 'error' : snapshot.autosaveSaving || !ready ? 'saving' : snapshot.fileDirty ? 'pending' : 'saved'} title={labels.local + ' · ' + labels.file} aria-label={labels.local + ' · ' + labels.file}>●</span>
+      <AlertDialog open={recovering} onOpenChange={setRecovering}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Recuperar documento local</AlertDialogTitle>
+          <AlertDialogDescription>El documento actual se protegerá antes de abrir la copia elegida. Estas copias permanecen en este dispositivo.</AlertDialogDescription>
+          <div className="document-recovery-list">
+            {recoverable.length ? recoverable.map(copy => <Button key={copy.key} disabled={fileBusy} onClick={() => { setRecovering(false); void store.restoreDocument(copy.key) }}>
+              {copy.key === 'previous' ? 'Copia anterior · ' : ''}{copy.title || 'Sin título'} · {formatTimelineDate(copy.savedAt)}
+            </Button>) : <p>No hay documentos recuperables.</p>}
+          </div>
+          <AlertDialogCancel asChild><Button>Cerrar</Button></AlertDialogCancel>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={editingName} onOpenChange={setEditingName}>
         <AlertDialogContent onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}
           onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
@@ -60,14 +87,15 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
 }
 
 export function DocumentNotices({ store = getDocumentStore() }: { store?: DocumentStore }) {
-  const { autosaveUnavailable, recoveryPending, fileBusy, fileMessage, fileMessageRevision, downloadFallback } = useDocumentStore(store)
+  const { autosaveUnavailable, recoveryPending, replacementBlocked, storageConflict, recoveredPrevious, fileBusy, fileMessage, fileMessageRevision, downloadFallback } = useDocumentStore(store)
   return (
     <>
-      {(autosaveUnavailable || fileMessage) && (
+      {(autosaveUnavailable || fileMessage || recoveredPrevious) && (
         <div className="document-notices">
+          {recoveredPrevious && <Alert><span>Se recuperó la copia anterior válida. El registro dañado se conserva en este dispositivo.</span></Alert>}
           {autosaveUnavailable && (
             <Alert>
-              <span>Autoguardado no disponible</span>
+              <span>Autoguardado no disponible{storageConflict ? ": hay cambios guardados desde otra pestaña." : ""}</span>
               <Button onClick={() => { void store.retryAutosave() }}>Reintentar</Button>
               <Button disabled={fileBusy} onClick={() => { void store.downloadJson() }}>Guardar JSON</Button>
             </Alert>
@@ -80,7 +108,18 @@ export function DocumentNotices({ store = getDocumentStore() }: { store?: Docume
           ) : <FileValidationNotice key={fileMessageRevision} message={fileMessage} />)}
         </div>
       )}
-      <AlertDialog open={recoveryPending}>
+      <AlertDialog open={replacementBlocked}>
+        <AlertDialogContent>
+          <AlertDialogTitle>No se pudo proteger el documento</AlertDialogTitle>
+          <AlertDialogDescription>El documento actual sigue abierto. Puedes exportarlo, cancelar o descartar expresamente estos cambios para continuar.</AlertDialogDescription>
+          <div className="document-dialog-actions">
+            <Button disabled={fileBusy} onClick={() => { void store.downloadJson() }}>Guardar JSON</Button>
+            <AlertDialogCancel asChild><Button disabled={fileBusy} onClick={() => store.cancelReplacement()}>Cancelar sustitución</Button></AlertDialogCancel>
+            <AlertDialogAction asChild><Button disabled={fileBusy} onClick={() => store.discardReplacement()}>Descartar y continuar</Button></AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={recoveryPending && !replacementBlocked}>
         <AlertDialogContent>
           <AlertDialogTitle>Recuperar documento local</AlertDialogTitle>
           <AlertDialogDescription>

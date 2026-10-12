@@ -1,3 +1,4 @@
+import { createEmptyDocument } from '../../domain/document/defaultDocument'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { TooltipProvider } from '../../components/ui/tooltip'
 import { useState } from 'react'
@@ -105,3 +106,18 @@ describe('Información y selección compartida', () => {
     expect(info.getByText('Sin dotaciones')).toBeInTheDocument()
   })
 })
+
+
+it('muestra la hora original de entrada al estado actual después de recuperar', async () => {
+  const document = createEmptyDocumentForTime()
+  const store = createDocumentStore({ loadActive: async () => document, saveActive: async () => {}, clearActive: async () => {} }, { platform: { download: () => {} } })
+  await store.initialize()
+  render(<InformationModule store={store} selectedId={null} onSelect={() => {}} />)
+  expect(screen.getByLabelText('Hora de entrada al estado')).toHaveAttribute('dateTime', '2026-10-12T06:10:23.000Z')
+  expect(screen.getByLabelText('Hora de entrada al estado')).toHaveTextContent('08:10:23')
+})
+function createEmptyDocumentForTime() {
+  const document = createEmptyDocument()
+  const unit = createElement(document, { name: 'Tango horario', isUnit: true, information: '', visual: { type: 'emoji', value: '🚑', scale: 1 } })
+  return changeElementStatus(document, unit.id, 'Activada', new Date('2026-10-12T06:10:23.000Z'))
+}
