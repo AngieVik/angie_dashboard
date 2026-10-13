@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html}', 'assets/*.woff2'],
+        globPatterns: ['**/*.{js,css,html}'],
         // Public resources receive their revisions through includeAssets.
         // Do not include the public font stylesheet a second time.
         globIgnores: ['assets/fonts/**'],
@@ -36,6 +36,21 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'canvas', test: /node_modules[\\/](konva|react-konva|react-reconciler)[\\/]/ },
+            { name: 'coordinates', test: /node_modules[\\/](proj4|mgrs|wkt-parser)[\\/]/ },
+            { name: 'validation', test: /node_modules[\\/](ajv|ajv-formats|fast-uri|fast-deep-equal|json-schema-traverse|require-from-string)[\\/]/ },
+            { name: 'storage', test: /node_modules[\\/]dexie[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

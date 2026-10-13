@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, PointerEvent, RefObject, TouchEvent as ReactTouchEvent } from 'react'
 import type { Size, ViewportState } from './layoutTypes'
 import { pan, zoomAt } from './viewportMath'
@@ -22,7 +22,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   // cannot change the final scale of a translation.
   const config = useRef({ state, size, bounds, onChange, headerHeight })
   const latest = useRef({ state, size, bounds, onChange, headerHeight })
-  latest.current = { state, size, bounds, onChange, headerHeight }
+  useLayoutEffect(() => { latest.current = { state, size, bounds, onChange, headerHeight } }, [state, size, bounds, onChange, headerHeight])
   useLayoutEffect(() => { if (!pointers.current.size) current.current = state }, [state])
   function pair() {
     const [a, b] = [...pointers.current.values()]
@@ -86,9 +86,6 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     owner?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: position.x + origin.current.left, clientY: position.y + origin.current.top }))
     nativeTouches.current = []
   }
-  const cancelPointer = useCallback((pointerId: number) => {
-    element.current?.dispatchEvent(new window.PointerEvent('pointercancel', { bubbles: true, pointerId }))
-  }, [element])
   function move(event: PointerEvent) {
     if (!pointers.current.has(event.pointerId)) return
     pointers.current.set(event.pointerId, point(event))
@@ -132,6 +129,9 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   useEffect(() => {
     const node = element.current
     if (!node) return
+    function cancelPointer(pointerId: number) {
+      node!.dispatchEvent(new window.PointerEvent('pointercancel', { bubbles: true, pointerId }))
+    }
     function wheel(event: WheelEvent) {
       if (!event.ctrlKey) return
       event.preventDefault(); event.stopPropagation()
@@ -157,7 +157,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       window.removeEventListener('blur', blur)
       node.ownerDocument.removeEventListener('pointermove', release, true)
     }
-  }, [element, cancelPointer])
+  }, [element])
   return {
     blocked, blockedRef, moduleNavigationRef,
     handlers: {

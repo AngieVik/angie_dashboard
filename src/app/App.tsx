@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Button } from '../components/ui/button'
 import { Alert } from '../components/ui/alert'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/ui/dropdown-menu'
-import type { ModuleAction, ModuleActions } from '../layout/ModuleFrame'
-import { LocateFixed, Magnet, Puzzle } from 'lucide-react'
+import type { ModuleActions } from '../layout/ModuleFrame'
+import { LocateFixed, Magnet } from 'lucide-react'
 import { ZoomControl } from '../layout/ZoomControl'
 import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
 import { repositionModules } from '../layout/repositionModules'
@@ -11,6 +11,9 @@ import { HelpTooltip, TooltipProvider } from '../components/ui/tooltip'
 import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import { ViewMenu } from '../features/view/ViewMenu'
+import type { ViewArrangement } from '../features/view/ViewMenu'
+import { CleanupMenu } from '../features/view/CleanupMenu'
+import type { CleanupRequest } from '../features/view/CleanupMenu'
 import { BoardModule } from '../features/board/BoardModule'
 import { ElementsModule } from '../features/elements/ElementsModule'
 import { DotationsModule } from '../features/elements/DotationsModule'
@@ -58,7 +61,7 @@ export function App() {
   const boardImage = useBoardImage(store)
   useEffect(() => { void store.initialize() }, [store])
   const workspace = useRef<HTMLElement>(null)
-  const viewTrigger = useRef<HTMLButtonElement>(null)
+  const modulesTrigger = useRef<HTMLButtonElement>(null)
   const [boardCenter, setBoardCenter] = useState<{ generation: number; center: Position } | null>(null)
   const updateBoardCenter = useCallback((center: Position) => {
     setBoardCenter(previous => previous?.generation === documentGeneration && previous.center.x === center.x && previous.center.y === center.y ? previous : { generation: documentGeneration, center })
@@ -68,34 +71,37 @@ export function App() {
     return { size, layoutSize: size, state: fit(size), measured: false }
   })
   const [navigationDocument, setNavigationDocument] = useState<string | null>(null)
-  useLayoutEffect(() => {
+  if (navigationDocument !== document.document.id) {
     const state = readNavigation(document.document.id + '.dashboard')
     setViewport(previous => ({ ...previous, state, measured: true }))
     setNavigationDocument(document.document.id)
-  }, [document.document.id])
+  }
   useEffect(() => {
     if (navigationDocument === document.document.id) writeNavigation(document.document.id + '.dashboard', viewport.state)
   }, [navigationDocument, document.document.id, viewport.state])
   const [modules, setModules] = useState<PresentedModule[]>([])
   const [modulesGeneration, setModulesGeneration] = useState(-1)
-  useLayoutEffect(() => {
-    if (!ready || modulesGeneration === documentGeneration) return
+  if (ready && modulesGeneration !== documentGeneration) {
     const available = getWorkspaceBounds(viewport.layoutSize, savedOpenModules)
     const restored: PresentedModule[] = []
     for (const id of savedOpenModules) restored.push({ id, layout: findModulePlacement({ id, saved: document.moduleLayouts[id] }, restored.map(module => module.layout), available).layout })
     setModules(restored)
     setModulesGeneration(documentGeneration)
-  }, [ready, modulesGeneration, documentGeneration, savedOpenModules, document.moduleLayouts, viewport.layoutSize])
+  }
   useEffect(() => {
     if (ready && modulesGeneration === documentGeneration) store.setOpenModules(modules.map(module => module.id))
   }, [ready, modulesGeneration, documentGeneration, modules, store])
   const closedModules = useRef<Partial<Record<ModuleId, PresentedModule>>>({})
   const [magnet, setMagnet] = useState(false)
   const [moduleRevisions, setModuleRevisions] = useState<Partial<Record<ModuleId, number>>>({})
+  const [sizePreservation, setSizePreservation] = useState<{ generation: number; revisions: Partial<Record<ModuleId, number>> }>({ generation: documentGeneration, revisions: {} })
+  const [cleanupRequest, setCleanupRequest] = useState<CleanupRequest | null>(null)
+  const [cleanupError, setCleanupError] = useState<string | null>(null)
   const [selectionReset, setSelectionReset] = useState(0)
   const [editRequest, setEditRequest] = useState<{ id: string; generation: number } | null>(null)
   const blankPointer = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const [active, setActive] = useState<ModuleId | null>(null)
+  const [locationHighlight, setLocationHighlight] = useState<{ id: ModuleId; sequence: number; generation: number } | null>(null)
   const [modulesError, setModulesError] = useState<string | null>(null)
   const moduleActions = useRef<Partial<Record<ModuleId, ModuleActions>>>({})
   const pendingEditModule = useRef<ModuleId | null>(null)
@@ -171,6 +177,27 @@ export function App() {
     setActive(id)
     setLayers(previous => previous.at(-1) === id ? previous : [...previous.filter(other => other !== id), id])
   }
+  function selectOpenModule(id: ModuleId) {
+    const module = open.find(module => module.id === id)
+    if (!module) return
+    setLocationHighlight(previous => active === id ? { id, sequence: (previous?.sequence ?? 0) + 1, generation: documentGeneration } : null)
+    activate(id)
+    // Reveal the window with the smallest camera movement, keeping its geometry and zoom.
+    setViewport(previous => {
+      const reveal = (offset: number, position: number, length: number, available: number) => {
+        const start = position * previous.state.scale + offset
+        const end = start + Math.min(length * previous.state.scale, available)
+        return Math.min(0, start < 0 ? offset - start : end > available ? offset + available - end : offset)
+      }
+      const offsetX = reveal(previous.state.offsetX, module.layout.x, module.layout.width, previous.size.width)
+      const offsetY = reveal(previous.state.offsetY, module.layout.y, module.layout.height, previous.size.height)
+      if (offsetX === previous.state.offsetX && offsetY === previous.state.offsetY) return previous
+      return { ...previous, state: { ...previous.state, offsetX, offsetY } }
+    })
+  }
+  function fitActiveModule() {
+    if (active && open.some(module => module.id === active)) moduleActions.current[active]?.('fit')
+  }
   function saveLayout(id: ModuleId, layout: ModuleLayout, kind: 'move' | 'resize' = 'resize') {
     const manual = kind === 'move' ? document.moduleLayouts[id] ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] } : layout
     const saved = { ...layout, width: manual.width, height: manual.height, referenceSize: {
@@ -180,114 +207,109 @@ export function App() {
     setModules(previous => previous.map(module => module.id === id ? { ...module, layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
   }
   function close(id: ModuleId) {
+    if (locationHighlight?.id === id) setLocationHighlight(null)
     if (id === 'elements' || id === 'dotations') { setEditRequest(null); pendingEditModule.current = null }
     const shown = open.find(module => module.id === id)
     if (shown) closedModules.current[id] = { ...shown, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(document.moduleLayouts[id] ?? shown.layout) } }
     if (id === 'board') setBoardCenter(null)
-    viewTrigger.current?.focus()
+    modulesTrigger.current?.focus()
     setModules(previous => previous.filter(module => module.id !== id))
     setLayers(previous => previous.filter(other => other !== id))
     if (active === id) setActive(null)
   }
-  function resetModule(id: ModuleId) {
-    if (id === 'clock') {
-      const snapshot = timers.getSnapshot()
-      if (!snapshot.ready || snapshot.storageUnavailable) throw new Error('Espera a que estén disponibles los temporizadores antes de limpiarlos.')
-      for (const timer of snapshot.timers) timers.close(timer.id)
-    } else if (id !== 'coordinates' && id !== 'calculator') {
+  function requestCleanup(id: ModuleId | null, close: boolean) {
+    setCleanupError(null)
+    setCleanupRequest({ ids: id ? [id] : Object.keys(MODULE_REGISTRY) as ModuleId[], close, generation: documentGeneration })
+  }
+  function confirmCleanup() {
+    const request = cleanupRequest, snapshot = store.getSnapshot()
+    if (!request || request.generation !== snapshot.documentGeneration || !snapshot.ready || snapshot.replacing) return
+    try {
+      const timerSnapshot = timers.getSnapshot()
+      if (request.ids.includes('clock') && (!timerSnapshot.ready || timerSnapshot.storageUnavailable)) {
+        throw new Error('Espera a que estén disponibles los temporizadores antes de limpiarlos.')
+      }
+      // Validate all document changes together before changing independent timers.
       store.mutateDocument(candidate => {
-        if (id === 'board') candidate.board = createEmptyDocument().board
-        else if (id === 'elements') candidate.elements = candidate.elements.filter(element => element.isUnit)
-        else if (id === 'dotations') candidate.elements = candidate.elements.filter(element => !element.isUnit)
-        else if (id === 'notebook') candidate.notebook = []
-        else if (id === 'timeline') {
-          candidate.timeline = []
-          for (const element of candidate.elements) if (element.isUnit) {
-            element.operational.status = null; element.operational.currentEntryId = null
-          }
-        } else if (id === 'information' || id === 'operations') {
-          for (const element of candidate.elements) if (element.isUnit) {
-            element.operational = { status: null, currentEntryId: null, notes: '', tags: [] }
+        for (const id of request.ids) {
+          if (id === 'board') candidate.board = createEmptyDocument().board
+          else if (id === 'elements') candidate.elements = candidate.elements.filter(element => element.isUnit)
+          else if (id === 'dotations') candidate.elements = candidate.elements.filter(element => !element.isUnit)
+          else if (id === 'notebook') candidate.notebook = []
+          else if (id === 'timeline') {
+            candidate.timeline = []
+            for (const element of candidate.elements) if (element.isUnit) {
+              element.operational.status = null; element.operational.currentEntryId = null
+            }
+          } else if (id === 'information' || id === 'operations') {
+            for (const element of candidate.elements) if (element.isUnit) {
+              element.operational = { status: null, currentEntryId: null, notes: '', tags: [] }
+            }
           }
         }
       })
-      if (id === 'board') { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
-      if (id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations') selectElement(null)
-    }
-    setModuleRevisions(previous => ({ ...previous, [id]: (previous[id] ?? 0) + 1 }))
+      if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
+      if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
+      if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
+      // Shared data can change other windows too; suppress automatic resizing until their next content interaction.
+      setSizePreservation(previous => {
+        const revisions: Partial<Record<ModuleId, number>> = previous.generation === documentGeneration ? { ...previous.revisions } : {}
+        for (const id of new Set([...open.map(module => module.id), ...request.ids])) revisions[id] = (revisions[id] ?? 0) + 1
+        return { generation: documentGeneration, revisions }
+      })
+      setModuleRevisions(previous => {
+        const next = { ...previous }
+        for (const id of request.ids) next[id] = (next[id] ?? 0) + 1
+        return next
+      })
+      if (request.close) for (const id of request.ids) close(id)
+      setCleanupRequest(null); setCleanupError(null); setModulesError(null)
+    } catch (error) { setCleanupError(error instanceof Error ? error.message : 'No se pudieron limpiar los módulos.') }
   }
-  function openAll(mode: 'expanded' | 'collapsed' | 'columns' | 'columns-collapsed') {
+  function arrangeOpen(mode: ViewArrangement, columns: number) {
+    if (!open.length) return
     try {
       setModulesError(null)
-      const ids = Object.keys(MODULE_REGISTRY) as ModuleId[]
-      const collapsed = mode === 'collapsed' || mode === 'columns-collapsed'
-      const inColumns = mode === 'columns' || mode === 'columns-collapsed'
+      const collapsed = mode !== 'columns'
       // Use the frame's restore action so mounted content keeps its saved size.
-      if (!collapsed) for (const module of open) {
-        if (module.layout.height <= 29) moduleActions.current[module.id]?.('expand')
-      }
-      const savedLayouts = store.getSnapshot().document.moduleLayouts
+      if (!collapsed) for (const module of open) if (module.layout.height <= 29) moduleActions.current[module.id]?.('expand')
       const placed: OpenModule[] = []
       const origin = { x: Math.max(0, Math.ceil(-viewport.state.offsetX / viewport.state.scale)), y: Math.max(0, Math.ceil(-viewport.state.offsetY / viewport.state.scale)) }
       const standardWidth = 240, collapsedHeight = 29
-      const columns = Math.max(1, Math.floor(visibleBounds.width / standardWidth))
-      let columnX = origin.x, columnY = origin.y, columnWidth = 0
-      for (const [index, id] of ids.entries()) {
-        const current = open.find(module => module.id === id)
-        const cached = closedModules.current[id]
-        const cachedLayout = cached?.presentation?.generation === documentGeneration && cached.presentation.source === JSON.stringify(savedLayouts[id] ?? cached.layout)
-          && cached.presentation.size.width === bounds.width && cached.presentation.size.height === bounds.height ? cached.layout : savedLayouts[id]
-        const saved = !collapsed && current && current.layout.height <= 29 ? savedLayouts[id] : current?.layout ?? cachedLayout
-        let layout = findModulePlacement({ id, saved }, placed.map(module => module.layout), visibleBounds).layout
+      const gap = 8, count = Math.min(columns, open.length)
+      const expanded = open.map(module => {
+        const navigation = readNavigation(document.document.id + '.' + module.id)
+        const size = module.layout.height <= collapsedHeight ? navigation.restoreSize ?? { width: MODULE_REGISTRY[module.id].initial[0], height: MODULE_REGISTRY[module.id].initial[1] } : module.layout
+        return { ...module, layout: { ...module.layout, width: size.width, height: size.height } }
+      })
+      const widths = Array.from({ length: count }, (_, column) => Math.max(...expanded.filter((_module, index) => index % count === column).map(module => module.layout.width)))
+      const tops = Array<number>(count).fill(origin.y)
+      const perRow = Math.max(1, Math.floor(visibleBounds.width / standardWidth))
+      const perColumn = Math.max(1, Math.floor(visibleBounds.height / collapsedHeight))
+      for (const [index, module] of expanded.entries()) {
+        const { id } = module
+        let layout = { ...module.layout }
         const key = document.document.id + '.' + id
         const navigation = readNavigation(key)
-        if (!collapsed) {
-          if (layout.height <= collapsedHeight) {
-            const size = navigation.restoreSize ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] }
-            layout = { ...layout, ...size }
-          }
-        } else {
-          const restoreSize = layout.height > collapsedHeight ? { width: layout.width, height: layout.height } : navigation.restoreSize
-          writeNavigation(key, { ...navigation, restoreSize })
+        if (collapsed) {
+          writeNavigation(key, { ...navigation, restoreSize: { width: layout.width, height: layout.height } })
           layout = { ...layout, width: standardWidth, height: collapsedHeight,
-            x: origin.x + index % columns * standardWidth,
-            y: origin.y + Math.floor(index / columns) * collapsedHeight }
-        }
-        if (inColumns) {
-          if (columnY > origin.y && columnY + layout.height > origin.y + visibleBounds.height) {
-            columnX += columnWidth; columnY = origin.y; columnWidth = 0
-          }
-          layout = { ...layout, x: columnX, y: columnY }
-          columnY += layout.height; columnWidth = Math.max(columnWidth, layout.width)
+            x: origin.x + (mode === 'collapsed-rows' ? index % perRow : Math.floor(index / perColumn)) * standardWidth,
+            y: origin.y + (mode === 'collapsed-rows' ? Math.floor(index / perRow) : index % perColumn) * collapsedHeight }
+        } else {
+          const column = index % count
+          layout = { ...layout, x: origin.x + widths.slice(0, column).reduce((sum, width) => sum + width + gap, 0), y: tops[column]! }
+          tops[column] = tops[column]! + layout.height + gap
         }
         layout = { ...layout, referenceSize: { width: Math.max(bounds.width, layout.x + layout.width), height: Math.max(bounds.height, layout.y + layout.height) } }
         placed.push({ id, layout })
       }
       store.mutateDocument(candidate => { for (const module of placed) candidate.moduleLayouts[module.id] = module.layout })
       setModules(placed.map(module => ({ ...module, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(module.layout) } })))
-      setLayers(ids); setActive(ids.at(-1) ?? null)
-    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron abrir los módulos.') }
-  }
-  function runAll(action: 'expand' | 'fit' | 'reset-zoom' | 'close') {
-    try {
-      for (const module of open) moduleActions.current[module.id]?.(action)
-      setModulesError(null)
-    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudo aplicar la acción a todos los módulos.') }
-  }
-  function resetAll(closeAll: boolean) {
-    try {
-      // Check timer availability before clearing the other modules.
-      resetModule('clock')
-      for (const id of Object.keys(MODULE_REGISTRY) as ModuleId[]) if (id !== 'clock') resetModule(id)
-      if (closeAll) {
-        for (const module of open) close(module.id)
-        setActive(null)
-      }
-      setModulesError(null)
-    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron limpiar los módulos.') }
+    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron distribuir los módulos.') }
   }
   function toggle(id: ModuleId) {
-    if (open.some(module => module.id === id)) { close(id); return }
+    if (open.some(module => module.id === id)) { activate(id); return }
     const nextBounds = getWorkspaceBounds(visibleBounds, [...modules.map(module => module.id), id])
     const placement = findModulePlacement({ id, saved: document.moduleLayouts[id] }, open.map(module => module.layout), nextBounds)
     const cached = closedModules.current[id]
@@ -302,54 +324,33 @@ export function App() {
         <h1><img className="app-logo" src="/assets/elements/icon_chincheta.png" alt="Angie Dashboard" /></h1>
         <FileMenu store={store} />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button>Módulos</Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button ref={modulesTrigger} className="document-button dashboard-menu-trigger">Módulos</Button></DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onSelect={() => openAll('expanded')}>Abrir todos</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => openAll('collapsed')}>Abrir [colapsados]</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => openAll('columns')}>Abrir en columnas</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => openAll('columns-collapsed')}>Abrir en columnas [colapsados]</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => runAll('expand')}>Expandir</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => runAll('fit')}>Ajustar</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => runAll('reset-zoom')}>Restablecer</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => resetAll(true)}>Limpiar y cerrar</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => resetAll(false)}>Reiniciar</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => runAll('close')}>Cerrar</DropdownMenuItem>
+            {(Object.keys(MODULE_REGISTRY) as ModuleId[]).map(id => {
+              const Icon = MODULE_ICONS[id], isOpen = modules.some(module => module.id === id)
+              return <DropdownMenuItem key={id} className="file-menu-item module-list-item" aria-label={MODULE_REGISTRY[id].name} aria-describedby={'module-state-' + id} disabled={!ready || replacing} onSelect={() => toggle(id)}>
+                <Icon className="module-list-icon" data-open={isOpen} aria-hidden="true" />
+                {MODULE_REGISTRY[id].name}<span id={'module-state-' + id} className="visually-hidden">{isOpen ? 'Abierto' : 'Cerrado'}</span>
+              </DropdownMenuItem>
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
-        <ViewMenu visible={modules.map(module => module.id)} onToggle={toggle} triggerRef={viewTrigger} />
-        <HelpTooltip text="Volver al origen"><Button className="origin-button" aria-label="Volver al origen" onClick={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}><LocateFixed size={19} aria-hidden="true" /></Button></HelpTooltip>
+        <ViewMenu disabled={!ready || replacing || !open.length} active={open.some(module => module.id === active)}
+          onArrange={arrangeOpen} onAutoArrange={recolocate} onFitActive={fitActiveModule} />
+        <CleanupMenu active={open.some(module => module.id === active) ? active : null} disabled={!ready || replacing}
+          request={cleanupRequest?.generation === documentGeneration ? cleanupRequest : null} error={cleanupError}
+          onRequest={requestCleanup} onCancel={() => { setCleanupRequest(null); setCleanupError(null) }} onConfirm={confirmCleanup} />
         <nav className="open-modules" aria-label="Módulos abiertos">
-          {open.map(({ id, layout }) => {
+          {open.map(({ id }) => {
             const Icon = MODULE_ICONS[id], name = MODULE_REGISTRY[id].name
-            const run = (action: ModuleAction) => moduleActions.current[id]?.(action)
-            return <DropdownMenu key={id} modal={false}>
-              <HelpTooltip text={name}><DropdownMenuTrigger asChild><Button className="document-button module-button" aria-label={'Opciones de ' + name} aria-pressed={active === id} data-module-menu={id}
-                onPointerDown={event => {
-                  if (event.button === 0 && !event.ctrlKey && event.currentTarget.dataset.state === 'open') activate(id)
-                }}
-                onKeyDown={event => {
-                  if ((event.key === 'Enter' || event.key === ' ') && event.currentTarget.dataset.state === 'open') activate(id)
-                }}><Icon aria-hidden="true" /></Button></DropdownMenuTrigger></HelpTooltip>
-              <DropdownMenuContent align="start" className="file-menu-content module-menu-content"
-                onInteractOutside={event => {
-                  const target = event.target
-                  if (target instanceof Element && target.closest('[data-module-menu]')?.getAttribute('data-module-menu') === id) event.preventDefault()
-                }}>
-                <DropdownMenuItem onSelect={() => run('front')}>Traer al frente</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('collapse')}>Colapsar</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('contract')}>Contraer</DropdownMenuItem>
-                <DropdownMenuItem disabled={layout.height > 29} onSelect={() => run('expand')}>Expandir</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('fit')}>Ajustar</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('reset-zoom')}>Restablecer</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('clear-close')}>Limpiar y cerrar</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('reset')}>Reiniciar</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => run('close')}>Cerrar</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            return <HelpTooltip key={id} text={(active === id ? 'Localizar ' : 'Seleccionar ') + name}>
+              <Button className="document-button module-button" aria-label={'Seleccionar módulo ' + name} aria-pressed={active === id}
+                disabled={!ready || replacing} onClick={() => selectOpenModule(id)}><Icon aria-hidden="true" /></Button>
+            </HelpTooltip>
           })}
         </nav>
         <HelpTooltip text="Imán de módulos"><Button className="module-button magnet-button" aria-label="Imán de módulos" aria-pressed={magnet} onClick={() => setMagnet(value => !value)}><Magnet aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Recolocar módulos"><Button className="module-button fit-button" aria-label="Encajar" onClick={recolocate}><Puzzle size={19} aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Volver al origen"><Button className="module-button origin-button" aria-label="Volver al origen" onClick={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}><LocateFixed size={19} aria-hidden="true" /></Button></HelpTooltip>
         <ZoomControl key={documentGeneration} label="Zoom actual" scale={viewport.state.scale} onChange={scale => setViewport(previous => ({ ...previous,
           state: zoomAt(previous.state, scale, { x: 0, y: 0 }, previous.size, sceneBounds) }))} />
       </header>
@@ -361,6 +362,7 @@ export function App() {
         }} onPointerCancelCapture={() => { blankPointer.current = null }}
         onClick={event => {
           if (blankPointer.current?.moved || !(event.target instanceof Element) || event.target.closest('.module-header,.board-pin,.quick-note,.element-row,button,input,textarea,select,a,[role="button"],[role="radio"],[contenteditable="true"]')) return
+          if (event.target.closest('[data-module="operations"],[data-module="information"]')) return
           if (event.target.closest('[data-module]')?.querySelector('.element-editor')) return
           selectElement(null); setSelectionReset(value => value + 1)
           if (!event.target.closest('[data-module]')) setActive(null)
@@ -369,7 +371,7 @@ export function App() {
         {modulesError && <div className="document-notices"><Alert>{modulesError}</Alert></div>}
         <div className="document-workspace-content" inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} onReset={resetModule} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
+          <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
             renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
               onEditElement={elementId => {

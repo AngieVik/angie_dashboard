@@ -40,7 +40,8 @@ function validateTimers(value: unknown): TimerRecord[] {
     if (typeof item.note !== 'string' || typeof item.alertActive !== 'boolean' || !Number.isFinite(item.elapsedMs) || item.elapsedMs < 0) return invalid()
     if (item.status === 'running' ? !Number.isFinite(item.startedAt) : item.startedAt !== null) return invalid()
     const limit = item.kind === 'tzero' ? MAX_TIMER_SECONDS : item.durationSeconds
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_TIMER_SECONDS || item.elapsedMs > limit * 1000) return invalid()
+    if (!Number.isInteger(limit) || limit < 0 || limit > MAX_TIMER_SECONDS || item.elapsedMs > limit * 1000) return invalid()
+    if (limit === 0 && item.status !== 'idle') return invalid()
     if (item.alertActive && item.status !== 'completed') return invalid()
     if (item.kind === 'tzero' && (item.status === 'completed' || item.alertActive)) return invalid()
     if (item.status === 'completed' && item.elapsedMs !== limit * 1000) return invalid()

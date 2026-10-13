@@ -32,7 +32,6 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
       // The viewport owns two-finger gestures; discard uncommitted manipulation and taps.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       cancel()
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setColorsOpen(false)
       lastTap.current = null
     }

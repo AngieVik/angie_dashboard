@@ -1,14 +1,16 @@
 import { expect } from '@playwright/test'
-import type { Locator, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { AngieDocument } from '../../src/domain/document/types'
 
-export async function setElementScale(scope: Page | Locator, value: number) {
-  const slider = scope.getByRole('slider', { name: 'Escala del icono', exact: true })
-  await slider.press('Home')
-  const steps = value - 25
-  for (let step = 0; step < Math.floor(steps / 10); step++) await slider.press('PageUp')
-  for (let step = 0; step < steps % 10; step++) await slider.press('ArrowRight')
+export function watchAppErrors(page: Page) {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('requestfailed', request => errors.push(`${request.failure()?.errorText}: ${request.url()}`))
+  page.on('response', response => {
+    if (response.status() >= 400) errors.push(`${response.status()}: ${response.url()}`)
+  })
+  return errors
 }
 
 export async function openModule(page: Page, name: string) {
@@ -16,9 +18,6 @@ export async function openModule(page: Page, name: string) {
   const item = page.getByRole('menuitemcheckbox', { name, exact: true })
   if (await item.getAttribute('aria-checked') === 'true') await page.keyboard.press('Escape')
   else await item.click()
-}
-export async function bringModuleToFront(page: Page, name: string) {
-  await page.getByRole('button', { name: `Cerrar ${name}`, exact: true }).focus()
 }
 export async function fileCommand(page: Page, name: string) {
   await page.getByRole('button', { name: 'Archivo', exact: true }).click()
@@ -43,11 +42,10 @@ export async function downloadDocument(page: Page) {
   await fileCommand(page, 'Guardar')
   const download = await pending
   const text = await readFile((await download.path())!, 'utf8')
-  return { download, text, document: JSON.parse(text) as AngieDocument }
+  return { text, document: JSON.parse(text) as AngieDocument }
 }
-export async function loadDocument(page: Page, document: AngieDocument) {
-  await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'aceptacion.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) })
-  await expectDocumentTitle(page, document.document.title)
+export async function loadDocument(page: Page, text: string) {
+  await page.getByLabel('Cargar documento JSON').setInputFiles({ name: 'aceptacion.json', mimeType: 'application/json', buffer: Buffer.from(text) })
 }
 export async function savedDocument(page: Page): Promise<AngieDocument | null> {
   return page.evaluate(() => new Promise((resolve, reject) => {
@@ -61,24 +59,7 @@ export async function savedDocument(page: Page): Promise<AngieDocument | null> {
       request.onsuccess = () => resolve(request.result?.document ?? null)
       request.onerror = () => reject(request.error)
       transaction.oncomplete = () => db.close()
+      transaction.onabort = () => { db.close(); reject(transaction.error) }
     }
   }))
-}
-export async function createElement(page: Page, name: string, isUnit: boolean, emoji?: string) {
-  const moduleName = isUnit ? 'Dotaciones' : 'Elementos'
-  const module = page.getByRole('region', { name: moduleName, exact: true })
-  if (!await module.count()) await openModule(page, moduleName)
-  await bringModuleToFront(page, moduleName)
-  await module.getByRole('button', { name: 'Crear', exact: true }).click()
-  await module.getByLabel('Nombre', { exact: true }).fill(name)
-  if (emoji) {
-    await module.getByRole('radio', { name: 'Emoji', exact: true }).click()
-    await module.getByRole('textbox', { name: 'Emoji', exact: true }).fill(emoji)
-  }
-  await module.getByLabel('Información', { exact: true }).fill('Preparación · Canal 4')
-  await module.getByRole('button', { name: 'Crear', exact: true }).click()
-  await expect(module.getByRole('button', { name: `Seleccionar ${name}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
-}
-export async function noPageScroll(page: Page) {
-  expect(await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight])).toEqual(await page.evaluate(() => [innerWidth, innerHeight]))
 }

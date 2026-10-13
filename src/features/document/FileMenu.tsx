@@ -4,7 +4,7 @@ import { Input } from '../../components/ui/input'
 import { Alert } from '../../components/ui/alert'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '../../components/ui/dropdown-menu'
 import {
   AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
@@ -33,23 +33,26 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
   return (
     <>
       <DropdownMenu onOpenChange={open => { if (open) void store.refreshRecoverable() }}>
-        <DropdownMenuTrigger asChild><Button ref={trigger}>Archivo</Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button ref={trigger} className="document-button dashboard-menu-trigger">Archivo</Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (editingName || recovering) event.preventDefault() }}>
-          <div className="document-save-details"><span>{labels.local}</span><span>{labels.file}</span>{snapshot.downloadStartedAt && <span>Descarga iniciada · {formatTimelineTime(snapshot.downloadStartedAt)}</span>}</div>
+          <div className="document-menu-name"><span>Documento</span><strong data-document-name>{document.document.title || 'Sin nombre'}</strong></div>
+          <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => { void store.newDocument() }}>Nuevo</DropdownMenuItem>
-            <DropdownMenuItem disabled={fileBusy} onSelect={() => { if (store.hasOpenPicker()) void store.openDocument(); else input.current?.click() }}>Cargar</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy} onSelect={() => { if (store.hasOpenPicker()) void store.openDocument(); else input.current?.click() }}>Abrir…</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument() }}>Guardar</DropdownMenuItem>
-            <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument(true) }}>Guardar como</DropdownMenuItem>
-            <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => setRecovering(true)}>Recuperar documento local</DropdownMenuItem>
-            <DropdownMenuItem data-document-name disabled={fileBusy} onSelect={() => {
+            <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument(true) }}>Guardar como…</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy} onSelect={() => {
               setName(store.getSnapshot().document.document.title)
               setEditingName(true)
-            }}>{document.document.title || 'Introducir nombre'}</DropdownMenuItem>
+            }}>Cambiar nombre…</DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => setRecovering(true)}>Recuperar documento local…</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <div role="status" className="document-save-details"><span>{labels.local}</span><span>{labels.file}</span>{snapshot.downloadStartedAt && <span>Descarga iniciada · {formatTimelineTime(snapshot.downloadStartedAt)}</span>}</div>
         </DropdownMenuContent>
       </DropdownMenu>
-      <span role="status" className="document-save-indicator" data-state={snapshot.autosaveUnavailable ? 'error' : snapshot.autosaveSaving || !ready ? 'saving' : snapshot.fileDirty ? 'pending' : 'saved'} title={labels.local + ' · ' + labels.file} aria-label={labels.local + ' · ' + labels.file}>●</span>
       <AlertDialog open={recovering} onOpenChange={setRecovering}>
         <AlertDialogContent>
           <AlertDialogTitle>Recuperar documento local</AlertDialogTitle>
@@ -65,7 +68,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
       <AlertDialog open={editingName} onOpenChange={setEditingName}>
         <AlertDialogContent onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}
           onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
-          <AlertDialogTitle>Introducir nombre</AlertDialogTitle>
+          <AlertDialogTitle>Cambiar nombre</AlertDialogTitle>
           <AlertDialogDescription>Nombre del documento para identificarlo al guardar.</AlertDialogDescription>
           <form className="document-name-form" onSubmit={event => { event.preventDefault(); store.setTitle(name); setEditingName(false) }}>
             <Input ref={nameInput} aria-label="Título del documento" placeholder="Nombre del documento" value={name} onChange={event => setName(event.target.value)} />

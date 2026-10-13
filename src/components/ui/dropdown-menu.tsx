@@ -5,6 +5,9 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 export const DropdownMenu = DropdownMenuPrimitive.Root
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 export const DropdownMenuGroup = DropdownMenuPrimitive.Group
+export function DropdownMenuSeparator() {
+  return <DropdownMenuPrimitive.Separator className="file-menu-separator" />
+}
 export function DropdownMenuContent(props: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
     <DropdownMenuPrimitive.Portal>

@@ -2,13 +2,13 @@ import type { TimerKind, TimerRecord, TimerSnapshot } from './timerTypes'
 export const MAX_TIMER_SECONDS = 86399
 export function normalizeDuration(hours: string, minutes: string, seconds: string): number {
   const total = Number(hours || 0) * 3600 + Number(minutes || 0) * 60 + Number(seconds || 0)
-  return Math.max(1, Math.min(MAX_TIMER_SECONDS, Math.floor(total)))
+  return Math.max(0, Math.min(MAX_TIMER_SECONDS, Math.floor(total)))
 }
 export function formatDuration(seconds: number): string {
   const value = Math.max(0, Math.min(MAX_TIMER_SECONDS, Math.floor(seconds)))
   return [Math.floor(value / 3600), Math.floor(value / 60) % 60, value % 60].map(part => String(part).padStart(2, '0')).join(':')
 }
-export function createTimer(kind: TimerKind, durationSeconds = 1): TimerRecord {
+export function createTimer(kind: TimerKind, durationSeconds = 0): TimerRecord {
   const base = { id: crypto.randomUUID(), note: '', status: 'idle' as const, elapsedMs: 0, startedAt: null, alertActive: false }
   return kind === 'tzero' ? { ...base, kind } : { ...base, kind, durationSeconds }
 }
@@ -30,6 +30,7 @@ export function calculateTimerValue(timer: TimerRecord, now: number): TimerSnaps
   }
 }
 export function startTimer(timer: TimerRecord, now: number): TimerRecord {
+  if (timer.kind !== 'tzero' && timer.durationSeconds <= 0) return timer
   if (timer.status !== 'idle' && timer.status !== 'paused') return settleTimer(timer, now)
   return { ...timer, status: 'running', startedAt: now }
 }

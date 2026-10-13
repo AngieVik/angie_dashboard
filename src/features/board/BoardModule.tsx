@@ -51,9 +51,8 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
   const { scale, navigationKey, fitContentRef } = useModuleZoom()
   const canvasKey = navigationKey ? navigationKey + '.canvas' : undefined
   const [view, setView] = useState(() => readNavigation(canvasKey))
-  useLayoutEffect(() => {
-    setView(current => zoomBoardAt(current, scale, { x: 0, y: 0 }, { width: 0, height: 0 }, { left: 0, top: 0, right: 0, bottom: 0 }))
-  }, [scale])
+  const scaledView = zoomBoardAt(view, scale, { x: 0, y: 0 }, { width: 0, height: 0 }, { left: 0, top: 0, right: 0, bottom: 0 })
+  if (view.scale !== scaledView.scale) setView(scaledView)
   useEffect(() => { writeNavigation(canvasKey, view) }, [canvasKey, view])
   const [explored, setExplored] = useState({ width: 0, height: 0 })
   const previousSize = useRef({ width: 0, height: 0 })

@@ -11,6 +11,8 @@ export default tseslint.config(
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
+    // Compatibility signatures mark intentionally unused parameters with an underscore.
+    rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }] },
   },
   {
     files: ['src/**/*.{ts,tsx}'],

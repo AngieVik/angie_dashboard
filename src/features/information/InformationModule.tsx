@@ -27,7 +27,10 @@ function InformationCard({ element, currentEntry, store, selected, onSelect, exp
   const custom = currentEntry?.type === 'status-change' && currentEntry.nextStatus === 'Personalizada' ? currentEntry : undefined
   const tags = element.isUnit ? element.operational.tags : []
   const hasDetails = Boolean(status || tags.length || element.information.trim())
-  return <article className="information-card" aria-label={element.name} data-expanded={expanded} data-selected={selected} data-expandable={hasDetails}>
+  return <article className="information-card" aria-label={element.name} data-expanded={expanded} data-selected={selected} data-expandable={hasDetails} onClick={event => {
+    if (blockedRef.current || !(event.target instanceof Element) || event.target.closest('button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) return
+    onSelect(element.id)
+  }}>
     <div className="information-summary">
       <div className="information-identity">
         <Button className="information-select" aria-label={'Seleccionar ' + element.name} aria-pressed={selected} disabled={blocked} onClick={() => { if (!blockedRef.current) onSelect(element.id) }}>
@@ -38,7 +41,7 @@ function InformationCard({ element, currentEntry, store, selected, onSelect, exp
       {element.isUnit && <div className="information-operative"><Badge variant="outline" className="information-status" aria-label="Estado operativo">
         {custom ? <><span className="information-custom-color" aria-hidden="true" style={{ backgroundColor: custom.customColor ?? 'transparent' }} /><span className="information-custom-name">{custom.customLabel}</span></> : status ? <><span aria-hidden="true">{status.icon}</span> {status.status}</> : 'Sin estado'}
       </Badge>{currentEntry?.type === 'status-change' && element.operational.status !== null && <time className="information-state-time technical-data" aria-label="Hora de entrada al estado" dateTime={currentEntry.occurredAt} title={formatTimelineDate(currentEntry.occurredAt)}>Desde {formatTimelineTime(currentEntry.occurredAt)}</time>}</div>}
-      {hasDetails && <Button className="information-expand" aria-label={(expanded ? 'Contraer ' : 'Expandir ') + element.name} aria-expanded={expanded} aria-controls={'information-details-' + element.id} disabled={blocked} onClick={() => { if (!blockedRef.current) onToggle() }}>
+      {hasDetails && <Button className="information-expand" aria-label={(expanded ? 'Contraer ' : 'Expandir ') + element.name} aria-expanded={expanded} aria-controls={'information-details-' + element.id} disabled={blocked} onClick={() => { if (!blockedRef.current) { onSelect(element.id); onToggle() } }}>
         {expanded ? <ListChevronsDownUp aria-hidden="true" /> : <ListChevronsUpDown aria-hidden="true" />}
       </Button>}
     </div>

@@ -33,14 +33,15 @@ export function useBoardImage(store: DocumentStore) {
     resource.current = null
     setState({ generation: documentGeneration, noticeRevision: sequence, image: null, error: null, busy: Boolean(dataUrl) })
     if (!dataUrl) return
+    let active = true
     void loadBoardImage(embeddedImageFile(dataUrl)).then(result => {
-      if (!mounted.current || sequence !== request.current || documentGeneration !== store.getSnapshot().documentGeneration) { if (result.success) result.dispose(); return }
+      if (!active || !mounted.current || sequence !== request.current || documentGeneration !== store.getSnapshot().documentGeneration) { if (result.success) result.dispose(); return }
       if (result.success) {
         resource.current = { generation: documentGeneration, dataUrl, image: result }
         setState({ generation: documentGeneration, noticeRevision: sequence, image: result, error: null, busy: false })
       } else setState({ generation: documentGeneration, noticeRevision: sequence, image: null, error: result.message, busy: false })
     })
-    return () => { if (sequence === request.current) request.current++ }
+    return () => { active = false }
   }, [dataUrl, documentGeneration, store])
   function clear() {
     request.current++

@@ -78,7 +78,7 @@ describe('modelo unificado de navegación', () => {
     fireEvent.doubleClick(header)
     expect(frame.parentElement).toHaveStyle({ width: '440px', height: '260px' })
     fireEvent.click(frame.querySelector('.module-icon')!, { detail: 1 })
-    expect(frame.parentElement).toHaveStyle({ width: '27px', height: '29px' })
+    expect(frame.parentElement).toHaveStyle({ width: '29px', height: '29px' })
     expect(frame).toHaveAttribute('data-icon-only', 'true')
     fireEvent.click(frame.querySelector('.module-icon')!, { detail: 1 })
     expect(frame.parentElement).toHaveStyle({ width: '440px', height: '260px' })

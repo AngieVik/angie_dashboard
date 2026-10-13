@@ -233,7 +233,7 @@ textarea {
 .document-name-form .document-title { display: block; width: 100%; margin-bottom: 12px; }
 .app-header .magnet-button { margin-left: auto; }
 .app-header .document-button { height: 26px; padding: 2px 6px; line-height: 20px; white-space: nowrap; }
-.app-header .origin-button, .app-header .fit-button { display: grid; place-items: center; padding: 3px; }
+.app-header .origin-button { display: grid; place-items: center; padding: 3px; }
 .app-header .document-button { border-color: transparent; background: transparent; box-shadow: none; }
 .app-header .document-button:hover:not(:disabled), .app-header .document-button[data-state="open"] { border-color: var(--color-hover-border); background: rgb(255 255 255 / 3%); }
 .app-header::before { display: none; }
@@ -362,9 +362,8 @@ textarea {
   .document-button { transition: none; }
 }
 
-/* Puzzle is an explicit placement action. */
-.app-header .origin-button, .app-header .fit-button { background: transparent; border-color: transparent; box-shadow: none; }
-.app-header .fit-button:hover, .app-header .fit-button:active { background: transparent; box-shadow: none; }
+/* Origin navigation keeps the same bare finish as the adjacent magnet. */
+.app-header .origin-button { background: transparent; border-color: transparent; box-shadow: none; }
 
 /* Tool icons share the board toolbar's geometry at 100% zoom. */
 .app-shell .lucide { flex-shrink: 0; width: 15px; height: 15px; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
@@ -470,7 +469,22 @@ textarea {
 
 /* Module actions share the app's red selection and interaction finishes. */
 .module-frame[data-active="true"] { border-color: var(--color-selection-border); box-shadow: var(--shadow-panel), var(--shadow-selection); }
-.module-menu-content { z-index: 100; }
+.module-frame { position: relative; }
+.module-locator {
+  position: absolute; z-index: 10; inset: 0; pointer-events: none; border: 2px solid var(--color-accent-yellow);
+  border-radius: inherit; background: rgb(255 255 255 / 12%); opacity: 0; animation: module-locate 400ms ease-in-out 3;
+}
+@keyframes module-locate {
+  0%, 100% { opacity: 0; }
+  40%, 60% { opacity: 1; }
+}
+@keyframes module-locate-static {
+  0%, 99% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .module-locator { animation: module-locate-static 1200ms steps(1, end) 1; }
+}
 .module-action-error { margin: 4px; color: var(--color-accent-yellow); }
 .logical-workspace .react-grid-item.react-draggable-dragging { transform: translate(var(--module-drag-x, var(--module-x)), var(--module-drag-y, var(--module-y))) !important; }
 .module-frame[data-fitting] { height: auto; }
@@ -504,6 +518,26 @@ textarea {
 .document-save-indicator[data-state="saved"] { color: var(--color-text-secondary); }
 .document-save-indicator:is([data-state="pending"], [data-state="saving"]) { color: var(--color-accent-yellow); }
 .document-save-indicator[data-state="error"] { color: var(--color-accent-red); }
-.document-save-details { display: flex; flex-direction: column; gap: 3px; max-width: 280px; padding: 6px; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+.document-save-details { display: flex; flex-direction: column; gap: 3px; max-width: 280px; padding: 6px; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
 .document-recovery-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
 .document-dialog-actions { flex-wrap: wrap; }
+
+/* The four dashboard menus are text controls, without button surfaces. */
+.app-header .document-button.dashboard-menu-trigger,
+.app-header .document-button.dashboard-menu-trigger:is(:hover, :active, :focus-visible, [data-state="open"]) {
+  border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text);
+}
+.app-header .document-button.dashboard-menu-trigger:is(:hover:not(:disabled), :focus-visible) {
+  text-shadow: 0 0 7px rgb(255 255 255 / 45%);
+}
+.app-header .document-button.dashboard-menu-trigger[data-state="open"] {
+  color: var(--color-accent-red); text-shadow: none;
+}
+.file-menu-separator { height: 1px; margin: 4px 6px; background: var(--color-border); }
+.document-menu-name { display: flex; flex-direction: column; gap: 3px; max-width: min(320px, calc(100vw - 32px)); padding: 6px 10px; overflow-wrap: anywhere; }
+.document-menu-name > span { color: var(--color-text-secondary); font-size: var(--control-font-size); }
+.document-menu-name > strong { font-weight: 600; }
+.module-list-item { display: flex; align-items: center; gap: 8px; color: var(--color-text); }
+.module-list-icon { flex: none; width: 17px; height: 17px; color: #fff; }
+.module-list-icon[data-open="true"] { color: var(--color-accent-red); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

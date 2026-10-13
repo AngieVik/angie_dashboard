@@ -1,10 +1,13 @@
 .information-module { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0; overflow-y: auto; overflow-wrap: anywhere; font-size: var(--font-size-body); }
-.information-card { position: relative; display: flex; flex: 0 0 auto; flex-direction: column; min-width: 0; min-height: 0; padding: 0 2px 2px; border-bottom: 1px solid var(--color-border); }
+.information-card { position: relative; display: flex; flex: 0 0 auto; flex-direction: column; min-width: 0; min-height: 0; padding: 0 2px 2px; border-bottom: 1px solid var(--color-border); cursor: pointer; }
+.information-card:not([data-selected="true"]):has(.information-select:enabled):hover { background: var(--surface-button-hover); }
+.information-card[data-selected="true"] { background: var(--color-selected); box-shadow: inset 2px 0 var(--color-selection-border); }
 .information-card[data-expanded="true"] { flex: none; }
 .information-summary { position: relative; min-width: 0; }
 .information-card[data-expandable="true"] .information-summary { padding-right: calc(26px * var(--module-zoom, 1)); }
 .information-identity { display: flex; flex: none; align-items: flex-start; gap: 3px; min-width: 0; }
 .app-shell .module-frame .information-card .information-select { display: flex; flex: none; align-items: center; justify-content: flex-start; min-width: 0; max-width: 100%; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; text-align: left; }
+.app-shell .module-frame .information-card .information-select:is(:hover,:active) { border-color: transparent; background: transparent; box-shadow: none; }
 .information-select > img, .information-emoji { flex: none; width: calc(48px * var(--module-zoom, 1)); height: calc(36px * var(--module-zoom, 1)); object-fit: contain; }
 .information-emoji { display: grid; place-items: center; font-size: calc(28px * var(--module-zoom, 1)); }
 .information-name { min-width: 0; overflow: hidden; }

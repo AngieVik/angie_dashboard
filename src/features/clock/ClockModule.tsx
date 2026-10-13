@@ -35,23 +35,27 @@ export function ClockModule({ store }: { store: TimerStore }) {
   }, [timers.length, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])
   return <div ref={root} className="clock-module" style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s`, '--clock-timer-count': timers.length } as CSSProperties}>
-    <div className="clock-reference"><span className="clock-season-active">UTC+2 [ST]</span><span>ESP</span></div>
-    <div className="clock-face technical-data">
-      <output className="clock-esp" aria-label="Hora española">
-        <span>{clock.esp.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(3, 5)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(6, 8)}</span>
-      </output>
-      <div className="clock-zulu"><span className="clock-zulu-label">Zulu Time</span>{' '}
-        <output aria-label="Hora Zulu">{clock.zulu}</output>
+    <div className="clock-display">
+      <div className="clock-reference"><span className="clock-season-active" aria-label="UTC+2 [ST]" title="UTC+2 [ST]"><span className="clock-label-full" aria-hidden="true">UTC+2 [ST]</span><span className="clock-label-short" aria-hidden="true">2ST</span></span><span>ESP</span></div>
+      <div className="clock-top">
+        <div className="clock-face technical-data">
+          <output className="clock-esp" aria-label="Hora española">
+            <span>{clock.esp.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(3, 5)}</span><span className="clock-separator">:</span><span>{clock.esp.slice(6, 8)}</span>
+          </output>
+        </div>
       </div>
-    </div>
-    <div className="clock-add-controls">
-      <Button aria-label="T-Zero" title="T-Zero" disabled={!ready} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
-      <Button aria-label="T-Minus" title="T-Minus" disabled={!ready} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
-      <Button aria-label="Advisories" title="Advisories" disabled={!ready} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
-      <Button aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview document-button" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
-        onClick={() => { if (alarm.preview) store.alarm.stopPreview(); else void store.alarm.startPreview() }}>
-        {alarm.preview ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-      </Button>
+      <div className="clock-add-controls">
+        <Button aria-label="T-Zero" title="T-Zero" disabled={!ready} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
+        <Button aria-label="T-Minus" title="T-Minus" disabled={!ready} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
+        <div className="clock-zulu technical-data"><span className="clock-zulu-label" aria-label="Zulu Time" title="Zulu Time"><span className="clock-label-full" aria-hidden="true">Zulu Time</span><span className="clock-label-short" aria-hidden="true">ZT</span></span>{' '}
+          <output aria-label="Hora Zulu">{clock.zulu}</output>
+        </div>
+        <Button aria-label="Advisories" title="Advisories" disabled={!ready} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
+        <Button aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview document-button" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
+          onClick={() => { if (alarm.preview) store.alarm.stopPreview(); else void store.alarm.startPreview() }}>
+          {alarm.preview ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+        </Button>
+      </div>
     </div>
     {alarm.error && <Alert>{alarm.error}{alarm.error === 'Sonido bloqueado' && <Button onClick={() => { void store.alarm.activateSound() }}>Activar sonido</Button>}</Alert>}
     {storageUnavailable && <Alert>Autoguardado no disponible <Button onClick={() => { void store.retryPersistence() }}>Reintentar</Button></Alert>}

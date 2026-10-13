@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { X, Play, Pause, Square } from 'lucide-react'
-import { Input } from '../../components/ui/input'
+import { DurationInput } from './DurationInput'
 import { calculateTimerValue, formatDuration, normalizeDuration } from './timerEngine'
 import type { TimerRecord } from './timerTypes'
 import type { TimerStore } from './timerStore'
@@ -14,13 +14,21 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
   const resetControl = useRef<HTMLButtonElement>(null)
   const [durationText, setDurationText] = useState(() => formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds))
   const snapshot = calculateTimerValue(timer, now), name = `${TIMER_LABELS[timer.kind]} ${index}`
-  function normalize() {
+  function enteredDuration() {
     const fields = durationText.includes(':') ? durationText.split(':') : durationText.padStart(6, '0').match(/.{2}/g)!
-    const duration = normalizeDuration(fields[0] ?? '', fields[1] ?? '', fields[2] ?? '')
+    return normalizeDuration(fields[0] ?? '', fields[1] ?? '', fields[2] ?? '')
+  }
+  function normalize() {
+    const duration = enteredDuration()
     setDurationText(formatDuration(duration))
     store.setDuration(timer.id, duration)
   }
   function start() { if (timer.kind !== 'tzero' && timer.status === 'idle') normalize(); store.start(timer.id) }
+  function stop() {
+    if (timer.kind !== 'tzero' && timer.status !== 'idle') setDurationText(formatDuration(timer.durationSeconds))
+    if (timer.kind === 'advisory') store.deactivate(timer.id)
+    else store.reset(timer.id)
+  }
   function recognize() {
     store.acknowledge(timer.id)
     resetControl.current?.focus()
@@ -39,19 +47,16 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
     <div className="timer-heading"><span>{TIMER_LABELS[timer.kind]}</span>
       <Button className="timer-close document-button" aria-label="Cerrar temporizador" onClick={close}><X aria-hidden="true" /></Button></div>
     <div className="timer-main">
-      {snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
-      {timer.kind !== 'tzero' && <Input aria-label="Duración inicial" title="Duración inicial (hh:mm:ss)"
-        className="technical-data timer-duration" inputMode="numeric" maxLength={8} placeholder="00:00:00"
-        disabled={timer.status !== 'idle'} value={durationText} onBlur={normalize} onChange={event => {
-          if (/^(?:[0-9]{0,6}|[0-9]{0,2}(?::[0-9]{0,2}){1,2})$/.test(event.target.value)) setDurationText(event.target.value)
-        }} />}
+      {timer.kind !== 'tzero' && snapshot.status === 'idle'
+        ? <DurationInput disabled={false} value={durationText} onBlur={normalize} onChange={setDurationText} />
+        : snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
       <div className="timer-controls">
         <Button aria-label={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'} title={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'}
-          disabled={snapshot.status === 'completed'} onClick={() => { if (snapshot.status === 'running') store.pause(timer.id); else start() }}>
+          disabled={snapshot.status === 'completed' || timer.kind !== 'tzero' && timer.status === 'idle' && enteredDuration() === 0} onClick={() => { if (snapshot.status === 'running') store.pause(timer.id); else start() }}>
           {snapshot.status === 'running' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </Button>
         <Button ref={resetControl} aria-label={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'} title={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'}
-          onClick={() => { if (timer.kind === 'advisory') store.deactivate(timer.id); else store.reset(timer.id) }}><Square aria-hidden="true" /></Button>
+          onClick={stop}><Square aria-hidden="true" /></Button>
       </div>
     </div>
   </div>

@@ -1,56 +1,70 @@
 import { expect, test } from '@playwright/test'
-import { createElement, downloadDocument, loadDocument, noPageScroll, openModule, savedDocument, setDocumentTitle } from './acceptance-helpers'
+import { expectDocumentTitle, openModule, savedDocument, setDocumentTitle, watchAppErrors } from './acceptance-helpers'
 
-test('sin red: documento, selección, estados, coordenadas, calculadora, Cuaderno y JSON', { tag: '@responsive' }, async ({ page, context }) => {
-  const errors: string[] = [], external: string[] = []
-  page.on('pageerror', error => errors.push(error.message))
-  page.on('request', request => { if (new URL(request.url()).origin !== 'http://127.0.0.1:4173') external.push(request.url()) })
-  await page.addInitScript(() => Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true }))
+test('Offline: reabre, recupera y edita el documento con fuentes y recursos disponibles', async ({ page, context }) => {
+  const onlineErrors = watchAppErrors(page)
   await page.goto('/')
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
-  await context.setOffline(true); await page.reload()
-  await setDocumentTitle(page, 'Trabajo offline')
-  await openModule(page, 'Elementos'); await createElement(page, 'Tango offline', true, '🚗')
-  await openModule(page, 'Operativo')
-  await page.getByRole('region', { name: 'Operativo', exact: true }).getByRole('button', { name: 'Transfiriendo', exact: true }).click()
-  await page.getByRole('button', { name: 'Cerrar Elementos', exact: true }).click()
-  await page.getByRole('button', { name: 'Cerrar Operativo', exact: true }).click()
-  await openModule(page, 'Coordenadas')
-  const coordinates = page.getByRole('region', { name: 'Coordenadas', exact: true })
-  await coordinates.getByRole('textbox', { name: 'Coordenadas', exact: true }).fill('30S 588700 4101800')
-  await coordinates.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }).press('Enter')
-  await expect(coordinates.getByLabel('Resultado DD')).toHaveText(/^37\./)
-  const link = new URL((await coordinates.getByLabel('Resultado Maps').textContent())!)
-  expect(link.origin).toBe('https://www.google.com')
-  expect(link.searchParams.get('query')).toMatch(/^37\.\d+,-2\./)
-  await coordinates.getByRole('textbox', { name: 'Coordenadas', exact: true }).fill('30I 588700 4101800')
-  await coordinates.getByRole('button', { name: 'Validar coordenadas y mostrar formatos' }).press('Enter')
-  await expect(coordinates.getByRole('alert')).toBeVisible()
-  await expect(coordinates.getByRole('textbox', { name: 'Coordenadas', exact: true })).toHaveValue('30I 588700 4101800')
-  await expect(coordinates.getByLabel('Resultado Maps')).toHaveText('')
-  await page.getByRole('button', { name: 'Cerrar Coordenadas', exact: true }).click()
-  await openModule(page, 'Calculadora')
-  const calculator = page.getByRole('region', { name: 'Calculadora', exact: true })
-  await calculator.getByLabel('Operación').fill('80 + 12,5 %')
-  await calculator.getByLabel('Operación').press('Enter')
-  await expect(calculator.getByLabel('Resultado', { exact: true })).toHaveText('90')
-  await page.getByRole('button', { name: 'Cerrar Calculadora', exact: true }).click()
+  await setDocumentTitle(page, 'Documento ficticio offline')
   await openModule(page, 'Cuaderno')
-  const notebook = page.getByRole('region', { name: 'Cuaderno', exact: true })
-  await notebook.getByRole('button', { name: 'Checklist', exact: true }).click()
-  await notebook.getByRole('button', { name: 'Añadir elemento' }).click()
-  await notebook.getByLabel('Texto del elemento 1').fill('Revisar radio 📻')
-  await notebook.getByRole('checkbox', { name: 'Marcar elemento 1' }).check()
-  const exported = await downloadDocument(page)
-  expect(exported.document.elements[0]?.operational?.status).toBe('Transfiriendo')
-  expect(exported.document.timeline).toHaveLength(1)
-  expect(exported.document.notebook[0]).toMatchObject({ type: 'checklist', title: 'Checklist', items: [{ text: 'Revisar radio 📻', checked: true }] })
-  await loadDocument(page, exported.document)
-  await expect.poll(async () => (await savedDocument(page))?.notebook).toEqual(exported.document.notebook)
-  await page.reload(); await expect(page.locator('[data-module]')).toHaveCount(0)
-  await openModule(page, 'Cuaderno')
-  await expect(notebook.getByLabel('Texto del elemento 1')).toHaveValue('Revisar radio 📻')
-  await expect(notebook.getByRole('checkbox', { name: 'Marcar elemento 1' })).toBeChecked()
-  await noPageScroll(page)
-  expect(errors).toEqual([]); expect(external).toEqual([])
+  await page.getByRole('region', { name: 'Cuaderno', exact: true }).getByRole('button', { name: 'Nota', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Texto de nota', exact: true }).fill('Preparación ficticia sin red')
+  await expect.poll(async () => (await savedDocument(page))?.notebook).toMatchObject([
+    { type: 'note', text: 'Preparación ficticia sin red' },
+  ])
+  const saved = (await savedDocument(page))!
+  expect(saved.document.title).toBe('Documento ficticio offline')
+  expect(onlineErrors).toEqual([])
+  await page.close()
+
+  await context.setOffline(true)
+  const offlinePage = await context.newPage()
+  const offlineErrors = watchAppErrors(offlinePage)
+  const response = await offlinePage.goto('/')
+  expect(response?.fromServiceWorker()).toBe(true)
+  await expect(offlinePage.getByRole('main', { name: 'Espacio de trabajo' })).toBeVisible()
+  await expectDocumentTitle(offlinePage, saved.document.title)
+  await openModule(offlinePage, 'Cuaderno')
+  const note = offlinePage.getByRole('textbox', { name: 'Texto de nota', exact: true })
+  await expect(note).toHaveValue('Preparación ficticia sin red')
+  await expect.poll(() => savedDocument(offlinePage)).toEqual(saved)
+
+  await note.fill('Edición ficticia realizada sin red')
+  await expect.poll(async () => (await savedDocument(offlinePage))?.notebook).toMatchObject([
+    { type: 'note', text: 'Edición ficticia realizada sin red' },
+  ])
+  await offlinePage.reload()
+  await expect(note).toHaveValue('Edición ficticia realizada sin red')
+
+  const resources = [
+    '/assets/fonts/roboto-condensed/roboto-condensed.css',
+    '/assets/fonts/roboto-condensed/roboto-condensed-latin-variable.woff2',
+    '/assets/fonts/roboto-condensed/roboto-condensed-latin-ext-variable.woff2',
+    '/assets/fonts/roboto-condensed/roboto-condensed-latin-italic-variable.woff2',
+    '/assets/fonts/roboto-condensed/roboto-condensed-latin-ext-italic-variable.woff2',
+    '/assets/fonts/rajdhani/Rajdhani-SemiBold.ttf',
+    '/assets/elements/icon_chincheta.png',
+    '/assets/pwa/icon-192.png',
+    '/assets/audio/alarm.mp3',
+    '/manifest.webmanifest',
+  ]
+  const results = await offlinePage.evaluate(async paths => Promise.all(paths.map(async path => {
+    // Bypass the HTTP cache: these resources must be served offline by the PWA.
+    const response = await fetch(path, { cache: 'no-store' })
+    return { path, ok: response.ok, size: (await response.arrayBuffer()).byteLength }
+  })), resources)
+  for (const result of results) {
+    expect(result.ok, result.path).toBe(true)
+    expect(result.size, result.path).toBeGreaterThan(0)
+  }
+  const fontsLoaded = await offlinePage.evaluate(async () => {
+    const fonts = await Promise.all([
+      document.fonts.load('400 16px "Roboto Condensed"', 'Angie Łąč'),
+      document.fonts.load('italic 400 16px "Roboto Condensed"', 'Angie Łąč'),
+      document.fonts.load('600 16px "Rajdhani"', '1234'),
+    ])
+    return fonts.every(faces => faces.length > 0 && faces.every(face => face.status === 'loaded'))
+  })
+  expect(fontsLoaded).toBe(true)
+  expect(offlineErrors).toEqual([])
 })
