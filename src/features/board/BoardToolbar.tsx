@@ -43,7 +43,7 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
   }, [open, blocked])
   function tool(index: number) {
     const item = modes[index]!
-    return <HelpTooltip text={item.name}><Button role="radio" aria-checked={mode === item.id} tabIndex={mode === item.id ? 0 : -1}
+    return <HelpTooltip text={item.id === 'image' ? 'Ajustar imagen' : item.name}><Button role="radio" aria-checked={mode === item.id} tabIndex={mode === item.id ? 0 : -1}
       disabled={blocked || (item.id === 'image' && (!hasImage || busy))} aria-label={item.name} onClick={() => onMode(item.id)}><item.icon aria-hidden="true" /></Button></HelpTooltip>
   }
   return <div ref={toolbarRef} className="board-toolbar" role="radiogroup" aria-label="Herramienta de pizarra" onKeyDown={event => {
@@ -61,7 +61,7 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
     {tool(0)}
     <Separator orientation="vertical" />
     {tool(1)}{tool(2)}
-    <HelpTooltip text="Borrar todos los trazos"><Button aria-label="Borrar todos los trazos" disabled={blocked || !hasStrokes} onClick={onClearStrokes}><MopSparkles aria-hidden="true" /></Button></HelpTooltip>
+    <HelpTooltip text="Borrar trazos"><Button aria-label="Borrar todos los trazos" disabled={blocked || !hasStrokes} onClick={onClearStrokes}><MopSparkles aria-hidden="true" /></Button></HelpTooltip>
     <Popover open={open && !blocked} onOpenChange={setOpen}>
       <HelpTooltip text="Grosor"><PopoverTrigger asChild><Button ref={trigger} disabled={blocked} aria-label="Abrir deslizador: Grosor"><GitCommitVertical aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
       <PopoverContent side="bottom" aria-label="Grosor" onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
@@ -82,7 +82,7 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
       <HelpTooltip text="Color de fondo"><Button disabled={blocked} aria-label="Elegir color de fondo" onClick={() => backgroundColor.current?.click()}><PaintRoller aria-hidden="true" /></Button></HelpTooltip>
       <input ref={backgroundColor} type="color" aria-label="Color de fondo" value={background} disabled={blocked} tabIndex={-1} onChange={event => onBackground(event.target.value)} />
     </span>
-    <HelpTooltip text="Imagen de fondo JPG/PNG"><Button aria-label="Elegir imagen de fondo" disabled={blocked || busy} onClick={() => file.current?.click()}><FileImage aria-hidden="true" /></Button></HelpTooltip>
+    <HelpTooltip text="Imagen de fondo"><Button aria-label="Elegir imagen de fondo" disabled={blocked || busy} onClick={() => file.current?.click()}><FileImage aria-hidden="true" /></Button></HelpTooltip>
     {tool(3)}
     <HelpTooltip text="Borrar imagen de fondo"><Button aria-label="Borrar imagen de fondo" disabled={blocked || (!hasImage && !busy)} onClick={onClearImage}><ImageOff aria-hidden="true" /></Button></HelpTooltip>
     <input ref={file} type="file" aria-label="Cargar imagen de fondo" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden onChange={event => {

@@ -85,6 +85,13 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
     ids.add(key)
   }
   identify(input.document.id, 'document.id')
+  input.map?.markers.forEach((marker, index) => identify(marker.id, `map.markers[${index}].id`))
+  const fingerprints = new Set<string>()
+  input.map?.gpx.forEach((file, index) => {
+    identify(file.id, `map.gpx[${index}].id`)
+    if (fingerprints.has(file.fingerprint)) add(`map.gpx[${index}].fingerprint`, 'no puede duplicar otro archivo GPX')
+    fingerprints.add(file.fingerprint)
+  })
   input.board.strokes.forEach((stroke, index) => identify(stroke.id, `board.strokes[${index}].id`))
   input.board.quickNotes.forEach((note, index) => identify(note.id, `board.quickNotes[${index}].id`))
   if (compareUtcDates(input.document.updatedAt, input.document.createdAt) < 0) {

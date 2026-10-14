@@ -205,7 +205,7 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     if (blockedRef.current || event.button !== 0 || !event.isPrimary) return
     resumeContentSizing()
     const target = event.target
-    if (!(target instanceof Element) || target.closest('input,textarea,select,[role="slider"],[role="radio"],[contenteditable="true"],.board-area,.notebook-handle')) return
+    if (!(target instanceof Element) || target.closest('input,textarea,select,[role="slider"],[role="radio"],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
     let horizontal: ScrollAxis | undefined, vertical: ScrollAxis | undefined
     for (let element: Element | null = target; element && event.currentTarget.contains(element); element = element.parentElement) {
       if (!(element instanceof HTMLElement)) continue
@@ -249,7 +249,7 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     const restoring = restoringSize.current
     restoringSize.current = false
     const node = content.current?.firstElementChild as HTMLElement | null
-    if (!node || collapsed || id === 'board' || id === 'timeline' || id === 'information' || id === 'operations') return
+    if (!node || collapsed || id === 'board' || id === 'timeline' || id === 'information' || id === 'operations' || id === 'map') return
     function measure() {
       node!.setAttribute('data-measuring', 'true')
       const size = { width: node!.scrollWidth, height: node!.scrollHeight }

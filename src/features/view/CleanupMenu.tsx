@@ -14,6 +14,7 @@ const contents: Record<ModuleId, string> = {
   information: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Operativo. El histórico del Registro y la información descriptiva se conservarán.',
   operations: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Información. El histórico del Registro y la información descriptiva se conservarán.',
   coordinates: 'Se borrarán la coordenada introducida y sus resultados.',
+  map: 'Se retirarán del mapa los GPX cargados y el punto seleccionado. Los archivos GPX originales se conservarán.',
   clock: 'Se detendrán y eliminarán todos los temporizadores, incluidos los guardados en este dispositivo. Sus alarmas dejarán de sonar.',
   calculator: 'Se borrarán la operación y el resultado de la Calculadora.',
   notebook: 'Se eliminarán todas las notas y listas del Cuaderno.',
@@ -42,7 +43,7 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
       <AlertDialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <AlertDialogTitle>{request?.close ? 'Limpiar y cerrar ' : 'Limpiar '}{target}</AlertDialogTitle>
         <AlertDialogDescription>
-          {all ? 'Se eliminará el contenido de todos los módulos, incluidos los cerrados: Pizarra, Elementos, Dotaciones, datos operativos, Cuaderno y Registro. También se borrarán las entradas de Coordenadas y Calculadora, y se detendrán y eliminarán todos los temporizadores y sus alarmas.' : request ? contents[request.ids[0]!] : ''}
+          {all ? 'Se eliminará el contenido de todos los módulos, incluidos los cerrados: Pizarra, Elementos, Dotaciones, datos operativos, Cuaderno y Registro. También se retirarán los GPX del Mapa, se borrarán las entradas de Coordenadas y Calculadora, y se detendrán y eliminarán todos los temporizadores y sus alarmas.' : request ? contents[request.ids[0]!] : ''}
           {' Se conservarán la posición, el tamaño y el zoom.'}
           {request?.close ? all ? ' Después se cerrarán todos los módulos abiertos.' : ' Después se cerrará este módulo.' : ' Los módulos abiertos permanecerán abiertos.'}
         </AlertDialogDescription>

@@ -37,7 +37,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
     <ol className="notebook-list" aria-label="Bloques del Cuaderno" ref={list}>
       {document.notebook.map((block, index) => <li key={block.id} className="notebook-block" data-block-id={block.id} data-block-type={block.type}
         data-dragging={reorder.preview?.id === block.id} data-drop-target={reorder.preview?.targetId === block.id && reorder.preview.id !== block.id}>
-        <Button className="notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} title="Arrastrar bloque · ↑ / ↓" disabled={blocked} {...reorder.handleProps(block.id)} />
+        <Button className="notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} title="Reordenar bloque" disabled={blocked} {...reorder.handleProps(block.id)} />
         <div className="notebook-block-content">
           <HelpTooltip text="Eliminar bloque"><Button className="notebook-delete" aria-label="Eliminar bloque" disabled={blocked} onClick={() => {
             if (blockedRef.current) return

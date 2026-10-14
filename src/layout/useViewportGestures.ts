@@ -34,6 +34,12 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
   function start(event: PointerEvent) {
     // React portals bubble through this component but live outside its surface.
     if (!(event.target instanceof Node) || !element.current?.contains(event.target)) return
+    // Leaflet owns gestures beginning on the map; dashboard gestures already
+    // in progress still keep their cancellation rules when crossing it.
+    if (!pointers.current.size && event.target instanceof Element && event.target.closest('[data-map-surface]')) {
+      suppressClick.current = false
+      return
+    }
     if (event.pointerType === 'mouse' && event.button !== 0) return
     if (!pointers.current.size) {
       const rect = element.current?.getBoundingClientRect()
@@ -133,6 +139,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       node!.dispatchEvent(new window.PointerEvent('pointercancel', { bubbles: true, pointerId }))
     }
     function wheel(event: WheelEvent) {
+      if (event.target instanceof Element && event.target.closest('[data-map-surface]')) return
       if (!event.ctrlKey) return
       event.preventDefault(); event.stopPropagation()
       if (blockedRef.current || pointers.current.size || !event.deltaY) return
@@ -168,6 +175,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
         if (event.target === event.currentTarget) end(event)
       },
       onTouchStartCapture: (event: ReactTouchEvent) => {
+        if (!pointers.current.size && !blockedRef.current && event.target instanceof Element && event.target.closest('[data-map-surface]')) return
         if (blockedRef.current || event.touches.length >= 2) event.stopPropagation()
         else nativeTouches.current = Array.from(event.nativeEvent.touches)
       },

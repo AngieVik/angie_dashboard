@@ -113,23 +113,23 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
                 <span className="element-row-text"><strong title={element.name}>{pinNameLines(element.name).map((line, index) => <span key={index}>{line}</span>)}</strong></span>
               </Button>
               <div className="element-row-actions" role="group" aria-label={`Acciones de ${element.name}`}>
-                <HelpTooltip text={`Modificar ${element.name}`}><Button aria-label="Modificar" disabled={blocked} onClick={() => {
+                <HelpTooltip text="Modificar"><Button aria-label="Modificar" disabled={blocked} onClick={() => {
                   if (blockedRef.current) return
                   onSelect(element.id); setEditor({ kind: 'edit', id: element.id })
                 }}><Wrench aria-hidden="true" /></Button></HelpTooltip>
-                <HelpTooltip text={`Duplicar ${element.name}`}><Button aria-label="Duplicar" disabled={blocked} onClick={() => {
+                <HelpTooltip text="Duplicar"><Button aria-label="Duplicar" disabled={blocked} onClick={() => {
                   if (blockedRef.current) return
                   let id = ''
                   store.mutateDocument(document => { id = duplicateElement(document, element.id).id })
                   addControl.current?.focus(); onSelect(id)
                 }}><CopyPlus aria-hidden="true" /></Button></HelpTooltip>
-                <HelpTooltip text={`Quitar ${element.name}`}><Button aria-label="Quitar" disabled={blocked} onClick={() => {
+                <HelpTooltip text="Quitar"><Button aria-label="Quitar" disabled={blocked} onClick={() => {
                   if (blockedRef.current) return
                   store.mutateDocument(document => deleteElement(document, element.id))
                   if (selectedId === element.id) onSelect(null)
                   addControl.current?.focus()
                 }}><Trash aria-hidden="true" /></Button></HelpTooltip>
-                <HelpTooltip text={`${element.pinVisible ? 'Ocultar' : 'Mostrar'} pin de ${element.name}`}><Button aria-label={`${element.pinVisible ? 'Ocultar' : 'Mostrar'} pin de ${element.name}`} disabled={blocked} onClick={() => {
+                <HelpTooltip text={element.pinVisible ? 'Ocultar pin' : 'Mostrar pin'}><Button aria-label={`${element.pinVisible ? 'Ocultar' : 'Mostrar'} pin de ${element.name}`} disabled={blocked} onClick={() => {
                   if (!blockedRef.current) store.mutateDocument(document => togglePinVisibility(document, element.id))
                 }}>{element.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button></HelpTooltip>
               </div>

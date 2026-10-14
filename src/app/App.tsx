@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Alert } from '../components/ui/alert'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/ui/dropdown-menu'
@@ -22,6 +22,7 @@ import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
+import type { LoadedGpx } from '../features/map/gpx'
 import { CalculatorModule } from '../features/calculator/CalculatorModule'
 import { NotebookModule } from '../features/notebook/NotebookModule'
 import { getTimerStore } from '../features/clock/timerStore'
@@ -37,6 +38,8 @@ import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import { readNavigation, writeNavigation } from '../layout/navigationStorage'
 import type { Position } from '../domain/document/types'
 import { createEmptyDocument } from '../domain/document/defaultDocument'
+
+const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
 
 type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
 
@@ -58,6 +61,8 @@ export function App() {
   const timers = getTimerStore()
   useEffect(() => { void timers.initialize(); return timers.connect() }, [timers])
   const { document, documentGeneration, ready, openModules: savedOpenModules, replacing } = useDocumentStore(store)
+  const [mapFiles, setMapFiles] = useState<{ generation: number; files: LoadedGpx[] }>({ generation: documentGeneration, files: [] })
+  if (mapFiles.generation !== documentGeneration) setMapFiles({ generation: documentGeneration, files: [] })
   const boardImage = useBoardImage(store)
   useEffect(() => { void store.initialize() }, [store])
   const workspace = useRef<HTMLElement>(null)
@@ -233,6 +238,7 @@ export function App() {
       store.mutateDocument(candidate => {
         for (const id of request.ids) {
           if (id === 'board') candidate.board = createEmptyDocument().board
+          else if (id === 'map') delete candidate.map
           else if (id === 'elements') candidate.elements = candidate.elements.filter(element => element.isUnit)
           else if (id === 'dotations') candidate.elements = candidate.elements.filter(element => !element.isUnit)
           else if (id === 'notebook') candidate.notebook = []
@@ -250,6 +256,7 @@ export function App() {
       })
       if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
       if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
+      if (request.ids.includes('map')) setMapFiles({ generation: documentGeneration, files: [] })
       if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
       // Shared data can change other windows too; suppress automatic resizing until their next content interaction.
       setSizePreservation(previous => {
@@ -393,6 +400,9 @@ export function App() {
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} /> :
+              id === 'map' ? <Suspense fallback={<p role="status">Cargando mapa…</p>}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store}
+                files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
+                onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }} /></Suspense> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
               id === 'calculator' ? <CalculatorModule generation={documentGeneration} /> : null} />
         </MobileViewport>

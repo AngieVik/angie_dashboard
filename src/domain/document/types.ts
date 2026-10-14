@@ -5,7 +5,7 @@ export const DOCUMENT_STATUSES = [
 
 export type OperationalStatus = typeof DOCUMENT_STATUSES[number] | 'Personalizada'
 export type AssetId = 'ambulance' | 'pathfinder' | 'quad' | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
-export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'clock' | 'calculator' | 'notebook' | 'timeline'
+export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'clock' | 'calculator' | 'notebook' | 'timeline'
 
 export interface Position { x: number; y: number }
 export type PinNameColor = 'dark' | 'light' | 'yellow' | 'blue' | 'green' | 'red'
@@ -76,9 +76,23 @@ export interface AngieDocumentV3 {
 }
 
 export interface EmbeddedBoardImage { dataUrl: string; layout: { x: number; y: number; width: number; height: number } }
+export interface MapMarker { id: string; name: string; latitude: number; longitude: number; color: string }
+export interface MapGpxReference {
+  id: string
+  name: string
+  size: number
+  lastModified: number
+  fingerprint: string
+  visible: boolean
+  color: string
+  kilometers: boolean
+  kilometerInterval: 0.1 | 0.5 | 1 | 5 | 10
+}
+export interface MapDocument { markers: MapMarker[]; gpx: MapGpxReference[] }
 export interface AngieDocumentV4 extends Omit<AngieDocumentV3, 'formatVersion' | 'board'> {
   formatVersion: 4
   board: AngieDocumentV3['board'] & { backgroundImage?: EmbeddedBoardImage }
+  map?: MapDocument
 }
 export type AngieDocument = AngieDocumentV4
 

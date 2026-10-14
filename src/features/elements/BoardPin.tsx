@@ -121,7 +121,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
         <span className="board-pin-emoji" aria-hidden="true" style={{ display: 'block', fontSize: 48 * visual.scale, lineHeight: `${64 * visual.scale}px`, transform: pinTransform(visual) }}>{visual.value}</span>}
     </button>
     {!element.nameHidden && <Popover open={colorsOpen && interactive} onOpenChange={setColorsOpen}>
-      <PopoverAnchor asChild><button type="button" className="board-pin-name" aria-label={`Mover nombre de ${element.name}`} title="Arrastrar nombre · Doble clic o doble tap para modificar"
+      <PopoverAnchor asChild><button type="button" className="board-pin-name" aria-label={`Mover nombre de ${element.name}`} title="Mover nombre"
         aria-haspopup="dialog" aria-expanded={colorsOpen && interactive} disabled={!interactive} style={pinNameStyle(nameElement)}
         onPointerDown={event => start(event, 'name')} onPointerMove={move} onPointerUp={finish}
         onPointerCancel={() => { lastTap.current = null; cancel() }} onLostPointerCapture={cancel} onClick={select}
