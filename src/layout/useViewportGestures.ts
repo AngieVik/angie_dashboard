@@ -49,7 +49,7 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       suppressClick.current = false
       gestureOwner.current = null
       const target = event.target
-      if (target instanceof Element && !target.closest('[data-module],button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) {
+      if (target instanceof Element && !target.closest('[data-module],.viewport-scrollbar,button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) {
         drag.current = { pointerId: event.pointerId, point: point(event), state }
         element.current?.setPointerCapture?.(event.pointerId)
       }

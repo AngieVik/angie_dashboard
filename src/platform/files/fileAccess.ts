@@ -2,6 +2,7 @@ import { migrateDocument } from '../../domain/document/migrateDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
 import { validateEmbeddedImage } from './embeddedImage'
 import type { AngieDocument } from '../../domain/document/types'
+import type { WorkspaceFiles } from './workspaceFiles'
 
 export interface SaveFileHandle {
   queryPermission(options: { mode: 'readwrite' }): Promise<PermissionState>
@@ -23,6 +24,7 @@ export interface FileAccessContext {
   platform: FilePlatform
   link?: { handle: SaveFileHandle; title: string }
   now?: () => Date
+  workspace?: WorkspaceFiles
 }
 
 export type SaveOutcome =

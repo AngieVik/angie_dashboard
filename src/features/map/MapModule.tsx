@@ -1,11 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, PointerEvent } from 'react'
+import type { ChangeEvent, PointerEvent, ReactNode } from 'react'
 import { Check, Copy, Crosshair, Eye, EyeOff, Flag, Focus, FolderOpen, Layers, Minus, Palette, Plus, Route, Search, X } from 'lucide-react'
 import * as L from 'leaflet'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { HelpTooltip } from '../../components/ui/tooltip'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '../../components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '../../components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { Slider } from '../../components/ui/slider'
 import { copyText } from '../../platform/clipboard'
@@ -22,12 +22,14 @@ import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
 import { closestGpxLocation, getGpxMetrics, getKilometerMarks } from './gpxMetrics'
 import type { GpxLocation } from './gpxMetrics'
 import { MAX_MAP_LATITUDE, readMapView, writeMapView } from './mapNavigation'
-import { MAP_BACKGROUNDS } from './mapBackgrounds'
+import { MAP_BACKGROUNDS, PNOA_INFORMATION } from './mapBackgrounds'
 import type { MapBackground } from './mapBackgrounds'
 import type { MapDocument, MapGpxReference, MapMarker } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { MapMarkers } from './MapMarkers'
+import { MapSurfaceContext } from './MapSurfaceContext'
+import { MapLegend } from './MapLegend'
 import { classifyMapQuery } from './mapSearch'
 import type { MapPlace } from './mapSearch'
 import { useMapSearch } from './useMapSearch'
@@ -43,11 +45,12 @@ const EMPTY_REFERENCES: MapGpxReference[] = []
 const EMPTY_MARKERS: MapMarker[] = []
 const kilometers = (meters: number) => (meters / 1000).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km'
 
-export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, store }: {
+export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, store, overlay }: {
   navigationKey: string
   files: LoadedGpx[]
   onFilesChange: (files: LoadedGpx[]) => void
   store: DocumentStore
+  overlay?: ReactNode
 }) {
   const { document: currentDocument, documentGeneration } = useDocumentStore(store)
   const references = currentDocument.map?.gpx ?? EMPTY_REFERENCES
@@ -80,6 +83,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   const { fitContentRef } = useModuleZoom()
   const [input, setInput] = useState(''), [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false), [tileError, setTileError] = useState(false)
+  const [informationTileError, setInformationTileError] = useState(false)
   const [accessNotice, setAccessNotice] = useState<string | null>(null)
   const [useFileInput, setUseFileInput] = useState(false)
   const [selected, setSelected] = useState<MapSelection | null>(null)
@@ -90,6 +94,8 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   const [profileControls, setProfileControls] = useState<HTMLDivElement | null>(null)
   const [mapZoom, setMapZoom] = useState(() => readMapView(navigationKey).zoom)
   const [background, setBackground] = useState(() => readMapView(navigationKey).background)
+  const [pnoaInformation, setPnoaInformation] = useState(() => readMapView(navigationKey).pnoaInformation)
+  const showInformation = background === 'pnoa' && pnoaInformation
   const [format, setFormat] = useState<CoordinateFormat>('DD'), [copied, setCopied] = useState(false)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const selectionRevision = useRef(0)
@@ -232,7 +238,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const renderedKilometers = kilometerLayers.current
     const pendingRequest = request.current
     const view = readMapView(navigationKey)
-    const map = L.map(node, { zoomControl: false, minZoom: 2, maxZoom: 19, preferCanvas: true, zoomAnimation: false })
+    const map = L.map(node, { zoomControl: false, minZoom: 2, maxZoom: 19, zoomSnap: .25, zoomDelta: .25, wheelPxPerZoomLevel: 240, preferCanvas: true, zoomAnimation: false })
       .setView([view.latitude, view.longitude], view.zoom)
     mapRef.current = map
     map.attributionControl.addAttribution('Búsqueda: <a href="https://nominatim.org">Nominatim</a> · &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>')
@@ -280,7 +286,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const map = mapRef.current
     if (!map) return
     const source = MAP_BACKGROUNDS[background]
-    const tiles = L.tileLayer(source.url, { attribution: source.attribution, maxZoom: 19 })
+    const tiles = L.tileLayer(source.url, { attribution: source.attribution, maxZoom: 19, zIndex: 1 })
     const failures = new Set<HTMLImageElement>()
     setTileError(false)
     tiles.on('tileerror', event => { failures.add((event as L.TileErrorEvent).tile); setTileError(true) })
@@ -288,6 +294,26 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     tiles.addTo(map)
     return () => { tiles.remove(); tiles.off() }
   }, [background, navigationKey])
+
+  useLayoutEffect(() => {
+    const map = mapRef.current
+    setInformationTileError(false)
+    if (!map || !showInformation) return
+    const tiles = L.tileLayer(PNOA_INFORMATION.url, { attribution: PNOA_INFORMATION.attribution, maxZoom: 19, zIndex: 2 })
+    const failures = new Set<HTMLImageElement>()
+    tiles.on('tileerror', event => { failures.add((event as L.TileErrorEvent).tile); setInformationTileError(true) })
+    tiles.on('tileload tileunload', event => { failures.delete((event as L.TileEvent).tile as HTMLImageElement); setInformationTileError(failures.size > 0) })
+    tiles.addTo(map)
+    return () => { tiles.remove(); tiles.off() }
+  }, [showInformation, navigationKey])
+
+  function changeInformation(next: boolean) {
+    const map = mapRef.current
+    if (blockedRef.current || !map || background !== 'pnoa') return
+    const center = map.getCenter().wrap()
+    writeMapView(navigationKey, { latitude: Math.max(-MAX_MAP_LATITUDE, Math.min(MAX_MAP_LATITUDE, center.lat)), longitude: center.lng, zoom: map.getZoom(), pnoaInformation: next })
+    setPnoaInformation(next)
+  }
 
   function changeBackground(next: MapBackground) {
     const map = mapRef.current
@@ -550,6 +576,19 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         aria-controls={markersMenuId} aria-pressed={markersOpen} disabled={blocked} onClick={() => setMarkersOpen(open => !open)}><Flag aria-hidden="true" /></Button></HelpTooltip>
       <HelpTooltip text={gpxOpen ? 'Cerrar GPX' : 'Abrir GPX'}><Button ref={gpxTrigger} aria-label="GPX" aria-expanded={gpxOpen}
         aria-controls={gpxMenuId} aria-pressed={gpxOpen} disabled={blocked} onClick={() => setGpxOpen(open => !open)}><Route aria-hidden="true" /></Button></HelpTooltip>
+      <DropdownMenu>
+        <HelpTooltip text="Fondo del mapa"><DropdownMenuTrigger asChild><Button aria-label="Fondo del mapa" disabled={blocked}><Layers aria-hidden="true" /></Button></DropdownMenuTrigger></HelpTooltip>
+        <DropdownMenuContent className="file-menu-content map-background-menu" side="bottom" align="end" collisionPadding={8} aria-label="Fondo del mapa">
+          {(Object.keys(MAP_BACKGROUNDS) as MapBackground[]).map(id => <DropdownMenuCheckboxItem key={id} checked={background === id} disabled={blocked}
+            onSelect={() => changeBackground(id)}>{MAP_BACKGROUNDS[id].name}</DropdownMenuCheckboxItem>)}
+          {background === 'pnoa' && <>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem checked={pnoaInformation} disabled={blocked}
+              onCheckedChange={checked => changeInformation(checked === true)}>Información</DropdownMenuCheckboxItem>
+          </>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <MapLegend background={background} information={pnoaInformation} zoom={mapZoom} disabled={blocked} />
     </div>
     <input ref={inputFile} type="file" accept=".gpx,application/gpx+xml" multiple hidden onChange={event => { void loadFiles(event) }} />
     {error && <p className="map-notice map-error" role="alert">{error}</p>}
@@ -581,18 +620,12 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
           onPointerDownCapture={touchStart}
           onPointerMoveCapture={event => { if (cancelledTouch.current) event.stopPropagation() }}
           onTouchMoveCapture={event => { if (cancelledTouch.current) event.stopPropagation() }} />
-        <div className="map-zoom" role="group" aria-label="Fondo y zoom geográfico">
-          <DropdownMenu>
-            <HelpTooltip text="Fondo del mapa"><DropdownMenuTrigger asChild><Button aria-label="Fondo del mapa" disabled={blocked}><Layers aria-hidden="true" /></Button></DropdownMenuTrigger></HelpTooltip>
-            <DropdownMenuContent className="file-menu-content map-background-menu" side="right" align="start" collisionPadding={8} aria-label="Fondo del mapa">
-              {(Object.keys(MAP_BACKGROUNDS) as MapBackground[]).map(id => <DropdownMenuCheckboxItem key={id} checked={background === id} disabled={blocked}
-                onSelect={() => changeBackground(id)}>{MAP_BACKGROUNDS[id].name}</DropdownMenuCheckboxItem>)}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {overlay && <MapSurfaceContext.Provider value={{ mapRef, suppressSelection }}>{overlay}</MapSurfaceContext.Provider>}
+        <div className="map-zoom" role="group" aria-label="Zoom geográfico">
           <Button aria-label="Acercar mapa" disabled={blocked} onClick={() => mapRef.current?.zoomIn()}><Plus aria-hidden="true" /></Button>
           <Button aria-label="Alejar mapa" disabled={blocked} onClick={() => mapRef.current?.zoomOut()}><Minus aria-hidden="true" /></Button>
         </div>
-        {tileError && <p className="map-tile-notice" role="status">No se puede cargar parte del mapa. Comprueba la conexión.</p>}
+        {(tileError || informationTileError) && <p className="map-tile-notice" role="status">No se puede cargar parte del mapa. Comprueba la conexión.</p>}
       </div>
       <div className="map-sidepanels" hidden={!gpxOpen && !markersOpen}>
       {gpxOpen && <aside id={gpxMenuId} className="map-gpx-menu" aria-labelledby={`${gpxMenuId}-title`} onKeyDown={event => {

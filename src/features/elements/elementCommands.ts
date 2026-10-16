@@ -78,6 +78,7 @@ export function duplicateElement(document: AngieDocument, id: string) {
 }
 export function deleteElement(document: AngieDocument, id: string) {
   document.elements = document.elements.filter(element => element.id !== id)
+  if (document.plan) document.plan.pins = document.plan.pins.filter(pin => pin.elementId.toLowerCase() !== id.toLowerCase())
 }
 
 export function togglePinVisibility(document: AngieDocument, id: string) {

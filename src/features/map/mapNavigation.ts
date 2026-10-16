@@ -1,7 +1,7 @@
 import { isMapBackground } from './mapBackgrounds'
 import type { MapBackground } from './mapBackgrounds'
 
-export interface MapView { latitude: number; longitude: number; zoom: number; background: MapBackground }
+export interface MapView { latitude: number; longitude: number; zoom: number; background: MapBackground; pnoaInformation: boolean }
 export const MAX_MAP_LATITUDE = 85.05112878
 
 export function readMapView(key: string): MapView {
@@ -10,11 +10,12 @@ export function readMapView(key: string): MapView {
     if (view && [view.latitude, view.longitude, view.zoom].every(Number.isFinite) && Math.abs(view.latitude) <= MAX_MAP_LATITUDE && Math.abs(view.longitude) <= 180 && view.zoom >= 2 && view.zoom <= 19) return {
       latitude: view.latitude, longitude: view.longitude, zoom: view.zoom,
       background: isMapBackground(view.background) ? view.background : 'osm',
+      pnoaInformation: view.pnoaInformation === true,
     }
   } catch { /* Start from the default view if local navigation is unavailable. */ }
-  return { latitude: 40, longitude: -3, zoom: 6, background: 'osm' }
+  return { latitude: 40, longitude: -3, zoom: 6, background: 'osm', pnoaInformation: false }
 }
 
-export function writeMapView(key: string, view: Omit<MapView, 'background'> & { background?: MapBackground }) {
+export function writeMapView(key: string, view: Omit<MapView, 'background' | 'pnoaInformation'> & Partial<Pick<MapView, 'background' | 'pnoaInformation'>>) {
   try { localStorage.setItem('angie.map.' + key, JSON.stringify({ ...readMapView(key), ...view })) } catch { /* Navigation does not block the map. */ }
 }

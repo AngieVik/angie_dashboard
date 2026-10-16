@@ -9,12 +9,13 @@ export interface CleanupRequest { ids: readonly ModuleId[]; close: boolean; gene
 
 const contents: Record<ModuleId, string> = {
   board: 'Se eliminarán los trazos, las notas y la imagen de la Pizarra, y se restablecerá su fondo. Los Elementos y las Dotaciones seguirán disponibles.',
-  elements: 'Se eliminarán los Elementos y sus pins. También desaparecerán de Pizarra e Información. Las Dotaciones se conservarán.',
-  dotations: 'Se eliminarán las Dotaciones y sus pins. También desaparecerán de Pizarra, Información y Operativo. El histórico del Registro se conservará.',
+  elements: 'Se eliminarán los Elementos y sus pins. También desaparecerán de Pizarra, Plano operativo e Información. Las Dotaciones se conservarán.',
+  dotations: 'Se eliminarán las Dotaciones y sus pins. También desaparecerán de Pizarra, Plano operativo, Información y Operativo. El histórico del Registro se conservará.',
   information: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Operativo. El histórico del Registro y la información descriptiva se conservarán.',
   operations: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Información. El histórico del Registro y la información descriptiva se conservarán.',
   coordinates: 'Se borrarán la coordenada introducida y sus resultados.',
   map: 'Se retirarán del mapa los GPX cargados y el punto seleccionado. Los archivos GPX originales se conservarán.',
+  plan: 'Se eliminarán los trazos y las ubicaciones del Plano operativo. Los Elementos, las Dotaciones y los GPX compartidos con Mapa se conservarán.',
   clock: 'Se detendrán y eliminarán todos los temporizadores, incluidos los guardados en este dispositivo. Sus alarmas dejarán de sonar.',
   calculator: 'Se borrarán la operación y el resultado de la Calculadora.',
   notebook: 'Se eliminarán todas las notas y listas del Cuaderno.',

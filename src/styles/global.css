@@ -265,6 +265,15 @@ textarea {
 .view-menu-check { width: 14px; color: var(--color-accent-red); }
 .mobile-viewport { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; }
 .logical-workspace { position: absolute; transform-origin: 0 0; isolation: isolate; z-index: 0; }
+.viewport-scrollbar { position: absolute; z-index: 1; background: var(--color-module); scrollbar-width: thin; scrollbar-color: var(--color-field-border) var(--color-module); overscroll-behavior: contain; }
+.viewport-scrollbar::-webkit-scrollbar { width: 12px; height: 12px; }
+.viewport-scrollbar::-webkit-scrollbar-track { background: var(--color-module); }
+.viewport-scrollbar::-webkit-scrollbar-thumb { background: var(--color-field-border); border: 2px solid var(--color-module); border-radius: 6px; }
+.viewport-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-accent-red); }
+.viewport-scrollbar:focus-visible { outline: 1px solid var(--color-selection-border); outline-offset: -1px; }
+.viewport-scrollbar-vertical { top: 0; right: 0; width: 12px; overflow-x: hidden; overflow-y: scroll; }
+.viewport-scrollbar-horizontal { left: 0; bottom: 0; height: 12px; overflow-x: scroll; overflow-y: hidden; }
+.viewport-scrollbar > div { pointer-events: none; }
 .module-frame {
   container-type: inline-size;
   --font-size-body: clamp(13px, calc(10px + 1cqi), 16px);
@@ -466,6 +475,15 @@ textarea {
 
 .module-scaled-content[data-measuring="true"] :is(.clock-face,.timer-row,.timer-main) { container-type: normal; flex: none; }
 .module-scaled-content[data-measuring="true"] .timer-list { flex: none; grid-auto-rows: auto; }
+
+/* These lists and editors determine the window height at its chosen width. */
+.module-frame[data-auto-height="true"] .module-scaled-content,
+.module-frame[data-auto-height="true"] .module-scaled-content > * { height: auto; min-height: 0; }
+.module-frame[data-auto-height="true"] :is(.elements-list,.element-editor) { flex: none; height: auto; min-height: 0; }
+.module-frame[data-auto-height="true"] :is(.elements-list section,.element-rows) { min-height: 0; }
+.module-frame[data-auto-height="true"] .element-row { flex: none; }
+.app-shell .module-frame[data-auto-height="true"] .module-content { overflow-y: auto; scrollbar-width: thin; }
+.app-shell .module-frame[data-auto-height="true"] .module-content::-webkit-scrollbar { display: block; width: 8px; height: 0; }
 
 /* Module actions share the app's red selection and interaction finishes. */
 .module-frame[data-active="true"] { border-color: var(--color-selection-border); box-shadow: var(--shadow-panel), var(--shadow-selection); }

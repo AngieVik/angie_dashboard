@@ -6,6 +6,7 @@
 .app-shell .map-module :is(.map-toolbar, .map-panel-toggles, .map-file-actions, .map-gpx-heading, .map-markers-menu, .map-zoom) .document-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--map-control-size); min-width: var(--map-control-size); height: var(--map-control-size); min-height: var(--map-control-size); padding: 0; border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--color-text-secondary); line-height: 1; }
 .app-shell .map-module :is(.map-toolbar, .map-panel-toggles, .map-file-actions, .map-gpx-heading, .map-markers-menu, .map-zoom) .document-button[aria-pressed="true"] { border-color: transparent; background: var(--color-selected); box-shadow: none; color: var(--color-text); }
 .app-shell .map-module :is(.map-toolbar, .map-panel-toggles, .map-file-actions, .map-gpx-heading, .map-markers-menu, .map-zoom) .document-button:is(:hover:not(:disabled), :focus-visible) { border-color: var(--color-accent-red); background: var(--surface-button-hover); color: var(--color-text); outline: none; }
+.app-shell .map-module .map-panel-toggles .document-button { flex-shrink: 1; min-width: 0; }
 .app-shell .map-module .map-coordinate-input, .app-shell .map-module .map-coordinate-format { height: var(--map-control-size); min-height: var(--map-control-size); padding: 1px 5px; border: 1px solid var(--color-field-border); border-radius: var(--radius-field); background: var(--color-field); box-shadow: none; outline: none; font-size: var(--control-font-size); line-height: 1; }
 .app-shell .map-module .map-coordinate-input { flex: 1; width: 0; min-width: 0; text-align: left; font-family: var(--font-technical); }
 .app-shell .map-module .map-coordinate-format { flex: none; width: 7ch; padding: 1px 2px; }
@@ -82,8 +83,39 @@
 .app-shell .map-module .map-color-control input { position: absolute; inset: 0; width: var(--map-control-size); min-width: 0; height: var(--map-control-size); min-height: 0; padding: 0; opacity: 0; pointer-events: none; }
 .map-area { position: relative; flex: 1; min-width: 0; min-height: 50px; isolation: isolate; }
 .map-canvas { width: 100%; height: 100%; background: #303030; font-family: var(--font-interface); }
-.map-zoom { position: absolute; display: flex; flex-direction: column; gap: 2px; top: 8px; left: 8px; z-index: 1000; }
+.map-zoom { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; top: 8px; left: 8px; z-index: 1000; }
 .app-shell .map-module .map-zoom .document-button { background: var(--color-module); }
+.map-legend-popover { z-index: 1100; display: flex; flex-direction: column; box-sizing: border-box; width: 360px; max-width: min(calc(100vw - 16px), var(--radix-popover-content-available-width)); max-height: min(65vh, var(--radix-popover-content-available-height)); padding: 0; overflow: hidden; font-size: max(13px, var(--control-font-size)); line-height: 1.4; }
+.map-legend-popover:has(.map-legend-sheet[data-expanded="true"]) { width: min(1000px, calc(100vw - 16px)); max-height: min(85vh, var(--radix-popover-content-available-height)); }
+.map-legend-heading { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 5px; padding: 2px 5px; border-bottom: 1px solid var(--color-border); }
+.map-legend-heading .document-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 25px; min-width: 25px; height: 25px; min-height: 25px; padding: 0; border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
+.map-legend-heading .document-button:is(:hover, :focus-visible) { border-color: var(--color-accent-red); color: var(--color-text); outline: none; }
+.map-legend-scroll { min-width: 0; min-height: 0; padding: 6px; overflow: auto; overscroll-behavior: contain; }
+.map-legend-scroll:focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
+.map-legend-scroll p { margin: 0 0 6px; }
+.map-legend-source { font-weight: 600; }
+.map-legend-scroll a { display: block; width: fit-content; max-width: 100%; margin-top: 6px; color: inherit; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.map-legend-scroll a:is(:hover, :focus-visible) { color: var(--color-accent-red); }
+.map-legend-image { display: block; max-width: 100%; height: auto; background: #fff; }
+.map-legend-sheet-heading { display: flex; justify-content: flex-end; padding: 0 0 4px; }
+.map-legend-popover .map-legend-image-toggle { display: inline-flex; align-items: center; gap: 4px; height: 25px; min-height: 25px; padding: 0 5px; border: 1px solid var(--color-border); background: var(--surface-toolbar); box-shadow: none; font: inherit; }
+.map-legend-popover .map-legend-image-toggle:is(:hover:not(:disabled), :focus-visible) { border-color: var(--color-accent-red); outline: none; }
+.map-legend-image-toggle svg { width: 14px; height: 14px; }
+.map-legend-image-viewport { max-height: min(45vh, 360px); overflow: auto; overscroll-behavior: contain; background: #fff; }
+.map-legend-image-viewport > p { padding: 6px; color: #181818; }
+.map-legend-image-viewport:focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
+.map-legend-sheet[data-expanded="true"] .map-legend-image-viewport { max-height: min(65vh, 650px); }
+.map-legend-sheet[data-expanded="true"] .map-legend-image { max-width: none; }
+.map-legend-osm { display: grid; gap: 4px; margin: 0 0 6px; padding: 0; list-style: none; }
+.map-legend-osm li { display: grid; grid-template-columns: 60px 1fr; align-items: center; gap: 8px; min-width: 0; }
+.map-legend-sample { display: flex; align-items: center; justify-content: center; min-height: 24px; padding: 2px; background: #fff; }
+.map-legend-sample .map-legend-image { max-width: 56px; }
+.map-legend-sample p { color: #181818; overflow-wrap: anywhere; }
+.map-legend-ign { display: grid; gap: 4px; margin: 0 0 6px; padding: 0; list-style: none; }
+.map-legend-ign li { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
+.map-legend-ign strong { font-weight: 500; }
+.map-legend-ign .map-legend-sample { min-height: 32px; }
+.map-legend-meaning { display: block; color: var(--color-text-secondary); }
 .map-background-menu { z-index: 1100; min-width: 0; max-width: calc(100vw - 16px); padding: 3px; font-size: var(--control-font-size); }
 .map-background-menu .file-menu-item { min-height: 25px; padding: 3px 6px; gap: 5px; }
 .map-background-menu .file-menu-item[data-state="checked"] { background: var(--color-selected); }

@@ -40,6 +40,7 @@ import type { Position } from '../domain/document/types'
 import { createEmptyDocument } from '../domain/document/defaultDocument'
 
 const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
+const PlanModule = lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule })))
 
 type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
 
@@ -64,7 +65,7 @@ export function App() {
   const [mapFiles, setMapFiles] = useState<{ generation: number; files: LoadedGpx[] }>({ generation: documentGeneration, files: [] })
   if (mapFiles.generation !== documentGeneration) setMapFiles({ generation: documentGeneration, files: [] })
   const boardImage = useBoardImage(store)
-  useEffect(() => { void store.initialize() }, [store])
+  useEffect(() => { void store.initialize(); return store.connectWorkspaceAutosave() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const modulesTrigger = useRef<HTMLButtonElement>(null)
   const [boardCenter, setBoardCenter] = useState<{ generation: number; center: Position } | null>(null)
@@ -239,6 +240,7 @@ export function App() {
         for (const id of request.ids) {
           if (id === 'board') candidate.board = createEmptyDocument().board
           else if (id === 'map') delete candidate.map
+          else if (id === 'plan') delete candidate.plan
           else if (id === 'elements') candidate.elements = candidate.elements.filter(element => element.isUnit)
           else if (id === 'dotations') candidate.elements = candidate.elements.filter(element => !element.isUnit)
           else if (id === 'notebook') candidate.notebook = []
@@ -252,6 +254,10 @@ export function App() {
               element.operational = { status: null, currentEntryId: null, notes: '', tags: [] }
             }
           }
+        }
+        if (candidate.plan) {
+          const remaining = new Set(candidate.elements.map(element => element.id.toLowerCase()))
+          candidate.plan.pins = candidate.plan.pins.filter(pin => remaining.has(pin.elementId.toLowerCase()))
         }
       })
       if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
@@ -400,6 +406,19 @@ export function App() {
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} /> :
+              id === 'plan' ? <Suspense fallback={<p role="status">Cargando plano operativo…</p>}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store}
+                selectedId={selectedId} onSelect={selectElement}
+                files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
+                onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }}
+                onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
+                onEditElement={elementId => {
+                  const element = document.elements.find(element => element.id === elementId)
+                  if (!element) return
+                  const id = element.isUnit ? 'dotations' : 'elements'
+                  selectElement(elementId); setEditRequest({ id: elementId, generation: documentGeneration })
+                  if (open.some(module => module.id === id)) { moduleActions.current[id]?.('expand'); activate(id) }
+                  else { pendingEditModule.current = id; toggle(id) }
+                }} /></Suspense> :
               id === 'map' ? <Suspense fallback={<p role="status">Cargando mapa…</p>}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store}
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
                 onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }} /></Suspense> :

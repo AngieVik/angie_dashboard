@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { DocumentElement, TimelineEntry } from '../../domain/document/types'
+import type { DocumentElement, PlanPin, TimelineEntry } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
@@ -15,12 +15,13 @@ import './information.css'
 export function InformationModule({ store, selectedId, onSelect }: { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void }) {
   const { document } = useDocumentStore(store)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const planPins = new Map<string, PlanPin>(document.plan?.pins.map(pin => [pin.elementId.toLowerCase(), pin]))
   return <div className="information-module">
-    {document.elements.length ? document.elements.map(element => <InformationCard key={element.id} element={element} currentEntry={element.isUnit ? document.timeline.find(entry => entry.id.toLowerCase() === element.operational.currentEntryId?.toLowerCase()) : undefined} store={store} selected={element.id === selectedId} onSelect={onSelect} expanded={expandedId === element.id} onToggle={() => setExpandedId(current => current === element.id ? null : element.id)} />) : <p className="module-empty">Sin elementos</p>}
+    {document.elements.length ? document.elements.map(element => <InformationCard key={element.id} element={element} planPin={planPins.get(element.id.toLowerCase())} currentEntry={element.isUnit ? document.timeline.find(entry => entry.id.toLowerCase() === element.operational.currentEntryId?.toLowerCase()) : undefined} store={store} selected={element.id === selectedId} onSelect={onSelect} expanded={expandedId === element.id} onToggle={() => setExpandedId(current => current === element.id ? null : element.id)} />) : <p className="module-empty">Sin elementos</p>}
   </div>
 }
 
-function InformationCard({ element, currentEntry, store, selected, onSelect, expanded, onToggle }: { element: DocumentElement; currentEntry?: TimelineEntry; store: DocumentStore; selected: boolean; onSelect: (id: string | null) => void; expanded: boolean; onToggle: () => void }) {
+function InformationCard({ element, planPin, currentEntry, store, selected, onSelect, expanded, onToggle }: { element: DocumentElement; planPin?: PlanPin; currentEntry?: TimelineEntry; store: DocumentStore; selected: boolean; onSelect: (id: string | null) => void; expanded: boolean; onToggle: () => void }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const [error, setError] = useState<string | null>(null)
   const status = element.isUnit ? OPERATIONAL_STATUSES.find(item => item.status === element.operational.status) : undefined
@@ -38,6 +39,7 @@ function InformationCard({ element, currentEntry, store, selected, onSelect, exp
           <span className="information-name"><strong>{element.name}</strong><span className="information-pin" aria-label={element.pinVisible ? 'Pin visible' : 'Pin oculto'}>{element.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</span></span>
         </Button>
       </div>
+      {planPin && <p className="information-coordinates technical-data" aria-label="Coordenadas del Plano operativo">{planPin.latitude.toFixed(6)}, {planPin.longitude.toFixed(6)}</p>}
       {element.isUnit && <div className="information-operative"><Badge variant="outline" className="information-status" aria-label="Estado operativo">
         {custom ? <><span className="information-custom-color" aria-hidden="true" style={{ backgroundColor: custom.customColor ?? 'transparent' }} /><span className="information-custom-name">{custom.customLabel}</span></> : status ? <><span aria-hidden="true">{status.icon}</span> {status.status}</> : 'Sin estado'}
       </Badge>{currentEntry?.type === 'status-change' && element.operational.status !== null && <time className="information-state-time technical-data" aria-label="Hora de entrada al estado" dateTime={currentEntry.occurredAt} title={formatTimelineDate(currentEntry.occurredAt)}>Desde {formatTimelineTime(currentEntry.occurredAt)}</time>}</div>}

@@ -12,12 +12,16 @@ import {
 import { getDocumentStore, useDocumentStore } from './documentStore'
 import type { DocumentStore, DocumentSnapshot } from './documentStore'
 import { formatTimelineDate, formatTimelineTime } from '../timeline/timelineCommands'
+import { PermissionsDialog } from './PermissionsDialog'
 
 function saveLabels(snapshot: DocumentSnapshot) {
   const local = !snapshot.ready ? 'Recuperando documento…' : snapshot.autosaveUnavailable ? 'Autoguardado no disponible' : snapshot.autosaveSaving ? 'Guardando en este dispositivo…' :
     'Guardado en este dispositivo' + (snapshot.localSavedAt ? ' · ' + formatTimelineTime(snapshot.localSavedAt) : '')
   const file = snapshot.fileDirty ? 'Cambios pendientes de guardar en archivo' : snapshot.fileSavedAt ? 'Archivo actualizado · ' + formatTimelineTime(snapshot.fileSavedAt) : 'Sin cambios pendientes de exportar'
-  return { local, file }
+  const folder = snapshot.workspaceStatus === 'unconfigured' ? 'Carpeta de trabajo sin configurar' :
+    snapshot.workspaceStatus === 'saving' ? 'Guardando en carpeta…' : snapshot.workspaceStatus === 'pending' ? 'Cambios pendientes en carpeta' :
+      snapshot.workspaceStatus === 'error' ? 'Guardado en carpeta pendiente' : 'Carpeta actualizada' + (snapshot.workspaceSavedAt ? ' · ' + formatTimelineTime(snapshot.workspaceSavedAt) : '')
+  return { local, file, folder }
 }
 
 export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore }) {
@@ -30,11 +34,12 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState('')
   const [recovering, setRecovering] = useState(false)
+  const [permissionsOpen, setPermissionsOpen] = useState(false)
   return (
     <>
       <DropdownMenu onOpenChange={open => { if (open) void store.refreshRecoverable() }}>
         <DropdownMenuTrigger asChild><Button ref={trigger} className="document-button dashboard-menu-trigger">Archivo</Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (editingName || recovering) event.preventDefault() }}>
+        <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (editingName || recovering || permissionsOpen) event.preventDefault() }}>
           <div className="document-menu-name"><span>Documento</span><strong data-document-name>{document.document.title || 'Sin nombre'}</strong></div>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -49,10 +54,14 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => setRecovering(true)}>Recuperar documento local…</DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuItem disabled={fileBusy} onSelect={() => setPermissionsOpen(true)}>Permisos</DropdownMenuItem>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <div role="status" className="document-save-details"><span>{labels.local}</span><span>{labels.file}</span>{snapshot.downloadStartedAt && <span>Descarga iniciada · {formatTimelineTime(snapshot.downloadStartedAt)}</span>}</div>
+          <div role="status" className="document-save-details"><span>{labels.local}</span><span>{labels.folder}</span>{snapshot.workspacePath && <span>{snapshot.workspacePath}</span>}{snapshot.workspaceStatus === 'unconfigured' && <span>{labels.file}</span>}{snapshot.downloadStartedAt && <span>Descarga iniciada · {formatTimelineTime(snapshot.downloadStartedAt)}</span>}</div>
         </DropdownMenuContent>
       </DropdownMenu>
+      {permissionsOpen && <PermissionsDialog onClose={() => setPermissionsOpen(false)} onCloseFocus={() => trigger.current?.focus()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} />}
       <AlertDialog open={recovering} onOpenChange={setRecovering}>
         <AlertDialogContent>
           <AlertDialogTitle>Recuperar documento local</AlertDialogTitle>
@@ -69,7 +78,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
         <AlertDialogContent onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}
           onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
           <AlertDialogTitle>Cambiar nombre</AlertDialogTitle>
-          <AlertDialogDescription>Nombre del documento para identificarlo al guardar.</AlertDialogDescription>
+          <AlertDialogDescription>Nombre del documento. La carpeta ya creada conserva su ubicación.</AlertDialogDescription>
           <form className="document-name-form" onSubmit={event => { event.preventDefault(); store.setTitle(name); setEditingName(false) }}>
             <Input ref={nameInput} aria-label="Título del documento" placeholder="Nombre del documento" value={name} onChange={event => setName(event.target.value)} />
             <div className="document-dialog-actions">
@@ -90,11 +99,12 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
 }
 
 export function DocumentNotices({ store = getDocumentStore() }: { store?: DocumentStore }) {
-  const { autosaveUnavailable, recoveryPending, replacementBlocked, storageConflict, recoveredPrevious, fileBusy, fileMessage, fileMessageRevision, downloadFallback } = useDocumentStore(store)
+  const { autosaveUnavailable, recoveryPending, replacementBlocked, storageConflict, recoveredPrevious, fileBusy, fileMessage, fileMessageRevision, downloadFallback, workspaceMessage } = useDocumentStore(store)
   return (
     <>
-      {(autosaveUnavailable || fileMessage || recoveredPrevious) && (
+      {(autosaveUnavailable || fileMessage || recoveredPrevious || workspaceMessage) && (
         <div className="document-notices">
+          {workspaceMessage && <Alert><span>{workspaceMessage}</span><Button disabled={fileBusy} onClick={() => { void store.saveWorkspaceNow() }}>Reintentar carpeta</Button><Button disabled={fileBusy} onClick={() => { void store.downloadJson() }}>Guardar JSON</Button></Alert>}
           {recoveredPrevious && <Alert><span>Se recuperó la copia anterior válida. El registro dañado se conserva en este dispositivo.</span></Alert>}
           {autosaveUnavailable && (
             <Alert>

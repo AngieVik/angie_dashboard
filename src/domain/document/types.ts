@@ -5,7 +5,7 @@ export const DOCUMENT_STATUSES = [
 
 export type OperationalStatus = typeof DOCUMENT_STATUSES[number] | 'Personalizada'
 export type AssetId = 'ambulance' | 'pathfinder' | 'quad' | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
-export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'clock' | 'calculator' | 'notebook' | 'timeline'
+export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'plan' | 'clock' | 'calculator' | 'notebook' | 'timeline'
 
 export interface Position { x: number; y: number }
 export type PinNameColor = 'dark' | 'light' | 'yellow' | 'blue' | 'green' | 'red'
@@ -89,10 +89,15 @@ export interface MapGpxReference {
   kilometerInterval: 0.1 | 0.5 | 1 | 5 | 10
 }
 export interface MapDocument { markers: MapMarker[]; gpx: MapGpxReference[] }
+export interface GeographicPosition { latitude: number; longitude: number }
+export interface PlanPin extends GeographicPosition { elementId: string; visible: boolean }
+export interface PlanStroke { id: string; color: string; width: number; points: GeographicPosition[] }
+export interface OperationalPlanDocument { pins: PlanPin[]; strokes: PlanStroke[] }
 export interface AngieDocumentV4 extends Omit<AngieDocumentV3, 'formatVersion' | 'board'> {
   formatVersion: 4
   board: AngieDocumentV3['board'] & { backgroundImage?: EmbeddedBoardImage }
   map?: MapDocument
+  plan?: OperationalPlanDocument
 }
 export type AngieDocument = AngieDocumentV4
 

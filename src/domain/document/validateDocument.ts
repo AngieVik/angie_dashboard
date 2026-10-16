@@ -85,6 +85,14 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
     ids.add(key)
   }
   identify(input.document.id, 'document.id')
+  const placedElements = new Set<string>()
+  input.plan?.pins.forEach((pin, index) => {
+    const key = pin.elementId.toLowerCase()
+    if (!input.elements.some(element => element.id.toLowerCase() === key)) add(`plan.pins[${index}].elementId`, 'debe referenciar un Elemento o una Dotación existente')
+    if (placedElements.has(key)) add(`plan.pins[${index}].elementId`, 'no puede colocar dos veces el mismo recurso')
+    placedElements.add(key)
+  })
+  input.plan?.strokes.forEach((stroke, index) => identify(stroke.id, `plan.strokes[${index}].id`))
   input.map?.markers.forEach((marker, index) => identify(marker.id, `map.markers[${index}].id`))
   const fingerprints = new Set<string>()
   input.map?.gpx.forEach((file, index) => {

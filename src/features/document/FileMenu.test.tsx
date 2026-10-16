@@ -20,6 +20,20 @@ async function setup(fail = false) {
 
 describe('Archivo y modo degradado', () => {
   afterEach(() => vi.useRealTimers())
+  it('abre Permisos desde Archivo y muestra los permisos no disponibles sin cambiar el documento', async () => {
+    const { store } = await setup()
+    const before = structuredClone(store.getSnapshot().document)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Archivo' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Permisos' }))
+    expect(await screen.findByRole('alertdialog', { name: 'Permisos' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText('No disponible')).toHaveLength(2))
+    expect(screen.getByRole('button', { name: 'Autorizar almacenamiento' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Seleccionar carpeta' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(store.getSnapshot().document).toEqual(before)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Archivo' })).toHaveFocus())
+  })
   it('el rechazo de archivo caduca sin reemplazar documento; el fallo de DB permanece', async () => {
     const { store } = await setup(true)
     vi.useFakeTimers()

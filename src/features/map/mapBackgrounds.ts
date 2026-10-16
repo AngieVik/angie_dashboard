@@ -16,6 +16,11 @@ export const MAP_BACKGROUNDS = {
   },
 } as const
 
+export const PNOA_INFORMATION = {
+  url: 'https://tms-ign-base.idee.es/1.0.0/IGNBaseOrto/{z}/{x}/{-y}.png',
+  attribution: 'IGNBaseOrto CC BY 4.0 <a href="https://www.ign.es/" target="_blank" rel="noopener noreferrer">IGN</a>',
+} as const
+
 export type MapBackground = keyof typeof MAP_BACKGROUNDS
 
 export function isMapBackground(value: unknown): value is MapBackground {

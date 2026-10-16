@@ -28,6 +28,7 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
   onActions?: (id: ModuleId, actions: ModuleActions | null) => void
 }) {
   const name = MODULE_REGISTRY[id].name, Icon = MODULE_ICONS[id]
+  const automaticHeight = id === 'elements' || id === 'dotations' || id === 'information'
   const [initialNavigation] = useState(() => readNavigation(navigationKey))
   const [scale, setScale] = useState(initialNavigation.scale)
   const [collapse, setCollapse] = useState<{ height: number; generation: number } | null>(null)
@@ -164,10 +165,10 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
   useEffect(() => {
     const node = content.current
     if (!node) return
-    const wheel = (event: WheelEvent) => { if (!event.ctrlKey) event.preventDefault() }
+    const wheel = (event: WheelEvent) => { if (!event.ctrlKey && (!automaticHeight || blockedRef.current)) event.preventDefault() }
     node.addEventListener('wheel', wheel, { passive: false })
     return () => node.removeEventListener('wheel', wheel)
-  }, [])
+  }, [automaticHeight, blockedRef])
   useEffect(() => {
     const node = frame.current
     if (!active || !node || moduleNavigationRef) return
@@ -235,10 +236,11 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     // Operativo keeps its chosen size for every content action, including notices.
     if (id === 'operations' || blockedRef.current || collapsed || !section || !onFit) return
     const chrome = 29 + (section.querySelector<HTMLElement>('.module-controls')?.offsetHeight || 20)
-    const width = Math.max(27, Math.ceil(Math.max(section.offsetWidth, minimum.width + 2)))
-    const height = Math.max(30, Math.ceil(fitHeight ? minimum.height + chrome : Math.max(section.offsetHeight, minimum.height + chrome)))
+    const width = automaticHeight ? section.offsetWidth : Math.max(27, Math.ceil(Math.max(section.offsetWidth, minimum.width + 2)))
+    const requestedHeight = Math.max(30, Math.ceil(fitHeight || automaticHeight ? minimum.height + chrome : Math.max(section.offsetHeight, minimum.height + chrome)))
+    const height = automaticHeight ? Math.min(600, requestedHeight) : requestedHeight
     if (width !== section.offsetWidth || height !== section.offsetHeight) onFit({ width, height })
-  }, [id, blockedRef, collapsed, onFit, contentSizeRevision])
+  }, [id, automaticHeight, blockedRef, collapsed, onFit, contentSizeRevision])
   function resumeContentSizing() {
     if (!blockedRef.current) sizePreservation.current = { revision: contentSizeRevision, holding: false }
   }
@@ -246,10 +248,23 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
   // Keep the observer stable when the parent's resize callback changes.
   useLayoutEffect(() => { measuredSpace.current = requestSpace }, [requestSpace])
   useLayoutEffect(() => {
+    const node = content.current?.firstElementChild as HTMLElement | null
+    if (!automaticHeight || collapsed || blocked || !node) return
+    const measure = () => {
+      const height = node.scrollHeight
+      if (height) measuredSpace.current({ width: 0, height }, { fitHeight: true })
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [automaticHeight, collapsed, blocked, contentSizeRevision])
+  useLayoutEffect(() => {
     const restoring = restoringSize.current
     restoringSize.current = false
     const node = content.current?.firstElementChild as HTMLElement | null
-    if (!node || collapsed || id === 'board' || id === 'timeline' || id === 'information' || id === 'operations' || id === 'map') return
+    if (!node || collapsed || automaticHeight || id === 'board' || id === 'timeline' || id === 'operations' || id === 'map') return
     function measure() {
       node!.setAttribute('data-measuring', 'true')
       const size = { width: node!.scrollWidth, height: node!.scrollHeight }
@@ -284,8 +299,8 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     })
     observer.observe(node, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] })
     return () => observer.disconnect()
-  }, [collapsed, id])
-  return <section ref={frame} className="module-frame" data-active={active} data-collapsed={collapsed} data-icon-only={width === undefined ? iconCollapsed : width <= 29 && collapsed} role="region" aria-label={name}>
+  }, [collapsed, id, automaticHeight])
+  return <section ref={frame} className="module-frame" data-active={active} data-auto-height={automaticHeight} data-collapsed={collapsed} data-icon-only={width === undefined ? iconCollapsed : width <= 29 && collapsed} role="region" aria-label={name}>
     <header className="module-header">
       <Button className="document-button module-button module-icon" aria-label={'Recoger o restaurar ' + name} aria-pressed={active} aria-expanded={!(width === undefined ? iconCollapsed : width <= 29 && collapsed)} disabled={blocked || !onFit}
         onPointerDownCapture={event => {
