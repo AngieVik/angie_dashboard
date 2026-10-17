@@ -72,7 +72,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
       <div className="plan-tools plan-resources" role="group" aria-label="Recursos del plano">
         <select className="plan-resource-select" aria-label="Recurso del plano" value={selected?.id ?? ''} disabled={blocked || !document.elements.length}
           onChange={event => { if (!blockedRef.current) { onSelect(event.target.value || null); setMode('select') } }}>
-          <option value="">{document.elements.length ? 'Recurso' : 'Sin recursos'}</option>
+          <option value="">{document.elements.length ? 'Recursos' : 'Sin recursos'}</option>
           {document.elements.map(element => <option key={element.id} value={element.id}>{element.name}{element.isUnit ? ' · Dotación' : ''}</option>)}
         </select>
         <HelpTooltip text="Colocar pin"><Button aria-label="Colocar recurso en el plano" aria-pressed={mode === 'place'} disabled={blocked || !selected}
@@ -80,7 +80,11 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
         <HelpTooltip text={pin?.visible ? 'Ocultar pin' : 'Mostrar pin'}><Button aria-label={pin?.visible ? 'Ocultar pin del plano' : 'Mostrar pin del plano'} disabled={blocked || !pin}
           onClick={() => { if (selectedId) apply(document => togglePlanPin(document, selectedId)) }}>{pin?.visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button></HelpTooltip>
         <HelpTooltip text="Retirar pin"><Button aria-label="Retirar pin del plano" disabled={blocked || !pin} onClick={() => { if (selectedId) apply(document => removePlanPin(document, selectedId)) }}><X aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Centrar recursos"><Button aria-label="Centrar recursos del plano" disabled={blocked || !pins.some(pin => pin.visible)} onClick={() => { if (!blockedRef.current) setFocusRequest(value => value + 1) }}><Focus aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Centrar recursos"><Button aria-label="Centrar recursos del plano" disabled={blocked || (selected ? !pin?.visible : !pins.some(pin => pin.visible))} onClick={() => {
+          if (blockedRef.current) return
+          if (selected) setMode('select')
+          setFocusRequest(value => value + 1)
+        }}><Focus aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Modificar recurso"><Button aria-label="Modificar recurso" disabled={blocked || !selected} onClick={() => { if (!blockedRef.current && selected) onEditElement(selected.id) }}><Settings2 aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Elementos"><Button aria-label="Abrir Elementos" disabled={blocked} onClick={() => { if (!blockedRef.current) onOpenModule('elements') }}><Package aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Dotaciones"><Button aria-label="Abrir Dotaciones" disabled={blocked} onClick={() => { if (!blockedRef.current) onOpenModule('dotations') }}><Ambulance aria-hidden="true" /></Button></HelpTooltip>

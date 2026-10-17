@@ -1,6 +1,35 @@
 import type { CSSProperties } from 'react'
-import type { DocumentElement, ElementVisual, PinNameColor } from '../../domain/document/types'
+import type { DocumentElement, ElementVisual, PinAnchor, PinNameColor, Position } from '../../domain/document/types'
 import { getPinBox } from './iconCatalog'
+
+export const PIN_ANCHORS: readonly { value: Exclude<PinAnchor, Position>; label: string; x: number; y: number }[] = [
+  { value: 'top-left', label: 'Superior izquierdo', x: 0, y: 0 },
+  { value: 'top', label: 'Superior central', x: .5, y: 0 },
+  { value: 'top-right', label: 'Superior derecho', x: 1, y: 0 },
+  { value: 'left', label: 'Centro izquierdo', x: 0, y: .5 },
+  { value: 'center', label: 'Centro', x: .5, y: .5 },
+  { value: 'right', label: 'Centro derecho', x: 1, y: .5 },
+  { value: 'bottom-left', label: 'Inferior izquierdo', x: 0, y: 1 },
+  { value: 'bottom', label: 'Inferior central', x: .5, y: 1 },
+  { value: 'bottom-right', label: 'Inferior derecho', x: 1, y: 1 },
+]
+
+export function getPinAnchorPoint(visual: ElementVisual, anchor: PinAnchor = 'center') {
+  const point = typeof anchor === 'string' ? PIN_ANCHORS.find(point => point.value === anchor) ?? PIN_ANCHORS[4]! : anchor
+  const box = getPinBox(visual), angle = (visual.rotation ?? 0) * Math.PI / 180
+  const x = (point.x - .5) * box.width * (visual.flipX ? -1 : 1)
+  const y = (point.y - .5) * box.height * (visual.flipY ? -1 : 1)
+  return { x: box.width / 2 + x * Math.cos(angle) - y * Math.sin(angle),
+    y: box.height / 2 + x * Math.sin(angle) + y * Math.cos(angle) }
+}
+
+export function getPinAnchorFromPoint(visual: ElementVisual, point: Position): Position {
+  const box = getPinBox(visual), angle = (visual.rotation ?? 0) * Math.PI / 180
+  const x = point.x - box.width / 2, y = point.y - box.height / 2
+  // Undo rotation and flips to store a proportional point in the original pin.
+  return { x: Math.max(0, Math.min(1, .5 + (x * Math.cos(angle) + y * Math.sin(angle)) * (visual.flipX ? -1 : 1) / box.width)),
+    y: Math.max(0, Math.min(1, .5 + (-x * Math.sin(angle) + y * Math.cos(angle)) * (visual.flipY ? -1 : 1) / box.height)) }
+}
 
 export const PIN_NAME_COLORS: Record<PinNameColor, { label: string; backgroundColor: string; color: string }> = {
   dark: { label: 'Negro / blanco', backgroundColor: '#111111', color: '#ffffff' },

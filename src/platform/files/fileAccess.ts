@@ -5,6 +5,7 @@ import type { AngieDocument } from '../../domain/document/types'
 import type { WorkspaceFiles } from './workspaceFiles'
 
 export interface SaveFileHandle {
+  getFile?(): Promise<DocumentFile>
   queryPermission(options: { mode: 'readwrite' }): Promise<PermissionState>
   requestPermission?(options: { mode: 'readwrite' }): Promise<PermissionState>
   createWritable(): Promise<{
@@ -17,12 +18,12 @@ export interface SaveFileHandle {
 export interface FilePlatform {
   pickSave?: (suggestedName: string) => Promise<SaveFileHandle>
   pickOpen?: () => Promise<{ file: DocumentFile; handle: SaveFileHandle }>
-  download(text: string, filename: string): void
+  download(text: string, filename: string, mimeType?: string): void
 }
 
 export interface FileAccessContext {
   platform: FilePlatform
-  link?: { handle: SaveFileHandle; title: string }
+  link?: { handle: SaveFileHandle; title: string; contents?: string }
   now?: () => Date
   workspace?: WorkspaceFiles
 }
@@ -45,7 +46,7 @@ export function suggestFilename(title: string, now = new Date()): string {
     return code > 31 && !(code >= 127 && code <= 159) && !'<>:"/\\|?*'.includes(character)
   }).join('').replace(/[ .]+$/, '')
   base = base.replace(/\.json$/i, '').replace(/[ .]+$/, '')
-  if (!base || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base)) {
+  if (!base || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(base)) {
     const pad = (value: number) => String(value).padStart(2, '0')
     base = `drp_${String(now.getFullYear()).padStart(4, '0')}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`
   }
@@ -75,12 +76,12 @@ export async function saveVisibleDocument(document: AngieDocument, context: File
   }
   if (!context.platform.pickSave) return download()
 
-  let stream: Awaited<ReturnType<SaveFileHandle['createWritable']>> | undefined
   let picking = false
   try {
     let handle: SaveFileHandle
-    if (context.link && !saveAs) {
-      handle = context.link.handle
+    const linked = saveAs ? undefined : context.link
+    if (linked) {
+      handle = linked.handle
       let permission = await handle.queryPermission({ mode: 'readwrite' })
       if (permission === 'prompt' && handle.requestPermission) permission = await handle.requestPermission({ mode: 'readwrite' })
       if (permission !== 'granted') {
@@ -92,15 +93,25 @@ export async function saveVisibleDocument(document: AngieDocument, context: File
       handle = await context.platform.pickSave(filename)
       picking = false
     }
-    stream = await handle.createWritable()
-    await stream.write(text)
-    await stream.close()
-    context.link = { handle, title }
+    const write = async () => {
+      if (linked?.contents !== undefined && handle.getFile) {
+        const current = await loadVisibleDocument(await handle.getFile())
+        if (current.status !== 'loaded' || serializeDocument(current.document) !== linked.contents) {
+          throw new Error('El archivo vinculado cambió fuera de esta pestaña. Abre su versión o guarda una copia con Guardar como.')
+        }
+      }
+      const writer = await handle.createWritable()
+      try { await writer.write(text); await writer.close() }
+      catch (error) {
+        try { await writer.abort() } catch { /* Preserve the original failure. */ }
+        throw error
+      }
+      context.link = { handle, title, contents: text }
+    }
+    if (navigator.locks?.request) await navigator.locks.request('angie-dashboard-workspace-write', write)
+    else await write()
     return { status: 'saved' }
   } catch (error) {
-    if (stream) {
-      try { await stream.abort() } catch { /* Preserve the original failure. */ }
-    }
     // Only cancellation of a picker is silent; a cancelled write is an error.
     if (picking && typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError') {
       return { status: 'cancelled' }
@@ -144,8 +155,8 @@ export function createBrowserFilePlatform(): FilePlatform {
         types: [{ description: 'Documento Angie Dashboard JSON', accept: { 'application/json': ['.json'] } }],
       })
       : undefined,
-    download(text, filename) {
-      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+    download(text, filename, mimeType = 'application/json') {
+      const url = URL.createObjectURL(new Blob([text], { type: mimeType }))
       const anchor = document.createElement('a')
       anchor.href = url
       anchor.download = filename

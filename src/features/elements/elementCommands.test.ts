@@ -108,7 +108,7 @@ describe('comandos de elementos', () => {
     const history = structuredClone(document.timeline)
     const copy = duplicateElement(document, unit.id)
     expect(copy.id).not.toBe(unit.id)
-    expect(copy).toMatchObject({ name: 'Tango 1 copia', visual: unit.visual, information: unit.information, isUnit: true, position: { x: 524, y: 524 }, operational: { status: null, currentEntryId: null, notes: '', tags: [] } })
+    expect(copy).toMatchObject({ name: 'Tango 2', visual: unit.visual, information: unit.information, isUnit: true, position: { x: 524, y: 524 }, operational: { status: null, currentEntryId: null, notes: '', tags: [] } })
     expect(document.timeline).toEqual(history)
     deleteElement(document, unit.id)
     expect(document.elements.map(element => element.id)).toEqual([copy.id])

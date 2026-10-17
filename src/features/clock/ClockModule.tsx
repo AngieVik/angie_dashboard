@@ -13,7 +13,7 @@ import './clock.css'
 // Implementation parameter; the V1 exposes no frequency setting.
 export const ALARM_FLASH_HZ = 2
 export function ClockModule({ store }: { store: TimerStore }) {
-  const { timers, now, ready, storageUnavailable } = useSyncExternalStore(store.subscribe, store.getSnapshot)
+  const { timers, now, ready, storageUnavailable, storageConflict, recoveryGeneration } = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const alarm = useSyncExternalStore(store.alarm.subscribe, store.alarm.getSnapshot)
   const clock = spanishClock(now)
   const root = useRef<HTMLDivElement>(null), expandPending = useRef(false)
@@ -45,12 +45,12 @@ export function ClockModule({ store }: { store: TimerStore }) {
         </div>
       </div>
       <div className="clock-add-controls">
-        <Button aria-label="T-Zero" title="T-Zero" disabled={!ready} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
-        <Button aria-label="T-Minus" title="T-Minus" disabled={!ready} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
+        <Button aria-label="T-Zero" title="T-Zero" disabled={!ready || storageConflict} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
+        <Button aria-label="T-Minus" title="T-Minus" disabled={!ready || storageConflict} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
         <div className="clock-zulu technical-data"><span className="clock-zulu-label" aria-label="Zulu Time" title="Zulu Time"><span className="clock-label-full" aria-hidden="true">Zulu Time</span><span className="clock-label-short" aria-hidden="true">ZT</span></span>{' '}
           <output aria-label="Hora Zulu">{clock.zulu}</output>
         </div>
-        <Button aria-label="Advisories" title="Advisories" disabled={!ready} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
+        <Button aria-label="Advisories" title="Advisories" disabled={!ready || storageConflict} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
         <Button aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview document-button" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
           onClick={() => { if (alarm.preview) store.alarm.stopPreview(); else void store.alarm.startPreview() }}>
           {alarm.preview ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
@@ -58,8 +58,8 @@ export function ClockModule({ store }: { store: TimerStore }) {
       </div>
     </div>
     {alarm.error && <Alert>{alarm.error}{alarm.error === 'Sonido bloqueado' && <Button onClick={() => { void store.alarm.activateSound() }}>Activar sonido</Button>}</Alert>}
-    {storageUnavailable && <Alert>Autoguardado no disponible <Button onClick={() => { void store.retryPersistence() }}>Reintentar</Button></Alert>}
-    <div className="timer-list">{timers.map((timer, position) => <TimerRow key={timer.id} timer={timer}
-      index={timers.slice(0, position + 1).filter(previous => previous.kind === timer.kind).length} now={now} store={store} />)}</div>
+    {storageUnavailable && <Alert>{storageConflict ? 'Otra pestaña ha cambiado los temporizadores. Recargar sustituirá los cambios locales pendientes.' : 'Autoguardado no disponible'} <Button onClick={() => { void store.retryPersistence() }}>{storageConflict ? 'Recargar temporizadores' : 'Reintentar'}</Button></Alert>}
+    <div className="timer-list">{timers.map((timer, position) => <TimerRow key={`${recoveryGeneration}:${timer.id}`} timer={timer}
+      index={timers.slice(0, position + 1).filter(previous => previous.kind === timer.kind).length} now={now} store={store} disabled={storageConflict} />)}</div>
   </div>
 }

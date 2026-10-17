@@ -22,3 +22,25 @@ it('dos dedos cancelan la manipulación sin desmontar ni perder el estado tempor
   fireEvent.pointerUp(header, { pointerId: 1 }); fireEvent.pointerUp(header, { pointerId: 2 })
   expect(screen.getByRole('button', { name: 'Contenido 1' })).toBeInTheDocument()
 })
+it('el tamaño dibujado se bloquea en 200 dentro del imán y se libera al salir durante el redimensionado', () => {
+  const onLayout = vi.fn(), bounds = { width: 1600, height: 1000 }
+  const { container } = render(<TooltipProvider><div className="logical-workspace">
+    <DashboardGrid bounds={bounds} layers={['board']} modules={[{ id: 'board', layout: { x: 100, y: 100, width: 250, height: 27, referenceSize: bounds } }]}
+      active="board" scale={1} onActive={vi.fn()} onClose={vi.fn()} onLayout={onLayout} />
+  </div></TooltipProvider>)
+  const module = container.querySelector<HTMLElement>('[data-module="board"]')!
+  const handle = module.querySelector('.react-resizable-handle')!
+  fireEvent.mouseDown(handle, { button: 0, clientX: 350, clientY: 127 })
+  expect(module).toHaveClass('resizing')
+  for (const [clientX, width] of [[303, 200], [296, 200], [285, 185]] as const) {
+    fireEvent.mouseMove(document, { clientX, clientY: 127 })
+    expect(module.style.getPropertyValue('--module-resize-width')).toBe(width + 'px')
+    expect(module.style.getPropertyValue('--module-resize-height')).toBe('27px')
+    expect(onLayout).not.toHaveBeenCalled()
+  }
+  fireEvent.mouseUp(document, { clientX: 285, clientY: 127 })
+  expect(module).not.toHaveClass('resizing')
+  expect(module.style.getPropertyValue('--module-resize-width')).toBe('')
+  expect(module.style.getPropertyValue('--module-resize-height')).toBe('')
+  expect(onLayout).toHaveBeenLastCalledWith('board', expect.objectContaining({ width: 185, height: 27 }), 'resize')
+})

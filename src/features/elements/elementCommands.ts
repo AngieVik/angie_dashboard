@@ -1,7 +1,7 @@
 import type { AngieDocument, DocumentElement, ElementVisual, Position } from '../../domain/document/types'
-import type { CreateElementInput, ElementPatch } from './elementTypes'
+import type { CreateElementInput, ElementBatchPatch, ElementPatch } from './elementTypes'
 import { ICON_CATALOG } from './iconCatalog'
-import { PIN_NAME_COLORS } from './pinPresentation'
+import { PIN_ANCHORS, PIN_NAME_COLORS } from './pinPresentation'
 
 export function clampAssetScale(value: number) {
   if (!Number.isFinite(value)) throw new Error('La escala debe ser un número finito.')
@@ -35,6 +35,15 @@ function validateNameFontSize(value: number) {
   if (!Number.isFinite(value) || value < 8 || value > 72) throw new Error('El tamaño de letra debe estar entre 8 y 72 px.')
   return value
 }
+function normalizePinAnchor(pinAnchor: DocumentElement['pinAnchor']) {
+  if (pinAnchor === undefined) return {}
+  if (typeof pinAnchor === 'object' && pinAnchor !== null) {
+    if (![pinAnchor.x, pinAnchor.y].every(value => Number.isFinite(value) && value >= 0 && value <= 1)) throw new Error('El punto de coordenadas debe estar dentro del pin.')
+    return { pinAnchor: { x: pinAnchor.x, y: pinAnchor.y } }
+  }
+  if (!PIN_ANCHORS.some(point => point.value === pinAnchor)) throw new Error('Punto de coordenadas no reconocido.')
+  return { pinAnchor }
+}
 function resolveName(document: AngieDocument, name: string, isUnit: boolean, excludeId?: string) {
   if (name.trim()) return name
   const names = new Set(document.elements.filter(element => element.id !== excludeId && element.isUnit === isUnit).map(element => element.name))
@@ -48,11 +57,25 @@ function findElement(document: AngieDocument, id: string) {
   if (!element) throw new Error('El elemento ya no existe.')
   return element
 }
+function duplicateName(document: AngieDocument, element: DocumentElement) {
+  const numbered = /^(.*?)(\d+)$/s.exec(element.name.trimEnd())
+  const prefix = numbered ? numbered[1]! : `${element.name.trimEnd()} `
+  let last = numbered ? BigInt(numbered[2]!) : 0n
+  for (const candidate of document.elements) {
+    if (candidate.isUnit !== element.isUnit || !candidate.name.startsWith(prefix)) continue
+    const suffix = candidate.name.slice(prefix.length).trimEnd()
+    if (/^\d+$/.test(suffix)) {
+      const number = BigInt(suffix)
+      if (number > last) last = number
+    }
+  }
+  return `${prefix}${last + 1n}`
+}
 export function createElement(document: AngieDocument, input: CreateElementInput): DocumentElement {
   const name = resolveName(document, input.name, input.isUnit)
   const visual = normalizeVisual(input.visual)
   const requested = input.position === undefined ? { x: 500, y: 500 } : input.position
-  const common = { ...normalizeNamePresentation(input), id: crypto.randomUUID(), name, visual, information: input.information,
+  const common = { ...normalizeNamePresentation(input), ...normalizePinAnchor(input.pinAnchor), id: crypto.randomUUID(), name, visual, information: input.information,
     position: requested ? clampPinPosition(requested, visual) : null, pinVisible: true, ...(input.nameHidden === undefined ? {} : { nameHidden: input.nameHidden }), nameFontSize: validateNameFontSize(input.nameFontSize ?? 16) }
   const element: DocumentElement = input.isUnit ? { ...common, isUnit: true, operational: { status: null, currentEntryId: null, notes: '', tags: [] } } :
     { ...common, isUnit: false, operational: null }
@@ -60,21 +83,35 @@ export function createElement(document: AngieDocument, input: CreateElementInput
   return element
 }
 export function updateElement(document: AngieDocument, id: string, patch: ElementPatch) {
-  if (Object.keys(patch).some(key => !['name', 'visual', 'information', 'position', 'nameFontSize', 'nameHidden', 'nameOffset', 'nameColor'].includes(key))) throw new Error('Solo se puede modificar la configuración común. Dotación es inmutable.')
+  if (Object.keys(patch).some(key => !['name', 'visual', 'information', 'position', 'nameFontSize', 'nameHidden', 'nameOffset', 'nameColor', 'pinAnchor'].includes(key))) throw new Error('Solo se puede modificar la configuración común. Dotación es inmutable.')
   const element = findElement(document, id)
   const name = resolveName(document, patch.name ?? element.name, element.isUnit, id)
   const visual = normalizeVisual(patch.visual ?? element.visual)
   const requested = patch.position === undefined ? element.position : patch.position
   const position = requested ? clampPinPosition(requested, visual) : null
   const nameFontSize = patch.nameFontSize === undefined ? element.nameFontSize : validateNameFontSize(patch.nameFontSize)
-  Object.assign(element, { ...normalizeNamePresentation(patch), ...(patch.nameHidden === undefined ? {} : { nameHidden: patch.nameHidden }), ...(nameFontSize === undefined ? {} : { nameFontSize }), name, visual, information: patch.information ?? element.information, position })
+  Object.assign(element, { ...normalizeNamePresentation(patch), ...normalizePinAnchor(patch.pinAnchor), ...(patch.nameHidden === undefined ? {} : { nameHidden: patch.nameHidden }), ...(nameFontSize === undefined ? {} : { nameFontSize }), name, visual, information: patch.information ?? element.information, position })
 }
 export function duplicateElement(document: AngieDocument, id: string) {
   const element = findElement(document, id)
-  const copy = createElement(document, { name: `${element.name} copia`, visual: element.visual, information: element.information,
-    isUnit: element.isUnit, nameOffset: element.nameOffset, nameColor: element.nameColor, nameHidden: element.nameHidden, nameFontSize: element.nameFontSize, position: element.position ? { x: element.position.x + 24, y: element.position.y + 24 } : null })
+  const copy = createElement(document, { name: duplicateName(document, element), visual: element.visual, information: element.information,
+    isUnit: element.isUnit, nameOffset: element.nameOffset, nameColor: element.nameColor, nameHidden: element.nameHidden, nameFontSize: element.nameFontSize, pinAnchor: element.pinAnchor, position: element.position ? { x: element.position.x + 24, y: element.position.y + 24 } : null })
   copy.pinVisible = element.pinVisible
   return copy
+}
+export function updateElements(document: AngieDocument, ids: readonly string[], patch: ElementBatchPatch) {
+  for (const id of ids) {
+    const element = findElement(document, id)
+    const { visual, ...common } = patch
+    if (!visual) { updateElement(document, id, common); continue }
+    const { icon, ...changes } = visual
+    const current = element.visual
+    const representation = icon ?? (current.type === 'asset' ? { type: 'asset', assetId: current.assetId } as const : { type: 'emoji', value: current.value } as const)
+    updateElement(document, id, { ...common, visual: { ...representation, scale: current.scale,
+      ...(current.rotation === undefined ? {} : { rotation: current.rotation }),
+      ...(current.flipX === undefined ? {} : { flipX: current.flipX }),
+      ...(current.flipY === undefined ? {} : { flipY: current.flipY }), ...changes } })
+  }
 }
 export function deleteElement(document: AngieDocument, id: string) {
   document.elements = document.elements.filter(element => element.id !== id)

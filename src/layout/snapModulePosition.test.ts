@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { snapModulePosition } from './snapModulePosition'
 const rect = (x: number, y: number, width = 100, height = 80) => ({ x, y, width, height, referenceSize: { width: 1000, height: 800 } })
 describe('imán de módulos', () => {
+  it('alinea horizontalmente barras próximas sin solaparlas, incluidas las guardadas con 29 de alto', () => {
+    for (const scale of [0.5, 1, 2]) for (const height of [27, 29]) {
+      const other = rect(100, 100, 200, height)
+      const result = snapModulePosition(rect(303, 101, 200, 27), [other], scale)
+      expect(result).toEqual(rect(300, 100, 200, 27))
+      expect(result.x).toBeGreaterThanOrEqual(other.x + other.width)
+    }
+    const overlapping = rect(103, 101, 200, 27)
+    expect(snapModulePosition(overlapping, [rect(100, 100, 200, 29)], 1)).toEqual(overlapping)
+  })
   it('une bordes próximos y alinea sus extremos sin cambiar el tamaño', () => {
     expect(snapModulePosition(rect(204, 103), [rect(100, 100)], 1)).toEqual(rect(200, 100))
     expect(snapModulePosition(rect(102, 184), [rect(100, 100)], 1)).toEqual(rect(100, 180))

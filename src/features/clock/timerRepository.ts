@@ -7,22 +7,44 @@ export interface InternalTimerRepository {
   loadTimers(): Promise<TimerRecord[]>
   saveTimers(timers: TimerRecord[]): Promise<void>
 }
+interface LocalTimerRecord { key: string; timers: unknown; revision?: number }
+export class TimerConflictError extends Error {
+  constructor() { super('Los temporizadores cambiaron en otra pestaña. Recarga la lista guardada antes de continuar.'); this.name = 'TimerConflictError' }
+}
+function recordRevision(record: LocalTimerRecord | undefined): number | null {
+  if (!record) return null
+  const revision = record.revision ?? 0
+  if (!Number.isSafeInteger(revision) || revision < 0 || revision >= Number.MAX_SAFE_INTEGER) throw new Error('Revisión interna de temporizadores inválida')
+  return revision
+}
 export function createTimerDatabase(name = 'angie-dashboard-timers', options?: DexieOptions) {
   const db = new Dexie(name, options)
   db.version(1).stores({ timers: 'key' })
   return db
 }
 export class TimerRepository implements InternalTimerRepository {
+  private expectedRevision: number | null = null
   constructor(private readonly db: Dexie = createTimerDatabase()) {}
   async loadTimers(): Promise<TimerRecord[]> {
     if (!this.db.isOpen()) await this.db.open()
-    const record = await this.db.table<{ key: string; timers: unknown }>('timers').get('active')
-    return record ? validateTimers(record.timers) : []
+    const record = await this.db.table<LocalTimerRecord, string>('timers').get('active')
+    const timers = record ? validateTimers(record.timers) : []
+    this.expectedRevision = recordRevision(record)
+    return timers
   }
   async saveTimers(timers: TimerRecord[]): Promise<void> {
     const copy = structuredClone(validateTimers(timers))
     if (!this.db.isOpen()) await this.db.open()
-    await this.db.table('timers').put({ key: 'active', timers: copy })
+    const table = this.db.table<LocalTimerRecord, string>('timers')
+    let nextRevision = 0
+    await this.db.transaction('rw', table, async () => {
+      const current = await table.get('active')
+      const actual = recordRevision(current)
+      if (this.expectedRevision !== actual) throw new TimerConflictError()
+      nextRevision = (actual ?? 0) + 1
+      await table.put({ key: 'active', timers: copy, revision: nextRevision })
+    })
+    this.expectedRevision = nextRevision
   }
 }
 

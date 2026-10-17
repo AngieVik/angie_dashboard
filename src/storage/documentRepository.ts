@@ -20,7 +20,7 @@ export interface ActiveDocumentRepository {
   needsUpgrade?: boolean
 }
 interface LocalRecord { key: string; document: unknown; session?: unknown; revision?: number; savedAt?: string }
-const moduleIds = new Set(['board', 'elements', 'dotations', 'information', 'operations', 'coordinates', 'map', 'plan', 'clock', 'calculator', 'notebook', 'timeline'])
+const moduleIds = new Set(['board', 'elements', 'dotations', 'information', 'operations', 'coordinates', 'map', 'forecast', 'openMeteo', 'plan', 'clock', 'calculator', 'notebook', 'timeline'])
 export function normalizeSession(value: unknown): DocumentSession {
   const ids = value && typeof value === 'object' && 'openModules' in value ? value.openModules : []
   return { openModules: Array.isArray(ids) ? [...new Set(ids.filter((id): id is DocumentModuleId => typeof id === 'string' && moduleIds.has(id)))] : [] }

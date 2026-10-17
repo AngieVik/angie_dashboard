@@ -233,7 +233,7 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     if (sizePreservation.current.revision !== contentSizeRevision) sizePreservation.current = { revision: contentSizeRevision, holding: true }
     // Cleaning/remounting content must not replace the window's saved dimensions.
     if (sizePreservation.current.holding) return
-    // Operativo keeps its chosen size for every content action, including notices.
+    // Operativo keeps its chosen size; the forecast requests height changes explicitly.
     if (id === 'operations' || blockedRef.current || collapsed || !section || !onFit) return
     const chrome = 29 + (section.querySelector<HTMLElement>('.module-controls')?.offsetHeight || 20)
     const width = automaticHeight ? section.offsetWidth : Math.max(27, Math.ceil(Math.max(section.offsetWidth, minimum.width + 2)))
@@ -264,7 +264,7 @@ export function ModuleFrame({ id, active, onClose, onFit, children, generation =
     const restoring = restoringSize.current
     restoringSize.current = false
     const node = content.current?.firstElementChild as HTMLElement | null
-    if (!node || collapsed || automaticHeight || id === 'board' || id === 'timeline' || id === 'operations' || id === 'map') return
+    if (!node || collapsed || automaticHeight || id === 'board' || id === 'timeline' || id === 'operations' || id === 'map' || id === 'forecast') return
     function measure() {
       node!.setAttribute('data-measuring', 'true')
       const size = { width: node!.scrollWidth, height: node!.scrollHeight }

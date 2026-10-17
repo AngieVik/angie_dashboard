@@ -5,10 +5,11 @@ export const DOCUMENT_STATUSES = [
 
 export type OperationalStatus = typeof DOCUMENT_STATUSES[number] | 'Personalizada'
 export type AssetId = 'ambulance' | 'pathfinder' | 'quad' | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
-export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'plan' | 'clock' | 'calculator' | 'notebook' | 'timeline'
+export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'forecast' | 'openMeteo' | 'plan' | 'clock' | 'calculator' | 'notebook' | 'timeline'
 
 export interface Position { x: number; y: number }
 export type PinNameColor = 'dark' | 'light' | 'yellow' | 'blue' | 'green' | 'red'
+export type PinAnchor = 'top-left' | 'top' | 'top-right' | 'left' | 'center' | 'right' | 'bottom-left' | 'bottom' | 'bottom-right' | Position
 export interface PinTransform { rotation?: number; flipX?: boolean; flipY?: boolean }
 export type ElementVisual = PinTransform & (
   | { type: 'asset'; assetId: AssetId; scale: number }
@@ -32,6 +33,7 @@ export type DocumentElement = {
   nameHidden?: boolean
   nameOffset?: Position
   nameColor?: PinNameColor
+  pinAnchor?: PinAnchor
   pinVisible: boolean
   readonly isUnit: boolean
 } & (

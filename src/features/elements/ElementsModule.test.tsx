@@ -222,9 +222,9 @@ describe('listas y editor de entrega 6', () => {
     click('Mostrar pin de Sur'); expect(store.getSnapshot().document.elements).toEqual(before)
     const row = screen.getByRole('button', { name: 'Seleccionar Norte' }).closest('.element-row')!
     fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'Duplicar' }))
-    expect(store.getSnapshot().document.elements[2]).toMatchObject({ name: 'Norte copia', position: { x: 524, y: 524 } })
+    expect(store.getSnapshot().document.elements[2]).toMatchObject({ name: 'Norte 1', position: { x: 524, y: 524 } })
     fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'Quitar' }))
-    expect(store.getSnapshot().document.elements.map(e => e.name)).toEqual(['Sur', 'Norte copia'])
+    expect(store.getSnapshot().document.elements.map(e => e.name)).toEqual(['Sur', 'Norte 1'])
   })
   it('Atrás descarta todos los campos sin autoguardar y deselecciona', async () => {
     const store = await setup()
@@ -267,7 +267,7 @@ describe('listas y editor de entrega 6', () => {
     expect(store.getSnapshot().document.elements[0]!.visual).toEqual({ type: 'asset', assetId: 'warning', scale: 1 })
     click('Crear'); expect(screen.getAllByRole('option')).toHaveLength(3)
   })
-  it('preview, deslizador y letra independientes; resize directo sincroniza solo escala', async () => {
+  it('preview con pin fijo y letra proporcional; resize directo sincroniza solo escala', async () => {
     const store = await setup()
     act(() => store.mutateDocument(d => { createElement(d, { name: 'Ruta', isUnit: false, information: '', visual: { type: 'emoji', value: '📍', scale: 1 } }) }))
     click('Modificar'); change('Nombre', 'Ruta norte'); change('Tamaño de letra del nombre', '24')
@@ -276,8 +276,8 @@ describe('listas y editor de entrega 6', () => {
     fireEvent.keyDown(slider, { key: 'End' })
     for (let step = 300; step > 200; step -= 10) fireEvent.keyDown(slider, { key: 'PageDown' })
     const preview = within(screen.getByRole('img', { name: 'Previsualización del elemento' }))
-    expect(preview.getByText('📍')).toHaveStyle({ fontSize: '96px' })
-    expect(preview.getByText('Ruta norte')).toHaveStyle({ fontSize: '24px' })
+    expect(preview.getByText('📍')).toHaveStyle({ fontSize: '48px' })
+    expect(preview.getByText('Ruta norte')).toHaveStyle({ fontSize: '12px' })
     const id = store.getSnapshot().document.elements[0]!.id
     act(() => store.mutateDocument(d => updateElement(d, id, { visual: { type: 'emoji', value: '📍', scale: 3 } })))
     expect(slider).toHaveAttribute('aria-valuenow', '300')

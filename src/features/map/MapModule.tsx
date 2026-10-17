@@ -17,7 +17,7 @@ import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { PK_INTERVALS } from './gpx'
 import type { LoadedGpx } from './gpx'
 import { pickGpxFiles, readGpxFile } from './gpxFileAccess'
-import { readGpxAccess, rememberGpxAccess } from '../../storage/gpxAccessRepository'
+import { readGpxAccess, rememberGpxAccess, rememberGpxFile } from '../../storage/gpxAccessRepository'
 import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
 import { closestGpxLocation, getGpxMetrics, getKilometerMarks } from './gpxMetrics'
 import type { GpxLocation } from './gpxMetrics'
@@ -212,7 +212,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
       for (const reference of references) {
         if (!isCurrent()) return
         if (currentFiles.current.some(file => file.id === reference.id && file.fingerprint === reference.fingerprint)) continue
-        const file = await readGpxAccess(reference.fingerprint)
+        const file = await store.readWorkspaceGpx(reference) ?? await readGpxAccess(reference.fingerprint)
         if (!isCurrent()) return
         if (!file) continue
         try {
@@ -481,6 +481,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         if (targetId && !target) continue
         const { fingerprint, data } = await readGpxFile(file, target?.fingerprint)
         if (!isCurrent()) return
+        rememberGpxFile(fingerprint, file)
         const reference = targetId ? saved.find(item => item.id === targetId) : saved.find(item => item.fingerprint === fingerprint)
         if (choice.handle && !await rememberGpxAccess(fingerprint, choice.handle)) accessFailed = true
         if (!isCurrent()) return
@@ -515,8 +516,9 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         if (points.length) mapRef.current?.fitBounds(L.latLngBounds(points.map(point => L.latLng(point.latitude, point.longitude))), { padding: [24, 24], maxZoom: 16, animate: false })
       } else { setBusy(false); request.current.reading = false; return }
     }
-    setAccessNotice(accessFailed ? 'GPX cargado. No se pudo guardar su acceso local; tendrás que seleccionarlo al volver a abrir.' : null)
+    setAccessNotice(accessFailed ? 'GPX cargado. No se pudo recordar el acceso al original; podrás recuperarlo desde la carpeta gpx si se completa su copia.' : null)
     setError(errors.length ? errors.join(' ') : null); setBusy(false); request.current.reading = false
+    if (added.length) void store.saveWorkspaceNow()
   }
   const missingFiles = references.filter(reference => !files.some(file => file.id === reference.id))
   const canCopy = parseCoordinate(input).ok

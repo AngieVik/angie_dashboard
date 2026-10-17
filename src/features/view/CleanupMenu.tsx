@@ -15,6 +15,8 @@ const contents: Record<ModuleId, string> = {
   operations: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Información. El histórico del Registro y la información descriptiva se conservarán.',
   coordinates: 'Se borrarán la coordenada introducida y sus resultados.',
   map: 'Se retirarán del mapa los GPX cargados y el punto seleccionado. Los archivos GPX originales se conservarán.',
+  forecast: 'Se quitará el municipio seleccionado en Pronóstico para este documento en este dispositivo.',
+  openMeteo: 'Se quitarán las coordenadas seleccionadas y la consulta de Open-Meteo para este documento en este dispositivo.',
   plan: 'Se eliminarán los trazos y las ubicaciones del Plano operativo. Los Elementos, las Dotaciones y los GPX compartidos con Mapa se conservarán.',
   clock: 'Se detendrán y eliminarán todos los temporizadores, incluidos los guardados en este dispositivo. Sus alarmas dejarán de sonar.',
   calculator: 'Se borrarán la operación y el resultado de la Calculadora.',
@@ -44,7 +46,7 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
       <AlertDialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <AlertDialogTitle>{request?.close ? 'Limpiar y cerrar ' : 'Limpiar '}{target}</AlertDialogTitle>
         <AlertDialogDescription>
-          {all ? 'Se eliminará el contenido de todos los módulos, incluidos los cerrados: Pizarra, Elementos, Dotaciones, datos operativos, Cuaderno y Registro. También se retirarán los GPX del Mapa, se borrarán las entradas de Coordenadas y Calculadora, y se detendrán y eliminarán todos los temporizadores y sus alarmas.' : request ? contents[request.ids[0]!] : ''}
+          {all ? 'Se eliminará el contenido de todos los módulos, incluidos los cerrados: Pizarra, Elementos, Dotaciones, datos operativos, Cuaderno y Registro. También se retirarán los GPX del Mapa, se quitarán el municipio de Pronóstico y las coordenadas de Open-Meteo, se borrarán las entradas de Coordenadas y Calculadora, y se detendrán y eliminarán todos los temporizadores y sus alarmas.' : request ? contents[request.ids[0]!] : ''}
           {' Se conservarán la posición, el tamaño y el zoom.'}
           {request?.close ? all ? ' Después se cerrarán todos los módulos abiertos.' : ' Después se cerrará este módulo.' : ' Los módulos abiertos permanecerán abiertos.'}
         </AlertDialogDescription>

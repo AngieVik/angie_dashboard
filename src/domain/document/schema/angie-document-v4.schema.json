@@ -154,6 +154,8 @@
       "additionalProperties": false,
       "properties": {
         "plan": { "$ref": "#/$defs/layout" },
+        "forecast": { "$ref": "#/$defs/layout" },
+        "openMeteo": { "$ref": "#/$defs/layout" },
         "map": {
           "$ref": "#/$defs/layout"
         },
@@ -715,6 +717,20 @@
             "blue",
             "green",
             "red"
+          ]
+        },
+        "pinAnchor": {
+          "oneOf": [
+            { "enum": ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"] },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x", "y"],
+              "properties": {
+                "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                "y": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
           ]
         },
         "nameHidden": {

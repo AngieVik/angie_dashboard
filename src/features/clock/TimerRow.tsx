@@ -9,7 +9,7 @@ import type { TimerStore } from './timerStore'
 const TIMER_LABELS = { tzero: 'T-Zero', tminus: 'T-Minus', advisory: 'Advisory' }
 const STATUS_LABELS = { idle: 'Inactivo', running: 'En marcha', paused: 'Pausado', completed: 'Finalizado' }
 
-export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; index: number; now: number; store: TimerStore }) {
+export function TimerRow({ timer, index, now, store, disabled = false }: { timer: TimerRecord; index: number; now: number; store: TimerStore; disabled?: boolean }) {
   const row = useRef<HTMLDivElement>(null)
   const resetControl = useRef<HTMLButtonElement>(null)
   const [durationText, setDurationText] = useState(() => formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds))
@@ -19,6 +19,7 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
     return normalizeDuration(fields[0] ?? '', fields[1] ?? '', fields[2] ?? '')
   }
   function normalize() {
+    if (disabled) return
     const duration = enteredDuration()
     setDurationText(formatDuration(duration))
     store.setDuration(timer.id, duration)
@@ -45,18 +46,18 @@ export function TimerRow({ timer, index, now, store }: { timer: TimerRecord; ind
       if (snapshot.alertActive && !(event.target as HTMLElement).closest('button, input, textarea')) recognize()
     }}>
     <div className="timer-heading"><span>{TIMER_LABELS[timer.kind]}</span>
-      <Button className="timer-close document-button" aria-label="Cerrar temporizador" onClick={close}><X aria-hidden="true" /></Button></div>
+      <Button className="timer-close document-button" aria-label="Cerrar temporizador" disabled={disabled} onClick={close}><X aria-hidden="true" /></Button></div>
     <div className="timer-main">
       {timer.kind !== 'tzero' && snapshot.status === 'idle'
-        ? <DurationInput disabled={false} value={durationText} onBlur={normalize} onChange={setDurationText} />
+        ? <DurationInput disabled={disabled} value={durationText} onBlur={normalize} onChange={setDurationText} />
         : snapshot.alertActive ? <Button className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
       <div className="timer-controls">
         <Button aria-label={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'} title={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'}
-          disabled={snapshot.status === 'completed' || timer.kind !== 'tzero' && timer.status === 'idle' && enteredDuration() === 0} onClick={() => { if (snapshot.status === 'running') store.pause(timer.id); else start() }}>
+          disabled={disabled || snapshot.status === 'completed' || timer.kind !== 'tzero' && timer.status === 'idle' && enteredDuration() === 0} onClick={() => { if (snapshot.status === 'running') store.pause(timer.id); else start() }}>
           {snapshot.status === 'running' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </Button>
         <Button ref={resetControl} aria-label={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'} title={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'}
-          onClick={stop}><Square aria-hidden="true" /></Button>
+          disabled={disabled} onClick={stop}><Square aria-hidden="true" /></Button>
       </div>
     </div>
   </div>

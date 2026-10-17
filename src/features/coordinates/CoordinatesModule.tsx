@@ -1,26 +1,43 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { InputGroup } from '../../components/ui/input-group'
 import { HelpTooltip } from '../../components/ui/tooltip'
-import { Trash } from 'lucide-react'
+import { Check, ClipboardPaste, Trash } from 'lucide-react'
 import { useValidationNotice } from '../../components/ui/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
 import { parseCoordinate } from './parseCoordinate'
 import { convertCoordinate, toGeographic } from './convertCoordinate'
 import { createGoogleMapsLink } from './googleMapsLink'
-import type { FormattedCoordinate } from './coordinateTypes'
+import type { PlanPin } from '../../domain/document/types'
 import './coordinates.css'
 
-export function CoordinatesModule({ generation = 0 }: { generation?: number } = {}) {
+export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputChange }: { generation?: number; selectedCoordinate?: PlanPin; onInputChange?: (input: string) => void } = {}) {
   const id = useId(), revision = useRef(0)
   const { blocked, blockedRef } = useViewportInteraction()
-  const [input, setInput] = useState('')
+  const source = selectedCoordinate ? `${generation}:${selectedCoordinate.elementId}:${selectedCoordinate.latitude}:${selectedCoordinate.longitude}` : `${generation}:manual`
+  const selectedInput = selectedCoordinate ? `${selectedCoordinate.latitude.toFixed(6)}, ${selectedCoordinate.longitude.toFixed(6)}` : ''
+  const [entry, setEntry] = useState({ source, input: selectedInput, generation })
+  const input = entry.input
+  const setInput = (input: string) => setEntry({ source, input, generation })
   const [error, setError] = useValidationNotice(null, generation)
-  const [result, setResult] = useState<{ conversions: FormattedCoordinate[]; link: string } | null>(null)
   const [copiedRow, setCopiedRow] = useState<{ format: string; message: string } | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  if (entry.source !== source) {
+    setEntry({ source, input: selectedCoordinate || entry.generation !== generation ? selectedInput : input, generation })
+    setCopiedRow(null); setError(null)
+  }
+  const result = useMemo(() => {
+    const parsed = parseCoordinate(entry.input)
+    if (!parsed.ok) return null
+    const dd = toGeographic(parsed.coordinate)
+    return { conversions: (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => convertCoordinate(parsed.coordinate, format)),
+      link: createGoogleMapsLink(dd.latitude, dd.longitude) }
+  }, [entry])
+  // Selection changes and edits invalidate clipboard operations still in flight.
+  useLayoutEffect(() => { revision.current++ }, [source, input])
+  useLayoutEffect(() => { onInputChange?.(input) }, [input, onInputChange])
   useEffect(() => () => { clearTimeout(copyTimer.current); revision.current++ }, [])
   function clearCopy() { clearTimeout(copyTimer.current); setCopiedRow(null) }
   function convert() {
@@ -28,15 +45,24 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
     revision.current++; clearCopy()
     const parsed = parseCoordinate(input)
     if (!parsed.ok) { setError('No se reconoce la latitud y longitud'); return }
-    const dd = toGeographic(parsed.coordinate)
     setInput(parsed.normalizedInput); setError(null)
-    setResult({ conversions: (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => convertCoordinate(parsed.coordinate, format)),
-      link: createGoogleMapsLink(dd.latitude, dd.longitude) })
   }
   function clear() {
     if (blockedRef.current) return
     revision.current++; clearCopy()
-    setInput(''); setError(null); setResult(null)
+    setInput(''); setError(null)
+  }
+  async function paste() {
+    if (blockedRef.current) return
+    clearCopy()
+    const current = ++revision.current
+    try {
+      const value = await navigator.clipboard.readText()
+      if (blockedRef.current || current !== revision.current) return
+      setInput(value); setError(null)
+    } catch {
+      if (!blockedRef.current && current === revision.current) setError('No se pudo pegar. Pega las coordenadas manualmente.')
+    }
   }
   async function copyRow(format: string, value: string | null) {
     if (blockedRef.current || value === null) return
@@ -62,7 +88,9 @@ export function CoordinatesModule({ generation = 0 }: { generation?: number } = 
             revision.current++; clearCopy()
             setInput(event.target.value); setError(null)
           }} />
-        <HelpTooltip text="Borrar coordenadas"><Button aria-label="Borrar coordenadas" disabled={blocked} onClick={clear}><Trash aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Validar coordenadas"><Button className="coordinates-action" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked} onClick={convert}><Check aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Pegar coordenadas"><Button className="coordinates-action" aria-label="Pegar coordenadas" disabled={blocked} onClick={() => { void paste() }}><ClipboardPaste aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Borrar coordenadas"><Button className="coordinates-action" aria-label="Borrar coordenadas" disabled={blocked} onClick={clear}><Trash aria-hidden="true" /></Button></HelpTooltip>
       </InputGroup>
       {error && <p role="alert" id={id + '-error'} className="coordinates-error">{error}</p>}
     </form>

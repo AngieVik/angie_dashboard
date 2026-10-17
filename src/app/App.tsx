@@ -24,6 +24,10 @@ import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import type { LoadedGpx } from '../features/map/gpx'
 import { CalculatorModule } from '../features/calculator/CalculatorModule'
+import { ForecastModule } from '../features/forecast/ForecastModule'
+import { clearForecastLocation } from '../features/forecast/forecast'
+import { OpenMeteoModule } from '../features/openMeteo/OpenMeteoModule'
+import { clearWeatherPoint } from '../features/openMeteo/openMeteo'
 import { NotebookModule } from '../features/notebook/NotebookModule'
 import { getTimerStore } from '../features/clock/timerStore'
 import { useBoardImage } from '../features/board/useBoardImage'
@@ -124,6 +128,11 @@ export function App() {
   const [extent, setExtent] = useState(() => ({ generation: documentGeneration, size: reconstructWorkspaceExtent(requiredBounds, document.moduleLayouts) }))
   const [selection, setSelection] = useState<{ generation: number; id: string | null }>({ generation: documentGeneration, id: null })
   const selectedId = selection.generation === documentGeneration && document.elements.some(element => element.id === selection.id) ? selection.id : null
+  const selectedCoordinate = document.elements.some(element => element.id === selectedId && element.isUnit)
+    ? document.plan?.pins.find(pin => pin.elementId.toLowerCase() === selectedId?.toLowerCase()) : undefined
+  const coordinateInput = useRef({ generation: documentGeneration, value: '' })
+  const rememberCoordinateInput = useCallback((value: string) => { coordinateInput.current = { generation: documentGeneration, value } }, [documentGeneration])
+  const getCoordinatesInput = useCallback(() => coordinateInput.current.generation === documentGeneration ? coordinateInput.current.value : '', [documentGeneration])
   const selectElement = (id: string | null) => { setEditRequest(null); setSelection({ generation: documentGeneration, id }) }
   useLayoutEffect(() => {
     const node = workspace.current
@@ -263,6 +272,9 @@ export function App() {
       if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
       if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
       if (request.ids.includes('map')) setMapFiles({ generation: documentGeneration, files: [] })
+      if (request.ids.includes('forecast')) clearForecastLocation(document.document.id)
+      if (request.ids.includes('openMeteo')) clearWeatherPoint(document.document.id)
+      if (request.ids.includes('coordinates')) rememberCoordinateInput('')
       if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
       // Shared data can change other windows too; suppress automatic resizing until their next content interaction.
       setSizePreservation(previous => {
@@ -288,11 +300,11 @@ export function App() {
       if (!collapsed) for (const module of open) if (module.layout.height <= 29) moduleActions.current[module.id]?.('expand')
       const placed: OpenModule[] = []
       const origin = { x: Math.max(0, Math.ceil(-viewport.state.offsetX / viewport.state.scale)), y: Math.max(0, Math.ceil(-viewport.state.offsetY / viewport.state.scale)) }
-      const standardWidth = 240, collapsedHeight = 29
+      const standardWidth = 200, collapsedHeight = 27
       const gap = 8, count = Math.min(columns, open.length)
       const expanded = open.map(module => {
         const navigation = readNavigation(document.document.id + '.' + module.id)
-        const size = module.layout.height <= collapsedHeight ? navigation.restoreSize ?? { width: MODULE_REGISTRY[module.id].initial[0], height: MODULE_REGISTRY[module.id].initial[1] } : module.layout
+        const size = module.layout.height <= 29 ? navigation.restoreSize ?? { width: MODULE_REGISTRY[module.id].initial[0], height: MODULE_REGISTRY[module.id].initial[1] } : module.layout
         return { ...module, layout: { ...module.layout, width: size.width, height: size.height } }
       })
       const widths = Array.from({ length: count }, (_, column) => Math.max(...expanded.filter((_module, index) => index % count === column).map(module => module.layout.width)))
@@ -405,7 +417,7 @@ export function App() {
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
-              id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} /> :
+              id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} /> :
               id === 'plan' ? <Suspense fallback={<p role="status">Cargando plano operativo…</p>}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store}
                 selectedId={selectedId} onSelect={selectElement}
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
@@ -423,6 +435,8 @@ export function App() {
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
                 onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }} /></Suspense> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
+              id === 'forecast' ? <ForecastModule key={`${documentGeneration}.${moduleRevisions.forecast ?? 0}`} navigationKey={document.document.id} /> :
+              id === 'openMeteo' ? <OpenMeteoModule key={`${documentGeneration}.${moduleRevisions.openMeteo ?? 0}`} navigationKey={document.document.id} getCoordinatesInput={getCoordinatesInput} /> :
               id === 'calculator' ? <CalculatorModule generation={documentGeneration} /> : null} />
         </MobileViewport>
         </div>

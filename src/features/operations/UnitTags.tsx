@@ -21,10 +21,9 @@ export function UnitTags({ store, unitId }: { store: DocumentStore; unitId?: str
     <form aria-label="Nueva etiqueta" className="unit-tag-add" onSubmit={event => {
       event.preventDefault()
       if (blockedRef.current || !unitId) return
-      if (editing) { setEditing(false); editControl.current?.focus(); return }
       try {
         store.mutateDocument(document => addUnitTag(document, unitId, text))
-        setText(''); setError(null)
+        setText(''); setEditing(false); setError(null); editControl.current?.focus()
       } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo añadir la etiqueta.') }
     }}>
       {editing && <Info className="operations-tag-icon" aria-hidden="true" />}
@@ -32,7 +31,9 @@ export function UnitTags({ store, unitId }: { store: DocumentStore; unitId?: str
       <Input ref={input} aria-label="Nueva etiqueta" placeholder="Etiqueta" hidden={!editing} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} value={text} disabled={blocked || !unitId} onKeyDown={event => {
         if (event.key === 'Escape' && !blockedRef.current) { event.preventDefault(); setEditing(false); editControl.current?.focus() }
       }} onChange={event => { setText(event.target.value); setError(null) }} />
-      <HelpTooltip text={editing ? 'Terminar edición' : 'Editar etiqueta'}><Button ref={editControl} className="operations-edit" aria-label={editing ? 'Terminar edición de la etiqueta' : 'Editar etiqueta'} aria-expanded={editing} disabled={blocked || !unitId} onClick={() => { if (!blockedRef.current) setEditing(value => !value) }}>{editing ? <Check aria-hidden="true" /> : <Pencil aria-hidden="true" />}</Button></HelpTooltip>
+      <HelpTooltip text={editing ? 'Agregar etiqueta' : 'Editar etiqueta'}><Button ref={editControl} type={editing ? 'submit' : 'button'} className="operations-edit" aria-label={editing ? 'Agregar etiqueta' : 'Editar etiqueta'} aria-expanded={editing} disabled={blocked || !unitId} onClick={event => {
+        if (!editing) { event.preventDefault(); if (!blockedRef.current) setEditing(true) }
+      }}>{editing ? <Check aria-hidden="true" /> : <Pencil aria-hidden="true" />}</Button></HelpTooltip>
     </form>
     {error && <p id={errorId} className="operations-error" role="alert">{error}</p>}
   </div>

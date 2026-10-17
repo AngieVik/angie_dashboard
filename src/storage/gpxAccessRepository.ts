@@ -8,6 +8,11 @@ export interface GpxReadHandle {
 }
 
 interface GpxAccessRecord { fingerprint: string; handle: GpxReadHandle }
+const sessionFiles = new Map<string, File>()
+
+export function rememberGpxFile(fingerprint: string, file: File) {
+  sessionFiles.set(fingerprint, file)
+}
 
 // Separate from document recovery: only authorized handles, never GPX contents.
 async function withAccessTable<T>(action: (table: Table<GpxAccessRecord, string>) => Promise<T>): Promise<T> {
@@ -27,6 +32,8 @@ export async function rememberGpxAccess(fingerprint: string, handle: GpxReadHand
 }
 
 export async function readGpxAccess(fingerprint: string): Promise<File | null> {
+  const sessionFile = sessionFiles.get(fingerprint)
+  if (sessionFile) return sessionFile
   try {
     const record = await withAccessTable(table => table.get(fingerprint))
     if (!record || await record.handle.queryPermission({ mode: 'read' }) !== 'granted') return null

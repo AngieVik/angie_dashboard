@@ -4,6 +4,8 @@ export function snapModulePosition(layout: ModuleLayout, others: readonly Module
   const threshold = 18 / scale
   const overlaps = (candidate: ModuleLayout) => others.some(other => candidate.x < other.x + other.width && candidate.x + candidate.width > other.x && candidate.y < other.y + other.height && candidate.y + candidate.height > other.y)
   const horizontal = [0], vertical = [0]
+  const isTitleBar = (item: ModuleLayout) => item.height <= 29 && item.width > 29
+  const row = isTitleBar(layout) ? others.filter(other => isTitleBar(other) && Math.abs(layout.y - other.y) <= threshold) : []
   for (const other of others) {
     if (layout.y <= other.y + other.height + threshold && layout.y + layout.height >= other.y - threshold) {
       horizontal.push(other.x - layout.width, other.x + other.width, other.x, other.x + other.width - layout.width)
@@ -19,10 +21,12 @@ export function snapModulePosition(layout: ModuleLayout, others: readonly Module
   }
   let next = { ...layout }
   for (const [axis, candidates] of [['x', horizontal], ['y', vertical]] as const) {
+    // Compact bars in the same row share a baseline, including saved 29 px bars.
+    const aligned = axis === 'y' ? row.map(other => other.y).sort((a, b) => Math.abs(a - layout.y) - Math.abs(b - layout.y)) : []
     const closest = candidates.filter(value => value >= 0 && Math.abs(value - layout[axis]) <= threshold)
       .sort((a, b) => Math.abs(a - layout[axis]) - Math.abs(b - layout[axis]))
-      .find(value => !overlaps({ ...next, [axis]: value }))
-    if (closest !== undefined) next = { ...next, [axis]: closest }
+    const target = [...aligned, ...closest].find(value => !overlaps({ ...next, [axis]: value }))
+    if (target !== undefined) next = { ...next, [axis]: target }
   }
   return next
 }

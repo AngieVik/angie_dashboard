@@ -505,6 +505,7 @@ textarea {
 }
 .module-action-error { margin: 4px; color: var(--color-accent-yellow); }
 .logical-workspace .react-grid-item.react-draggable-dragging { transform: translate(var(--module-drag-x, var(--module-x)), var(--module-drag-y, var(--module-y))) !important; }
+.logical-workspace .react-grid-item.resizing { width: var(--module-resize-width) !important; height: var(--module-resize-height) !important; }
 .module-frame[data-fitting] { height: auto; }
 .module-frame[data-fitting] .module-content { flex: none; height: auto; overflow: visible; }
 .module-frame[data-fitting] .module-scaled-content > .information-module { display: flex; width: max-content; }

@@ -47,6 +47,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
             <DropdownMenuItem disabled={fileBusy} onSelect={() => { if (store.hasOpenPicker()) void store.openDocument(); else input.current?.click() }}>Abrir…</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument() }}>Guardar</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => { void store.saveDocument(true) }}>Guardar como…</DropdownMenuItem>
+            <DropdownMenuItem disabled={fileBusy || !ready} onSelect={() => { void store.generateReport() }}>Generar informe</DropdownMenuItem>
             <DropdownMenuItem disabled={fileBusy} onSelect={() => {
               setName(store.getSnapshot().document.document.title)
               setEditingName(true)
@@ -99,11 +100,12 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
 }
 
 export function DocumentNotices({ store = getDocumentStore() }: { store?: DocumentStore }) {
-  const { autosaveUnavailable, recoveryPending, replacementBlocked, storageConflict, recoveredPrevious, fileBusy, fileMessage, fileMessageRevision, downloadFallback, workspaceMessage } = useDocumentStore(store)
+  const { autosaveUnavailable, recoveryPending, replacementBlocked, storageConflict, recoveredPrevious, fileBusy, fileMessage, fileMessageRevision, downloadFallback, workspaceMessage, reportMessage } = useDocumentStore(store)
   return (
     <>
-      {(autosaveUnavailable || fileMessage || recoveredPrevious || workspaceMessage) && (
+      {(autosaveUnavailable || fileMessage || recoveredPrevious || workspaceMessage || reportMessage) && (
         <div className="document-notices">
+          {reportMessage && <FileValidationNotice key={reportMessage} message={reportMessage} role="status" />}
           {workspaceMessage && <Alert><span>{workspaceMessage}</span><Button disabled={fileBusy} onClick={() => { void store.saveWorkspaceNow() }}>Reintentar carpeta</Button><Button disabled={fileBusy} onClick={() => { void store.downloadJson() }}>Guardar JSON</Button></Alert>}
           {recoveredPrevious && <Alert><span>Se recuperó la copia anterior válida. El registro dañado se conserva en este dispositivo.</span></Alert>}
           {autosaveUnavailable && (
@@ -148,7 +150,7 @@ export function DocumentNotices({ store = getDocumentStore() }: { store?: Docume
   )
 }
 
-function FileValidationNotice({ message }: { message: string }) {
+function FileValidationNotice({ message, role = 'alert' }: { message: string; role?: 'alert' | 'status' }) {
   const [notice] = useValidationNotice(message)
-  return notice ? <Alert><span>{notice}</span></Alert> : null
+  return notice ? <Alert role={role}><span>{notice}</span></Alert> : null
 }

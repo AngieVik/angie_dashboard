@@ -30,18 +30,18 @@ export function OperationsModule({ store, selectedId }: { store: DocumentStore; 
               setError(null)
             } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
           }}><span className="operations-state-icon" aria-hidden="true">{icon}</span><span className="operations-state-name" aria-hidden="true">{status}</span><span className="operations-state-abbr technical-data" aria-hidden="true">{abbreviation}</span></Button></HelpTooltip>)}
-        <UnitNotes store={store} unitId={unit?.id} notes={unit?.operational.notes ?? ''} color={unit?.operational.notesColor} active={unit?.operational.status === 'Personalizada'} />
-        <UnitTags store={store} unitId={unit?.id} />
+        <UnitNotes key="custom-status" store={store} unitId={unit?.id} active={unit?.operational.status === 'Personalizada'} />
+        <UnitTags key="unit-tag" store={store} unitId={unit?.id} />
       </div>
     </div>
     {error && <p role="alert">{error}</p>}
   </div>
 }
 
-function UnitNotes({ store, unitId, notes, color, active }: { store: DocumentStore; unitId?: string; notes: string; color?: string; active: boolean }) {
+function UnitNotes({ store, unitId, active }: { store: DocumentStore; unitId?: string; active: boolean }) {
   const { blocked, blockedRef } = useViewportInteraction()
-  const [draftNotes, setDraftNotes] = useState(notes)
-  const [draftColor, setDraftColor] = useState(color ?? '#d63a3a')
+  const [draftNotes, setDraftNotes] = useState('')
+  const [draftColor, setDraftColor] = useState('#d63a3a')
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const editControl = useRef<HTMLButtonElement>(null)
   const [editing, setEditing] = useState(false)
@@ -63,11 +63,7 @@ function UnitNotes({ store, unitId, notes, color, active }: { store: DocumentSto
       <label className="operations-note-color" style={{ backgroundColor: draftColor }} title="Color de anotación">
         <input type="color" aria-label="Color de anotación" value={draftColor} disabled={blocked} onChange={event => {
           if (blockedRef.current) return
-          try {
-            if (unitId) store.mutateDocument(document => setUnitNotesColor(document, unitId, event.target.value))
-            setDraftColor(event.target.value); setError(null)
-          }
-          catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el color.') }
+          setDraftColor(event.target.value); setError(null)
         }} />
       </label>
       <Button className="operations-activate" aria-label="Aplicar estado personalizado" title={draftNotes || 'Personalizado'} aria-pressed={active} hidden={editing} disabled={blocked || !unitId} onClick={apply}><span className="operations-state-name" aria-hidden="true">{draftNotes || 'Personalizado'}</span><span className="operations-state-abbr technical-data" aria-hidden="true">PER</span></Button>
@@ -78,7 +74,6 @@ function UnitNotes({ store, unitId, notes, color, active }: { store: DocumentSto
         }
       }} onChange={event => {
         if (blockedRef.current) return
-        if (unitId) store.mutateDocument(document => setUnitNotes(document, unitId, event.target.value))
         setDraftNotes(event.target.value); setError(null)
       }} />
       <HelpTooltip text={editing ? 'Terminar edición' : 'Editar estado personalizado'}><Button ref={editControl} className="operations-edit" aria-label={editing ? 'Terminar edición del estado personalizado' : 'Editar estado personalizado'} aria-expanded={editing} disabled={blocked} onClick={() => { if (!blockedRef.current) setEditing(value => !value) }}>{editing ? <Check aria-hidden="true" /> : <Pencil aria-hidden="true" />}</Button></HelpTooltip>

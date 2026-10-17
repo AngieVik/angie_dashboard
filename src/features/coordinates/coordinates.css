@@ -17,6 +17,8 @@
 .coordinates-results { flex: 1; margin: 0; }
 .coordinates-results > div { flex: 1; min-height: calc(20px * var(--module-zoom, 1)); }
 .coordinates-entry svg { width: calc(16px * var(--module-zoom, 1)); height: calc(16px * var(--module-zoom, 1)); }
+.coordinates-entry > .coordinates-action { display: inline-flex; align-items: center; justify-content: center; width: calc(24px * var(--module-zoom, 1)); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
+.coordinates-entry > .coordinates-action:is(:hover:not(:disabled), :active:not(:disabled), :focus-visible) { border: 0; background: transparent; box-shadow: none; color: var(--color-accent-red); }
 
 .coordinates-results dd { position: relative; }
 .coordinates-results dd[data-copying="true"] .coordinates-value { visibility: hidden; }

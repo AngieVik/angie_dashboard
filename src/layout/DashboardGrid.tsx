@@ -29,6 +29,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const activeLayout = useRef<Layout>([])
+  const grid = useRef<HTMLDivElement>(null)
   const draggedModule = useRef<ModuleId | null>(null)
   const iconTap = useRef<{ pointerId: number; icon: HTMLButtonElement } | null>(null)
   useEffect(() => { if (blocked) iconTap.current = null }, [blocked])
@@ -89,6 +90,25 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     return { w: collapsed && Math.abs(w - 200) <= threshold ? 200 : next.width,
       h: module && !iconOnly && h <= 50 ? 27 : next.height }
   } }
+  const coordinatesHeight: LayoutConstraint = { name: 'coordinates-content-height', constrainSize: (item, w, h) => {
+    if (item.i !== 'coordinates' || blockedRef.current) return { w, h }
+    const module = modules.find(module => module.id === 'coordinates')
+    if (!module || module.layout.height <= 29) return { w, h }
+    const frame = grid.current?.querySelector<HTMLElement>('[data-module="coordinates"] .module-frame')
+    const content = frame?.querySelector<HTMLElement>('.module-scaled-content')
+    if (!frame || !content) return { w, h }
+    const measuring = content.getAttribute('data-measuring'), width = content.style.width
+    content.setAttribute('data-measuring', 'true'); content.style.width = Math.max(0, w - 2) + 'px'
+    try {
+      const chrome = (frame.querySelector<HTMLElement>('.module-header')?.offsetHeight ?? 27)
+        + (frame.querySelector<HTMLElement>('.module-controls')?.offsetHeight ?? 20) + 2
+      return { w, h: Math.max(h, Math.ceil(content.scrollHeight + chrome)) }
+    } finally {
+      if (measuring === null) content.removeAttribute('data-measuring')
+      else content.setAttribute('data-measuring', measuring)
+      content.style.width = width
+    }
+  } }
   function park(id: ModuleId, size: Size) {
     if (blockedRef.current) return
     const module = modules.find(module => module.id === id)
@@ -100,7 +120,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
       const occupied = parked.filter(other => y < other.y + other.height && y + size.height > other.y && x < other.x + other.width && x + size.width > other.x)
       if (!occupied.length) break
       x = Math.ceil(Math.max(...occupied.map(other => other.x + other.width)))
-      if (x + size.width > left + visible.width) { x = left; y += 29 }
+      if (x + size.width > left + visible.width) { x = left; y += size.height }
     }
     const next = { ...module.layout, ...size, x, y }
     onGrow?.(next); onLayout(id, next, 'resize'); onActive(id)
@@ -110,16 +130,26 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     node.style.setProperty('--module-drag-x', Math.max(viewOrigin.x, item.x) + 'px')
     node.style.setProperty('--module-drag-y', Math.max(viewOrigin.y, item.y) + 'px')
   }
+  const showResize: EventCallback = (_layout, _old, item, _placeholder, _event, node) => {
+    if (!node || !item || blockedRef.current) return
+    const container = node.closest<HTMLElement>('[data-module]')
+    if (!container) return
+    // RGL renders the raw pointer size during resize; draw the constrained size instead.
+    container.style.setProperty('--module-resize-width', item.w + 'px')
+    container.style.setProperty('--module-resize-height', item.h + 'px')
+  }
   function commit(kind: 'move' | 'resize'): EventCallback {
     return (layout, _old, item, _placeholder, _event, node) => {
       node?.style.removeProperty('--module-drag-x'); node?.style.removeProperty('--module-drag-y')
+      const container = node?.closest<HTMLElement>('[data-module]')
+      container?.style.removeProperty('--module-resize-width'); container?.style.removeProperty('--module-resize-height')
       if (blockedRef.current || !item) return
       const finalItem = layout.find(candidate => candidate.i === item.i)
       if (finalItem) onLayout(item.i as ModuleId, unpack(finalItem, bounds), kind)
     }
   }
   return (
-    <div onPointerDownCapture={event => {
+    <div ref={grid} onPointerDownCapture={event => {
       if (blockedRef.current) return
       draggedModule.current = null
       iconTap.current = null
@@ -147,7 +177,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     <GridLayout width={bounds.width} layout={layout} autoSize={false} style={{ height: bounds.height }}
       gridConfig={{ cols: bounds.width, rowHeight: 1, maxRows: bounds.height, margin: [0, 0], containerPadding: [0, 0] }}
       compactor={keepLayout}
-      constraints={[magneticEdges, origin, minMaxSize]}
+      constraints={[magneticEdges, coordinatesHeight, origin, minMaxSize]}
       positionStrategy={{ ...transformStrategy, scale }}
       dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button:not(.module-icon),input,textarea,select' }}
       resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar módulo"><SquareDimensions aria-hidden="true" /></span> }}
@@ -157,7 +187,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
           onActive(draggedModule.current)
         }
         showDrag(...args)
-      }} onDrag={showDrag} onDragStop={commit('move')} onResizeStop={commit('resize')}>
+      }} onDrag={showDrag} onDragStop={commit('move')} onResizeStart={showResize} onResize={showResize} onResizeStop={commit('resize')}>
       {modules.map(({ id, layout }) => (
         // RGL enters its pending drag state on press, before onDragStart runs.
         // Keep the current position available until constrained drag coordinates exist.
