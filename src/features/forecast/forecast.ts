@@ -6,7 +6,8 @@ export function parseForecastLocation(value: string): string | null {
     const url = new URL(value.trim())
     if (url.protocol !== 'https:' || !['www.aemet.es', 'aemet.es'].includes(url.hostname) || url.username || url.password || url.port) return null
     const match = url.pathname.match(/^\/(?:es|ca|gl|va|eu|en|fr)\/eltiempo\/(?:prediccion\/municipios\/(?:mostrarwidget\/)?|widgets\/municipios\/)([a-z0-9-]+-id\d{5})\/?$/i)
-    return match ? AEMET_MUNICIPALITIES_URL + '/' + match[1].toLowerCase() : null
+    const municipality = match?.[1]
+    return municipality ? AEMET_MUNICIPALITIES_URL + '/' + municipality.toLowerCase() : null
   } catch { return null }
 }
 

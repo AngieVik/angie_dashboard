@@ -64,8 +64,7 @@ const start = new Date(2026, 9, 17, 9, 30, 0)
 
 function documentWithTitle(title: string) {
   const document = createEmptyDocument(title)
-  document.document.createdAt = start.toISOString()
-  document.document.updatedAt = start.toISOString()
+  document.document = { ...document.document, createdAt: start.toISOString(), updatedAt: start.toISOString() }
   return document
 }
 
@@ -125,7 +124,7 @@ describe('guardado por carpetas de dashboards', () => {
     const files = workspace(root)
     const first = documentWithTitle('Operativo')
     const second = documentWithTitle('Operativo')
-    second.document.id = '12345678-1234-4123-8123-123456789abc'
+    second.document = { ...second.document, id: '12345678-1234-4123-8123-123456789abc' }
     expect((await files.save(first)).status).toBe('saved')
     const firstText = await dashboardText(root, 'Operativo')
 
