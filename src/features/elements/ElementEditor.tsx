@@ -6,12 +6,12 @@ import { getPinBox, ICON_CATALOG } from './iconCatalog'
 import { clampAssetScale } from './elementCommands'
 import { getPinAnchorFromPoint, getPinAnchorPoint, getPinNameLayout, PIN_NAME_COLORS, pinNameLines, pinNameStyle, pinTransform } from './pinPresentation'
 import { Button } from '../../components/ui/button'
-import { Crosshair, FlipHorizontal2, FlipVertical2 } from 'lucide-react'
+import { Crosshair, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical } from 'lucide-react'
 import { Input } from '../../components/ui/input'
 import { Slider } from '../../components/ui/slider'
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group'
-import { Textarea } from '../../components/ui/textarea'
-import { useValidationNotice } from '../../components/ui/useValidationNotice'
+import { Textarea } from '@/components/ui/textarea'
+import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 
@@ -196,8 +196,8 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
           <Slider label="Giro del pin" min={0} max={360} value={rotation} onValueChange={value => { if (!blockedRef.current) { changed.current.add('rotation'); setRotation(value) } }} disabled={blocked} />
           <output aria-label="Giro actual">{rotation}°</output>
           <div className="element-transform-controls">
-            <Button aria-label="Invertir horizontalmente" title="Invertir horizontalmente" aria-pressed={flipX} onClick={() => { if (!blockedRef.current) { changed.current.add('flipX'); setFlipX(value => !value) } }}><FlipHorizontal2 aria-hidden="true" /></Button>
-            <Button aria-label="Invertir verticalmente" title="Invertir verticalmente" aria-pressed={flipY} onClick={() => { if (!blockedRef.current) { changed.current.add('flipY'); setFlipY(value => !value) } }}><FlipVertical2 aria-hidden="true" /></Button>
+            <Button aria-label="Invertir horizontalmente" title="Invertir horizontalmente" aria-pressed={flipX} onClick={() => { if (!blockedRef.current) { changed.current.add('flipX'); setFlipX(value => !value) } }}><TrianglesCenterlineDashedVertical aria-hidden="true" /></Button>
+            <Button aria-label="Invertir verticalmente" title="Invertir verticalmente" aria-pressed={flipY} onClick={() => { if (!blockedRef.current) { changed.current.add('flipY'); setFlipY(value => !value) } }}><TrianglesCenterlineDashedHorizontal aria-hidden="true" /></Button>
           </div>
         </div>
       </div>

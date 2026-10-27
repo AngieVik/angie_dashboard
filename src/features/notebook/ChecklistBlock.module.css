@@ -1,0 +1,9 @@
+@layer overrides {
+  .field {
+    min-height: calc(var(--control-height) + 4px);
+    padding-right: calc(2 * var(--control-height) + 4px);
+  }
+
+  .first { padding-right: calc(2 * var(--control-height) + 6px); }
+  .checked { color: var(--color-text-secondary); }
+}

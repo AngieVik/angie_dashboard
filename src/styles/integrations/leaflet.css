@@ -1,0 +1,10 @@
+@import 'leaflet/dist/leaflet.css' layer(vendor);
+
+@layer overrides {
+  :is(.map-canvas, .reports-map-surface).leaflet-container,
+  :is(.map-canvas, .reports-map-surface).leaflet-container .leaflet-control-zoom-in,
+  :is(.map-canvas, .reports-map-surface).leaflet-container .leaflet-control-zoom-out,
+  :is(.map-canvas, .reports-map-surface).leaflet-container a.leaflet-popup-close-button {
+    font-family: var(--font-interface);
+  }
+}

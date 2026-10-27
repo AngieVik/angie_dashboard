@@ -2,6 +2,10 @@ import type { CSSProperties } from 'react'
 import type { DocumentElement, ElementVisual, PinAnchor, PinNameColor, Position } from '../../domain/document/types'
 import { getPinBox } from './iconCatalog'
 
+// A shared reference keeps equal pin scales equal regardless of placement zoom.
+export const PIN_REFERENCE_ZOOM = 16
+export const PIN_BASE_SCALE = 6
+
 export const PIN_ANCHORS: readonly { value: Exclude<PinAnchor, Position>; label: string; x: number; y: number }[] = [
   { value: 'top-left', label: 'Superior izquierdo', x: 0, y: 0 },
   { value: 'top', label: 'Superior central', x: .5, y: 0 },

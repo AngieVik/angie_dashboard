@@ -10,9 +10,11 @@ import { loadMunicipalities, searchMunicipalities } from './municipalities'
 import type { Municipality } from './municipalities'
 import { ForecastTable } from './ForecastTable'
 import { useForecast } from './useForecast'
+import type { ForecastData, ForecastWarningDetails } from './forecastTypes'
+import type { ForecastReportSnapshot } from '../document/weatherReport'
 import './forecast.css'
 
-export function ForecastModule({ navigationKey }: { navigationKey: string }) {
+export function ForecastModule({ navigationKey, onReportChange }: { navigationKey: string; onReportChange?: (snapshot: ForecastReportSnapshot | null) => void }) {
   const fieldId = useId()
   const root = useRef<HTMLDivElement>(null)
   const options = useRef<HTMLDivElement>(null)
@@ -33,6 +35,18 @@ export function ForecastModule({ navigationKey }: { navigationKey: string }) {
   const activeSuggestion = suggestions[activeIndex]
   const slug = location?.slice(location.lastIndexOf('/') + 1) ?? null
   const forecast = useForecast(slug, online)
+  const warningReport = useRef<{ forecast: ForecastData | null; details: ForecastWarningDetails | null } | null>(null)
+  const reportLocation = forecast.data?.municipality ?? selected?.name ?? location ?? ''
+  const previous = !online || Boolean(forecast.error || forecast.loading || forecast.data?.stale)
+  const rememberWarningReport = useCallback((details: ForecastWarningDetails | null) => {
+    warningReport.current = { forecast: forecast.data, details }
+    onReportChange?.(location ? { locationKey: location, location: reportLocation, data: forecast.data, warningDetails: details, previous } : null)
+  }, [location, reportLocation, forecast.data, previous, onReportChange])
+  useLayoutEffect(() => {
+    const warning = warningReport.current
+    onReportChange?.(location ? { locationKey: location, location: reportLocation, data: forecast.data,
+      warningDetails: warning && warning.forecast === forecast.data ? warning.details : null, previous } : null)
+  }, [location, reportLocation, forecast.data, previous, onReportChange])
   const formatDate = (value: string) => new Date(value).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', dateStyle: 'short', timeStyle: 'short' })
 
   useLayoutEffect(() => { requestSpaceRef.current = requestSpace }, [requestSpace])
@@ -114,7 +128,7 @@ export function ForecastModule({ navigationKey }: { navigationKey: string }) {
       {!online ? 'Sin conexión.' : 'No se pudo actualizar.'} {forecast.data ? 'Se muestra una consulta anterior.' : 'El pronóstico necesita conexión.'}</p>}
     {forecast.loading && <p className="forecast-message" role="status">Consultando AEMET…</p>}
     {!location ? <p className="forecast-message">Selecciona un municipio.</p> : forecast.data &&
-      <div className="forecast-view" role="region" aria-label="Tabla de pronóstico" tabIndex={0}><ForecastTable key={slug} data={forecast.data} onContentChange={fitContent} /></div>}
+      <div className="forecast-view" role="region" aria-label="Tabla de pronóstico" tabIndex={0}><ForecastTable key={slug} data={forecast.data} onContentChange={fitContent} onWarningReportChange={rememberWarningReport} /></div>}
     {location && <div className="forecast-footer">
       <a className="forecast-source" href={forecast.data?.sourceUrl ?? location} target="_blank" rel="noopener noreferrer" aria-disabled={blocked} tabIndex={blocked ? -1 : 0}
         onClick={event => { if (blockedRef.current) event.preventDefault() }}>{selected ? selected.name + (selected.name === selected.province ? '' : ' · ' + selected.province) + ' · © AEMET' : '© AEMET'}</a>

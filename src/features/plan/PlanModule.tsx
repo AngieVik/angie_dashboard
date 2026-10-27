@@ -3,7 +3,7 @@ import { Ambulance, Copy, Eraser, Eye, EyeOff, Focus, Hand, MapPin, MousePointer
 import { Button } from '../../components/ui/button'
 import { HelpTooltip } from '../../components/ui/tooltip'
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '../../components/ui/alert-dialog'
-import { useValidationNotice } from '../../components/ui/useValidationNotice'
+import { useValidationNotice } from '@/hooks/useValidationNotice'
 import type { AngieDocument, PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'

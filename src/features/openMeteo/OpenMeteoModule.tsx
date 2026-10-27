@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useState } from 'react'
 import { ArrowDownToLine, Search, Trash } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -9,6 +9,7 @@ import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { toGeographic } from '../coordinates/convertCoordinate'
 import { clearWeatherPoint, readWeatherPoint, writeWeatherPoint } from './openMeteo'
 import { useCurrentWeather } from './useCurrentWeather'
+import type { CurrentWeatherReportSnapshot } from '../document/weatherReport'
 import './openMeteo.css'
 
 function number(value: number | null, digits = 1) { return value === null ? '—' : value.toLocaleString('es-ES', { maximumFractionDigits: digits }) }
@@ -17,13 +18,15 @@ function date(value: string, timeZone: string) {
   catch { return new Date(value).toLocaleString('es-ES', { timeZone: 'UTC', dateStyle: 'short', timeStyle: 'short' }) + ' UTC' }
 }
 
-export function OpenMeteoModule({ navigationKey, getCoordinatesInput }: { navigationKey: string; getCoordinatesInput: () => string }) {
+export function OpenMeteoModule({ navigationKey, getCoordinatesInput, onReportChange }: { navigationKey: string; getCoordinatesInput: () => string; onReportChange?: (snapshot: CurrentWeatherReportSnapshot | null) => void }) {
   const id = useId(), { blocked, blockedRef } = useViewportInteraction()
   const [point, setPoint] = useState(() => readWeatherPoint(navigationKey))
   const [input, setInput] = useState(() => point ? `${point.latitude}, ${point.longitude}` : '')
   const [error, setError] = useState<string | null>(null)
   const [revision, setRevision] = useState(0), [online, setOnline] = useState(() => navigator.onLine)
   const weather = useCurrentWeather(point, revision, online), data = weather.data
+  const previous = !online || Boolean(weather.error || weather.loading)
+  useLayoutEffect(() => { onReportChange?.(point ? { point, data, previous } : null) }, [point, data, previous, onReportChange])
   useEffect(() => {
     const update = () => { setOnline(navigator.onLine); if (navigator.onLine) setRevision(value => value + 1) }
     window.addEventListener('online', update); window.addEventListener('offline', update)

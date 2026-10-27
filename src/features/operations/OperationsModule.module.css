@@ -1,0 +1,19 @@
+@layer overrides {
+  .annotation {
+    flex: 1;
+    width: 0;
+    height: var(--field-height);
+    margin: 0;
+    padding: 1px 2px;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    outline: none;
+    overflow: auto;
+    white-space: pre;
+  }
+
+  .annotation:disabled { opacity: 1; }
+  .annotation[aria-invalid="true"] { border-color: var(--color-accent-red); }
+  .annotation:focus-visible { border: 0; }
+}

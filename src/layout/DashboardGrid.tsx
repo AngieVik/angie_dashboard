@@ -1,20 +1,18 @@
 import { Fragment, useEffect, useRef } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
-import { SquareDimensions } from 'lucide-react'
 import GridLayout from 'react-grid-layout'
 import type { EventCallback, LayoutItem } from 'react-grid-layout'
 import { transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/core'
 import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
-import 'react-grid-layout/css/styles.css'
-import 'react-resizable/css/styles.css'
 import { snapModulePosition, snapModuleSize } from './snapModulePosition'
 import { ModuleFrame } from './ModuleFrame'
 import type { ModuleActions } from './ModuleFrame'
-import { MODULE_REGISTRY } from './moduleRegistry'
+import { MODULE_AUTO_HEIGHT_LIMIT, MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
 import { readNavigation, writeNavigation } from './navigationStorage'
 import { useViewportInteraction } from './ViewportContext'
+import { HandleBottomRight } from './WindowResize'
 
 export interface OpenModule { id: ModuleId; layout: ModuleLayout }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
@@ -72,7 +70,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
   }, [bounds, visible, scale, onGrow, blockedRef])
   const layout = modules.map(({ id, layout }) => ({ i: id, x: layout.x, y: layout.y, w: layout.width, h: layout.height,
     minW: MODULE_REGISTRY[id].minimum[0], minH: MODULE_REGISTRY[id].minimum[1], maxW: bounds.width, maxH: bounds.height,
-    isDraggable: !blocked, isResizable: !blocked }))
+    isDraggable: !blocked, isResizable: !blocked && layout.height > 29 }))
   const origin: LayoutConstraint = { name: 'workspace-origin', constrainPosition: (_item, x, y) => ({ x: Math.max(viewOrigin.x, x), y: Math.max(viewOrigin.y, y) }) }
   const magneticEdges: LayoutConstraint = { name: 'magnetic-edges', constrainPosition: (item, x, y) => {
     if (!magnet || blockedRef.current) return { x, y }
@@ -90,23 +88,59 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     return { w: collapsed && Math.abs(w - 200) <= threshold ? 200 : next.width,
       h: module && !iconOnly && h <= 50 ? 27 : next.height }
   } }
-  const coordinatesHeight: LayoutConstraint = { name: 'coordinates-content-height', constrainSize: (item, w, h) => {
-    if (item.i !== 'coordinates' || blockedRef.current) return { w, h }
-    const module = modules.find(module => module.id === 'coordinates')
+  const contentMinimum: LayoutConstraint = { name: 'module-content-minimum', constrainSize: (item, w, h) => {
+    if (blockedRef.current) return { w, h }
+    const sizeMode = MODULE_REGISTRY[item.i as ModuleId].sizeMode
+    if (sizeMode === 'specific') return { w, h }
+    const module = modules.find(module => module.id === item.i)
     if (!module || module.layout.height <= 29) return { w, h }
-    const frame = grid.current?.querySelector<HTMLElement>('[data-module="coordinates"] .module-frame')
+    const frame = grid.current?.querySelector<HTMLElement>('[data-module="' + item.i + '"] .module-frame')
     const content = frame?.querySelector<HTMLElement>('.module-scaled-content')
     if (!frame || !content) return { w, h }
     const measuring = content.getAttribute('data-measuring'), width = content.style.width
-    content.setAttribute('data-measuring', 'true'); content.style.width = Math.max(0, w - 2) + 'px'
+    const clock = content.querySelector<HTMLElement>('.clock-module'), clockSizing = clock?.getAttribute('data-sizing')
+    const header = frame.querySelector<HTMLElement>('.module-header')
+    const scrollbar = frame.querySelector<HTMLElement>('.module-content')
+    const scrollbarWidth = scrollbar ? scrollbar.offsetWidth - scrollbar.clientWidth : 0
     try {
-      const chrome = (frame.querySelector<HTMLElement>('.module-header')?.offsetHeight ?? 27)
-        + (frame.querySelector<HTMLElement>('.module-controls')?.offsetHeight ?? 20) + 2
-      return { w, h: Math.max(h, Math.ceil(content.scrollHeight + chrome)) }
+      clock?.setAttribute('data-sizing', 'true')
+      content.setAttribute('data-measuring', 'minimum-width')
+      let headerWidth = 0
+      if (header) {
+        const style = getComputedStyle(header)
+        headerWidth = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+          + (parseFloat(style.columnGap) || 0) * Math.max(0, header.children.length - 1)
+        for (const child of Array.from(header.children)) {
+          if (!(child instanceof HTMLElement)) continue
+          const childStyle = getComputedStyle(child)
+          headerWidth += (child.tagName === 'H2' ? 0 : child.offsetWidth)
+            + (parseFloat(childStyle.marginLeft) || 0) + (parseFloat(childStyle.marginRight) || 0)
+        }
+      }
+      w = Math.max(w, Math.ceil(Math.max(content.scrollWidth + scrollbarWidth, headerWidth) + 2))
+      content.setAttribute('data-measuring', 'true'); content.style.width = Math.max(0, w - 2 - scrollbarWidth) + 'px'
+      const chrome = (header?.offsetHeight ?? 27)
+        + (frame.querySelector<HTMLElement>('.module-controls')?.offsetHeight ?? 25) + 2
+      let minimumHeight = content.scrollHeight
+      if (sizeMode === 'editable' || sizeMode === 'feed') {
+        const viewport = content.querySelector<HTMLElement>('.element-rows,.element-editor,.information-module,.timeline-entries,.notebook-list,.timer-list')
+        const row = viewport?.querySelector<HTMLElement>('.element-row,.information-card,.timeline-entries li,.notebook-block,.timer-row,fieldset > :first-child')
+        if (viewport && row) {
+          const style = getComputedStyle(viewport), rowStyle = getComputedStyle(row)
+          const firstRowHeight = row.offsetHeight + (parseFloat(rowStyle.marginTop) || 0) + (parseFloat(rowStyle.marginBottom) || 0)
+            + (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0)
+            + (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0)
+          minimumHeight -= Math.max(0, viewport.offsetHeight - firstRowHeight)
+        }
+        minimumHeight = Math.min(MODULE_AUTO_HEIGHT_LIMIT, Math.ceil(minimumHeight + chrome))
+      } else minimumHeight = Math.ceil(minimumHeight + chrome)
+      return { w, h: Math.max(h, minimumHeight) }
     } finally {
       if (measuring === null) content.removeAttribute('data-measuring')
       else content.setAttribute('data-measuring', measuring)
       content.style.width = width
+      if (clockSizing == null) clock?.removeAttribute('data-sizing')
+      else clock?.setAttribute('data-sizing', clockSizing)
     }
   } }
   function park(id: ModuleId, size: Size) {
@@ -177,10 +211,10 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     <GridLayout width={bounds.width} layout={layout} autoSize={false} style={{ height: bounds.height }}
       gridConfig={{ cols: bounds.width, rowHeight: 1, maxRows: bounds.height, margin: [0, 0], containerPadding: [0, 0] }}
       compactor={keepLayout}
-      constraints={[magneticEdges, coordinatesHeight, origin, minMaxSize]}
+      constraints={[magneticEdges, contentMinimum, origin, minMaxSize]}
       positionStrategy={{ ...transformStrategy, scale }}
       dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button:not(.module-icon),input,textarea,select' }}
-      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar módulo"><SquareDimensions aria-hidden="true" /></span> }}
+      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar módulo"><HandleBottomRight aria-hidden="true" /></span> }}
       onDragStart={(...args) => {
         if (!blockedRef.current && args[2]) {
           draggedModule.current = args[2].i as ModuleId

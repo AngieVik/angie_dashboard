@@ -1,5 +1,4 @@
 import { migrateDocument } from '../../domain/document/migrateDocument'
-import { serializeDocument } from '../../domain/document/serializeDocument'
 import { validateEmbeddedImage } from './embeddedImage'
 import type { AngieDocument } from '../../domain/document/types'
 import type { WorkspaceFiles } from './workspaceFiles'
@@ -16,22 +15,15 @@ export interface SaveFileHandle {
 }
 
 export interface FilePlatform {
-  pickSave?: (suggestedName: string) => Promise<SaveFileHandle>
   pickOpen?: () => Promise<{ file: DocumentFile; handle: SaveFileHandle }>
   download(text: string, filename: string, mimeType?: string): void
 }
 
 export interface FileAccessContext {
   platform: FilePlatform
-  link?: { handle: SaveFileHandle; title: string; contents?: string }
   now?: () => Date
   workspace?: WorkspaceFiles
 }
-
-export type SaveOutcome =
-  | { status: 'saved' | 'downloaded' | 'cancelled' }
-  | { status: 'fallback'; message: string; download: () => Promise<SaveOutcome> }
-  | { status: 'error'; message: string }
 
 export type LoadOutcome =
   | { status: 'loaded'; document: AngieDocument; migrated: boolean }
@@ -57,73 +49,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Error desconocido'
 }
 
-export async function saveVisibleDocument(document: AngieDocument, context: FileAccessContext, saveAs = false): Promise<SaveOutcome> {
-  let text: string
-  try {
-    text = serializeDocument(document)
-  } catch (error) {
-    return { status: 'error', message: errorMessage(error) }
-  }
-  const title = document.document.title
-  const filename = suggestFilename(title, context.now?.())
-  const download = async (): Promise<SaveOutcome> => {
-    try {
-      context.platform.download(text, filename)
-      return { status: 'downloaded' }
-    } catch (error) {
-      return { status: 'error', message: `No se pudo descargar el JSON: ${errorMessage(error)}` }
-    }
-  }
-  if (!context.platform.pickSave) return download()
-
-  let picking = false
-  try {
-    let handle: SaveFileHandle
-    const linked = saveAs ? undefined : context.link
-    if (linked) {
-      handle = linked.handle
-      let permission = await handle.queryPermission({ mode: 'readwrite' })
-      if (permission === 'prompt' && handle.requestPermission) permission = await handle.requestPermission({ mode: 'readwrite' })
-      if (permission !== 'granted') {
-        throw new Error('No hay permiso para actualizar el archivo vinculado')
-      }
-    } else {
-      // Call the picker directly from the user action, before awaiting anything.
-      picking = true
-      handle = await context.platform.pickSave(filename)
-      picking = false
-    }
-    const write = async () => {
-      if (linked?.contents !== undefined && handle.getFile) {
-        const current = await loadVisibleDocument(await handle.getFile())
-        if (current.status !== 'loaded' || serializeDocument(current.document) !== linked.contents) {
-          throw new Error('El archivo vinculado cambió fuera de esta pestaña. Abre su versión o guarda una copia con Guardar como.')
-        }
-      }
-      const writer = await handle.createWritable()
-      try { await writer.write(text); await writer.close() }
-      catch (error) {
-        try { await writer.abort() } catch { /* Preserve the original failure. */ }
-        throw error
-      }
-      context.link = { handle, title, contents: text }
-    }
-    if (navigator.locks?.request) await navigator.locks.request('angie-dashboard-workspace-write', write)
-    else await write()
-    return { status: 'saved' }
-  } catch (error) {
-    // Only cancellation of a picker is silent; a cancelled write is an error.
-    if (picking && typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError') {
-      return { status: 'cancelled' }
-    }
-    return {
-      status: 'fallback',
-      message: `No se pudo guardar el archivo: ${errorMessage(error)}`,
-      download,
-    }
-  }
-}
-
 export async function loadVisibleDocument(file: DocumentFile): Promise<LoadOutcome> {
   try {
     const result = migrateDocument(JSON.parse(await file.text()))
@@ -138,10 +63,6 @@ export async function loadVisibleDocument(file: DocumentFile): Promise<LoadOutco
 export function createBrowserFilePlatform(): FilePlatform {
   const browser = window as Window & {
     showOpenFilePicker?: (options: { multiple: false; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<(SaveFileHandle & { getFile(): Promise<File> })[]>
-    showSaveFilePicker?: (options: {
-      suggestedName: string
-      types: { description: string; accept: Record<string, string[]> }[]
-    }) => Promise<SaveFileHandle>
   }
   return {
     pickOpen: browser.showOpenFilePicker ? async () => {
@@ -149,12 +70,6 @@ export function createBrowserFilePlatform(): FilePlatform {
       if (!handle) throw new DOMException('Cancelado', 'AbortError')
       return { file: await handle.getFile(), handle }
     } : undefined,
-    pickSave: browser.showSaveFilePicker
-      ? suggestedName => browser.showSaveFilePicker!({
-        suggestedName,
-        types: [{ description: 'Documento Angie Dashboard JSON', accept: { 'application/json': ['.json'] } }],
-      })
-      : undefined,
     download(text, filename, mimeType = 'application/json') {
       const url = URL.createObjectURL(new Blob([text], { type: mimeType }))
       const anchor = document.createElement('a')

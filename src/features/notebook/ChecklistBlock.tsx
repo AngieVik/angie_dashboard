@@ -1,14 +1,15 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { NotebookBlock } from '../../domain/document/types'
-import { Textarea } from '../../components/ui/textarea'
+import { Textarea } from '@/components/ui/textarea'
 import { HelpTooltip } from '../../components/ui/tooltip'
 import { Button } from '../../components/ui/button'
 import { Minus, Plus } from 'lucide-react'
 import { useAutoGrowingTextarea } from './useAutoGrowingTextarea'
+import styles from './ChecklistBlock.module.css'
 
-function ItemText({ text, index, disabled, onEdit }: { text: string; index: number; disabled: boolean; onEdit: (text: string) => void }) {
+function ItemText({ text, index, checked, disabled, onEdit }: { text: string; index: number; checked: boolean; disabled: boolean; onEdit: (text: string) => void }) {
   const ref = useAutoGrowingTextarea(text)
-  return <Textarea ref={ref} aria-label={`Texto del elemento ${index + 1}`} rows={1} value={text} disabled={disabled}
+  return <Textarea ref={ref} className={`${styles.field} ${index === 0 ? styles.first : ''} ${checked ? styles.checked : ''}`.trim()} aria-label={`Texto del elemento ${index + 1}`} rows={1} value={text} disabled={disabled}
     onChange={event => onEdit(event.target.value)} />
 }
 
@@ -33,16 +34,16 @@ export function ChecklistBlock({ block, disabled, onAdd, onEdit, onCheck, onDele
           else { pendingFocus.current = 0; onAdd(undefined, { text: '', checked: event.target.checked }) }
         }} />
       <div className="notebook-item-field">
-        <ItemText text={item?.text ?? ''} index={index} disabled={disabled} onEdit={text => {
+        <ItemText text={item?.text ?? ''} index={index} checked={item?.checked ?? false} disabled={disabled} onEdit={text => {
           if (item) onEdit(item.id, text)
           else { pendingFocus.current = 0; onAdd(undefined, { text, checked: false }) }
         }} />
         <div className="notebook-item-actions">
-          <HelpTooltip text="Eliminar elemento"><Button className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled || !item} onClick={() => {
-            if (!item) return
+          {index > 0 && <HelpTooltip text="Eliminar elemento"><Button className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled || !item} onClick={() => {
+            if (!item || index === 0) return
             pendingFocus.current = Math.max(0, Math.min(index, block.items.length - 2))
             onDelete(item.id)
-          }}><Minus aria-hidden="true" /></Button></HelpTooltip>
+          }}><Minus aria-hidden="true" /></Button></HelpTooltip>}
           <HelpTooltip text="Añadir elemento"><Button className="notebook-item-control" aria-label={item ? `Añadir elemento después de ${index + 1}` : 'Añadir elemento'} disabled={disabled} onClick={() => {
             pendingFocus.current = item ? index + 1 : 0
             onAdd(item?.id)

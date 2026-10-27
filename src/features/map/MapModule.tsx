@@ -21,7 +21,7 @@ import { readGpxAccess, rememberGpxAccess, rememberGpxFile } from '../../storage
 import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
 import { closestGpxLocation, getGpxMetrics, getKilometerMarks } from './gpxMetrics'
 import type { GpxLocation } from './gpxMetrics'
-import { MAX_MAP_LATITUDE, readMapView, writeMapView } from './mapNavigation'
+import { MAX_MAP_LATITUDE, readMapView, writeMapView, writeMapFrame } from './mapNavigation'
 import { MAP_BACKGROUNDS, PNOA_INFORMATION } from './mapBackgrounds'
 import type { MapBackground } from './mapBackgrounds'
 import type { MapDocument, MapGpxReference, MapMarker } from '../../domain/document/types'
@@ -36,7 +36,6 @@ import { useMapSearch } from './useMapSearch'
 import { MapElevation } from './MapElevation'
 import { GpxElevationProfile } from './GpxElevationProfile'
 import type { GpxProfileSample } from './gpxProfile'
-import 'leaflet/dist/leaflet.css'
 import './map.css'
 
 interface MapSelection extends GeographicCoordinate { gpx?: { fileId: string; location: GpxLocation } }
@@ -241,6 +240,13 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const map = L.map(node, { zoomControl: false, minZoom: 2, maxZoom: 19, zoomSnap: .25, zoomDelta: .25, wheelPxPerZoomLevel: 240, preferCanvas: true, zoomAnimation: false })
       .setView([view.latitude, view.longitude], view.zoom)
     mapRef.current = map
+    function rememberFrame() {
+      if (!node || !node.clientWidth || !node.clientHeight) return
+      const size = map.getSize(), center = map.getPixelBounds().getCenter()
+      writeMapFrame(navigationKey, { x: center.x, y: center.y, zoom: map.getZoom(), width: size.x, height: size.y })
+    }
+    map.on('moveend resize', rememberFrame)
+    rememberFrame()
     map.attributionControl.addAttribution('Búsqueda: <a href="https://nominatim.org">Nominatim</a> · &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>')
     L.control.scale({ imperial: false }).addTo(map)
     map.on('click', event => {
@@ -297,7 +303,6 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
 
   useLayoutEffect(() => {
     const map = mapRef.current
-    setInformationTileError(false)
     if (!map || !showInformation) return
     const tiles = L.tileLayer(PNOA_INFORMATION.url, { attribution: PNOA_INFORMATION.attribution, maxZoom: 19, zIndex: 2 })
     const failures = new Set<HTMLImageElement>()
@@ -312,6 +317,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     if (blockedRef.current || !map || background !== 'pnoa') return
     const center = map.getCenter().wrap()
     writeMapView(navigationKey, { latitude: Math.max(-MAX_MAP_LATITUDE, Math.min(MAX_MAP_LATITUDE, center.lat)), longitude: center.lng, zoom: map.getZoom(), pnoaInformation: next })
+    if (next !== pnoaInformation) setInformationTileError(false)
     setPnoaInformation(next)
   }
 
@@ -320,6 +326,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     if (blockedRef.current || !map) return
     const center = map.getCenter().wrap()
     writeMapView(navigationKey, { latitude: Math.max(-MAX_MAP_LATITUDE, Math.min(MAX_MAP_LATITUDE, center.lat)), longitude: center.lng, zoom: map.getZoom(), background: next })
+    if (next !== background) setInformationTileError(false)
     setBackground(next)
   }
 

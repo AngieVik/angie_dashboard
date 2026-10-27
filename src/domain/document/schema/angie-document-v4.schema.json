@@ -153,6 +153,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "reports": { "$ref": "#/$defs/layout" },
         "plan": { "$ref": "#/$defs/layout" },
         "forecast": { "$ref": "#/$defs/layout" },
         "openMeteo": { "$ref": "#/$defs/layout" },

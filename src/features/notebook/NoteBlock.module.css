@@ -1,0 +1,6 @@
+@layer overrides {
+  .note {
+    min-height: calc(var(--control-height) + 4px);
+    padding-right: calc(var(--control-height) + 4px);
+  }
+}

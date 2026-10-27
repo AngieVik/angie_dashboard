@@ -1,37 +1,46 @@
-* {
-  box-sizing: border-box;
+@layer reset {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
 }
 
-html,
-body,
-#root {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-interface);
+    font-size: var(--font-size-body);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--color-selection-border);
+    outline-offset: 2px;
+  }
 }
 
-body {
-  background: var(--color-background);
-  color: var(--color-text);
-  font-family: var(--font-interface);
-  font-size: var(--font-size-body);
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-:focus-visible {
-  outline: 1px solid var(--color-selection-border);
-  outline-offset: 2px;
-}
-
+/* Component and layout rules stay unlayered until their owning surfaces are migrated. */
 .technical-data {
-  font-family: var(--font-technical);
+  font-family: var(--font-interface);
   font-variant-numeric: tabular-nums;
 }
 
@@ -172,7 +181,7 @@ textarea {
   align-self: flex-end;
   max-width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--color-accent-yellow);
+  border: 1px solid var(--color-accent-red);
   border-radius: var(--radius-control);
   background: var(--surface-overlay);
   box-shadow: 0 4px 14px rgb(0 0 0 / 55%);
@@ -241,10 +250,12 @@ textarea {
 .zoom-control { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 2px; margin: 0; color: var(--color-text-secondary); font-size: 12px; }
 .zoom-control input { appearance: textfield; width: 4ch; min-width: 0; padding: 1px 0; border: 0; background: transparent; color: var(--color-text); text-align: right; font: inherit; }
 .zoom-control input::-webkit-inner-spin-button, .zoom-control input::-webkit-outer-spin-button { appearance: none; margin: 0; }
-.module-controls { display: flex; flex: 0 0 20px; align-items: center; gap: 3px; padding: 0 22px 0 2px; overflow: hidden; background: var(--color-module); }
+.module-controls { display: flex; flex: 0 0 25px; align-items: center; gap: 3px; padding: 0 52px 0 2px; overflow: hidden; background: var(--color-module); }
+.module-auto-resize { position: absolute; right: 24px; bottom: 0; }
+.module-controls[data-zoom-hidden="true"] .zoom-control { visibility: hidden; }
 .module-controls .zoom-control { gap: 1px; font-size: 11px; line-height: 1; }
 .module-controls .zoom-control input { height: 18px; padding: 0; }
-.module-controls .zoom-trigger { width: 18px; height: 18px; border-radius: var(--radius-field); }
+.module-controls .zoom-trigger { width: 25px; height: 25px; border-radius: var(--radius-field); }
 .module-scaled-content { container-type: inline-size; min-width: 0; min-height: 0; }
 .open-modules { display: flex; flex: 0 0 auto; align-items: center; gap: 0; }
 .open-modules .document-button, .app-header .magnet-button { width: 26px; padding: 0; }
@@ -283,20 +294,19 @@ textarea {
 .module-frame { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid var(--color-frame-border); border-radius: 4px;
   background: var(--color-module);
   box-shadow: var(--shadow-panel); }
-.module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: center; justify-content: space-between; gap: 5px; padding: 0 24px 0 0;
+.module-header { display: flex; flex: 0 0 27px; min-height: 0; overflow: hidden; align-items: flex-start; justify-content: space-between; gap: 0; padding: 0;
   border-bottom: 1px solid #080808; background: var(--surface-header);
   box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); cursor: pointer; touch-action: none; user-select: none; }
-.module-icon { flex: none; width: 14px; height: 14px; color: var(--color-text-secondary); pointer-events: none; }
-.module-header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.025em; }
-.module-fit, .module-close { display: grid; place-items: center; flex: none; width: 21px; height: 21px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-field); color: var(--color-text-secondary); background: transparent; cursor: pointer; line-height: 1; }
-.module-close { margin-left: -3px; }
+.module-icon { flex: none; width: 25px; height: 25px; color: var(--color-text-secondary); }
+.module-header h2 { flex: 1; align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 5px; font-size: 13px; font-weight: 500; letter-spacing: 0.025em; }
+.module-fit, .module-close { display: grid; place-items: center; flex: none; width: 25px; height: 25px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-field); color: var(--color-text-secondary); background: transparent; cursor: pointer; line-height: 1; }
 .module-content[hidden], .module-controls[hidden] { display: none; }
-.module-fit svg, .module-close svg { width: 15px; height: 15px; }
+.module-fit svg, .module-close svg, .module-auto-resize svg { width: var(--icon-size); height: var(--icon-size); }
 .module-fit:hover:not(:disabled) { color: var(--color-text); border-color: var(--color-selection-border); }
 .module-close:hover:not(:disabled) { color: var(--color-text); border-color: var(--color-accent-red); }
 .module-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: none; font-size: var(--font-size-body); }
 .logical-workspace .module-frame .module-content .document-button:not(.board-pin):not(.quick-note *, .quick-note-measure *) { font-size: var(--control-font-size); }
-.logical-workspace .module-frame .module-content :is(input, select, textarea, label):not(.quick-note *, .quick-note-measure *) { font-size: var(--field-font-size); }
+.logical-workspace .module-frame .module-content :is(input, select, textarea:where(:not([data-slot="textarea"])), label):not(.quick-note *, .quick-note-measure *) { font-size: var(--field-font-size); }
 .module-content h3 { font-size: var(--font-size-title); }
 .module-content time { font-size: var(--font-size-technical); }
 .app-header .technical-data { font-size: var(--font-size-technical); }
@@ -338,14 +348,13 @@ textarea {
 }
 
 /* Shared finishes for document and module controls. */
-.document-title, .element-editor select, .element-editor textarea, .operations-notes textarea {
+.document-title, .element-editor select {
   border-color: var(--color-field-border);
   background: var(--color-field);
   color: var(--color-text);
 }
-.document-title:where(:not(:is(.timeline-module, .notebook-module, .calculator-module, .coordinates-module, .element-editor) *)):hover:not(:disabled), .operations-notes textarea:hover:not(:disabled) { border-color: var(--color-active-border); }
-.document-title:disabled, select:disabled, textarea:disabled { opacity: .5; }
-[data-slot="input"][aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--color-accent-red); }
+.document-title:disabled, select:disabled, textarea:where(:not([data-slot="textarea"])):disabled { opacity: .5; }
+[data-slot="input"][aria-invalid="true"], textarea:where(:not([data-slot="textarea"]))[aria-invalid="true"] { border-color: var(--color-accent-red); }
 .ui-badge { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 6px; border: 1px solid var(--color-field-border); border-radius: var(--radius-control); background: var(--color-selected); color: var(--color-tag); font-size: var(--font-size-body); overflow-wrap: anywhere; }
 .ui-badge[data-variant="outline"] { border-color: var(--color-frame-border); background: transparent; color: var(--color-text); }
 .ui-separator { flex-shrink: 0; background: var(--color-border); }
@@ -361,7 +370,7 @@ textarea {
 .ui-popover { width: 210px; max-width: min(calc(100vw - 16px), var(--radix-popover-content-available-width)); max-height: var(--radix-popover-content-available-height); padding: 10px; }
 .ui-tooltip { max-width: min(240px, calc(100vw - 16px), var(--radix-tooltip-content-available-width)); max-height: var(--radix-tooltip-content-available-height); padding: 3px 6px; background: linear-gradient(160deg, rgb(44 44 44 / 85%), rgb(24 24 24 / 85%)); box-shadow: 0 2px 6px rgb(0 0 0 / 25%); font-size: 11px; line-height: 1.3; pointer-events: none; }
 .zoom-popover-label { display: flex; justify-content: space-between; gap: 8px; color: var(--color-text-secondary); }
-.zoom-popover-label output { font-family: var(--font-technical); white-space: nowrap; }
+.zoom-popover-label output { font-family: var(--font-interface); white-space: nowrap; }
 .ui-slider { position: relative; display: flex; align-items: center; width: 100%; height: 26px; touch-action: none; user-select: none; }
 .ui-slider-track { position: relative; flex: 1; height: 4px; border: 1px solid var(--color-frame-border); border-radius: var(--radius-field); background: var(--color-field); }
 .ui-slider-range { position: absolute; height: 100%; border-radius: inherit; background: var(--color-accent-red); }
@@ -383,13 +392,13 @@ textarea {
 .app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete, [aria-checked="true"], [aria-pressed="true"], [data-state="open"])) {
   border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--color-text-secondary);
 }
-.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete)):hover:not(:disabled) {
+.app-shell button[aria-label]:has(> svg.lucide):where(:not([data-text-button], .element-select, .information-units *, .calculator-keypad *, .clock-module *, .quick-note-delete, .ui-input-group *, .notebook-item-actions *, .notebook-delete)):hover:not(:disabled) {
   border-color: var(--color-hover-border); background: var(--surface-button-hover); color: var(--color-text);
 }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])):focus-visible { outline: none; }
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(input, select, textarea:where(:not([data-slot="textarea"]))):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])):focus-visible { outline: none; }
 
 /* Compact text actions follow the notebook toolbar; icon tools keep their geometry. */
-:where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)) {
+:where(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)) {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--control-gap);
   height: var(--control-height); min-height: var(--control-height); padding: 1px 9px;
   border: 1px solid var(--color-border); border-radius: var(--radius-control);
@@ -397,31 +406,39 @@ textarea {
   box-shadow: inset 0 1px 0 rgb(242 242 240 / 9%), 0 1px 3px rgb(0 0 0 / 35%);
   font-family: var(--font-interface); font-size: var(--control-font-size); line-height: 18px; white-space: nowrap;
 }
-:where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)):hover:not(:disabled) {
+:where(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)):hover:not(:disabled) {
   border-color: var(--color-hover-border); background: var(--surface-button-hover);
 }
-:where(.app-shell, .document-dialog, .ui-popover) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)):active:not(:disabled) {
+:where(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) [data-slot="button"][data-text-button]:not(:where(.element-select, .unit-tag-actions *)):active:not(:disabled) {
   background: var(--color-selected); box-shadow: inset 0 1px 3px rgb(0 0 0 / 50%);
 }
 
-/* One-line fields share Anotación's line height and padding; textareas can grow. */
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *)) {
+/* One-line fields share the control height; textareas can grow. */
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(input, select, textarea:where(:not([data-slot="textarea"]))):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *)) {
   min-height: var(--field-height); padding: 4px var(--section-gap);
   border: 1px solid var(--color-field-border); border-radius: var(--radius-field);
   background: var(--color-field); color: var(--color-text); box-shadow: none;
   font-family: var(--font-interface); font-size: var(--field-font-size); line-height: 1.4;
 }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *)) { height: var(--field-height); }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *, .quick-note *, .quick-note-measure *, :is(.timeline-module, .notebook-module, .calculator-module, .coordinates-module, .element-editor) *)):hover:not(:disabled) { border-color: var(--color-active-border); }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--color-accent-red); }
-:is(.app-shell, .document-dialog, .ui-popover) textarea[aria-invalid="true"]:focus-visible { border-color: var(--color-accent-red); }
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(input, select):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"], .zoom-control *)) { height: var(--field-height); padding-block: calc(2px * var(--module-zoom, 1)); }
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(input, select, textarea:where(:not([data-slot="textarea"])))[aria-invalid="true"] { border-color: var(--color-accent-red); }
+
+/* Tools integrated into fields share the same bare finish. */
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(.ui-input-group,.notebook-item-actions) button[data-slot="button"][aria-label],
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) button:is(.notebook-delete,.quick-note-delete)[data-slot="button"][aria-label] {
+  border: 0; background: transparent; box-shadow: none; color: var(--color-text-secondary);
+}
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(.ui-input-group,.notebook-item-actions) button[data-slot="button"][aria-label]:is(:hover,:active,:focus-visible):not(:disabled),
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) button:is(.notebook-delete,.quick-note-delete)[data-slot="button"][aria-label]:is(:hover,:active,:focus-visible):not(:disabled) {
+  border: 0; background: transparent; box-shadow: none; outline: none; color: var(--color-text);
+}
 
 .logical-workspace .react-grid-item > .react-resizable-handle-se, .window-resize {
   display: flex; align-items: center; justify-content: center; width: 24px; min-width: 24px; height: 24px; min-height: 24px;
   border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; box-shadow: none; color: var(--color-text-secondary);
 }
-.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="false"]) > .react-resizable-handle-se { width: 20px; min-width: 20px; height: 20px; min-height: 20px; }
-.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="true"]) > .react-resizable-handle-se { top: 2px; bottom: auto; }
+.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="false"]) > .react-resizable-handle-se { width: 25px; min-width: 25px; height: 25px; min-height: 25px; }
+.logical-workspace .react-grid-item:has(> .module-frame[data-collapsed="true"]) > .react-resizable-handle { display: none; }
 .react-resizable-handle svg, .window-resize svg { width: 15px; height: 15px; pointer-events: none; }
 .logical-workspace .react-grid-item > .react-resizable-handle-se:hover, .window-resize:hover:not(:disabled) {
   border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text);
@@ -435,8 +452,7 @@ textarea {
 .app-shell ::-webkit-scrollbar-thumb { border-radius: var(--radius-control); background: var(--color-field-border); }
 .app-shell ::-webkit-scrollbar-track { background: var(--color-module); }
 
-/* The same compact choices and textareas are used in every module. */
-.ui-textarea { display: block; width: 100%; min-height: 0; padding: 4px var(--section-gap); resize: none; overflow: hidden; border: 1px solid var(--color-field-border); border-radius: var(--radius-field); background: var(--color-field); color: var(--color-text); font: inherit; line-height: 1.4; }
+/* Shared choice controls. */
 .ui-radio-group { display: flex; gap: 0; }
 .ui-radio-item { display: grid; place-items: center; width: 14px; height: 14px; padding: 0; border: 1px solid var(--color-field-border); border-radius: var(--radius-field); background: var(--color-field); }
 .ui-radio-indicator { width: 8px; height: 8px; background: var(--color-accent-red); }
@@ -444,46 +460,56 @@ textarea {
 .notebook-checklist input[type="checkbox"]:checked, .element-name-hidden input[type="checkbox"]:checked { border-color: var(--color-selection-border); background: var(--color-accent-red); }
 .notebook-checklist input[type="checkbox"]:checked::after, .element-name-hidden input[type="checkbox"]:checked::after { display: block; color: var(--color-text); content: '✓'; text-align: center; font: 500 12px/12px var(--font-interface); }
 :is(.notebook-checklist, .element-name-hidden) input[type="checkbox"]:hover:not(:disabled), .ui-radio-item:hover:not(:disabled) { border-color: var(--color-hover-border); }
-:is(.app-shell, .document-dialog, .ui-popover) :is(input, select, textarea)::placeholder { color: var(--color-text-secondary); opacity: 1; }
-:is(.app-shell, .document-dialog, .ui-popover) input[type="checkbox"]:disabled, .ui-radio-item:disabled { opacity: .5; }
-:is(.app-shell, .document-dialog, .ui-popover) option { background: var(--color-field); color: var(--color-text); }
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) :is(input, select, textarea:where(:not([data-slot="textarea"])))::placeholder { color: var(--color-text-secondary); opacity: 1; }
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) input[type="checkbox"]:disabled, .ui-radio-item:disabled { opacity: .5; }
+:is(.app-shell, .document-dialog, .ui-popover, .file-dialog-surface) option { background: var(--color-field); color: var(--color-text); }
 
 /* Shared navigation model: stable containers, scalable typography. */
 .module-scaled-content {
   width: 100%; height: 100%; min-width: 0; min-height: 0;
   font-size: var(--font-size-body);
-  --control-height: calc(22px * var(--module-zoom, 1));
-  --field-height: calc(28.2px * var(--module-zoom, 1));
-  --control-font-size: calc(13px * var(--module-zoom, 1));
-  --field-font-size: calc(13px * var(--module-zoom, 1));
-  --font-size-body: calc(14px * var(--module-zoom, 1));
-  --font-size-title: calc(16px * var(--module-zoom, 1));
-  --font-size-technical: calc(13px * var(--module-zoom, 1));
+  --control-height: calc(var(--control-height-base) * var(--module-zoom, 1));
+  --field-height: var(--control-height);
+  --control-font-size: calc(var(--control-font-size-base) * var(--module-zoom, 1));
+  --field-font-size: calc(var(--field-font-size-base) * var(--module-zoom, 1));
+  --font-size-body: calc(var(--font-size-body-base) * var(--module-zoom, 1));
+  --font-size-title: calc(var(--font-size-title-base) * var(--module-zoom, 1));
+  --font-size-technical: calc(var(--font-size-technical-base) * var(--module-zoom, 1));
 }
+
 .module-header .module-icon { pointer-events: auto; cursor: pointer; outline: none; }
 .module-header .module-icon svg { pointer-events: none; }
 .module-header .module-icon:focus-visible { border-color: var(--color-hover-border); }
+.module-frame[data-collapsed="true"]:not([data-fitting]) .module-header { flex-basis: 25px; border-bottom: 0; }
 .module-frame[data-icon-only="true"] .module-header { padding: 0; gap: 0; justify-content: center; border-bottom: 0; }
 .module-frame[data-icon-only="true"]:not([data-fitting]) .module-header > :not(.module-icon) { display: none; }
-.react-grid-item:has(> .module-frame[data-icon-only="true"]) > .react-resizable-handle { display: none; }
-.module-scaled-content[data-kind="module"] .lucide { flex-shrink: 0; width: calc(15px * var(--module-zoom)); height: calc(15px * var(--module-zoom)); }
+.module-scaled-content[data-kind="module"] .lucide { flex-shrink: 0; width: calc(var(--icon-size-base) * var(--module-zoom)); height: calc(var(--icon-size-base) * var(--module-zoom)); }
+.module-scaled-content[data-measuring="minimum-width"] { width: min-content !important; container-type: normal; }
+.module-scaled-content[data-measuring="minimum-width"] .calculator-keypad { container-type: normal; grid-template-columns: repeat(4, minmax(min-content, 1fr)); }
 .module-scaled-content[data-measuring="true"],
 .module-scaled-content[data-measuring="true"] > *,
 .module-scaled-content[data-measuring="true"] :is(.elements-list,.element-rows,.timeline-entries,.timeline-entries ol,.operations-counters,.operations-cards,.coordinates-results,.notebook-list) { height: auto; min-height: 0; }
 .module-scaled-content[data-measuring="true"] :is(.element-row,.timeline-entries li,.coordinates-results > div) { flex: none; }
-.module-scaled-content[data-measuring="true"] .calculator-keypad { flex: none; grid-template-rows: repeat(6, minmax(calc(22px * var(--module-zoom)), auto)); }
+.module-scaled-content[data-measuring="true"] .timeline-entries { flex: none; }
+.module-scaled-content[data-measuring="true"] .calculator-module :is(.document-title,.calculator-readout) { flex: none; }
+.module-scaled-content[data-measuring="true"] .calculator-keypad { container-type: normal; flex: none; grid-template-rows: repeat(6, minmax(var(--control-height), auto)); }
 
 .module-scaled-content[data-measuring="true"] :is(.clock-face,.timer-row,.timer-main) { container-type: normal; flex: none; }
 .module-scaled-content[data-measuring="true"] .timer-list { flex: none; grid-auto-rows: auto; }
 
 /* These lists and editors determine the window height at its chosen width. */
-.module-frame[data-auto-height="true"] .module-scaled-content,
-.module-frame[data-auto-height="true"] .module-scaled-content > * { height: auto; min-height: 0; }
+.module-frame[data-auto-height="true"] .module-scaled-content:not(:has(> .timeline-module)),
+.module-frame[data-auto-height="true"] .module-scaled-content > :not(.timeline-module) { height: auto; min-height: 0; }
 .module-frame[data-auto-height="true"] :is(.elements-list,.element-editor) { flex: none; height: auto; min-height: 0; }
 .module-frame[data-auto-height="true"] :is(.elements-list section,.element-rows) { min-height: 0; }
 .module-frame[data-auto-height="true"] .element-row { flex: none; }
-.app-shell .module-frame[data-auto-height="true"] .module-content { overflow-y: auto; scrollbar-width: thin; }
-.app-shell .module-frame[data-auto-height="true"] .module-content::-webkit-scrollbar { display: block; width: 8px; height: 0; }
+.module-frame[data-auto-height="true"] :is(.elements-list,.element-editor,.information-module,.notebook-list) { overflow-y: visible; }
+.app-shell .module-frame[data-scroll-side] .module-content { overflow-y: auto; scrollbar-width: thin; }
+.app-shell .module-frame[data-scroll-side] .module-content::-webkit-scrollbar { display: block; width: 8px; height: 0; }
+.module-frame[data-scroll-side="left"] .module-content { direction: rtl; }
+.module-frame[data-scroll-side="left"] .module-content > .module-scaled-content { direction: ltr; }
+.app-shell .module-frame[data-scroll-side="right"] .timer-list { scrollbar-width: thin; }
+.app-shell .module-frame[data-scroll-side="right"] .timer-list::-webkit-scrollbar { display: block; width: 8px; height: 0; }
 
 /* Module actions share the app's red selection and interaction finishes. */
 .module-frame[data-active="true"] { border-color: var(--color-selection-border); box-shadow: var(--shadow-panel), var(--shadow-selection); }
@@ -513,21 +539,21 @@ textarea {
 .module-frame[data-fitting] :is(.information-phase, .information-description, .information-tags)[hidden] { display: block; }
 .module-frame[data-fitting] .information-tags { display: flex; }
 
-.module-frame[data-fitting][data-icon-only="true"] .module-header { padding: 0 24px 0 0; gap: 5px; }
+.module-frame[data-fitting][data-icon-only="true"] .module-header { padding: 0; gap: 0; }
 .module-frame[data-fitting][data-icon-only="true"] .module-header h2 { display: block; }
 .module-frame[data-fitting][data-icon-only="true"] .module-header :is(.module-fit, .module-close) { display: grid; }
 
 /* Header controls share bare icons and retain their hit areas. */
-.app-shell button.module-button[aria-label]:has(> svg.lucide) {
+:is(.app-shell, .file-dialog-surface) button.module-button[aria-label]:has(> svg.lucide) {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 25px; min-width: 25px; height: 25px; min-height: 25px; padding: 0;
   border: 1px solid transparent; border-radius: var(--radius-control);
   background: transparent; box-shadow: none; color: var(--color-text-secondary);
 }
-.app-shell button.module-button[aria-label]:has(> svg.lucide):is(:hover:not(:disabled), :focus-visible) {
+:is(.app-shell, .file-dialog-surface) button.module-button[aria-label]:has(> svg.lucide):is(:hover:not(:disabled), :focus-visible) {
   border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text);
 }
-.app-shell button.module-button[aria-label]:has(> svg.lucide)[aria-pressed="true"] {
+:is(.app-shell, .file-dialog-surface) button.module-button[aria-label]:has(> svg.lucide)[aria-pressed="true"] {
   color: var(--color-accent-red);
 }
 
@@ -559,4 +585,3 @@ textarea {
 .module-list-item { display: flex; align-items: center; gap: 8px; color: var(--color-text); }
 .module-list-icon { flex: none; width: 17px; height: 17px; color: #fff; }
 .module-list-icon[data-open="true"] { color: var(--color-accent-red); }
-.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

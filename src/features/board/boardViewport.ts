@@ -5,6 +5,38 @@ import { getPinNameLayout, getRotatedPinBox } from '../elements/pinPresentation'
 
 export type BoardViewportState = ViewportState
 export interface BoardBounds { left: number; top: number; right: number; bottom: number }
+export interface BoardFrame { x: number; y: number; width: number; height: number }
+const frames = new Map<string, BoardFrame>()
+const frameListeners = new Map<string, Set<() => void>>()
+
+export function readBoardFrame(key: string): BoardFrame | null {
+  const current = frames.get(key)
+  if (current) return current
+  try {
+    const frame = JSON.parse(localStorage.getItem('angie.board.frame.' + key) ?? 'null') as BoardFrame | null
+    if (frame && [frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) && frame.x >= 0 && frame.y >= 0 && frame.width > 0 && frame.height > 0) {
+      frames.set(key, frame)
+      return frame
+    }
+  } catch { /* The report needs a real view, rather than default navigation. */ }
+  return null
+}
+
+export function writeBoardFrame(key: string, frame: BoardFrame) {
+  if (frame.width <= 0 || frame.height <= 0) return
+  const previous = frames.get(key)
+  if (previous && previous.x === frame.x && previous.y === frame.y && previous.width === frame.width && previous.height === frame.height) return
+  frames.set(key, frame)
+  try { localStorage.setItem('angie.board.frame.' + key, JSON.stringify(frame)) } catch { /* Keep the available view in this session. */ }
+  frameListeners.get(key)?.forEach(listener => listener())
+}
+
+export function subscribeBoardFrame(key: string, listener: () => void) {
+  const listeners = frameListeners.get(key) ?? new Set<() => void>()
+  frameListeners.set(key, listeners); listeners.add(listener)
+  listener()
+  return () => { listeners.delete(listener); if (!listeners.size) frameListeners.delete(key) }
+}
 
 function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds | null {
   let bounds: BoardBounds | null = null

@@ -20,6 +20,8 @@ import { DotationsModule } from '../features/elements/DotationsModule'
 import { InformationModule } from '../features/information/InformationModule'
 import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
+import { ReportsModule } from '../features/document/ReportsModule'
+import type { CurrentWeatherReportSnapshot, ForecastReportSnapshot, WeatherReportContent } from '../features/document/weatherReport'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import type { LoadedGpx } from '../features/map/gpx'
@@ -65,7 +67,7 @@ export function App() {
   const store = getDocumentStore()
   const timers = getTimerStore()
   useEffect(() => { void timers.initialize(); return timers.connect() }, [timers])
-  const { document, documentGeneration, ready, openModules: savedOpenModules, replacing } = useDocumentStore(store)
+  const { document, documentGeneration, ready, openModules: savedOpenModules, replacing, active: boardActive } = useDocumentStore(store)
   const [mapFiles, setMapFiles] = useState<{ generation: number; files: LoadedGpx[] }>({ generation: documentGeneration, files: [] })
   if (mapFiles.generation !== documentGeneration) setMapFiles({ generation: documentGeneration, files: [] })
   const boardImage = useBoardImage(store)
@@ -87,8 +89,8 @@ export function App() {
     setNavigationDocument(document.document.id)
   }
   useEffect(() => {
-    if (navigationDocument === document.document.id) writeNavigation(document.document.id + '.dashboard', viewport.state)
-  }, [navigationDocument, document.document.id, viewport.state])
+    if (boardActive && navigationDocument === document.document.id) writeNavigation(document.document.id + '.dashboard', viewport.state)
+  }, [boardActive, navigationDocument, document.document.id, viewport.state])
   const [modules, setModules] = useState<PresentedModule[]>([])
   const [modulesGeneration, setModulesGeneration] = useState(-1)
   if (ready && modulesGeneration !== documentGeneration) {
@@ -133,6 +135,28 @@ export function App() {
   const coordinateInput = useRef({ generation: documentGeneration, value: '' })
   const rememberCoordinateInput = useCallback((value: string) => { coordinateInput.current = { generation: documentGeneration, value } }, [documentGeneration])
   const getCoordinatesInput = useCallback(() => coordinateInput.current.generation === documentGeneration ? coordinateInput.current.value : '', [documentGeneration])
+  const weatherReport = useRef<{ generation: number; value: WeatherReportContent }>({ generation: documentGeneration, value: {} })
+  const rememberForecastReport = useCallback((aemet: ForecastReportSnapshot | null) => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return
+    const current: WeatherReportContent = weatherReport.current.generation === documentGeneration ? weatherReport.current.value : {}
+    const saved = current.aemet
+    const next = aemet && !aemet.data && saved?.data && saved.locationKey === aemet.locationKey ? { ...saved, previous: true } : aemet
+    weatherReport.current = { generation: documentGeneration, value: { ...current, aemet: next } }
+  }, [documentGeneration, store])
+  const rememberCurrentWeatherReport = useCallback((openMeteo: CurrentWeatherReportSnapshot | null) => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return
+    const current: WeatherReportContent = weatherReport.current.generation === documentGeneration ? weatherReport.current.value : {}
+    const saved = current.openMeteo
+    const next = openMeteo && !openMeteo.data && saved?.data && saved.point.latitude === openMeteo.point.latitude && saved.point.longitude === openMeteo.point.longitude
+      ? { ...saved, previous: true } : openMeteo
+    weatherReport.current = { generation: documentGeneration, value: { ...current, openMeteo: next } }
+  }, [documentGeneration, store])
+  const getWeatherReport = useCallback(() => weatherReport.current.generation === documentGeneration && store.getSnapshot().documentGeneration === documentGeneration
+    ? weatherReport.current.value : {}, [documentGeneration, store])
+  const getTimerRecords = useCallback(() => {
+    const snapshot = timers.getSnapshot()
+    return snapshot.ready ? snapshot.timers : null
+  }, [timers])
   const selectElement = (id: string | null) => { setEditRequest(null); setSelection({ generation: documentGeneration, id }) }
   useLayoutEffect(() => {
     const node = workspace.current
@@ -272,8 +296,8 @@ export function App() {
       if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
       if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
       if (request.ids.includes('map')) setMapFiles({ generation: documentGeneration, files: [] })
-      if (request.ids.includes('forecast')) clearForecastLocation(document.document.id)
-      if (request.ids.includes('openMeteo')) clearWeatherPoint(document.document.id)
+      if (request.ids.includes('forecast')) { clearForecastLocation(document.document.id); rememberForecastReport(null) }
+      if (request.ids.includes('openMeteo')) { clearWeatherPoint(document.document.id); rememberCurrentWeatherReport(null) }
       if (request.ids.includes('coordinates')) rememberCoordinateInput('')
       if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
       // Shared data can change other windows too; suppress automatic resizing until their next content interaction.
@@ -353,16 +377,16 @@ export function App() {
           <DropdownMenuContent align="start">
             {(Object.keys(MODULE_REGISTRY) as ModuleId[]).map(id => {
               const Icon = MODULE_ICONS[id], isOpen = modules.some(module => module.id === id)
-              return <DropdownMenuItem key={id} className="file-menu-item module-list-item" aria-label={MODULE_REGISTRY[id].name} aria-describedby={'module-state-' + id} disabled={!ready || replacing} onSelect={() => toggle(id)}>
+              return <DropdownMenuItem key={id} className="file-menu-item module-list-item" aria-label={MODULE_REGISTRY[id].name} aria-describedby={'module-state-' + id} disabled={!ready || !boardActive || replacing} onSelect={() => toggle(id)}>
                 <Icon className="module-list-icon" data-open={isOpen} aria-hidden="true" />
                 {MODULE_REGISTRY[id].name}<span id={'module-state-' + id} className="visually-hidden">{isOpen ? 'Abierto' : 'Cerrado'}</span>
               </DropdownMenuItem>
             })}
           </DropdownMenuContent>
         </DropdownMenu>
-        <ViewMenu disabled={!ready || replacing || !open.length} active={open.some(module => module.id === active)}
+        <ViewMenu disabled={!ready || !boardActive || replacing || !open.length} active={open.some(module => module.id === active)}
           onArrange={arrangeOpen} onAutoArrange={recolocate} onFitActive={fitActiveModule} />
-        <CleanupMenu active={open.some(module => module.id === active) ? active : null} disabled={!ready || replacing}
+        <CleanupMenu active={open.some(module => module.id === active) ? active : null} disabled={!ready || !boardActive || replacing}
           request={cleanupRequest?.generation === documentGeneration ? cleanupRequest : null} error={cleanupError}
           onRequest={requestCleanup} onCancel={() => { setCleanupRequest(null); setCleanupError(null) }} onConfirm={confirmCleanup} />
         <nav className="open-modules" aria-label="Módulos abiertos">
@@ -416,6 +440,10 @@ export function App() {
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
+              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getWeatherReport={getWeatherReport} getTimerRecords={getTimerRecords}
+                files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
+                onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles(current => ({ generation: documentGeneration,
+                  files: [...new Map([...(current.generation === documentGeneration ? current.files : []), ...files].map(file => [file.id, file])).values()] })) }} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} /> :
               id === 'plan' ? <Suspense fallback={<p role="status">Cargando plano operativo…</p>}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store}
@@ -435,8 +463,8 @@ export function App() {
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
                 onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }} /></Suspense> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
-              id === 'forecast' ? <ForecastModule key={`${documentGeneration}.${moduleRevisions.forecast ?? 0}`} navigationKey={document.document.id} /> :
-              id === 'openMeteo' ? <OpenMeteoModule key={`${documentGeneration}.${moduleRevisions.openMeteo ?? 0}`} navigationKey={document.document.id} getCoordinatesInput={getCoordinatesInput} /> :
+              id === 'forecast' ? <ForecastModule key={`${documentGeneration}.${moduleRevisions.forecast ?? 0}`} navigationKey={document.document.id} onReportChange={rememberForecastReport} /> :
+              id === 'openMeteo' ? <OpenMeteoModule key={`${documentGeneration}.${moduleRevisions.openMeteo ?? 0}`} navigationKey={document.document.id} getCoordinatesInput={getCoordinatesInput} onReportChange={rememberCurrentWeatherReport} /> :
               id === 'calculator' ? <CalculatorModule generation={documentGeneration} /> : null} />
         </MobileViewport>
         </div>

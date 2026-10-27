@@ -7,7 +7,6 @@
 .app-shell .plan-module :is(.plan-toolbar, .plan-selection) .document-button[aria-pressed="true"] { background: var(--color-selected); color: var(--color-text); }
 .app-shell .plan-module :is(.plan-toolbar, .plan-selection) .document-button:is(:hover:not(:disabled), :focus-visible) { border-color: var(--color-accent-red); background: var(--surface-button-hover); color: var(--color-text); outline: none; }
 .plan-toolbar select { box-sizing: border-box; height: var(--plan-control-size); min-width: 0; border: 1px solid var(--color-field-border); border-radius: var(--radius-field); background: var(--color-field); color: var(--color-text); font: inherit; font-size: var(--control-font-size); padding: 1px 3px; }
-.plan-toolbar select:is(:hover:not(:disabled), :focus-visible) { border-color: var(--color-accent-red); outline: none; }
 .plan-resource-select { flex: 1; width: 14ch; max-width: 26ch; }
 .plan-color-control { position: relative; display: flex; flex: none; }
 .plan-color-control input { position: absolute; inset: 0; width: var(--plan-control-size); height: var(--plan-control-size); opacity: 0; pointer-events: none; }

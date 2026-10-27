@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { SquareDimensions } from 'lucide-react'
+import { createLucideIcon } from 'lucide-react'
 import { useViewportInteraction } from './ViewportContext'
+
+// Lucide handle-bottom-right (ISC): https://github.com/lucide-icons/lucide/blob/main/icons/handle-bottom-right.svg
+export const HandleBottomRight = createLucideIcon('HandleBottomRight', [
+  ['path', { d: 'M21 8 8 21', key: 'diagonal' }],
+  ['path', { d: 'm21 15-6 6', key: 'corner' }],
+])
 
 export function WindowResize({ label }: { label: string }) {
   const { blocked, blockedRef } = useViewportInteraction()
@@ -34,5 +40,5 @@ export function WindowResize({ label }: { label: string }) {
       current.node.style.width = `${Math.max(1, current.width + (event.clientX - current.x) / current.scale)}px`
       current.node.style.height = `${Math.max(1, current.height + (event.clientY - current.y) / current.scale)}px`
     }} onPointerUp={event => { if (gesture.current?.id === event.pointerId) { if (blockedRef.current) cancel(); else gesture.current = null } }}
-    onPointerCancel={cancel} onLostPointerCapture={cancel}><SquareDimensions aria-hidden="true" /></button>
+    onPointerCancel={cancel} onLostPointerCapture={cancel}><HandleBottomRight aria-hidden="true" /></button>
 }

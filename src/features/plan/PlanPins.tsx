@@ -4,15 +4,11 @@ import type { DocumentElement, GeographicPosition, PlanPin, Position } from '../
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { getPinBox, ICON_CATALOG } from '../elements/iconCatalog'
-import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, pinNameLines, PIN_NAME_COLORS, pinTransform } from '../elements/pinPresentation'
+import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, pinNameLines, PIN_NAME_COLORS, PIN_BASE_SCALE, PIN_REFERENCE_ZOOM, pinTransform } from '../elements/pinPresentation'
 import { clampAssetScale } from '../elements/elementCommands'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
 import type { PlanMode } from './PlanModule'
-
-// A shared reference keeps equal pin scales equal regardless of placement zoom.
-const PIN_REFERENCE_ZOOM = 16
-const PIN_BASE_SCALE = 6
 
 export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focusRequest, onSelect, onEdit, onMove, onNameMove, onScale }: {
   navigationKey: string

@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
 import { HelpTooltip } from '../../components/ui/tooltip'
 import { Button } from '../../components/ui/button'
-import { X } from 'lucide-react'
+import { Trash } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
@@ -44,7 +44,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
             const addControl = block.type === 'note' ? noteControl : checklistControl
             addControl.current?.focus()
             mutate(document => deleteNotebookBlock(document, block.id))
-          }}><X aria-hidden="true" /></Button></HelpTooltip>
+          }}><Trash aria-hidden="true" /></Button></HelpTooltip>
           {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
             <ChecklistBlock block={block} disabled={blocked}
               onAdd={(afterItemId, initial) => mutate(document => {

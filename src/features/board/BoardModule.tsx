@@ -7,7 +7,7 @@ import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
 import { boardReducer, createBoardState } from './boardReducer'
-import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition } from './boardViewport'
+import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition, writeBoardFrame } from './boardViewport'
 import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { transformBoardImage } from './boardImageGeometry'
 import type { BoardImageLayout, ImageAction } from './boardImageGeometry'
@@ -54,6 +54,10 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
   const scaledView = zoomBoardAt(view, scale, { x: 0, y: 0 }, { width: 0, height: 0 }, { left: 0, top: 0, right: 0, bottom: 0 })
   if (view.scale !== scaledView.scale) setView(scaledView)
   useEffect(() => { writeNavigation(canvasKey, view) }, [canvasKey, view])
+  useLayoutEffect(() => {
+    if (!size.width || !size.height || !surface.current?.clientWidth || !surface.current.clientHeight) return
+    writeBoardFrame(document.document.id, { x: -view.offsetX / view.scale, y: -view.offsetY / view.scale, width: size.width / view.scale, height: size.height / view.scale })
+  }, [document.document.id, view.scale, view.offsetX, view.offsetY, size.width, size.height])
   const [explored, setExplored] = useState({ width: 0, height: 0 })
   const previousSize = useRef({ width: 0, height: 0 })
   const [imagePreview, setImagePreview] = useState<{ image: typeof imageSession.image; layout: BoardImageLayout } | null>(null)

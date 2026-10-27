@@ -2,7 +2,7 @@ import { Fragment, useId, useLayoutEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '../../components/ui/button'
-import type { ForecastCell, ForecastData, ForecastField } from './forecastTypes'
+import type { ForecastCell, ForecastData, ForecastField, ForecastWarningDetails } from './forecastTypes'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useForecastWarning } from './useForecastWarning'
 
@@ -35,7 +35,7 @@ function ForecastValue({ cell, prefix, expandedWarning, onToggleWarning, details
   </div>
 }
 
-export function ForecastTable({ data, onContentChange }: { data: ForecastData; onContentChange: () => void }) {
+export function ForecastTable({ data, onContentChange, onWarningReportChange }: { data: ForecastData; onContentChange: () => void; onWarningReportChange?: (details: ForecastWarningDetails | null) => void }) {
   const [expandedWarning, setExpandedWarning] = useState<string | null>(null)
   const warningsId = useId()
   const { blocked, blockedRef } = useViewportInteraction()
@@ -50,6 +50,7 @@ export function ForecastTable({ data, onContentChange }: { data: ForecastData; o
   const day = selectedWarning ? new URL(selectedWarning.href).searchParams.get('w') : null
   const slug = new URL(data.sourceUrl).pathname.split('/').at(-1) ?? ''
   const details = useForecastWarning(slug, day, selectedWarning?.expectedDay ?? null, Boolean(selectedWarning && selectedWarning.level < 4 && selectedWarning.phenomenon), data.retrievedAt)
+  useLayoutEffect(() => { onWarningReportChange?.(details.data) }, [details.data, onWarningReportChange])
   const detailItems = details.data?.items.filter(item => item.phenomenon === selectedWarning?.phenomenon) ?? []
   useLayoutEffect(() => { onContentChange() }, [onContentChange, selectedWarning?.key, details.data, details.error, details.loading])
   return <table className="forecast-table" style={{ '--forecast-columns': data.periods.length } as CSSProperties}>

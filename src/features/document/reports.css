@@ -1,0 +1,41 @@
+.reports-module { display: flex; flex-direction: column; gap: 8px; padding: 8px; min-height: 0; }
+.reports-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; }
+.reports-sections fieldset { min-width: 0; margin: 0; padding: 6px; border: 1px solid var(--color-border); }
+.reports-sections label { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.reports-sections input { accent-color: var(--color-accent-red); }
+.reports-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.reports-resource-issues { display: flex; flex-direction: column; gap: 6px; }
+.reports-resource-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border-left: 2px solid var(--color-accent-red); padding-left: 6px; }
+.reports-resource-actions > span { flex: 1 1 180px; overflow-wrap: anywhere; }
+.reports-module iframe { width: 100%; min-height: 320px; border: 1px solid var(--color-border); background: white; }
+.reports-map { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.reports-map > h3 { margin: 0; font-size: inherit; font-weight: 500; }
+.reports-map-selection { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; }
+.reports-map-selection fieldset { min-width: 0; max-height: 160px; margin: 0; padding: 6px; overflow-y: auto; border: 1px solid var(--color-border); scrollbar-width: thin; }
+.reports-map label { display: flex; align-items: center; gap: 6px; margin: 3px 0; overflow-wrap: anywhere; }
+.reports-map input { accent-color: var(--color-accent-red); }
+.reports-map-unavailable { margin-left: auto; color: var(--color-text-secondary); font-size: 11px; }
+.reports-resource-state { flex: none; color: var(--color-text-secondary); font-size: 11px; }
+.reports-map-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.reports-page-toolbar label { display: flex; align-items: center; gap: 6px; }
+.reports-map-toolbar select { min-width: 0; max-width: 100%; height: 25px; padding: 1px 5px; border: 1px solid var(--color-field-border); border-radius: var(--radius-field); background: var(--color-field); color: var(--color-text); font: inherit; }
+.reports-map-toolbar select:is(:hover:not(:disabled), :focus-visible) { border-color: var(--color-accent-red); outline: none; }
+.app-shell .reports-map-toolbar .document-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 25px; min-width: 25px; height: 25px; min-height: 25px; padding: 0; border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
+.app-shell .reports-map-toolbar .document-button:is(:hover:not(:disabled), :focus-visible) { border-color: var(--color-accent-red); background: var(--surface-button-hover); color: var(--color-text); outline: none; }
+.reports-map-viewport { position: relative; isolation: isolate; flex: none; height: 280px; min-width: 0; overflow: hidden; border: 1px solid var(--color-border); touch-action: none; }
+.reports-map-render { position: absolute; inset: 0; transform-origin: center; }
+.reports-board-image { display: block; width: 100%; height: 100%; pointer-events: none; user-select: none; }
+.reports-map-surface { position: absolute; inset: 0; z-index: 0; background: var(--color-module); }
+.reports-map-overlay { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+.reports-map-surface .leaflet-control-attribution { background: rgb(24 24 24 / 90%); color: #F2F2F2; font-size: 11px; }
+.reports-map-surface .leaflet-control-attribution a { color: #F2F2F2; }
+.reports-map-notice { margin: 0; padding: 3px 5px; border-left: 2px solid var(--color-accent-red); overflow-wrap: anywhere; }
+.reports-map-area { position: absolute; z-index: 2; border: 1px solid var(--color-accent-red); box-shadow: 0 0 0 100vmax rgb(0 0 0 / 35%); pointer-events: none; }
+.app-shell .reports-map-area button { position: absolute; display: block; margin: 0; padding: 0; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; pointer-events: auto; touch-action: none; }
+.app-shell .reports-map-area .reports-map-area-move { inset: 0; width: 100%; height: 100%; cursor: grab; }
+.app-shell .reports-map-area .reports-map-area-corner { width: 14px; height: 14px; border: 1px solid var(--color-text); background: var(--color-accent-red); }
+.reports-map-area-corner[data-corner="nw"] { left: -7px; top: -7px; cursor: nw-resize; }
+.reports-map-area-corner[data-corner="ne"] { right: -7px; top: -7px; cursor: ne-resize; }
+.reports-map-area-corner[data-corner="sw"] { left: -7px; bottom: -7px; cursor: sw-resize; }
+.reports-map-area-corner[data-corner="se"] { right: -7px; bottom: -7px; cursor: se-resize; }
+.app-shell .reports-map-area button:focus-visible { outline: 1px solid var(--color-text); outline-offset: 2px; }

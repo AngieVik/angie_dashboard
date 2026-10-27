@@ -1,7 +1,7 @@
 /* Resolve clock sizes outside local zoom, using the available content width. */
 .module-scaled-content:has(> .clock-module) { container-type: normal; }
 .module-content:has(> .module-scaled-content > .clock-module) { container-type: inline-size; overflow-x: auto; }
-.clock-module { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; font-size: var(--font-size-body); font-family: "Rajdhani", var(--font-technical); --control-font-size: calc(14px * var(--module-zoom, 1)); --field-font-size: calc(22px * var(--module-zoom, 1)); }
+.clock-module { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; font-size: var(--font-size-body); --font-interface: var(--font-clock); font-family: var(--font-interface); --control-font-size: calc(14px * var(--module-zoom, 1)); --field-font-size: calc(22px * var(--module-zoom, 1)); }
 .clock-module[data-sizing] { height: auto; }
 .clock-display { display: flex; flex: 1 1 0; flex-direction: column; gap: 0; min-width: 0; min-height: calc(64px * var(--module-zoom, 1)); margin: 0; padding: 0; }
 .clock-top { display: flex; flex: 1 1 0; min-width: 0; min-height: 0; font-size: var(--control-font-size); }
@@ -12,7 +12,6 @@
 .clock-module[data-sizing] :is(.timer-row, .timer-main), .module-frame[data-fitting] :is(.timer-row, .timer-main) { container-type: normal; }
 .clock-module[data-sizing] .timer-main, .module-frame[data-fitting] .timer-main { flex: none; --timer-font-size: calc(40px * var(--module-zoom, 1)); }
 .app-shell .clock-module .lucide { width: calc(15px * var(--module-zoom, 1)); height: calc(15px * var(--module-zoom, 1)); }
-.clock-module .technical-data { font-family: "Rajdhani", var(--font-technical); }
 .clock-reference { display: flex; flex: none; gap: calc(4px * var(--module-zoom, 1)); min-width: 0; white-space: nowrap; font-size: calc(12px * var(--module-zoom, 1)); color: var(--color-text-secondary); }
 .clock-reference > span { container: clock-reference-label / inline-size; display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-width: 0; margin: 0; padding: calc(2px * var(--module-zoom, 1)) 0; overflow: hidden; text-overflow: ellipsis; line-height: 1; text-align: center; }
 .clock-reference .clock-season-active { color: var(--color-accent-yellow); }

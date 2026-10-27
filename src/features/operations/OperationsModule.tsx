@@ -6,12 +6,13 @@ import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import { changeElementStatus } from '../../domain/operations/changeStatus'
 import { setUnitNotes, setUnitNotesColor } from '../../domain/operations/unitAnnotations'
 import { Button } from '../../components/ui/button'
-import { useValidationNotice } from '../../components/ui/useValidationNotice'
+import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { UnitTags } from './UnitTags'
 import { HelpTooltip } from '../../components/ui/tooltip'
-import { Textarea } from '../../components/ui/textarea'
+import { Textarea } from '@/components/ui/textarea'
 import './operations.css'
+import styles from './OperationsModule.module.css'
 
 export function OperationsModule({ store, selectedId }: { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void }) {
   const { document } = useDocumentStore(store)
@@ -67,7 +68,7 @@ function UnitNotes({ store, unitId, active }: { store: DocumentStore; unitId?: s
         }} />
       </label>
       <Button className="operations-activate" aria-label="Aplicar estado personalizado" title={draftNotes || 'Personalizado'} aria-pressed={active} hidden={editing} disabled={blocked || !unitId} onClick={apply}><span className="operations-state-name" aria-hidden="true">{draftNotes || 'Personalizado'}</span><span className="operations-state-abbr technical-data" aria-hidden="true">PER</span></Button>
-      <Textarea ref={notesRef} rows={1} wrap="off" aria-label="Anotación" placeholder="Personalizado" hidden={!editing} value={draftNotes} disabled={blocked} onKeyDown={event => {
+      <Textarea ref={notesRef} className={styles.annotation} rows={1} wrap="off" aria-label="Anotación" placeholder="Personalizado" hidden={!editing} value={draftNotes} disabled={blocked} onKeyDown={event => {
         if (blockedRef.current) return
         if (event.key === 'Escape' || event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault(); setEditing(false); editControl.current?.focus()

@@ -1,7 +1,5 @@
 .notebook-module { display: flex; flex-direction: column; height: auto; min-height: 0; overflow: hidden; }
-.notebook-toolbar { flex: 0 0 auto; padding: 4px var(--section-gap); border-bottom: 1px solid var(--color-border); background: var(--surface-header); box-shadow: inset 0 1px 0 rgb(242 242 240 / 6%); }
-.notebook-toolbar { display: flex; gap: var(--control-gap); }
-.notebook-toolbar .document-button { padding: 1px 9px; font-size: var(--font-size-body); }
+.notebook-toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: var(--control-gap); padding: var(--control-gap) var(--section-gap); border-bottom: 1px solid var(--color-border); background: var(--surface-header); box-shadow: inset 0 1px 0 rgb(242 242 240 / 6%); }
 .notebook-list { flex: 0 0 auto; min-height: 0; margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; list-style: none; overflow-anchor: none; }
 .notebook-block { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0; margin-bottom: 0; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--surface-inset); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
 .notebook-block[data-dragging="true"] { opacity: 0.65; }
@@ -11,27 +9,21 @@
 .notebook-block-content { position: relative; grid-column: 1; grid-row: 2; align-self: start; min-width: 0; }
 .notebook-grip { display: flex; gap: 0; height: 24px; align-self: center; }
 .notebook-grip::before, .notebook-grip::after { content: ''; width: 1px; background: var(--color-text-secondary); opacity: .65; }
-.notebook-handle:active { cursor: grabbing; }
-.notebook-note, .notebook-checklist textarea { display: block; width: 100%; min-width: 0; min-height: 0; padding: 0; border: 1px solid var(--color-field-border); border-radius: 2px; background: var(--color-field); color: var(--color-text); box-shadow: inset 0 1px 4px rgb(0 0 0 / 40%); resize: none; overflow: hidden; font-size: var(--font-size-body); line-height: 1.15; }
-.notebook-note, .notebook-checklist { min-width: 0; }
+.notebook-handle:active:not(:disabled) { cursor: grabbing; }
+.notebook-checklist { min-width: 0; }
 .notebook-checklist { display: flex; flex-direction: column; }
 .notebook-checklist ul { padding: 0; margin: 0; list-style: none; }
-.notebook-checklist li { display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 4px; margin-bottom: 0; }
+.notebook-checklist li { display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: var(--control-gap); margin-bottom: 0; }
 .notebook-checklist li:last-child { margin-bottom: 0; }
 .notebook-item-field { position: relative; min-width: 0; }
-.notebook-block-content .notebook-note { padding-right: calc(24px * var(--module-zoom, 1)); }
-.notebook-checklist .notebook-item-field textarea { padding-right: calc(44px * var(--module-zoom, 1)); }
-.notebook-checklist li:first-child .notebook-item-field textarea { padding-right: calc(66px * var(--module-zoom, 1)); }
-.notebook-checklist li:first-child .notebook-item-actions { right: calc(22px * var(--module-zoom, 1)); }
+.notebook-checklist li:first-child .notebook-item-actions { right: calc(var(--control-height) + 4px); }
 .notebook-item-actions { position: absolute; inset-block: 0; right: 2px; display: flex; align-items: center; }
-.notebook-checklist li[data-checked="true"] textarea { color: var(--color-text-secondary); }
 
-.app-shell .notebook-module button.notebook-delete[aria-label] { position: absolute; top: 2px; right: 2px; z-index: 1; display: grid; place-items: center; width: 20px; min-width: 20px; height: calc(20px * var(--module-zoom, 1)); min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
-.app-shell .notebook-module button.notebook-delete[aria-label]:hover:not(:disabled) { background: transparent; color: var(--color-accent-red); }
-.app-shell .notebook-module button.notebook-item-control[aria-label] { display: grid; place-items: center; width: 20px; min-width: 20px; height: 20px; min-height: 0; padding: 0; }
-.notebook-handle svg, .notebook-delete svg, .notebook-item-control svg { width: 16px; height: 16px; }
+.app-shell .notebook-module button.notebook-delete[aria-label] { position: absolute; top: 2px; right: 2px; z-index: 1; display: grid; place-items: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--color-text-secondary); }
+.app-shell .notebook-module button.notebook-item-control[aria-label] { display: grid; place-items: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); padding: 0; }
+.notebook-handle svg { width: 16px; height: 16px; }
+.app-shell .notebook-module :is(.notebook-delete,.notebook-item-control) > svg.lucide { width: calc(var(--icon-size) * var(--module-zoom, 1)); height: calc(var(--icon-size) * var(--module-zoom, 1)); }
 
 .notebook-module { height: 100%; }
 .notebook-list { display: flex; flex-direction: column; flex: 1; }
 .notebook-block { flex: 1; }
-.app-shell .notebook-module button:is(.notebook-delete,.notebook-item-control)[aria-label] { width: calc(20px * var(--module-zoom, 1)); min-width: calc(20px * var(--module-zoom, 1)); }

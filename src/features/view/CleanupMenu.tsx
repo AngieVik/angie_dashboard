@@ -22,6 +22,7 @@ const contents: Record<ModuleId, string> = {
   calculator: 'Se borrarán la operación y el resultado de la Calculadora.',
   notebook: 'Se eliminarán todas las notas y listas del Cuaderno.',
   timeline: 'Se eliminará todo el Registro. También se quitarán los estados actuales de las Dotaciones, compartidos con Información y Operativo.',
+  reports: 'Se restablecerán la selección de campos y la vista previa de Informes. Los archivos de informes guardados se conservarán.',
 }
 
 export function CleanupMenu({ active, disabled, request, onRequest, onCancel, onConfirm, error }: {

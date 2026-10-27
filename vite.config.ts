@@ -1,6 +1,7 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import { handleForecastRequest, isForecastRequest } from './server/forecastApi.mjs'
 
@@ -21,6 +22,11 @@ const forecastBackend: Plugin = {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   plugins: [
     forecastBackend,
     react(),
@@ -69,11 +75,5 @@ export default defineConfig({
         },
       },
     },
-  },
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
-    clearMocks: true,
   },
 })

@@ -4,7 +4,7 @@ import { addUnitTag } from '../../domain/operations/unitAnnotations'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { HelpTooltip } from '../../components/ui/tooltip'
-import { useValidationNotice } from '../../components/ui/useValidationNotice'
+import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { Check, Info, Pencil } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 
