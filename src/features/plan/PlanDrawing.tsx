@@ -6,6 +6,7 @@ import { useViewportInteraction } from '../../layout/ViewportContext'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
 import type { PlanMode } from './PlanModule'
+import styles from './PlanDrawing.module.css'
 
 function strokeLayer(map: L.Map, points: GeographicPosition[], color: string, width: number) {
   const pane = map.getPane('operational-plan-strokes') ?? map.createPane('operational-plan-strokes')
@@ -141,5 +142,5 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
       node.removeEventListener('wheel', wheel)
     }
   }, [mapRef, navigationKey, active, blockedRef, mode, color, width, zoom, placeId])
-  return <div ref={surface} className="plan-drawing" data-map-surface data-active={active} data-mode={mode} aria-hidden="true" onClick={event => event.stopPropagation()} />
+  return <div ref={surface} className={`plan-drawing ${styles.base}`} data-map-surface data-active={active} data-mode={mode} aria-hidden="true" onClick={event => event.stopPropagation()} />
 }

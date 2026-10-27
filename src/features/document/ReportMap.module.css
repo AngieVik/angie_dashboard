@@ -1,0 +1,4 @@
+@layer components {
+  :where(.base) :global(.reports-map-surface) { position: absolute; inset: 0; z-index: 0; background: var(--color-module); }
+  :where(.base) :global(.reports-map-overlay) { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+}

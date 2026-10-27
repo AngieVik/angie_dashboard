@@ -1,18 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '../components/ui/button'
-import { Alert } from '../components/ui/alert'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/ui/dropdown-menu'
+import { Alert } from '@/components/ui/alert'
+import { AppHeader } from './AppHeader'
+import styles from './app.module.css'
 import type { ModuleActions } from '../layout/ModuleFrame'
-import { LocateFixed, Magnet } from 'lucide-react'
-import { ZoomControl } from '../layout/ZoomControl'
 import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
 import { repositionModules } from '../layout/repositionModules'
-import { HelpTooltip, TooltipProvider } from '../components/ui/tooltip'
-import { FileMenu, DocumentNotices } from '../features/document/FileMenu'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { DocumentNotices } from '../features/document/FileMenu'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
-import { ViewMenu } from '../features/view/ViewMenu'
 import type { ViewArrangement } from '../features/view/ViewMenu'
-import { CleanupMenu } from '../features/view/CleanupMenu'
 import type { CleanupRequest } from '../features/view/CleanupMenu'
 import { BoardModule } from '../features/board/BoardModule'
 import { ElementsModule } from '../features/elements/ElementsModule'
@@ -38,7 +34,7 @@ import type { OpenModule } from '../layout/DashboardGrid'
 import { MobileViewport } from '../layout/MobileViewport'
 import { findModulePlacement } from '../layout/findModulePlacement'
 import { adaptModuleLayout, getWorkspaceBounds } from '../layout/adaptiveLayout'
-import { MODULE_ICONS, MODULE_REGISTRY } from '../layout/moduleRegistry'
+import { MODULE_REGISTRY } from '../layout/moduleRegistry'
 import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
 import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import { readNavigation, writeNavigation } from '../layout/navigationStorage'
@@ -164,7 +160,7 @@ export function App() {
     const observer = new ResizeObserver(() => {
       const size = { width: node.clientWidth, height: node.clientHeight }
       if (size.width <= 0 || size.height <= 0) return
-      const header = node.parentElement?.querySelector<HTMLElement>('.app-header')
+      const header = node.parentElement?.querySelector<HTMLElement>('[data-slot="app-header"]')
       // Header zoom changes the visible viewport, not the layout reference.
       const layoutSize = { width: size.width, height: header ? (node.parentElement?.clientHeight || size.height + header.offsetHeight) - header.offsetHeight : size.height }
       setViewport(previous => {
@@ -368,49 +364,27 @@ export function App() {
     activate(id)
   }
   return (
-    <TooltipProvider delayDuration={800}><div className="app-shell">
-      <header className="app-header" style={{ zoom: viewport.state.scale }}>
-        <h1><img className="app-logo" src="/assets/elements/icon_chincheta.png" alt="Angie Dashboard" /></h1>
-        <FileMenu store={store} />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button ref={modulesTrigger} className="document-button dashboard-menu-trigger">Módulos</Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {(Object.keys(MODULE_REGISTRY) as ModuleId[]).map(id => {
-              const Icon = MODULE_ICONS[id], isOpen = modules.some(module => module.id === id)
-              return <DropdownMenuItem key={id} className="file-menu-item module-list-item" aria-label={MODULE_REGISTRY[id].name} aria-describedby={'module-state-' + id} disabled={!ready || !boardActive || replacing} onSelect={() => toggle(id)}>
-                <Icon className="module-list-icon" data-open={isOpen} aria-hidden="true" />
-                {MODULE_REGISTRY[id].name}<span id={'module-state-' + id} className="visually-hidden">{isOpen ? 'Abierto' : 'Cerrado'}</span>
-              </DropdownMenuItem>
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <ViewMenu disabled={!ready || !boardActive || replacing || !open.length} active={open.some(module => module.id === active)}
-          onArrange={arrangeOpen} onAutoArrange={recolocate} onFitActive={fitActiveModule} />
-        <CleanupMenu active={open.some(module => module.id === active) ? active : null} disabled={!ready || !boardActive || replacing}
-          request={cleanupRequest?.generation === documentGeneration ? cleanupRequest : null} error={cleanupError}
-          onRequest={requestCleanup} onCancel={() => { setCleanupRequest(null); setCleanupError(null) }} onConfirm={confirmCleanup} />
-        <nav className="open-modules" aria-label="Módulos abiertos">
-          {open.map(({ id }) => {
-            const Icon = MODULE_ICONS[id], name = MODULE_REGISTRY[id].name
-            return <HelpTooltip key={id} text={(active === id ? 'Localizar ' : 'Seleccionar ') + name}>
-              <Button className="document-button module-button" aria-label={'Seleccionar módulo ' + name} aria-pressed={active === id}
-                disabled={!ready || replacing} onClick={() => selectOpenModule(id)}><Icon aria-hidden="true" /></Button>
-            </HelpTooltip>
-          })}
-        </nav>
-        <HelpTooltip text="Imán de módulos"><Button className="module-button magnet-button" aria-label="Imán de módulos" aria-pressed={magnet} onClick={() => setMagnet(value => !value)}><Magnet aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Volver al origen"><Button className="module-button origin-button" aria-label="Volver al origen" onClick={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}><LocateFixed size={19} aria-hidden="true" /></Button></HelpTooltip>
-        <ZoomControl key={documentGeneration} label="Zoom actual" scale={viewport.state.scale} onChange={scale => setViewport(previous => ({ ...previous,
+    <TooltipProvider delayDuration={800}><div data-slot="app-shell" className={`${styles.shell} app-shell`}>
+      <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store }}
+        modulesMenu={{ trigger: modulesTrigger, modules, disabled: !ready || !boardActive || replacing, onToggle: toggle }}
+        viewMenu={{ disabled: !ready || !boardActive || replacing || !open.length, active: open.some(module => module.id === active),
+          onArrange: arrangeOpen, onAutoArrange: recolocate, onFitActive: fitActiveModule }}
+        cleanupMenu={{ active: open.some(module => module.id === active) ? active : null, disabled: !ready || !boardActive || replacing,
+          request: cleanupRequest?.generation === documentGeneration ? cleanupRequest : null, error: cleanupError,
+          onRequest: requestCleanup, onCancel: () => { setCleanupRequest(null); setCleanupError(null) }, onConfirm: confirmCleanup }}
+        moduleShortcuts={{ modules: open, active, disabled: !ready || replacing, onSelect: selectOpenModule }}
+        magnet={{ active: magnet, onToggle: () => setMagnet(value => !value) }}
+        onOrigin={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}
+        onZoom={scale => setViewport(previous => ({ ...previous,
           state: zoomAt(previous.state, scale, { x: 0, y: 0 }, previous.size, sceneBounds) }))} />
-      </header>
-      <main ref={workspace} className="dashboard-workspace" aria-label="Espacio de trabajo" aria-busy={replacing}
+      <main ref={workspace} data-slot="app-workspace" className={styles.workspace} aria-label="Espacio de trabajo" aria-busy={replacing}
         onPointerDownCapture={event => { blankPointer.current = { x: event.clientX, y: event.clientY, moved: false } }}
         onPointerMoveCapture={event => {
           const start = blankPointer.current
           if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4) start.moved = true
         }} onPointerCancelCapture={() => { blankPointer.current = null }}
         onClick={event => {
-          if (blankPointer.current?.moved || !(event.target instanceof Element) || event.target.closest('.module-header,.board-pin,.quick-note,.element-row,button,input,textarea,select,a,[role="button"],[role="radio"],[contenteditable="true"]')) return
+          if (blankPointer.current?.moved || !(event.target instanceof Element) || event.target.closest('.module-header,.board-pin,.quick-note,.element-row,button,input,textarea,select,a,[role="button"],[role="radio"],[role="checkbox"],[contenteditable="true"]')) return
           if (event.target.closest('[data-module="operations"],[data-module="information"]')) return
           if (event.target.closest('[data-module]')?.querySelector('.element-editor')) return
           selectElement(null); setSelectionReset(value => value + 1)
@@ -418,7 +392,7 @@ export function App() {
         }}>
         <DocumentNotices store={store} />
         {modulesError && <div className="document-notices"><Alert>{modulesError}</Alert></div>}
-        <div className="document-workspace-content" inert={replacing}>
+        <div data-slot="app-workspace-content" className={styles.content} inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
             renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}

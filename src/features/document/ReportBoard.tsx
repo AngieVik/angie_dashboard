@@ -1,3 +1,5 @@
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select } from '@/components/ui/select'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { AngieDocument, AssetId } from '../../domain/document/types'
@@ -12,6 +14,8 @@ import { ReportMapArea } from './ReportMapArea'
 import type { ReportMapArea as Area, ReportMapFraming } from './reportMapFraming'
 import { createReportIssue, formatReportIssue } from './reportIssues'
 import type { ReportIssue } from './reportIssues'
+import framingStyles from './reportFraming.module.css'
+import styles from './ReportBoard.module.css'
 
 interface BoardPreview {
   document: AngieDocument
@@ -91,29 +95,24 @@ export function ReportBoard({ store, captureRef }: { store: DocumentStore; captu
 
   const frame = ready ? preview?.frame : undefined
   const scale = frame && size.width && size.height ? Math.min(size.width / frame.width, size.height / frame.height) : 0
-  return <div className="reports-map">
+  return <div className={`reports-map ${framingStyles.base} ${styles.base}`}>
     <h3>Pizarra</h3>
-    {resources.length > 0 && <label><input type="checkbox" checked={includeHidden} disabled={blocked} onChange={event => setIncludeHidden(event.target.checked)} />Incluir ocultos</label>}
+    {resources.length > 0 && <label><Checkbox checked={includeHidden} disabled={blocked} onCheckedChange={nextChecked => setIncludeHidden(nextChecked)} />Incluir ocultos</label>}
     <div className="reports-map-selection"><fieldset disabled={blocked}><legend>Recursos</legend>
-      {availableResources.length ? availableResources.map(element => <label key={element.id}><input type="checkbox" checked={included.has(element.id.toLowerCase())} onChange={event => {
-        const id = element.id.toLowerCase(), checked = event.target.checked
+      {availableResources.length ? availableResources.map(element => <label key={element.id}><Checkbox disabled={blocked} checked={included.has(element.id.toLowerCase())} onCheckedChange={nextChecked => {
+        const id = element.id.toLowerCase(), checked = nextChecked
         setExcludedResources(current => checked ? current.filter(value => value !== id) : [...current, id])
       }} />{element.name}{!element.pinVisible && <span className="reports-resource-state">Oculto</span>}</label>) : <span>{resources.length ? 'Sin recursos visibles.' : 'Sin recursos.'}</span>}
     </fieldset></div>
     <div className="reports-map-toolbar" role="group" aria-label="Encuadre: Pizarra">
-      <select aria-label="Encuadre: Pizarra" value={framing} disabled={blocked} onChange={event => {
-        const next = event.target.value
+      <Select aria-label="Encuadre: Pizarra" value={framing} disabled={blocked} onValueChange={next => {
         if (next === 'area') {
           if (!ready || !preview?.frame) return
           setAreaFrame({ ...preview.frame }); setFraming(next)
         } else if (next === 'content' || next === 'current' && sourceFrame) setFraming(next)
-      }}>
-        <option value="content">Contenido seleccionado</option>
-        <option value="area" disabled={!ready}>Área seleccionada</option>
-        <option value="current" disabled={!sourceFrame}>Vista actual</option>
-      </select>
+      }} options={[{ value: 'content', label: 'Contenido seleccionado' }, { value: 'area', label: 'Área seleccionada', disabled: !ready }, { value: 'current', label: 'Vista actual', disabled: !sourceFrame }]} />
       {(Object.entries({ background: 'Fondo', names: 'Nombres', notes: 'Notas', strokes: 'Trazos', legend: 'Leyenda' }) as [keyof BoardReportLayers, string][]).map(([id, label]) => <label key={id}>
-        <input type="checkbox" checked={layers[id]} disabled={blocked} onChange={event => setLayers(current => ({ ...current, [id]: event.target.checked }))} />{label}
+        <Checkbox checked={layers[id]} disabled={blocked} onCheckedChange={nextChecked => setLayers(current => ({ ...current, [id]: nextChecked }))} />{label}
       </label>)}
     </div>
     <div ref={viewport} className="reports-map-viewport" data-map-surface role="region" aria-label="Encuadre: Pizarra">

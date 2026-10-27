@@ -1,3 +1,5 @@
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select } from '@/components/ui/select'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import type { AssetId, DocumentElement, ElementVisual, PinAnchor, PinNameColor, Position } from '../../domain/document/types'
@@ -5,15 +7,16 @@ import type { CreateElementInput, ElementBatchPatch } from './elementTypes'
 import { getPinBox, ICON_CATALOG } from './iconCatalog'
 import { clampAssetScale } from './elementCommands'
 import { getPinAnchorFromPoint, getPinAnchorPoint, getPinNameLayout, PIN_NAME_COLORS, pinNameLines, pinNameStyle, pinTransform } from './pinPresentation'
-import { Button } from '../../components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Crosshair, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical } from 'lucide-react'
-import { Input } from '../../components/ui/input'
-import { Slider } from '../../components/ui/slider'
-import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group'
+import { Input } from '@/components/ui/input'
+import { Slider } from '@/components/ui/slider'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
+import pinStyles from './BoardPin.module.css'
 
 type ElementEditorProps = {
   element?: DocumentElement; isUnit?: boolean; creating?: boolean; formId: string
@@ -115,7 +118,7 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
         {!nameHidden && <span className="element-name-size-control" title={`Tamaño de letra: ${nameFontSize} px`}>
           <Slider label="Tamaño de letra del nombre" min={8} max={72} value={nameFontSize} onValueChange={value => { if (!blockedRef.current) { changed.current.add('nameFontSize'); setNameFontSize(value) } }} disabled={blocked} />
         </span>}
-        <label className="element-name-hidden"><input type="checkbox" checked={nameHidden} onChange={event => { changed.current.add('nameHidden'); setNameHidden(event.target.checked) }} />Ocultar</label>
+        <label className="element-name-hidden"><Checkbox disabled={blocked} checked={nameHidden} onCheckedChange={nextChecked => { changed.current.add('nameHidden'); setNameHidden(nextChecked) }} />Ocultar</label>
       </div>
       <RadioGroup aria-label="Tipo de pin" orientation="horizontal" value={representation} onValueChange={value => {
         if (!blockedRef.current) { changed.current.add('icon'); setRepresentation(value as 'asset' | 'emoji') }
@@ -123,10 +126,10 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
         <label><RadioGroupItem value="asset" aria-label="PNG" />PNG</label>
         <label><RadioGroupItem value="emoji" aria-label="Emoji" />Emoji</label>
       </RadioGroup>
-      {representation === 'asset' ? <label className="element-pin-choice">PIN<select aria-label="PIN" value={assetId} onChange={event => { changed.current.add('icon'); setAssetId(event.target.value as AssetId) }}>
-        {!catalog.includes(assetId) && <option value={assetId}>{ICON_CATALOG[assetId].name} (actual)</option>}
-        {catalog.map(id => <option key={id} value={id}>{ICON_CATALOG[id].name}</option>)}
-      </select></label> : <Input aria-label="Emoji" placeholder="Emoji" aria-invalid={Boolean(error && errorField === 'emoji')} aria-describedby={error && errorField === 'emoji' ? `${nameId}-error` : undefined} value={emoji} onChange={event => { changed.current.add('icon'); setEmoji(event.target.value) }} />}
+      {representation === 'asset' ? <label className="element-pin-choice">PIN<Select aria-label="PIN" value={assetId} disabled={blocked}
+        onValueChange={value => { changed.current.add('icon'); setAssetId(value as AssetId) }}
+        options={[...(!catalog.includes(assetId) ? [{ value: assetId, label: ICON_CATALOG[assetId].name + ' (actual)' }] : []), ...catalog.map(id => ({ value: id, label: ICON_CATALOG[id].name }))]} />
+      </label> : <Input aria-label="Emoji" placeholder="Emoji" aria-invalid={Boolean(error && errorField === 'emoji')} aria-describedby={error && errorField === 'emoji' ? `${nameId}-error` : undefined} value={emoji} onChange={event => { changed.current.add('icon'); setEmoji(event.target.value) }} />}
       <div className="element-preview-frame">
         <div className="element-preview" role="img" aria-label="Previsualización del elemento">
           <div className="element-preview-scene" style={{ width: previewWidth, height: previewHeight }}>
@@ -134,7 +137,7 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
               {visual.type === 'asset' ? <img src={ICON_CATALOG[visual.assetId].path} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', transform: pinTransform(visual) }} /> :
                 <span className="board-pin-emoji" style={{ display: 'block', fontSize: 48, lineHeight: '64px', transform: pinTransform(visual) }}>{visual.value}</span>}
             </div>
-            {!nameHidden && <span className="board-pin-name" title={name} style={{ ...pinNameStyle(nameElement), left: '50%', top: 'auto', bottom: 0, transform: 'translateX(-50%)', paddingBlock: 0 }}>{nameLines.join('\n')}</span>}
+            {!nameHidden && <span className={`board-pin-name ${pinStyles.name}`} title={name} style={{ ...pinNameStyle(nameElement), left: '50%', top: 'auto', bottom: 0, transform: 'translateX(-50%)', paddingBlock: 0 }}>{nameLines.join('\n')}</span>}
             <Crosshair className="element-anchor-mark" aria-hidden="true" style={{ left: (previewWidth - box.width) / 2 + anchorPoint.x, top: (diameter - box.height) / 2 + anchorPoint.y }} />
           </div>
         </div>

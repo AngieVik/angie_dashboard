@@ -1,9 +1,11 @@
+import labelStyles from '@/layout/controlValueLabel.module.css'
 import { useEffect, useRef, useState } from 'react'
 import { GitCommitVertical, Palette } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { HelpTooltip } from '../../components/ui/tooltip'
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
-import { Slider } from '../../components/ui/slider'
+import { Button } from '@/components/ui/button'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Slider } from '@/components/ui/slider'
+import styles from './PlanStrokeControls.module.css'
 
 export function PlanStrokeControls({ color, width, blocked, onColor, onWidth }: {
   color: string; width: number; blocked: boolean
@@ -34,11 +36,11 @@ export function PlanStrokeControls({ color, width, blocked, onColor, onWidth }: 
     <Popover open={open && !blocked} onOpenChange={setOpen}>
       <HelpTooltip text="Grosor"><PopoverTrigger asChild><Button ref={trigger} disabled={blocked} aria-label="Abrir deslizador: Grosor"><GitCommitVertical aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
       <PopoverContent side="bottom" aria-label="Grosor" onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
-        <div className="zoom-popover-label"><span>Grosor</span><output>{width}</output></div>
+        <div className={labelStyles.base}><span>Grosor</span><output>{width}</output></div>
         <Slider label="Grosor" value={width} min={1} max={40} step={1} disabled={blocked} onValueChange={onWidth} />
       </PopoverContent>
     </Popover>
-    <span className="plan-color-control">
+    <span className={`plan-color-control ${styles.base}`}>
       <HelpTooltip text="Color del lápiz"><Button disabled={blocked} aria-label="Elegir color del lápiz" onClick={() => penColor.current?.click()}><Palette aria-hidden="true" /></Button></HelpTooltip>
       <input ref={penColor} type="color" aria-label="Color del lápiz" value={color} disabled={blocked} tabIndex={-1} onChange={event => onColor(event.target.value)} />
     </span>

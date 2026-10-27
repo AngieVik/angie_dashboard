@@ -1,0 +1,18 @@
+@layer components {
+  .base { display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
+  :where(.base) :global(.plan-toolbar) { display: flex; flex-wrap: wrap; flex: none; align-items: center; gap: 2px 8px; padding: 3px 5px; border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
+  :where(.base) :global(.plan-tools) { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; gap: 2px; }
+  :where(.base) :global(.plan-resources) { flex: 1; flex-wrap: wrap; }
+  :where(.base) :global(.plan-resource-select) { flex: 1; width: 14ch; max-width: 26ch; }
+  :where(.base) :global(.plan-notice) { flex: none; margin: 0; padding: 3px 5px; font-size: var(--control-font-size); background: var(--surface-toolbar); }
+  :where(.base) :global(.plan-error) { border-left: 2px solid var(--color-accent-red); overflow-wrap: anywhere; }
+  :where(.base) :global(.plan-selection) { display: flex; flex-wrap: wrap; flex: none; align-items: center; gap: 2px 8px; padding: 2px 5px; border-top: 1px solid var(--color-border); font-size: var(--control-font-size); }
+  :where(.base) :global(.plan-selection) strong { font-weight: 500; overflow-wrap: anywhere; }
+  :where(.base) :global(.plan-selection) > span { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+}
+
+@layer overrides {
+  :where(.base) > :global(.map-module) { flex: 1; height: 0; }
+  :where(.base) :is(:global(.plan-toolbar), :global(.plan-selection)) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+  :where(.base) :is(:global(.plan-toolbar), :global(.plan-selection)) [data-slot="button"][aria-pressed="true"] { background: var(--color-selected); }
+}

@@ -1,2 +1,50 @@
 @import 'react-grid-layout/css/styles.css' layer(vendor);
 @import 'react-resizable/css/styles.css' layer(vendor);
+
+@layer overrides {
+  [data-grid-surface] .react-grid-item { transition: none; }
+  [data-grid-surface] .react-grid-item.react-grid-placeholder { background: var(--color-frame-border); opacity: .12; }
+  [data-grid-surface] .react-resizable-handle { touch-action: none; user-select: none; -webkit-user-select: none; }
+  [data-grid-surface] .react-resizable-handle::after { border-color: var(--color-text-secondary); }
+  [data-grid-surface] .react-resizable-handle-n,
+  [data-grid-surface] .react-resizable-handle-s { width: calc(100% - 40px); height: 6px; left: 20px; margin: 0; transform: none; }
+  [data-grid-surface] .react-resizable-handle-e,
+  [data-grid-surface] .react-resizable-handle-w { height: calc(100% - 40px); width: 6px; top: 20px; margin: 0; transform: none; }
+  [data-grid-surface] .react-resizable-handle-n::after,
+  [data-grid-surface] .react-resizable-handle-s::after,
+  [data-grid-surface] .react-resizable-handle-e::after,
+  [data-grid-surface] .react-resizable-handle-w::after { display: none; }
+  [data-grid-surface] .react-grid-item > .react-resizable-handle { background-image: none; }
+  [data-grid-surface] .react-grid-item > .react-resizable-handle-se {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-text-secondary);
+    opacity: 1;
+    cursor: pointer;
+    touch-action: none;
+  }
+  [data-grid-surface] .react-grid-item > .react-resizable-handle-se::after { display: none; }
+  [data-grid-surface] .react-grid-item > .react-resizable-handle-ne,
+  [data-grid-surface] .react-grid-item > .react-resizable-handle-nw { width: 10px; height: 10px; }
+  [data-grid-surface] .react-grid-item:has(> .module-frame[data-collapsed="false"]) > .react-resizable-handle-se { width: 25px; min-width: 25px; height: 25px; min-height: 25px; }
+  [data-grid-surface] .react-grid-item:has(> .module-frame[data-collapsed="true"]) > .react-resizable-handle { display: none; }
+  [data-grid-surface] .react-resizable-handle svg { width: 15px; height: 15px; pointer-events: none; }
+  [data-grid-surface] .react-grid-item > .react-resizable-handle-se:hover { border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text); }
+
+  /* These values draw the in-progress gesture over the library's inline box. */
+  [data-grid-surface] .react-grid-item.react-draggable-dragging { transform: translate(var(--module-drag-x, var(--module-x)), var(--module-drag-y, var(--module-y))) !important; }
+  [data-grid-surface] .react-grid-item.resizing { width: var(--module-resize-width) !important; height: var(--module-resize-height) !important; }
+}

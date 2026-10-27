@@ -1,0 +1,27 @@
+@layer components {
+  .base {
+    --calculator-display-size: calc(20px * var(--module-zoom, 1));
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+
+  :where(.base) :global(.calculator-readout) { display: flex; flex: 1 1 0; flex-direction: column; justify-content: center; min-height: calc(22px * var(--module-zoom, 1)); text-align: right; white-space: nowrap; }
+  :where(.base) :global(.calculator-readout) output { font-size: var(--calculator-display-size); line-height: 1.25; color: var(--color-text); }
+  :where(.base) :global(.calculator-readout) [role="alert"] { display: block; font-size: var(--font-size-body); line-height: 1.25; color: var(--color-accent-yellow); }
+  :where(.base) :global(.calculator-keypad) { container-type: size; display: grid; flex: 6 1 0; min-height: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); gap: 0; }
+  :where(.base) :global(.calculator-keypad) :global(.calculator-equals) { grid-column: 1 / -1; }
+}
+
+@layer overrides {
+  .base [data-slot="input"] { flex: 0 0 var(--field-height); width: 100%; text-align: right; }
+  .base :global(.calculator-keypad) [data-slot="button"] { height: 100%; min-height: 0; min-width: 0; --control-font-size: calc(24px * var(--module-zoom, 1)); padding: 1px 4px; font-variant-numeric: tabular-nums; overflow: hidden; }
+
+  :global(.module-frame)[data-fitting] .base :global(.calculator-keypad) { flex: none; container-type: normal; grid-template-rows: repeat(6, var(--control-height)); }
+  :global(.module-scaled-content)[data-measuring="minimum-width"] .base :global(.calculator-keypad) { container-type: normal; grid-template-columns: repeat(4, minmax(min-content, 1fr)); }
+  :global(.module-scaled-content)[data-measuring="true"] .base :is([data-slot="input"], :global(.calculator-readout)) { flex: none; }
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.calculator-keypad) { container-type: normal; flex: none; grid-template-rows: repeat(6, minmax(var(--control-height), auto)); }
+}

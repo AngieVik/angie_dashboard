@@ -1,0 +1,18 @@
+@layer components {
+  .base {
+    z-index: 15;
+    width: 210px;
+    max-width: min(calc(100vw - 16px), var(--radix-popover-content-available-width));
+    max-height: var(--radix-popover-content-available-height);
+    overflow: auto;
+    padding: 10px;
+    border: 1px solid var(--color-frame-border);
+    border-radius: var(--radius-control);
+    background: var(--surface-overlay);
+    color: var(--color-text);
+    box-shadow: var(--shadow-panel);
+    font-family: var(--font-interface-default);
+    font-size: var(--control-font-size-base);
+    line-height: 1.4;
+  }
+}

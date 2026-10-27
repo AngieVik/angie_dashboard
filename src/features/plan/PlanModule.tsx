@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Ambulance, Copy, Eraser, Eye, EyeOff, Focus, Hand, MapPin, MousePointer2, Package, Pencil, Settings2, Trash2, Undo2, X } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { HelpTooltip } from '../../components/ui/tooltip'
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '../../components/ui/alert-dialog'
+import { Ambulance, Copy, Eraser, Eye, EyeOff, Focus, Hand, MapPin, MousePointer2, Package, Pencil, Settings2, Trash2, Undo2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import type { AngieDocument, PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -16,7 +17,7 @@ import { PlanPins } from './PlanPins'
 import { PlanStrokeControls } from './PlanStrokeControls'
 import { updateElement } from '../elements/elementCommands'
 import { addPlanStroke, placePlanPin, removePlanPin, removePlanStroke, togglePlanPin } from './planCommands'
-import './plan.css'
+import styles from './plan.module.css'
 
 export type PlanMode = 'navigate' | 'select' | 'draw' | 'erase' | 'place'
 const EMPTY_PINS: PlanPin[] = []
@@ -56,7 +57,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
     try { store.mutateDocument(update); setError(null); return true }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'No se pudo actualizar el plano.'); return false }
   }
-  return <div className="plan-module" data-mode={mode}>
+  return <div className={`plan-module ${styles.base}`} data-mode={mode}>
     <div className="plan-toolbar" role="toolbar" aria-label="Herramientas del Plano operativo">
       <div className="plan-tools" role="group" aria-label="Modo del plano">
         {MODES.map(({ mode: tool, label, icon: Icon }) => <HelpTooltip key={tool} text={label}><Button aria-label={label} aria-pressed={mode === tool} disabled={blocked}
@@ -70,16 +71,14 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
         <HelpTooltip text="Borrar trazos"><Button aria-label="Borrar todos los trazos del plano" disabled={blocked || !strokes.length} onClick={() => { if (!blockedRef.current) setClearOpen(true) }}><Trash2 aria-hidden="true" /></Button></HelpTooltip>
       </div>
       <div className="plan-tools plan-resources" role="group" aria-label="Recursos del plano">
-        <select className="plan-resource-select" aria-label="Recurso del plano" value={selected?.id ?? ''} disabled={blocked || !document.elements.length}
-          onChange={event => { if (!blockedRef.current) { onSelect(event.target.value || null); setMode('select') } }}>
-          <option value="">{document.elements.length ? 'Recursos' : 'Sin recursos'}</option>
-          {document.elements.map(element => <option key={element.id} value={element.id}>{element.name}{element.isUnit ? ' · Dotación' : ''}</option>)}
-        </select>
+        <Select className="plan-resource-select" aria-label="Recurso del plano" value={selected?.id ?? ''} disabled={blocked || !document.elements.length}
+          onValueChange={value => { if (!blockedRef.current) { onSelect(value || null); setMode('select') } }}
+          options={[{ value: '', label: document.elements.length ? 'Recursos' : 'Sin recursos' }, ...document.elements.map(element => ({ value: element.id, label: element.name + (element.isUnit ? ' · Dotación' : '') }))]} />
         <HelpTooltip text="Colocar pin"><Button aria-label="Colocar recurso en el plano" aria-pressed={mode === 'place'} disabled={blocked || !selected}
           onClick={() => { if (!blockedRef.current) setMode(mode === 'place' ? 'select' : 'place') }}><MapPin aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text={pin?.visible ? 'Ocultar pin' : 'Mostrar pin'}><Button aria-label={pin?.visible ? 'Ocultar pin del plano' : 'Mostrar pin del plano'} disabled={blocked || !pin}
           onClick={() => { if (selectedId) apply(document => togglePlanPin(document, selectedId)) }}>{pin?.visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button></HelpTooltip>
-        <HelpTooltip text="Retirar pin"><Button aria-label="Retirar pin del plano" disabled={blocked || !pin} onClick={() => { if (selectedId) apply(document => removePlanPin(document, selectedId)) }}><X aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Retirar pin"><Button aria-label="Retirar pin del plano" disabled={blocked || !pin} onClick={() => { if (selectedId) apply(document => removePlanPin(document, selectedId)) }}><Trash2 aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Centrar recursos"><Button aria-label="Centrar recursos del plano" disabled={blocked || (selected ? !pin?.visible : !pins.some(pin => pin.visible))} onClick={() => {
           if (blockedRef.current) return
           if (selected) setMode('select')
@@ -119,10 +118,10 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
       <AlertDialogContent>
         <AlertDialogTitle>Borrar trazos del plano</AlertDialogTitle>
         <AlertDialogDescription>Se eliminarán todos los trazos. Los pines y los GPX se conservarán.</AlertDialogDescription>
-        <div className="document-dialog-actions">
+        <AlertDialogFooter>
           <AlertDialogCancel asChild><Button>Cancelar</Button></AlertDialogCancel>
           <Button onClick={() => { if (apply(document => { if (document.plan) document.plan.strokes = [] })) setClearOpen(false) }}>Borrar trazos</Button>
-        </div>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   </div>

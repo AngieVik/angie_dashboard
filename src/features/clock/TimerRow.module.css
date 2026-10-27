@@ -1,0 +1,51 @@
+@layer components {
+  .base {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: min-content;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-bottom-color: transparent;
+    border-radius: 0;
+    background: var(--surface-inset);
+  }
+  .base + .base { border-top: 0; }
+  .base:first-child { border-top-left-radius: 2px; border-top-right-radius: 2px; }
+  .base:last-child { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
+  :where(.base) :global(.timer-heading) { display: flex; flex: none; align-items: center; gap: min(2px, .5cqi); min-width: 0; padding: 0 calc(3px * var(--module-zoom, 1)); font-size: var(--font-size-technical); line-height: 1; font-weight: 600; color: var(--color-text-secondary); }
+  :where(.base) :global(.timer-main) {
+    --timer-control-gap: calc(4px * var(--module-zoom, 1));
+    --timer-controls-width: calc(2 * var(--control-height) + var(--timer-control-gap));
+    --timer-font-size: max(0px, min(calc(40px * var(--module-zoom, 1)), calc((100cqi - var(--timer-controls-width) - var(--timer-control-gap)) / 4.4), 100cqb));
+    container-type: size;
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+    min-height: calc(var(--control-height) + 4px * var(--module-zoom, 1));
+    align-items: center;
+    gap: var(--timer-control-gap);
+    margin: 0;
+    padding: calc(2px * var(--module-zoom, 1)) calc(3px * var(--module-zoom, 1));
+  }
+  :where(.base) :global(.timer-value) { display: block; min-width: 0; width: 100%; margin: 0; overflow: hidden; font-family: inherit; font-weight: 600; font-size: var(--timer-font-size); line-height: 1; white-space: nowrap; }
+  :where(.base) :global(.timer-controls) { display: flex; flex: none; align-items: center; gap: var(--timer-control-gap); margin: 0; }
+  .base[data-alert="true"] { border-color: #fff; border-bottom-color: transparent; outline: 1px solid #fff; animation: timer-alarm var(--alarm-cycle) steps(1, end) infinite; cursor: pointer; }
+  @keyframes timer-alarm {
+    0%, 100% { background: #f2172b; box-shadow: 0 0 16px 5px rgb(255 24 45 / 90%), inset 0 0 16px #ff8f98; }
+    50% { background: #56131c; box-shadow: 0 0 5px 1px rgb(255 24 45 / 40%), inset 0 0 5px #d63a3a; }
+  }
+}
+
+@layer overrides {
+  :where(.base) :global(.timer-close), :where(.base) :global(.timer-controls) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+  :where(.base) :global(.timer-close) { margin-left: auto; }
+  :where(.base) :global(.timer-acknowledge) { justify-content: flex-start; min-width: 0; width: 100%; height: auto; min-height: 0; padding: 0; overflow: hidden; color: var(--color-text); }
+
+  :global(.clock-module)[data-sizing] .base, :global(.module-frame)[data-fitting] .base { container-type: normal; }
+  :global(.clock-module)[data-sizing] .base :global(.timer-main), :global(.module-frame)[data-fitting] .base :global(.timer-main) { container-type: normal; flex: none; --timer-font-size: calc(40px * var(--module-zoom, 1)); }
+  :global(.module-scaled-content)[data-measuring="true"] .base,
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.timer-main) { container-type: normal; flex: none; }
+}

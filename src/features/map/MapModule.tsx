@@ -1,13 +1,15 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, PointerEvent, ReactNode } from 'react'
-import { Check, Copy, Crosshair, Eye, EyeOff, Flag, Focus, FolderOpen, Layers, Minus, Palette, Plus, Route, Search, X } from 'lucide-react'
+import { Check, Copy, Crosshair, Eye, EyeOff, Flag, Focus, FolderOpen, Layers, Minus, Palette, Plus, Route, Search, Trash, X } from 'lucide-react'
 import * as L from 'leaflet'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { HelpTooltip } from '../../components/ui/tooltip'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '../../components/ui/dropdown-menu'
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
-import { Slider } from '../../components/ui/slider'
+import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { InputGroup } from '@/components/ui/input-group'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Slider } from '@/components/ui/slider'
 import { copyText } from '../../platform/clipboard'
 import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { convertCoordinate, toGeographic } from '../coordinates/convertCoordinate'
@@ -36,7 +38,7 @@ import { useMapSearch } from './useMapSearch'
 import { MapElevation } from './MapElevation'
 import { GpxElevationProfile } from './GpxElevationProfile'
 import type { GpxProfileSample } from './gpxProfile'
-import './map.css'
+import styles from './map.module.css'
 
 interface MapSelection extends GeographicCoordinate { gpx?: { fileId: string; location: GpxLocation } }
 const GPX_COLORS = ['#D63A3A', '#3697DC', '#54B777', '#E69B37', '#A377D8']
@@ -551,13 +553,13 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
       cancelledTouch.current = true; mapRef.current?.touchZoom.disable()
     }
   }
-  return <div className="map-module" data-coordinates-open={coordinatesOpen}>
+  return <div data-slot="map-module" className={`${styles.base} map-module`} data-coordinates-open={coordinatesOpen}>
     <div className="map-toolbar" hidden={!coordinatesOpen}>
       <form id={coordinatesMenuId} aria-label="Buscar en el mapa" onSubmit={event => { event.preventDefault(); searchMap() }} onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); resetSearch(); setCoordinatesOpen(false); coordinatesTrigger.current?.focus() }
       }}>
-        <select className="map-coordinate-format" aria-label="Formato de coordenadas del mapa" value={format} disabled={blocked} onChange={event => {
-          const next = event.target.value as CoordinateFormat
+        <Select aria-label="Formato de coordenadas del mapa" value={format} disabled={blocked} onValueChange={value => {
+          const next = value as CoordinateFormat
           selectionRevision.current++; setFormat(next); setCopied(false)
           const parsed = parseCoordinate(input)
           if (parsed.ok) {
@@ -565,17 +567,15 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
             if (formatted.ok) { setInput(formatted.text); setError(null) }
             else setError(formatted.error)
           }
-        }}>
-          {(['DD', 'DMS', 'DMM', 'UTM'] as const).map(value => <option key={value}>{value}</option>)}
-        </select>
-        <div className="map-coordinate-field">
-          <Input ref={searchInput} className="document-title map-coordinate-input" aria-label="Lugar, dirección o coordenadas" placeholder="Lugar, dirección o coordenadas" value={input} disabled={blocked} spellCheck={false} autoComplete="off"
+        }} options={(['DD', 'DMS', 'DMM', 'UTM'] as const).map(value => ({ value, label: value }))} />
+        <InputGroup className="map-coordinate-field">
+          <Input ref={searchInput} className="map-coordinate-input" aria-label="Lugar, dirección o coordenadas" placeholder="Lugar, dirección o coordenadas" value={input} disabled={blocked} spellCheck={false} autoComplete="off"
             title="Lugar, dirección o coordenadas" onChange={event => { resetSearch(); selectionRevision.current++; setInput(event.target.value); setError(null); setCopied(false) }} />
-          <button type="submit" className="map-coordinate-action map-search-submit" aria-label="Buscar" disabled={blocked || !input.trim() || searchState.status === 'loading'}><Search aria-hidden="true" /><span>Buscar</span></button>
-          <HelpTooltip text={copied ? 'Coordenadas copiadas' : 'Copiar coordenadas'}><button type="button" className="map-coordinate-action" aria-label="Copiar coordenadas del punto" disabled={blocked || !canCopy} onClick={() => { void copyCoordinate() }}>
+          <Button appearance="integrated" type="submit" className="map-coordinate-action map-search-submit" aria-label="Buscar" disabled={blocked || !input.trim() || searchState.status === 'loading'}><Search aria-hidden="true" /><span>Buscar</span></Button>
+          <HelpTooltip text={copied ? 'Coordenadas copiadas' : 'Copiar coordenadas'}><Button appearance="integrated" type="button" className="map-coordinate-action" aria-label="Copiar coordenadas del punto" disabled={blocked || !canCopy} onClick={() => { void copyCoordinate() }}>
             {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-          </button></HelpTooltip>
-        </div>
+          </Button></HelpTooltip>
+        </InputGroup>
       </form>
     </div>
     <div className="map-panel-toggles" role="group" aria-label="Paneles del mapa">
@@ -587,14 +587,16 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         aria-controls={gpxMenuId} aria-pressed={gpxOpen} disabled={blocked} onClick={() => setGpxOpen(open => !open)}><Route aria-hidden="true" /></Button></HelpTooltip>
       <DropdownMenu>
         <HelpTooltip text="Fondo del mapa"><DropdownMenuTrigger asChild><Button aria-label="Fondo del mapa" disabled={blocked}><Layers aria-hidden="true" /></Button></DropdownMenuTrigger></HelpTooltip>
-        <DropdownMenuContent className="file-menu-content map-background-menu" side="bottom" align="end" collisionPadding={8} aria-label="Fondo del mapa">
-          {(Object.keys(MAP_BACKGROUNDS) as MapBackground[]).map(id => <DropdownMenuCheckboxItem key={id} checked={background === id} disabled={blocked}
-            onSelect={() => changeBackground(id)}>{MAP_BACKGROUNDS[id].name}</DropdownMenuCheckboxItem>)}
-          {background === 'pnoa' && <>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem checked={pnoaInformation} disabled={blocked}
-              onCheckedChange={checked => changeInformation(checked === true)}>Información</DropdownMenuCheckboxItem>
-          </>}
+        <DropdownMenuContent side="bottom" align="end" collisionPadding={8} aria-label="Fondo del mapa">
+          <DropdownMenuGroup>
+            {(Object.keys(MAP_BACKGROUNDS) as MapBackground[]).map(id => <DropdownMenuCheckboxItem key={id} checked={background === id} disabled={blocked}
+              onSelect={() => changeBackground(id)}>{MAP_BACKGROUNDS[id].name}</DropdownMenuCheckboxItem>)}
+            {background === 'pnoa' && <>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem checked={pnoaInformation} disabled={blocked}
+                onCheckedChange={checked => changeInformation(checked === true)}>Información</DropdownMenuCheckboxItem>
+            </>}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       <MapLegend background={background} information={pnoaInformation} zoom={mapZoom} disabled={blocked} />
@@ -605,7 +607,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     {busy && <p className="map-notice" role="status">Leyendo GPX…</p>}
     {missingFiles.length > 0 && <p className="map-notice map-gpx-pending" role="status">
       <span>GPX pendientes: {missingFiles.map(file => file.name).join(', ')}</span>
-      <Button className="document-button" disabled={blocked || busy} onClick={() => setGpxOpen(true)}>Ver GPX</Button>
+      <Button disabled={blocked || busy} onClick={() => setGpxOpen(true)}>Ver GPX</Button>
     </p>}
     <div className="map-workspace">
       <div className="map-area">
@@ -618,10 +620,10 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
           {searchState.status === 'results' && <>
             <p className="map-notice" role="status">{searchState.places.length === 1 ? '1 coincidencia' : `${searchState.places.length} coincidencias`}</p>
             <ul aria-label="Resultados de búsqueda">
-              {searchState.places.map(place => <li key={place.id}><button type="button" disabled={blocked} onClick={() => choosePlace(place)}>
+              {searchState.places.map(place => <li key={place.id}><Button type="button" disabled={blocked} onClick={() => choosePlace(place)}>
                 <strong>{place.name}</strong><span>{place.label}</span>
                 <span className="map-search-coordinate">{place.latitude.toFixed(6)}, {place.longitude.toFixed(6)}</span>
-              </button></li>)}
+              </Button></li>)}
             </ul>
           </>}
         </div>}
@@ -637,34 +639,34 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         {(tileError || informationTileError) && <p className="map-tile-notice" role="status">No se puede cargar parte del mapa. Comprueba la conexión.</p>}
       </div>
       <div className="map-sidepanels" hidden={!gpxOpen && !markersOpen}>
-      {gpxOpen && <aside id={gpxMenuId} className="map-gpx-menu" aria-labelledby={`${gpxMenuId}-title`} onKeyDown={event => {
+      {gpxOpen && <aside id={gpxMenuId} className={`${styles.panel} ${styles.gpxPanel} map-gpx-menu`} aria-labelledby={`${gpxMenuId}-title`} onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeGpx() }
       }}>
-        <div className="map-gpx-heading">
+        <div className={`${styles.panelHeading} map-gpx-heading`}>
           <span id={`${gpxMenuId}-title`}>GPX</span>
-          <HelpTooltip text="Agregar GPX"><Button aria-label="Agregar GPX" disabled={blocked || busy} onClick={() => chooseFiles()}><Plus aria-hidden="true" /></Button></HelpTooltip>
-          <HelpTooltip text="Cerrar GPX"><Button aria-label="Cerrar GPX" disabled={blocked} onClick={closeGpx}><X aria-hidden="true" /></Button></HelpTooltip>
+          <HelpTooltip text="Agregar GPX"><Button className={styles.panelTool} aria-label="Agregar GPX" disabled={blocked || busy} onClick={() => chooseFiles()}><Plus aria-hidden="true" /></Button></HelpTooltip>
+          <HelpTooltip text="Cerrar GPX"><Button className={styles.panelTool} aria-label="Cerrar GPX" disabled={blocked} onClick={closeGpx}><X aria-hidden="true" /></Button></HelpTooltip>
         </div>
-        <div className="map-file-actions" role="group" aria-label={activeFile ? 'Controles de ' + activeFile.name : 'Controles GPX'}>
-          <HelpTooltip text={activeFile?.visible === false ? 'Mostrar GPX' : 'Ocultar GPX'}><Button aria-label={activeFile ? (activeFile.visible ? 'Ocultar ' : 'Mostrar ') + activeFile.name : 'Ocultar GPX'}
+        <div className={`${styles.panelActions} map-file-actions`} role="group" aria-label={activeFile ? 'Controles de ' + activeFile.name : 'Controles GPX'}>
+          <HelpTooltip text={activeFile?.visible === false ? 'Mostrar GPX' : 'Ocultar GPX'}><Button className={styles.panelTool} aria-label={activeFile ? (activeFile.visible ? 'Ocultar ' : 'Mostrar ') + activeFile.name : 'Ocultar GPX'}
             aria-pressed={Boolean(activeFile?.visible)} disabled={blocked || busy || !activeFile}
             onClick={() => { if (activeFile) changeReferences(files => files.map(item => item.id === activeFile.id ? { ...item, visible: !item.visible } : item)) }}>
             {activeFile?.visible === false ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
           </Button></HelpTooltip>
-          <span className="map-color-control">
-            <HelpTooltip text="Color GPX"><Button aria-label={activeFile ? 'Elegir color de ' + activeFile.name : 'Color GPX'} disabled={blocked || busy || !activeFile}
+          <span className={`${styles.colorControl} map-color-control`}>
+            <HelpTooltip text="Color GPX"><Button className={styles.panelTool} aria-label={activeFile ? 'Elegir color de ' + activeFile.name : 'Color GPX'} disabled={blocked || busy || !activeFile}
               onClick={() => gpxColorInput.current?.click()}><Palette aria-hidden="true" /></Button></HelpTooltip>
             {activeFile && <input key={activeFile.id} ref={gpxColorInput} type="color" aria-label={'Color de ' + activeFile.name}
               value={activeFile.color ?? GPX_COLORS[0]!} disabled={blocked || busy} tabIndex={-1}
               onChange={event => changeReferences(files => files.map(item => item.id === activeFile.id ? { ...item, color: event.target.value.toUpperCase() } : item))} />}
           </span>
           <Popover key={activeFile?.id ?? 'no-selection'}>
-            <HelpTooltip text="Separación PK"><PopoverTrigger asChild><Button aria-label={activeFile ? 'PK de ' + activeFile.name : 'Separación PK'} aria-pressed={Boolean(activeFile?.kilometers)}
+            <HelpTooltip text="Separación PK"><PopoverTrigger asChild><Button variant="icon" className={styles.panelTool} aria-label={activeFile ? 'PK de ' + activeFile.name : 'Separación PK'} aria-pressed={Boolean(activeFile?.kilometers)}
               disabled={blocked || busy || !activeFile || (selectedFile !== undefined && !selectedFile.data.lines.length)}>PK</Button></PopoverTrigger></HelpTooltip>
-            {activeFile && <PopoverContent className="map-pk-popover" side="bottom" align="start" aria-label={'Puntos kilométricos de ' + activeFile.name}>
+            {activeFile && <PopoverContent className={`${styles.pkPopover} map-pk-popover`} side="bottom" align="start" aria-label={'Puntos kilométricos de ' + activeFile.name}>
               <div className="map-pk-heading">
                 <span>Separación PK</span><output>{(activeFile.kilometerInterval ?? 1).toLocaleString('es-ES')} km</output>
-                <HelpTooltip text={activeFile.kilometers ? 'Ocultar PK' : 'Mostrar PK'}><Button className="document-button map-pk-visibility" aria-label={(activeFile.kilometers ? 'Ocultar PK de ' : 'Mostrar PK de ') + activeFile.name}
+                <HelpTooltip text={activeFile.kilometers ? 'Ocultar PK' : 'Mostrar PK'}><Button className={`${styles.panelTool} map-pk-visibility`} aria-label={(activeFile.kilometers ? 'Ocultar PK de ' : 'Mostrar PK de ') + activeFile.name}
                   aria-pressed={Boolean(activeFile.kilometers)} disabled={blocked || busy} onClick={() => changeReferences(files => files.map(item => item.id === activeFile.id ? { ...item, kilometers: !item.kilometers } : item))}>
                   {activeFile.kilometers ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
                 </Button></HelpTooltip>
@@ -675,27 +677,27 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
               <div className="map-pk-steps" aria-hidden="true">{PK_INTERVALS.map(value => <span key={value}>{value.toLocaleString('es-ES')}</span>)}</div>
             </PopoverContent>}
           </Popover>
-          <HelpTooltip text="Centrar GPX"><Button aria-label={activeFile ? 'Centrar ' + activeFile.name : 'Centrar GPX'} disabled={blocked || !activeFile?.visible || !selectedFile}
+          <HelpTooltip text="Centrar GPX"><Button className={styles.panelTool} aria-label={activeFile ? 'Centrar ' + activeFile.name : 'Centrar GPX'} disabled={blocked || !activeFile?.visible || !selectedFile}
             onClick={() => { if (activeFile) fitFiles([activeFile.id]) }}><Focus aria-hidden="true" /></Button></HelpTooltip>
-          <HelpTooltip text="Retirar GPX"><Button aria-label={activeFile ? 'Retirar ' + activeFile.name : 'Retirar GPX'} disabled={blocked || busy || !activeFile} onClick={() => {
+          <HelpTooltip text="Retirar GPX"><Button className={styles.panelTool} aria-label={activeFile ? 'Retirar ' + activeFile.name : 'Retirar GPX'} disabled={blocked || busy || !activeFile} onClick={() => {
             if (activeFile && mutateMap(map => { map.gpx = map.gpx.filter(item => item.id !== activeFile.id) })) {
               onFilesChange(files.filter(item => item.id !== activeFile.id))
               setSelectedGpxId(null)
               if (selected?.gpx?.fileId === activeFile.id) setSelected(null)
             }
-          }}><X aria-hidden="true" /></Button></HelpTooltip>
+          }}><Trash aria-hidden="true" /></Button></HelpTooltip>
         </div>
         {!references.length && <p className="map-notice">No hay archivos GPX.</p>}
         <ul className="map-files" aria-label="Archivos GPX del mapa">
           {references.map(file => {
             const loaded = files.some(item => item.id === file.id)
             return <li key={file.id}>
-              <Button className="document-button map-file-name" data-visible={file.visible && loaded} title={file.name + (loaded ? '' : ' · Pendiente')}
+              <Button className="map-file-name" data-visible={file.visible && loaded} title={file.name + (loaded ? '' : ' · Pendiente')}
                 aria-label={file.name + (loaded ? '' : ' · Pendiente')} aria-pressed={file.id === activeFile?.id} disabled={blocked || busy} onClick={() => selectGpx(file.id)}>
                 {Array.from(file.name).slice(0, 20).join('')}{Array.from(file.name).length > 20 && '…'}
                 {!loaded && ' · Pendiente'}
               </Button>
-              {!loaded && <HelpTooltip text="Seleccionar GPX"><Button className="document-button map-file-relink" aria-label={'Seleccionar GPX ' + file.name}
+              {!loaded && <HelpTooltip text="Seleccionar GPX"><Button className={`${styles.panelTool} map-file-relink`} aria-label={'Seleccionar GPX ' + file.name}
                 disabled={blocked || busy} onClick={() => chooseFiles(file.id)}><FolderOpen aria-hidden="true" /></Button></HelpTooltip>}
             </li>
           })}

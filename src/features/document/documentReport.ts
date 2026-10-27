@@ -15,6 +15,7 @@ import { createReportIssue, formatReportIssue } from './reportIssues'
 import type { ReportGraphicSection, ReportIssue } from './reportIssues'
 import { DEFAULT_REPORT_PAGE, reportPageStyles } from './reportPagination'
 import type { ReportPageOptions } from './reportPagination'
+import reportStyles from './documentReport.css?raw'
 
 export const REPORT_SECTIONS = {
   elements: { title: 'Elementos', fields: { name: 'Nombre', information: 'Información' } },
@@ -39,7 +40,7 @@ const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;
 function escape(value: string) { return value.replace(/[&<>"']/g, character => entities[character]!) }
 function text(value: string) { return escape(value).replace(/\n/g, '<br>') }
 
-export function createDocumentReport(document: AngieDocument, generatedAt: Date, selection: ReportSelection = defaultReportSelection(), mapReport?: MapReportContent, planReport?: MapReportContent, boardReport?: BoardReportContent, coordinateInput = '', weatherReport: WeatherReportContent = {}, timerRecords?: readonly TimerRecord[] | null, page: ReportPageOptions = DEFAULT_REPORT_PAGE) {
+export function createDocumentReport(document: AngieDocument, generatedAt: Date, fontStyles: string, selection: ReportSelection = defaultReportSelection(), mapReport?: MapReportContent, planReport?: MapReportContent, boardReport?: BoardReportContent, coordinateInput = '', weatherReport: WeatherReportContent = {}, timerRecords?: readonly TimerRecord[] | null, page: ReportPageOptions = DEFAULT_REPORT_PAGE) {
   const selected = (section: ReportSection, field: string) => selection[section]?.includes(field) ?? false
   if (selection.map?.length && mapReport && mapReport.documentId !== document.document.id) throw new Error('El mapa pertenece a otro UIBoard.')
   if (selection.plan?.length && planReport && planReport.documentId !== document.document.id) throw new Error('El plano pertenece a otro UIBoard.')
@@ -199,10 +200,9 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
   const content = table('elements', resources(false)) + table('dotations', resources(true)) + table('information', operational) + table('operations', operational)
     + table('timeline', timeline) + table('notebook', notebook) + mapContent + planContent + boardContent + table('coordinates', coordinates) + weatherContent + timerContent
   const title = document.document.title || 'Sin nombre'
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:"><title>Informe · ${escape(title)}</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#e9e9e7;color:#202124;font:14px/1.45 system-ui,sans-serif}header{border-bottom:3px solid #a92323;padding-bottom:12px}h1{overflow-wrap:anywhere}h2{margin-top:26px;border-bottom:1px solid #aaa;font-size:18px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #ddd;padding:6px;overflow-wrap:anywhere;word-break:break-word}thead{background:#eee}figure{margin:12px 0;break-inside:avoid}.report-map-image{display:block;max-width:100%;width:auto;height:auto}figcaption{font-size:11px;margin-top:4px;overflow-wrap:anywhere}
-.report-legend{font-size:12px;margin-top:8px}.report-legend h3{font-size:12px;margin:0 0 4px}.report-legend ul{display:flex;flex-wrap:wrap;gap:6px 14px;list-style:none;margin:0;padding:0}.report-legend li{display:flex;align-items:center;gap:6px;max-width:100%;break-inside:avoid}.report-legend img{flex:none;width:48px;height:30px;object-fit:contain}.report-legend span{overflow-wrap:anywhere}
-.report-unavailable{border-left:3px solid #a92323;padding:4px 8px;overflow-wrap:anywhere}
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"><title>Informe · ${escape(title)}</title>
+<style>${fontStyles}
+${reportStyles}
 ${reportPageStyles(page)}</style></head><body><main>
 <header><p>Angie Dashboard · Informe</p><h1>${escape(title)}</h1><p>Documento creado: ${escape(formatTimelineDate(document.document.createdAt))}<br>Última edición: ${escape(formatTimelineDate(document.document.updatedAt))}<br>Informe generado: ${escape(formatTimelineDate(generatedAt.toISOString()))}</p></header>
 ${issues.length ? `<p class="report-unavailable">${issues.some(issue => !issue.omitted) ? 'Informe incompleto: recursos no disponibles.' : 'Informe con recursos omitidos.'}</p>` : ''}${content}</main></body></html>`

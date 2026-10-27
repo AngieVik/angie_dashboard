@@ -1,0 +1,26 @@
+@layer components {
+  .base {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--color-field-border);
+    border-radius: var(--radius-field);
+    background-color: var(--color-field);
+  }
+
+  .base:has([aria-invalid="true"]) { border-color: var(--color-accent-red); }
+  .base[hidden] { display: none; }
+}
+
+@layer overrides {
+  .base > :global([data-slot="input"]) {
+    flex: 1;
+    width: 0;
+    height: calc(var(--field-height) - 2px);
+    min-height: 0;
+    border: 0;
+    border-radius: var(--radius-field) 0 0 var(--radius-field);
+    background-color: transparent;
+  }
+}

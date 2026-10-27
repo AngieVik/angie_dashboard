@@ -20,11 +20,16 @@
   --palette-gray-300: #ADADAD;
   --palette-gray-200: #C3C3C3;
   --palette-gray-50: #F2F2F2;
+  --palette-gray-750-alpha-85: rgb(44 44 44 / 85%);
+  --palette-gray-900-alpha-85: rgb(24 24 24 / 85%);
   --palette-red-alpha-50: rgb(214 58 58 / 50%);
   --palette-red-alpha-7: rgb(214 58 58 / 7%);
   --palette-yellow: #E3B52F;
   --palette-black-alpha-45: rgb(0 0 0 / 45%);
+  --palette-black-alpha-25: rgb(0 0 0 / 25%);
   --palette-black-alpha-50: rgb(0 0 0 / 50%);
+  --palette-black-alpha-65: rgb(0 0 0 / 65%);
+  --palette-black-alpha-70: rgb(0 0 0 / 70%);
   --palette-white-alpha-2: rgb(255 255 255 / 2%);
 
   /* Shared base measures; module zoom derives effective values below. */
@@ -35,6 +40,7 @@
   --duration-fast: 110ms;
   --control-height-base: 25px;
   --icon-size-base: 15px;
+  --checkbox-size-base: 16px;
   --control-font-size-base: 13px;
   --field-font-size-base: 13px;
   --font-size-body-base: 14px;
@@ -64,10 +70,14 @@
   --surface-button: linear-gradient(180deg, var(--palette-gray-675), var(--palette-gray-800));
   --surface-button-hover: linear-gradient(180deg, var(--palette-gray-600), var(--palette-gray-700));
   --surface-overlay: linear-gradient(160deg, var(--palette-gray-750), var(--palette-gray-900));
+  --surface-tooltip: linear-gradient(160deg, var(--palette-gray-750-alpha-85), var(--palette-gray-900-alpha-85));
+  --surface-dialog-backdrop: var(--palette-black-alpha-65);
   --surface-toolbar: linear-gradient(180deg, var(--palette-gray-725), var(--palette-gray-850) 80%);
   --surface-inset: linear-gradient(180deg, var(--palette-gray-800), var(--palette-gray-875));
   --shadow-selection: 0 0 6px var(--palette-red-alpha-7);
   --shadow-panel: 0 8px 25px var(--palette-black-alpha-45), 0 1px 3px var(--palette-black-alpha-50), inset 0 1px var(--palette-white-alpha-2);
+  --shadow-tooltip: 0 2px 6px var(--palette-black-alpha-25);
+  --shadow-dialog: 0 10px 40px var(--palette-black-alpha-70);
 
   /* Semantic measures and default typography. */
   --control-gap: var(--space-1);
@@ -78,9 +88,11 @@
   --control-font-size: var(--control-font-size-base);
   --control-height: var(--control-height-base);
   --icon-size: var(--icon-size-base);
+  --checkbox-size: var(--checkbox-size-base);
   --field-font-size: var(--field-font-size-base);
   --field-height: var(--control-height);
-  --font-interface: "Roboto Condensed", sans-serif;
+  --font-interface-default: "Roboto Condensed", sans-serif;
+  --font-interface: var(--font-interface-default);
   --font-clock: "Rajdhani", sans-serif;
   --font-size-body: clamp(13px, calc(12px + 0.25vw), 16px);
   --font-size-title: clamp(15px, calc(14px + 0.25vw), 18px);

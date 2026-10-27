@@ -21,6 +21,7 @@ import { createReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue, ReportResourceAction } from './reportIssues'
 import { DEFAULT_REPORT_PAGE, paginateReport } from './reportPagination'
 import type { ReportPageOptions } from './reportPagination'
+import { prepareReportTypography } from './reportTypography'
 
 export interface DocumentSnapshot {
   document: AngieDocument
@@ -409,6 +410,8 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       const boardOptions = boardRequest ? { page, frame: boardRequest.frame ? { ...boardRequest.frame } : undefined, resourceIds: [...boardRequest.resourceIds], layers: { ...boardRequest.layers },
         blockedImage: boardRequest.blockedImage ? structuredClone(boardRequest.blockedImage) : undefined, iconPixels: boardRequest.iconPixels ? new Map(boardRequest.iconPixels) : undefined, fontFamily: boardRequest.fontFamily, frameMissing: boardRequest.frameMissing }
         : fields?.board?.includes('image') ? { page, blockedImage: [createReportIssue('board', 'La representación no está disponible.')] } : undefined
+      const fontStyles = await prepareReportTypography()
+      if (!state.active || state.replacing || state.documentGeneration !== generation) return null
       let boardReport: BoardReportContent | undefined
       if (fields?.board?.length) {
         try { boardReport = await import('./boardReport').then(module => module.createBoardReport(snapshot, fields.board!, boardOptions)) }
@@ -418,7 +421,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         }
       }
       if (!state.active || state.replacing || state.documentGeneration !== generation) return null
-      let report = await paginateReport(createDocumentReport(snapshot, generatedAt, fields, mapReport, planReport, boardReport, coordinateInput, weatherSnapshot, timerSnapshot, page), page)
+      let report = await paginateReport(createDocumentReport(snapshot, generatedAt, fontStyles, fields, mapReport, planReport, boardReport, coordinateInput, weatherSnapshot, timerSnapshot, page), page)
       if (!state.active || state.replacing || state.documentGeneration !== generation) return null
       let resolving = false
       function result(): GeneratedReport { return { document: snapshot, report, resolveResource } }
@@ -442,7 +445,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
             if (issue.section === 'map') mapReport = next; else planReport = next
           }
           if (!state.active || state.replacing || state.documentGeneration !== generation) return null
-          report = await paginateReport(createDocumentReport(snapshot, generatedAt, fields, mapReport, planReport, boardReport, coordinateInput, weatherSnapshot, timerSnapshot, page), page)
+          report = await paginateReport(createDocumentReport(snapshot, generatedAt, fontStyles, fields, mapReport, planReport, boardReport, coordinateInput, weatherSnapshot, timerSnapshot, page), page)
           if (!state.active || state.replacing || state.documentGeneration !== generation) return null
           return result()
         } finally { resolving = false }

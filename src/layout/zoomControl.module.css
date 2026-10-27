@@ -1,0 +1,9 @@
+@layer components {
+  .base { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 2px; margin: 0; color: var(--color-text-secondary); font-size: 12px; }
+  .input { appearance: textfield; width: 4ch; min-width: 0; padding: 1px 0; border: 0; background: transparent; color: var(--color-text); text-align: right; font: inherit; }
+  .input:focus-visible { outline: none; }
+  .input::-webkit-inner-spin-button, .input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+  .base[data-variant="header"] { font-size: var(--font-size-technical); }
+  .base[data-variant="module"] { gap: 1px; font-size: 11px; line-height: 1; }
+  .base[data-variant="module"] .input { height: 18px; padding: 0; }
+}

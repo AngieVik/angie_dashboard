@@ -1,16 +1,17 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Badge } from '../../components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { Check, PenLine, Trash } from 'lucide-react'
 import { getTimelineEntryLabel, isTimelineEntryDeleted, isTimelineEntryCorrected, isCurrentTimelineEntry } from '../../domain/operations/timelineProjection'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { addManualTimelineEntry, deleteTimelineEntry, reviseTimelineText, formatTimelineTime, formatTimelineDate } from './timelineCommands'
-import './timeline.css'
+import styles from './timeline.module.css'
 
 export function TimelineModule({ store }: { store: DocumentStore }) {
   const { document } = useDocumentStore(store)
@@ -37,7 +38,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
     observer?.observe(node)
     return () => observer?.disconnect()
   }, [document.timeline, scale])
-  return <div className="timeline-module">
+  return <div data-slot="timeline-module" className={`${styles.base} timeline-module`}>
     <div className="timeline-entries" role="log" aria-label="Entradas cronológicas" ref={list}>
       <ol>{document.timeline.filter(entry => !isTimelineEntryDeleted(entry)).map(entry => <li key={entry.id} data-entry-type={entry.type} data-current={isCurrentTimelineEntry(document, entry)} data-editing={editing?.id === entry.id}>
         <div className="timeline-entry-line">
@@ -51,7 +52,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
           if (attempt(() => store.mutateDocument(document => reviseTimelineText(document, entry.id, editing.text, new Date().toISOString())), 'edit')) finishEditing()
         }}>
           {entry.type === 'status-change' && <p className="timeline-edit-context">{entry.unitName} · {entry.nextStatus === 'Personalizada' ? entry.customLabel : entry.nextStatus}</p>}
-          <textarea aria-label="Texto de entrada" aria-invalid={Boolean(error && errorField === 'edit')} aria-describedby={error && errorField === 'edit' ? errorId : undefined} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ ...editing, text: event.target.value })} />
+          <Textarea aria-label="Texto de entrada" aria-invalid={Boolean(error && errorField === 'edit')} aria-describedby={error && errorField === 'edit' ? errorId : undefined} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ ...editing, text: event.target.value })} />
           <div><Button type="submit" disabled={blocked}><Check aria-hidden="true" />Guardar entrada</Button><Button disabled={blocked} onClick={finishEditing}>Cancelar</Button></div>
         </form> : <div className="timeline-entry-actions">
           <Button aria-label="Editar entrada" title="Editar entrada" disabled={blocked} onClick={() => {

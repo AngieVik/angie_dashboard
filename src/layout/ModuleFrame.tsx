@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 import { FileText, Proportions, Scan, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { HelpTooltip } from '../components/ui/tooltip'
-import { Button } from '../components/ui/button'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 import { MODULE_AUTO_HEIGHT_LIMIT, MODULE_ICONS, MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, Size } from './layoutTypes'
 import { ModuleSizeContext } from './ModuleSizeContext'
@@ -11,6 +11,8 @@ import { ModuleZoomContext } from './ModuleZoomContext'
 import { ZoomControl } from './ZoomControl'
 import { useViewportInteraction } from './ViewportContext'
 import { readNavigation, writeNavigation } from './navigationStorage'
+import styles from './moduleFrame.module.css'
+import controlStyles from './controlButton.module.css'
 
 function scrollKey(element: HTMLElement, root: HTMLElement) {
   if (element === root) return 'content'
@@ -213,7 +215,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
   }, [observesContentSize, blockedRef])
   useLayoutEffect(() => {
     const controls = frame.current?.querySelector<HTMLElement>('.module-controls')
-    const zoom = controls?.querySelector<HTMLElement>('.zoom-control')
+    const zoom = controls?.querySelector<HTMLElement>('[data-slot="zoom-control"]')
     if (collapsed || !controls || !zoom) return
     const measure = () => {
       const style = getComputedStyle(controls)
@@ -249,7 +251,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     dragged.current = false
     if (blockedRef.current || event.button !== 0 || !event.isPrimary) return
     const target = event.target
-    if (!(target instanceof Element) || target.closest('input,textarea,select,[role="slider"],[role="radio"],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
+    if (!(target instanceof Element) || target.closest('input,textarea,select,[data-slot="select"],[role="checkbox"],[role="slider"],[role="radio"],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
     let horizontal: ScrollAxis | undefined, vertical: ScrollAxis | undefined
     for (let element: Element | null = target; element && event.currentTarget.contains(element); element = element.parentElement) {
       if (!(element instanceof HTMLElement)) continue
@@ -337,7 +339,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
       node!.removeAttribute('data-measuring')
       return size
     }
-    const countItems = () => node!.querySelectorAll('.element-row,.notebook-block,.timer-row,.timeline-entries li,.operations-counters > div,.unit-tag-actions,[data-item-id]').length
+    const countItems = () => node!.querySelectorAll('.element-row,.notebook-block,.timer-row,.timeline-entries li,[data-item-id]').length
     let count = countItems()
     const textValues = new WeakMap<HTMLTextAreaElement, string>()
     for (const textarea of node.querySelectorAll('textarea')) textValues.set(textarea, textarea.value)
@@ -366,9 +368,9 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     observer.observe(node, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] })
     return () => observer.disconnect()
   }, [autoResize, collapsed, id, observesContentSize])
-  return <section ref={frame} className="module-frame" data-active={active} data-auto-height={automaticHeight} data-scroll-side={sizeMode === 'feed' ? 'left' : sizeMode === 'editable' ? 'right' : undefined} data-collapsed={collapsed} data-icon-only={width === undefined ? iconCollapsed : width <= 29 && collapsed} role="region" aria-label={name}>
-    <header className="module-header">
-      <Button className="document-button module-button module-icon" aria-label={'Recoger o restaurar ' + name} aria-pressed={active} aria-expanded={!(width === undefined ? iconCollapsed : width <= 29 && collapsed)} disabled={blocked || !onFit}
+  return <section ref={frame} data-slot="module-frame" className={`${styles.base} module-frame`} data-active={active} data-auto-height={automaticHeight} data-scroll-side={sizeMode === 'feed' ? (id === 'information' || id === 'timeline' ? 'right' : 'left') : sizeMode === 'editable' ? 'right' : undefined} data-collapsed={collapsed} data-icon-only={width === undefined ? iconCollapsed : width <= 29 && collapsed} role="region" aria-label={name}>
+    <header data-slot="module-header" className="module-header">
+      <Button data-control="module-icon" className={`${controlStyles.base} module-icon`} aria-label={'Recoger o restaurar ' + name} aria-pressed={active} aria-expanded={!(width === undefined ? iconCollapsed : width <= 29 && collapsed)} disabled={blocked || !onFit}
         onPointerDownCapture={event => {
           iconDragged.current = false
           iconPointer.current = event.button === 0 ? { id: event.pointerId, x: event.clientX, y: event.clientY } : null
@@ -380,11 +382,11 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
         onPointerUp={() => { iconPointer.current = null }}
         onPointerCancel={() => { iconPointer.current = null; iconDragged.current = true }}
         onClick={event => { if (!iconDragged.current || event.detail === 0) toggleIcon() }}><Icon aria-hidden="true" /></Button>
-      <h2>{name}</h2>
-      <HelpTooltip text={collapseLabel}><Button className="module-button module-fit" aria-label={collapseLabel} aria-expanded={!collapsed} disabled={blocked || !onFit} onClick={event => { if (event.detail < 2) toggleCollapse() }}><Proportions aria-hidden="true" /></Button></HelpTooltip>
-      <HelpTooltip key={generation} text={'Cerrar ' + name}><Button className="module-button module-close" aria-label={'Cerrar ' + name} disabled={blocked} onClick={onClose}><X aria-hidden="true" /></Button></HelpTooltip>
+      <h2 data-slot="module-title">{name}</h2>
+      <HelpTooltip text={collapseLabel}><Button data-control="module-collapse" className={`${controlStyles.base} module-fit`} aria-label={collapseLabel} aria-expanded={!collapsed} disabled={blocked || !onFit} onClick={event => { if (event.detail < 2) toggleCollapse() }}><Proportions aria-hidden="true" /></Button></HelpTooltip>
+      <HelpTooltip key={generation} text={'Cerrar ' + name}><Button data-control="module-close" className={`${controlStyles.base} module-close`} aria-label={'Cerrar ' + name} disabled={blocked} onClick={onClose}><X aria-hidden="true" /></Button></HelpTooltip>
     </header>
-    <div ref={content} className="module-content" hidden={collapsed}
+    <div ref={content} data-slot="module-content" className="module-content" hidden={collapsed}
       onInputCapture={() => { preserveManualSize.current = false }}
       onScrollCapture={event => {
         const root = content.current, node = event.target
@@ -395,14 +397,14 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
       onPointerUpCapture={() => { drag.current = null }} onPointerCancelCapture={() => { drag.current = null }}
       onLostPointerCapture={event => { if (event.target === event.currentTarget) drag.current = null }}
       onClickCapture={event => { if (dragged.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation() } }}>
-      <div className="module-scaled-content" data-scale={scale} data-kind={id === 'board' ? 'board' : 'module'} style={{ '--module-zoom': id === 'board' ? 1 : scale } as CSSProperties}>
-        <ModuleZoomContext value={{ scale, navigationKey, fitContentRef }}><ModuleSizeContext value={requestSpace}>{children}{actionError && <p className="module-action-error" role="alert">{actionError}</p>}</ModuleSizeContext></ModuleZoomContext>
+      <div data-slot="module-scaled-content" className="module-scaled-content" data-scale={scale} data-kind={id === 'board' ? 'board' : 'module'} style={{ '--module-zoom': id === 'board' ? 1 : scale } as CSSProperties}>
+        <ModuleZoomContext value={{ scale, navigationKey, fitContentRef }}><ModuleSizeContext value={requestSpace}>{children}{actionError && <p data-slot="module-action-error" className="module-action-error" role="alert">{actionError}</p>}</ModuleSizeContext></ModuleZoomContext>
       </div>
     </div>
-    <div className="module-controls" hidden={collapsed} data-zoom-hidden={zoomHidden}>
-      <ZoomControl key={generation} scale={scale} onChange={value => { if (!blockedRef.current) changeScale(value) }} label={'Zoom de ' + name} disabled={blocked || zoomHidden} side="right" />
-      <HelpTooltip text="Redimensionado automático"><Button className="module-button module-auto-resize" aria-label="Redimensionado automático" aria-pressed={autoResize} disabled={blocked || !onFit} onClick={toggleAutoResize}><Scan aria-hidden="true" /></Button></HelpTooltip>
+    <div data-slot="module-controls" className="module-controls" hidden={collapsed} data-zoom-hidden={zoomHidden}>
+      <ZoomControl key={generation} variant="module" scale={scale} onChange={value => { if (!blockedRef.current) changeScale(value) }} label={'Zoom de ' + name} disabled={blocked || zoomHidden} side="right" />
+      <HelpTooltip text="Redimensionado automático"><Button data-control="module-auto-resize" className={`${controlStyles.base} module-auto-resize`} aria-label="Redimensionado automático" aria-pressed={autoResize} disabled={blocked || !onFit} onClick={toggleAutoResize}><Scan aria-hidden="true" /></Button></HelpTooltip>
     </div>
-    {locateToken > 0 && <div key={locateToken} className="module-locator" aria-hidden="true" />}
+    {locateToken > 0 && <div key={locateToken} data-slot="module-locator" className="module-locator" aria-hidden="true" />}
   </section>
 }

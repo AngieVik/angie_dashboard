@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react'
 import type { ReportMapArea as Area } from './reportMapFraming'
+import styles from './ReportMapArea.module.css'
 
 type Action = 'move' | 'nw' | 'ne' | 'sw' | 'se'
 const corners = { nw: 'superior izquierda', ne: 'superior derecha', sw: 'inferior izquierda', se: 'inferior derecha' } as const
@@ -72,7 +73,7 @@ export function ReportMapArea({ area, disabled, busyRef, onChange }: { area: Are
       event.key === 'ArrowUp' ? -step * minimum.y : event.key === 'ArrowDown' ? step * minimum.y : 0, minimum))
   }
   const handlers = { onPointerMove: move, onPointerUp: finish, onPointerCancel: cancel, onLostPointerCapture: cancel }
-  return <div ref={root} className="reports-map-area" role="group" aria-label="Área seleccionada del informe"
+  return <div ref={root} className={`reports-map-area ${styles.base}`} role="group" aria-label="Área seleccionada del informe"
     style={{ left: area.x * 100 + '%', top: area.y * 100 + '%', width: area.width * 100 + '%', height: area.height * 100 + '%' }}>
     <button type="button" className="reports-map-area-move" disabled={disabled} aria-label="Mover área del informe" onPointerDown={event => start(event, 'move')} onKeyDown={event => key(event, 'move')} {...handlers} />
     {(Object.entries(corners) as [Exclude<Action, 'move'>, string][]).map(([action, label]) => <button type="button" key={action} className="reports-map-area-corner" data-corner={action}

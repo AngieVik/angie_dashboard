@@ -1,12 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Minus, Plus } from 'lucide-react'
-import { Button } from '../../components/ui/button'
+import { Button } from '@/components/ui/button'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import type { LoadedGpx } from './gpx'
 import type { GpxLocation } from './gpxMetrics'
 import { getGpxProfile, nearestProfileSample } from './gpxProfile'
 import type { GpxProfileSample } from './gpxProfile'
+import styles from './GpxElevationProfile.module.css'
 
 const meters = (value: number | undefined) => value === undefined ? 'Sin datos' : value.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' m'
 const kilometers = (value: number) => (value / 1000).toLocaleString('es-ES', { maximumFractionDigits: 3 }) + ' km'
@@ -22,9 +23,9 @@ export function GpxElevationProfile({ file, selected, disabled, controlsHost, on
   const panelId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
   return <>
-    {controlsHost && createPortal(<Button ref={trigger} className="document-button map-profile-toggle" aria-expanded={open} aria-controls={panelId} disabled={disabled}
+    {controlsHost && createPortal(<Button ref={trigger} className={`map-profile-toggle ${styles.trigger}`} aria-expanded={open} aria-controls={panelId} disabled={disabled}
       onClick={() => setOpen(value => !value)}>{open ? <Minus aria-hidden="true" /> : <Plus aria-hidden="true" />}Perfil GPX</Button>, controlsHost)}
-    {controlsHost && open && <section id={panelId} className="map-profile" aria-label={'Perfil GPX de ' + file.name}>
+    {controlsHost && open && <section id={panelId} className={`map-profile ${styles.base}`} aria-label={'Perfil GPX de ' + file.name}>
       <div className="map-profile-body" onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() }
       }}><ProfileContent file={file} selected={selected} disabled={disabled} onSelect={onSelect} /></div>

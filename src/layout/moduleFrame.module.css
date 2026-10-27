@@ -1,0 +1,146 @@
+@layer components {
+  :where(.base) :global(.module-controls) {
+    display: flex;
+    flex: 0 0 25px;
+    align-items: center;
+    gap: 3px;
+    padding: 0 52px 0 2px;
+    overflow: hidden;
+    background: var(--color-module);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-field-border) var(--color-module);
+  }
+  :where(.base) :global(.module-auto-resize) { position: absolute; right: 24px; bottom: 0; }
+  :where(.base) :global(.module-controls)[data-zoom-hidden="true"] [data-slot="zoom-control"] { visibility: hidden; }
+  :where(.base) :global(.module-scaled-content) {
+    container-type: inline-size;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    font-size: var(--font-size-body);
+    --control-height: calc(var(--control-height-base) * var(--module-zoom, 1));
+    --field-height: var(--control-height);
+    --control-font-size: calc(var(--control-font-size-base) * var(--module-zoom, 1));
+    --field-font-size: calc(var(--field-font-size-base) * var(--module-zoom, 1));
+    --font-size-body: calc(var(--font-size-body-base) * var(--module-zoom, 1));
+    --font-size-title: calc(var(--font-size-title-base) * var(--module-zoom, 1));
+    --font-size-technical: calc(var(--font-size-technical-base) * var(--module-zoom, 1));
+  }
+  :where(.base) :global(.module-content) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-field-border) var(--color-module);
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    touch-action: none;
+    font-size: var(--font-size-body);
+  }
+  .base {
+    container-type: inline-size;
+    --font-size-body: clamp(13px, calc(10px + 1cqi), 16px);
+    --font-size-title: clamp(15px, calc(12px + 1cqi), 18px);
+    --font-size-technical: clamp(12px, calc(9px + 1cqi), 16px);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid var(--color-frame-border);
+    border-radius: 4px;
+    background: var(--color-module);
+    box-shadow: var(--shadow-panel);
+    position: relative;
+  }
+  :where(.base) :global(.module-header) {
+    display: flex;
+    flex: 0 0 27px;
+    min-height: 0;
+    overflow: hidden;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0;
+    padding: 0;
+    border-bottom: 1px solid #080808;
+    background: var(--surface-header);
+    box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+  }
+  :where(.base) :global(.module-header) h2 {
+    flex: 1;
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0 5px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+  }
+  :where(.base) :global(.module-content)[hidden] { display: none; }
+  :where(.base) :global(.module-controls)[hidden] { display: none; }
+  :where(.base) :global(.module-content) h3 { font-size: var(--font-size-title); }
+  :where(.base) :global(.module-content) time { font-size: var(--font-size-technical); }
+  .base[data-icon-only="true"] :global(.module-header) { padding: 0; gap: 0; justify-content: center; border-bottom: 0; }
+  .base[data-scroll-side="left"] :global(.module-content) { direction: rtl; }
+  .base[data-scroll-side="left"] :global(.module-content) > :global(.module-scaled-content) { direction: ltr; }
+  .base[data-active="true"] { border-color: var(--color-selection-border); box-shadow: var(--shadow-panel), var(--shadow-selection); }
+  :where(.base) :global(.module-locator) {
+    position: absolute;
+    z-index: 10;
+    inset: 0;
+    pointer-events: none;
+    border: 2px solid var(--color-accent-yellow);
+    border-radius: inherit;
+    background: rgb(255 255 255 / 12%);
+    opacity: 0;
+    animation: module-locate 400ms ease-in-out 3;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :where(.base) :global(.module-locator) { animation: module-locate-static 1200ms steps(1, end) 1; }
+  }
+  :where(.base) :global(.module-action-error) { margin: 4px; color: var(--color-accent-yellow); }
+  @keyframes module-locate {
+    0%, 100% { opacity: 0; }
+    40%, 60% { opacity: 1; }
+  }
+  @keyframes module-locate-static {
+    0%, 99% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
+@layer overrides {
+  :where(.base) :global(.module-fit) { line-height: 1; }
+  :where(.base) :global(.module-close) { line-height: 1; }
+  :where(.base) :global(.module-header) :global(.module-icon) { pointer-events: auto; cursor: pointer; outline: none; }
+}
+/* Keep measurement, icon scaling and scrollbar precedence over legacy feature CSS. */
+.base[data-fitting] :global(.module-header) { width: max-content; }
+.base[data-fitting] :global(.module-header) h2 { flex: none; }
+.base[data-fitting] :global(.module-scaled-content) { width: max-content !important; height: auto !important; container-type: normal; }
+.base[data-fitting] :global(.module-scaled-content) > * { width: max-content; height: auto; min-height: 0; container-type: normal; }
+:global(.app-shell) .base { scrollbar-width: none; }
+:global(.app-shell) .base * { scrollbar-width: none; }
+:global(.app-shell) .base::-webkit-scrollbar { display: none; width: 0; height: 0; }
+:global(.app-shell) .base ::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.base[data-collapsed="true"]:not([data-fitting]) :global(.module-header) { flex-basis: 25px; border-bottom: 0; }
+.base[data-icon-only="true"]:not([data-fitting]) :global(.module-header) > :not(:global(.module-icon)) { display: none; }
+:where(.base) :global(.module-scaled-content)[data-kind="module"] :global(.lucide) { flex-shrink: 0; width: calc(var(--icon-size-base) * var(--module-zoom)); height: calc(var(--icon-size-base) * var(--module-zoom)); }
+:where(.base) :global(.module-scaled-content)[data-measuring="minimum-width"] { width: min-content !important; container-type: normal; }
+:where(.base) :global(.module-scaled-content)[data-measuring="true"] { height: auto; min-height: 0; }
+:where(.base) :global(.module-scaled-content)[data-measuring="true"] > * { height: auto; min-height: 0; }
+:global(.app-shell) .base[data-scroll-side] :global(.module-content) { overflow-y: auto; scrollbar-width: thin; }
+:global(.app-shell) .base[data-scroll-side] :global(.module-content)::-webkit-scrollbar { display: block; width: 8px; height: 0; }
+.base[data-fitting] { height: auto; }
+.base[data-fitting] :global(.module-content) { flex: none; height: auto; overflow: visible; }
+.base[data-fitting][data-icon-only="true"] :global(.module-header) { padding: 0; gap: 0; }
+.base[data-fitting][data-icon-only="true"] :global(.module-header) h2 { display: block; }
+.base[data-fitting][data-icon-only="true"] :global(.module-header) :is(:global(.module-fit), :global(.module-close)) { display: grid; }
+
+/* Labels and automatic height retain their precedence within the window. */
+:global(.logical-workspace) .base :global(.module-content) label { font-size: var(--field-font-size); }
+.base[data-auto-height="true"] :global(.module-scaled-content):not(:has(> :global(.timeline-module))),
+.base[data-auto-height="true"] :global(.module-scaled-content) > :not(:global(.timeline-module)) { height: auto; min-height: 0; }

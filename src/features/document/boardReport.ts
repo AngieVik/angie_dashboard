@@ -11,6 +11,7 @@ import { createReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue, ReportRecovery } from './reportIssues'
 import { freezeReportImage, loadReportImage, renderReportRaster } from './reportImages'
 import type { ReportPageOptions } from './reportPagination'
+import { prepareReportTypography } from './reportTypography'
 
 export interface BoardReportContent {
   documentId: string
@@ -268,6 +269,7 @@ export async function createBoardReport(documentSnapshot: AngieDocument, fields:
     notes: fields.includes('notes') ? documentSnapshot.board.quickNotes.map(({ title, text }) => ({ title, text })) : [] }
   if (!fields.includes('image')) return report
   if (options.omittedImage) { report.omittedImage = true; return report }
+  await prepareReportTypography()
   const selected = options.resourceIds ? new Set(options.resourceIds.map(id => id.toLowerCase())) : null
   const elements = documentSnapshot.elements.filter(element => element.position && (selected ? selected.has(element.id.toLowerCase()) : element.pinVisible))
   const fontFamily = options.fontFamily ?? (getComputedStyle(document.documentElement).getPropertyValue('--font-interface').trim() || 'sans-serif')

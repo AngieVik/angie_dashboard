@@ -8,6 +8,7 @@ import './styles/global.css'
 import './styles/integrations/leaflet.css'
 import './styles/integrations/react-grid-layout.css'
 import './styles/utilities.css'
+import './styles/print.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,14 +1,14 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
 import { Watch, RotateCcwClock, AlarmClock, Play, Pause } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Alert } from '../../components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
 import { spanishClock } from './timerEngine'
 import { TimerRow } from './TimerRow'
 import { ModuleSizeContext } from '../../layout/ModuleSizeContext'
 import type { TimerKind } from './timerTypes'
 import type { TimerStore } from './timerStore'
-import './clock.css'
+import styles from './clock.module.css'
 
 // Implementation parameter; the V1 exposes no frequency setting.
 export const ALARM_FLASH_HZ = 2
@@ -34,7 +34,7 @@ export function ClockModule({ store }: { store: TimerStore }) {
     } finally { delete node.dataset.sizing }
   }, [timers.length, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])
-  return <div ref={root} className="clock-module" style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s`, '--clock-timer-count': timers.length } as CSSProperties}>
+  return <div ref={root} data-slot="clock-module" className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s`, '--clock-timer-count': timers.length } as CSSProperties}>
     <div className="clock-display">
       <div className="clock-reference"><span className="clock-season-active" aria-label="UTC+2 [ST]" title="UTC+2 [ST]"><span className="clock-label-full" aria-hidden="true">UTC+2 [ST]</span><span className="clock-label-short" aria-hidden="true">2ST</span></span><span>ESP</span></div>
       <div className="clock-top">
@@ -45,13 +45,13 @@ export function ClockModule({ store }: { store: TimerStore }) {
         </div>
       </div>
       <div className="clock-add-controls">
-        <Button aria-label="T-Zero" title="T-Zero" disabled={!ready || storageConflict} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
-        <Button aria-label="T-Minus" title="T-Minus" disabled={!ready || storageConflict} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
+        <Button appearance="integrated" aria-label="T-Zero" title="T-Zero" disabled={!ready || storageConflict} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
+        <Button appearance="integrated" aria-label="T-Minus" title="T-Minus" disabled={!ready || storageConflict} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
         <div className="clock-zulu technical-data"><span className="clock-zulu-label" aria-label="Zulu Time" title="Zulu Time"><span className="clock-label-full" aria-hidden="true">Zulu Time</span><span className="clock-label-short" aria-hidden="true">ZT</span></span>{' '}
           <output aria-label="Hora Zulu">{clock.zulu}</output>
         </div>
-        <Button aria-label="Advisories" title="Advisories" disabled={!ready || storageConflict} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
-        <Button aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview document-button" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
+        <Button appearance="integrated" aria-label="Advisories" title="Advisories" disabled={!ready || storageConflict} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>
+        <Button appearance="integrated" variant="icon" aria-label={alarm.preview ? 'Detener prueba de sonido' : 'Reproducir prueba de sonido'} className="clock-preview" disabled={alarm.activeCount > 0} aria-pressed={alarm.preview}
           onClick={() => { if (alarm.preview) store.alarm.stopPreview(); else void store.alarm.startPreview() }}>
           {alarm.preview ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </Button>

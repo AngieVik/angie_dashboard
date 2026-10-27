@@ -1,0 +1,16 @@
+@layer overrides {
+  .base {
+    flex: none;
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-text-secondary);
+  }
+  .base:is(:hover:not(:disabled), :focus-visible) {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-text);
+  }
+  .base[aria-pressed="true"] { color: var(--color-accent-red); }
+}

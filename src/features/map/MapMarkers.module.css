@@ -1,0 +1,17 @@
+@layer components {
+  .base { flex: 1 1 auto; }
+  :where(.base) :global(.map-markers) { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: none; user-select: none; list-style: none; margin: 0; padding: 0 2px; }
+  :where(.base) :global(.map-marker-row) { display: flex; flex: none; align-items: center; box-sizing: border-box; width: 100%; min-width: 0; min-height: var(--control-height); padding: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-field); background: var(--color-field); color: var(--color-text); font-size: var(--control-font-size); }
+  :where(.base) :global(.map-marker-row)[data-selected="true"] { border-color: var(--color-selection-border); background: var(--color-selected); }
+  :where(.base) :global(.map-marker-row):not([data-selected="true"]):has(:global(.map-marker-select):enabled):hover { border-color: var(--color-hover-border); background: var(--surface-button-hover); }
+  :where(.base) :global(.map-marker-select) > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+@layer overrides {
+  :where(.base) :global(.map-marker-select) { flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); padding: 0 6px; color: var(--color-text); text-align: left; justify-content: flex-start; }
+  :where(.base) :global(.map-marker-name) { flex: 1; width: 0; padding: 0 6px; border: 0; border-radius: 0; background: transparent; user-select: text; }
+}
+
+/* Preserve the list scrollbar priority over shared window rules. */
+:global(.app-shell) :global(.module-frame) :where(.base) :global(.map-markers) { scrollbar-width: thin; scrollbar-color: var(--color-field-border) var(--color-module); }
+:global(.app-shell) :global(.module-frame) :where(.base) :global(.map-markers)::-webkit-scrollbar { display: block; width: 6px; height: 0; }

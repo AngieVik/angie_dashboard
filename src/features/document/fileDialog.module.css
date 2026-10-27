@@ -1,0 +1,14 @@
+@layer components {
+  .surface { position: fixed; z-index: 21; outline: none; font-family: var(--font-interface-default); font-size: var(--font-size-body); }
+  .workspace { inset: 0; touch-action: none; }
+  .body { padding: 8px; }
+  .body > p { margin: 0 0 8px; color: var(--color-text-secondary); }
+  .body :global(.document-recovery-list) { display: flex; flex-direction: column; gap: 6px; max-height: none; overflow: auto; }
+}
+
+@layer overrides {
+  .surface :focus-visible { outline: none; }
+  .body button:focus-visible { border-color: var(--color-hover-border); }
+  .body [data-slot="alert-dialog-footer"] { margin-top: 8px; }
+  .workspace :global(.module-frame):hover { border-color: var(--color-hover-border); }
+}

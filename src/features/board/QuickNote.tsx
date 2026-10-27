@@ -2,7 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, KeyboardEvent, PointerEvent, RefObject } from 'react'
 import type { Position, QuickNote as Note } from '../../domain/document/types'
 import type { Size } from '../../layout/layoutTypes'
-import { Button } from '../../components/ui/button'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import styles from './QuickNote.module.css'
 import { clampBoardPosition } from './boardReducer'
 import { boardDelta } from './boardViewport'
 import type { BoardViewportState } from './boardViewport'
@@ -118,15 +120,15 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
   }, [fitText])
   // readOnly keeps drafts/focus intact when two fingers temporarily own navigation.
   const readOnly = !enabled || blocked
-  return <div ref={root} tabIndex={-1} className="quick-note" data-note-id={note.id} data-selected={selected}
+  return <div ref={root} tabIndex={-1} className={`quick-note ${styles.base}`} data-note-id={note.id} data-selected={selected}
     style={{ left: box.position.x, top: box.position.y, width: box.width, height: box.height,
       pointerEvents: enabled && !blocked ? 'auto' : 'none', zIndex: selected ? 1 : undefined } as CSSProperties}>
     <div className="quick-note-header" aria-label="Mover nota rápida" onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel} />
-    <Button className="document-button quick-note-delete" disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onPointerDown={event => { event.stopPropagation(); event.preventDefault() }}
+    <Button appearance="integrated" className="quick-note-delete" disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onPointerDown={event => { event.stopPropagation(); event.preventDefault() }}
       onClick={() => { deleted.current = true; active.current = null; onDelete() }}><X aria-hidden="true" /></Button>
     <div className="quick-note-body" onPointerDown={event => event.stopPropagation()} onWheelCapture={event => {
       if (!event.ctrlKey && textarea.current && textarea.current.scrollHeight > textarea.current.clientHeight) event.stopPropagation()
-    }}><textarea ref={textarea} rows={1} className="quick-note-text" aria-label="Texto de nota rápida" value={text} readOnly={readOnly}
+    }}><Textarea ref={textarea} rows={1} className="quick-note-text" aria-label="Texto de nota rápida" value={text} readOnly={readOnly}
       onPointerDown={event => event.stopPropagation()} onFocus={begin} onChange={event => change(event.target.value)} onBlur={() => commit()}
       onKeyDown={key} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false }} /></div>
     {selected && enabled && <button type="button" className="quick-note-resize" aria-label="Redimensionar nota rápida" disabled={blocked}

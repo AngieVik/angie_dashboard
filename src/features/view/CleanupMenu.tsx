@@ -1,7 +1,7 @@
 import { useRef } from 'react'
-import { Button } from '../../components/ui/button'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '../../components/ui/dropdown-menu'
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from '../../components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator } from '@/components/ui/menubar'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { MODULE_REGISTRY } from '../../layout/moduleRegistry'
 import type { ModuleId } from '../../layout/layoutTypes'
 
@@ -33,16 +33,18 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
   const all = request && request.ids.length > 1
   const target = request ? all ? 'todos los módulos' : MODULE_REGISTRY[request.ids[0]!].name : ''
   return <>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button ref={trigger} className="document-button dashboard-menu-trigger">Limpieza</Button></DropdownMenuTrigger>
-      <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (request) event.preventDefault() }}>
-        <DropdownMenuItem disabled={disabled || !active} onSelect={() => onRequest(active, false)}>Limpiar módulo activo</DropdownMenuItem>
-        <DropdownMenuItem disabled={disabled || !active} onSelect={() => onRequest(active, true)}>Limpiar y cerrar módulo activo</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={disabled} onSelect={() => onRequest(null, false)}>Limpiar todos</DropdownMenuItem>
-        <DropdownMenuItem disabled={disabled} onSelect={() => onRequest(null, true)}>Limpiar y cerrar todos</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <MenubarMenu>
+      <MenubarTrigger asChild><Button ref={trigger}>Limpieza</Button></MenubarTrigger>
+      <MenubarContent align="start" onCloseAutoFocus={event => { if (request) event.preventDefault() }}>
+        <MenubarGroup>
+          <MenubarItem disabled={disabled || !active} onSelect={() => onRequest(active, false)}>Limpiar módulo activo</MenubarItem>
+          <MenubarItem disabled={disabled || !active} onSelect={() => onRequest(active, true)}>Limpiar y cerrar módulo activo</MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem disabled={disabled} onSelect={() => onRequest(null, false)}>Limpiar todos</MenubarItem>
+          <MenubarItem disabled={disabled} onSelect={() => onRequest(null, true)}>Limpiar y cerrar todos</MenubarItem>
+        </MenubarGroup>
+      </MenubarContent>
+    </MenubarMenu>
     <AlertDialog open={Boolean(request)} onOpenChange={open => { if (!open) onCancel() }}>
       <AlertDialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <AlertDialogTitle>{request?.close ? 'Limpiar y cerrar ' : 'Limpiar '}{target}</AlertDialogTitle>
@@ -52,10 +54,10 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
           {request?.close ? all ? ' Después se cerrarán todos los módulos abiertos.' : ' Después se cerrará este módulo.' : ' Los módulos abiertos permanecerán abiertos.'}
         </AlertDialogDescription>
         {error && <p role="alert">{error}</p>}
-        <div className="document-dialog-actions">
+        <AlertDialogFooter>
           <AlertDialogCancel asChild><Button>Cancelar</Button></AlertDialogCancel>
           <Button disabled={disabled} onClick={onConfirm}>{request?.close ? 'Limpiar y cerrar' : 'Limpiar'}</Button>
-        </div>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   </>

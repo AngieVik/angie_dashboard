@@ -1,11 +1,12 @@
 import { useId, useState } from 'react'
 import { Maximize2, Minimize2, X } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { HelpTooltip } from '../../components/ui/tooltip'
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { MapBackground } from './mapBackgrounds'
 import { getTopographicLegend, IGN_ORTHO_LEGEND, IGN_ORTHO_LEGEND_IMAGE, MTN25_LEGEND_REFERENCE, OSM_LEGEND_ENTRIES, OSM_LEGEND_REFERENCE } from './mapLegendData'
 import type { LegendRow, OsmLegendEntry } from './mapLegendData'
+import styles from './MapLegend.module.css'
 
 function LegendImage({ src, alt, width }: { src: string; alt: string; width?: number }) {
   const [failedSource, setFailedSource] = useState<string | null>(null)
@@ -18,7 +19,7 @@ function ImageLegend({ src, alt }: { src: string; alt: string }) {
   const viewportId = useId()
   return <div className="map-legend-sheet" data-expanded={expanded}>
     <div className="map-legend-sheet-heading">
-      <Button className="document-button map-legend-image-toggle" aria-expanded={expanded} aria-controls={viewportId}
+      <Button className="map-legend-image-toggle" aria-expanded={expanded} aria-controls={viewportId}
         onClick={() => setExpanded(value => !value)}>
         {expanded ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}{expanded ? 'Ajustar' : 'Ampliar'}
       </Button>
@@ -139,8 +140,8 @@ export function MapLegend({ background, information, zoom, disabled }: {
   const [open, setOpen] = useState(false)
   const titleId = useId()
   return <Popover open={open} onOpenChange={setOpen}>
-    <HelpTooltip text="Leyenda"><PopoverTrigger asChild><Button className="document-button map-legend-trigger" aria-label="Leyenda" aria-pressed={open} disabled={disabled}><LegendIcon /></Button></PopoverTrigger></HelpTooltip>
-    <PopoverContent className="map-legend-popover" side="bottom" align="end" aria-labelledby={titleId}>
+    <HelpTooltip text="Leyenda"><PopoverTrigger asChild><Button className={`map-legend-trigger ${styles.trigger}`} aria-label="Leyenda" aria-pressed={open} disabled={disabled}><LegendIcon /></Button></PopoverTrigger></HelpTooltip>
+    <PopoverContent className={`map-legend-popover ${styles.base}`} side="bottom" align="end" aria-labelledby={titleId}>
       <div className="map-legend-heading">
         <span id={titleId}>Leyenda</span>
         <Button aria-label="Cerrar leyenda" onClick={() => setOpen(false)}><X aria-hidden="true" /></Button>

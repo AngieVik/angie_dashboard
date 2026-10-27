@@ -1,0 +1,21 @@
+@layer overrides {
+  .base {
+    --field-font-size: var(--timer-font-size);
+    width: 100%;
+    max-width: 100%;
+    height: 1em;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #888;
+    caret-color: var(--color-accent-red);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    line-height: 1;
+    text-align: left;
+  }
+  .base:disabled { opacity: .8; }
+}

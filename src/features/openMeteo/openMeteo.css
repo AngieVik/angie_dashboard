@@ -2,7 +2,7 @@
 [data-module="openMeteo"] > .module-frame > .module-content > .module-scaled-content { display: flex; flex: 1 1 0; flex-direction: column; height: auto; min-height: 0; }
 .open-meteo-module { display: flex; flex: 1 1 0; flex-direction: column; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
 .open-meteo-toolbar { flex: none; padding: 3px 5px; border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
-.app-shell .open-meteo-entry > button.open-meteo-action[aria-label] { display: inline-flex; align-items: center; justify-content: center; flex: none; width: calc(24px * var(--module-zoom, 1)); min-width: calc(24px * var(--module-zoom, 1)); height: calc(var(--field-height) - 2px); min-height: 0; padding: 0; border: 0; border-radius: 0; color: var(--color-text-secondary); background: transparent; box-shadow: none; }
+.app-shell .open-meteo-entry > button.open-meteo-action[aria-label] { display: inline-flex; align-items: center; justify-content: center; flex: none; width: calc(24px * var(--module-zoom, 1)); min-width: calc(24px * var(--module-zoom, 1)); height: calc(var(--field-height) - 2px); min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .open-meteo-body { flex: 1 1 0; min-height: 0; overflow: auto; }
 .open-meteo-location, .open-meteo-message { margin: 0; padding: 5px; overflow-wrap: anywhere; }
 .open-meteo-message { color: var(--color-text-secondary); }

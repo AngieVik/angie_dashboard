@@ -183,7 +183,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     }
   }
   return (
-    <div ref={grid} onPointerDownCapture={event => {
+    <div ref={grid} data-grid-surface="dashboard" onPointerDownCapture={event => {
       if (blockedRef.current) return
       draggedModule.current = null
       iconTap.current = null

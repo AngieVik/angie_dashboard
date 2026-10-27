@@ -1,0 +1,18 @@
+@layer components {
+  .base { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .base > h3 { margin: 0; font-size: inherit; font-weight: 500; }
+  :where(.base) :global(.reports-map-selection) { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; }
+  :where(.base) :global(.reports-map-selection) fieldset { min-width: 0; max-height: 160px; margin: 0; padding: 6px; overflow-y: auto; border: 1px solid var(--color-border); scrollbar-width: thin; }
+  .base label { display: flex; align-items: center; gap: 6px; margin: 3px 0; overflow-wrap: anywhere; }
+  :where(.base) :global(.reports-map-unavailable) { margin-left: auto; color: var(--color-text-secondary); font-size: 11px; }
+  :where(.base) :global(.reports-resource-state) { flex: none; color: var(--color-text-secondary); font-size: 11px; }
+  :where(.base) :global(.reports-map-toolbar) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  :where(.base) :global(.reports-map-viewport) { position: relative; isolation: isolate; flex: none; height: 280px; min-width: 0; overflow: hidden; border: 1px solid var(--color-border); touch-action: none; }
+  :where(.base) :global(.reports-map-render) { position: absolute; inset: 0; transform-origin: center; }
+  :where(.base) :global(.reports-map-notice) { margin: 0; padding: 3px 5px; border-left: 2px solid var(--color-accent-red); overflow-wrap: anywhere; }
+}
+
+@layer overrides {
+  :where(.base) :global(.reports-map-toolbar) [data-slot="select"] { max-width: 100%; }
+  :where(.base) :global(.reports-map-toolbar) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+}

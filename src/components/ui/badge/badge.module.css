@@ -1,0 +1,26 @@
+@layer components {
+  .base {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 2px 6px;
+    border: 1px solid var(--color-field-border);
+    border-radius: var(--radius-control);
+    background-color: var(--color-selected);
+    color: var(--color-tag);
+    font-family: var(--font-interface-default);
+    font-size: calc(var(--font-size-body-base) * var(--module-zoom, 1));
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .base[data-variant="outline"] { border-color: var(--color-frame-border); background-color: transparent; color: var(--color-text); }
+  .base > span { min-width: 0; }
+  .base[hidden] { display: none; }
+}

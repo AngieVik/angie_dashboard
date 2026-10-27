@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { FolderCog, FolderKey } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Alert } from '../../components/ui/alert'
-import { AlertDialog } from '../../components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { AlertDialog, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { FileDialogContent } from './FileDialog'
 import { authorizeWorkDirectory, chooseWorkDirectory, readPersistentStorage, readWorkDirectory, requestPersistentStorage } from '../../platform/pwaPermissions'
 import type { PermissionSnapshot, PermissionStatus, WorkDirectoryPermission } from '../../platform/pwaPermissions'
@@ -127,9 +127,9 @@ function WorkDirectorySection({ onDirectoryAuthorized, onContinueLocally, onDown
       </div>
       {directory.status === 'unavailable' && !directory.message && <Alert><span>Este navegador no permite seleccionar carpetas.</span></Alert>}
       {directory.message && <Alert><span>{directory.message}</span></Alert>}
-      {!loading && !busy && directory.status !== 'granted' && onContinueLocally && <div className="document-dialog-actions">
+      {!loading && !busy && directory.status !== 'granted' && onContinueLocally && <AlertDialogFooter>
         <Button onClick={onContinueLocally}>Continuar</Button>
-      </div>}
+      </AlertDialogFooter>}
     </section>
   )
 }

@@ -1,0 +1,48 @@
+@layer components {
+  .base {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    font-size: var(--font-size-body);
+  }
+
+  :where(.base) :global(.information-card) { position: relative; display: flex; flex: 0 0 auto; flex-direction: column; min-width: 0; min-height: 0; padding: 0 2px 2px; border-bottom: 1px solid var(--color-border); cursor: pointer; }
+  :where(.base) :global(.information-card):not([data-selected="true"]):has(:global(.information-select):enabled):hover { background: var(--surface-button-hover); }
+  :where(.base) :global(.information-card)[data-selected="true"] { background: var(--color-selected); box-shadow: inset 2px 0 var(--color-selection-border); }
+  :where(.base) :global(.information-summary) { position: relative; min-width: 0; }
+  :where(.base) :global(.information-card)[data-expandable="true"] :global(.information-summary) { padding-right: calc(var(--control-height) + 4px); }
+  :where(.base) :global(.information-identity) { display: flex; flex: none; align-items: flex-start; gap: 3px; min-width: 0; }
+  :where(.base) :global(.information-select) > img, :where(.base) :global(.information-emoji) { flex: none; width: calc(48px * var(--module-zoom, 1)); height: calc(36px * var(--module-zoom, 1)); object-fit: contain; }
+  :where(.base) :global(.information-emoji) { display: grid; place-items: center; font-size: calc(28px * var(--module-zoom, 1)); }
+  :where(.base) :global(.information-name) { min-width: 0; overflow: hidden; }
+  :where(.base) :global(.information-name) strong { display: block; font-size: calc(15px * var(--module-zoom, 1)); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :where(.base) :global(.information-pin) { display: flex; align-items: center; color: var(--color-text-secondary); }
+  :where(.base) :global(.information-operative) { flex: none; }
+  :where(.base) :global(.information-phase) { flex: none; margin: 2px 0 0; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+  :where(.base) :global(.information-phase) span { color: var(--color-text); font-weight: 650; }
+  :where(.base) :global(.information-description) { flex: none; margin: 2px 0 0; line-height: 1.4; font-size: var(--control-font-size); color: var(--color-text-secondary); }
+  :where(.base) :global(.information-tags) { display: flex; flex: none; flex-wrap: wrap; gap: 2px; min-width: 0; margin: 4px 0 0; }
+  :where(.base) :global(.information-additional) { flex: none; margin-top: 8px; }
+  :where(.base) :global(.information-details) { min-height: 0; overflow: hidden; }
+  :where(.base) :global(.information-text) { margin-top: 4px; white-space: pre-wrap; }
+  :where(.base) :global(.information-error) { margin: 0; color: var(--color-accent-yellow); }
+  :where(.base) :global(.module-empty) { margin: 4px 0; color: var(--color-text-secondary); font-size: var(--font-size-body); }
+  :where(.base) :global(.information-custom-color) { display: inline-block; flex: none; width: calc(14px * var(--module-zoom, 1)); height: calc(14px * var(--module-zoom, 1)); border: 1px solid var(--color-text-secondary); border-radius: 50%; }
+  :where(.base) :global(.information-state-time) { display: block; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+  :where(.base) :global(.information-coordinates) { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+}
+
+@layer overrides {
+  :where(.base) :global(.information-select) { display: flex; flex: none; justify-content: flex-start; min-width: 0; max-width: 100%; height: auto; min-height: 0; margin: 0; padding: 0; color: var(--color-text); text-align: left; }
+  :where(.base) :is(:global(.information-expand), :global(.unit-tag-remove)) { width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+  :where(.base) :global(.information-expand) { position: absolute; right: 2px; bottom: 0; }
+  :where(.base) :global(.information-additional)[hidden] { display: none; }
+
+  :global(.module-frame)[data-auto-height="true"] .base { overflow-y: visible; }
+  :global(.module-frame)[data-fitting] :global(.module-scaled-content) > .base { display: flex; width: max-content; }
+  :global(.module-frame)[data-fitting] .base :global(.information-card) { flex: none; height: auto; min-height: 0; }
+}

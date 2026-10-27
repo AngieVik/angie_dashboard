@@ -1,0 +1,11 @@
+@layer components {
+  .base { position: absolute; z-index: 2; border: 1px solid var(--color-accent-red); box-shadow: 0 0 0 100vmax rgb(0 0 0 / 35%); pointer-events: none; }
+  :where(.base) button { position: absolute; display: block; margin: 0; padding: 0; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; pointer-events: auto; touch-action: none; }
+  :where(.base) :global(.reports-map-area-move) { inset: 0; width: 100%; height: 100%; cursor: grab; }
+  :where(.base) :global(.reports-map-area-corner) { width: 14px; height: 14px; border: 1px solid var(--color-text); background: var(--color-accent-red); }
+  :where(.base) :global(.reports-map-area-corner)[data-corner="nw"] { left: -7px; top: -7px; cursor: nw-resize; }
+  :where(.base) :global(.reports-map-area-corner)[data-corner="ne"] { right: -7px; top: -7px; cursor: ne-resize; }
+  :where(.base) :global(.reports-map-area-corner)[data-corner="sw"] { left: -7px; bottom: -7px; cursor: sw-resize; }
+  :where(.base) :global(.reports-map-area-corner)[data-corner="se"] { right: -7px; bottom: -7px; cursor: se-resize; }
+  :where(.base) button:focus-visible { outline: 1px solid var(--color-text); outline-offset: 2px; }
+}

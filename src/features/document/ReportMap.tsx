@@ -1,9 +1,11 @@
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select } from '@/components/ui/select'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent, RefObject } from 'react'
 import { Focus, Minus, Plus } from 'lucide-react'
 import * as L from 'leaflet'
-import { Button } from '../../components/ui/button'
-import { HelpTooltip } from '../../components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { HelpTooltip } from '@/components/ui/tooltip'
 import type { AssetId, MapGpxReference, MapMarker, PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { readGpxAccess } from '../../storage/gpxAccessRepository'
@@ -26,6 +28,9 @@ import { createReportIssue } from './reportIssues'
 import type { ReportGraphicSection, ReportIssue } from './reportIssues'
 import { createMapDataRecovery, createMapReportRecovery } from './mapReportRecovery'
 import { DEFAULT_REPORT_PAGE } from './reportPagination'
+import framingStyles from './reportFraming.module.css'
+import styles from './ReportMap.module.css'
+import { prepareReportTypography } from './reportTypography'
 
 const EMPTY_MARKERS: MapMarker[] = []
 const EMPTY_GPX: MapGpxReference[] = []
@@ -193,7 +198,9 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
     }
     function schedule() { cancelAnimationFrame(frame); frame = requestAnimationFrame(redraw) }
     redrawOverlay.current = schedule
-    void document.fonts.ready.then(() => { if (mapRef.current === map) { applyFraming.current?.(); schedule() } })
+    void prepareReportTypography().then(() => { if (mapRef.current === map) { applyFraming.current?.(); schedule() } }).catch(error => {
+      if (mapRef.current === map) setTileStatus(error instanceof Error ? error.message : 'No se pudo preparar la fuente del informe.')
+    })
     map.on('move zoom resize', schedule)
     map.on('movestart zoomstart', () => { moving.current = true })
     map.on('moveend', () => {
@@ -376,20 +383,20 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
     if (frame) map.setView(frame.center, frame.zoom, { animate: false })
   }
 
-  return <div className="reports-map">
+  return <div className={`reports-map ${framingStyles.base} ${styles.base}`}>
     <h3>{title}</h3>
-    {((isPlan && resources.length > 0) || (gpxSelected && references.length > 0)) && <label><input type="checkbox" checked={includeHidden} disabled={blocked} onChange={event => setIncludeHidden(event.target.checked)} />Incluir ocultos</label>}
+    {((isPlan && resources.length > 0) || (gpxSelected && references.length > 0)) && <label><Checkbox checked={includeHidden} disabled={blocked} onCheckedChange={nextChecked => setIncludeHidden(nextChecked)} />Incluir ocultos</label>}
     <div className="reports-map-selection">
       {isPlan && <fieldset disabled={blocked}><legend>Recursos</legend>
-        {availableResources.length ? availableResources.map(({ element, pin }) => <label key={element.id}><input type="checkbox" checked={resourceIds.has(element.id.toLowerCase())} onChange={event => toggle('resources', element.id.toLowerCase(), event.target.checked)} />{element.name}
+        {availableResources.length ? availableResources.map(({ element, pin }) => <label key={element.id}><Checkbox disabled={blocked} checked={resourceIds.has(element.id.toLowerCase())} onCheckedChange={nextChecked => toggle('resources', element.id.toLowerCase(), nextChecked)} />{element.name}
           {!pin.visible && <span className="reports-resource-state">Oculto</span>}
         </label>) : <span>{resources.length ? 'Sin recursos visibles.' : 'Sin recursos.'}</span>}
       </fieldset>}
       {markersSelected && <fieldset disabled={blocked}><legend>Marcadores</legend>
-        {markers.length ? markers.map(marker => <label key={marker.id}><input type="checkbox" checked={markerIds.has(marker.id)} onChange={event => toggle('markers', marker.id, event.target.checked)} />{marker.name || 'Marcador'}</label>) : <span>Sin marcadores.</span>}
+        {markers.length ? markers.map(marker => <label key={marker.id}><Checkbox disabled={blocked} checked={markerIds.has(marker.id)} onCheckedChange={nextChecked => toggle('markers', marker.id, nextChecked)} />{marker.name || 'Marcador'}</label>) : <span>Sin marcadores.</span>}
       </fieldset>}
       {gpxSelected && <fieldset disabled={blocked}><legend>Recorridos GPX</legend>
-        {availableReferences.length ? availableReferences.map(file => <label key={file.id}><input type="checkbox" checked={gpxIds.has(file.id)} onChange={event => toggle('gpx', file.id, event.target.checked)} />{file.name}
+        {availableReferences.length ? availableReferences.map(file => <label key={file.id}><Checkbox disabled={blocked} checked={gpxIds.has(file.id)} onCheckedChange={nextChecked => toggle('gpx', file.id, nextChecked)} />{file.name}
           {!file.visible && <span className="reports-resource-state">Oculto</span>}
           {gpxIds.has(file.id) && !files.some(loaded => loaded.id === file.id) && <span className="reports-map-unavailable">No disponible</span>}
         </label>) : <span>{references.length ? 'Sin GPX visibles.' : 'Sin GPX.'}</span>}
@@ -397,23 +404,17 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
     </div>
     {imageSelected && <>
       <div className="reports-map-toolbar" role="group" aria-label={'Encuadre: ' + title}>
-        <select aria-label={'Encuadre: ' + title} value={framing} disabled={blocked} onChange={event => {
-          const next = event.target.value
+        <Select aria-label={'Encuadre: ' + title} value={framing} disabled={blocked} onValueChange={next => {
           if (next === 'content' || next === 'area' || next === 'current' && sourceFrame) setFraming(next)
-        }}>
-          <option value="content">Contenido seleccionado</option>
-          <option value="area">Área seleccionada</option>
-          <option value="current" disabled={!sourceFrame}>Vista actual</option>
-        </select>
-        <label><input type="checkbox" checked={showBackground} disabled={blocked} onChange={event => setShowBackground(event.target.checked)} />Fondo</label>
-        <select aria-label={'Fondo: ' + title} value={view.background} disabled={blocked || !showBackground} onChange={event => { if (isMapBackground(event.target.value)) changeBackground(event.target.value) }}>
-          {Object.entries(MAP_BACKGROUNDS).map(([id, background]) => <option key={id} value={id}>{background.name}</option>)}
-        </select>
-        {view.background === 'pnoa' && <label><input type="checkbox" checked={view.pnoaInformation} disabled={blocked || !showBackground} onChange={event => changeBackground(view.background, event.target.checked)} />Callejero</label>}
-        <label><input type="checkbox" checked={labels} disabled={blocked} onChange={event => setLabels(event.target.checked)} />Nombres</label>
-        <label><input type="checkbox" checked={showRoutes} disabled={blocked} onChange={event => setShowRoutes(event.target.checked)} />Recorridos</label>
-        <label><input type="checkbox" checked={showLegend} disabled={blocked} onChange={event => setShowLegend(event.target.checked)} />Leyenda</label>
-        {isPlan && <label><input type="checkbox" checked={showStrokes} disabled={blocked} onChange={event => setShowStrokes(event.target.checked)} />Trazos</label>}
+        }} options={[{ value: 'content', label: 'Contenido seleccionado' }, { value: 'area', label: 'Área seleccionada' }, { value: 'current', label: 'Vista actual', disabled: !sourceFrame }]} />
+        <label><Checkbox checked={showBackground} disabled={blocked} onCheckedChange={nextChecked => setShowBackground(nextChecked)} />Fondo</label>
+        <Select aria-label={'Fondo: ' + title} value={view.background} disabled={blocked || !showBackground} onValueChange={value => { if (isMapBackground(value)) changeBackground(value) }}
+          options={Object.entries(MAP_BACKGROUNDS).map(([value, background]) => ({ value, label: background.name }))} />
+        {view.background === 'pnoa' && <label><Checkbox checked={view.pnoaInformation} disabled={blocked || !showBackground} onCheckedChange={nextChecked => changeBackground(view.background, nextChecked)} />Callejero</label>}
+        <label><Checkbox checked={labels} disabled={blocked} onCheckedChange={nextChecked => setLabels(nextChecked)} />Nombres</label>
+        <label><Checkbox checked={showRoutes} disabled={blocked} onCheckedChange={nextChecked => setShowRoutes(nextChecked)} />Recorridos</label>
+        <label><Checkbox checked={showLegend} disabled={blocked} onCheckedChange={nextChecked => setShowLegend(nextChecked)} />Leyenda</label>
+        {isPlan && <label><Checkbox checked={showStrokes} disabled={blocked} onCheckedChange={nextChecked => setShowStrokes(nextChecked)} />Trazos</label>}
         {framing === 'area' && <>
           <HelpTooltip text="Centrar selección"><Button disabled={blocked || (!selectedMarkers.length && !drawnFiles.length && !planDrawing?.resources.length && !planDrawing?.strokes.length)} aria-label={'Centrar selección: ' + title} onClick={centerSelection}><Focus aria-hidden="true" /></Button></HelpTooltip>
           <HelpTooltip text="Acercar"><Button disabled={blocked} aria-label={'Acercar: ' + title} onClick={() => mapRef.current?.zoomIn()}><Plus aria-hidden="true" /></Button></HelpTooltip>

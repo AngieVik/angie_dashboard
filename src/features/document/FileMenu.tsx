@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { ClipboardPen, ClipboardList, ClipboardCheck, ClipboardPlus, ClipboardX, ClipboardClock, FileBracesCorner, FolderSync, FolderCog, FolderKey } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Alert } from '../../components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Alert } from '@/components/ui/alert'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../../components/ui/dropdown-menu'
-import { AlertDialog, AlertDialogCancel } from '../../components/ui/alert-dialog'
+import { MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
+import { AlertDialog, AlertDialogCancel, AlertDialogForm, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { FileDialogContent } from './FileDialog'
 import { getDocumentStore, useDocumentStore } from './documentStore'
 import type { DocumentStore, DocumentSnapshot } from './documentStore'
@@ -14,6 +14,7 @@ import { PermissionsDialog, WorkDirectoryDialog } from './PermissionsDialog'
 import { readWorkDirectoryConfiguration } from '../../storage/workDirectoryAccessRepository'
 import { filterWorkspaceName, workspaceNameError } from '../../platform/files/workspaceNames'
 import './permissions.css'
+import styles from './FileMenu.module.css'
 
 function saveLabels(snapshot: DocumentSnapshot) {
   const local = snapshot.autosaveSaving ? 'Guardando en este dispositivo…' : snapshot.autosaveUnavailable ? 'Recuperación del dispositivo no disponible' :
@@ -124,71 +125,73 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
   }
 
   return <>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button ref={trigger} className="document-button dashboard-menu-trigger">Archivo</Button></DropdownMenuTrigger>
-      <DropdownMenuContent align="start" onCloseAutoFocus={event => { if (naming || recovering || permissions || pending) event.preventDefault() }}>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!ready || fileBusy} onSelect={() => showNaming('new')}><ClipboardPen className="module-list-icon" aria-hidden="true" />Nuevo UIBoard</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!ready || fileBusy} onSelect={() => { void selectFile() }}><ClipboardList className="module-list-icon" aria-hidden="true" />Abrir UIBoard…</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!active || fileBusy} onSelect={() => { void store.saveDocument().then(saved => { if (!saved && store.getSnapshot().workspacePermissionRequired) setPermissions('setup') }) }}><ClipboardCheck className="module-list-icon" aria-hidden="true" />Guardar</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!active || fileBusy} onSelect={() => showNaming('saveAs')}><ClipboardPlus className="module-list-icon" aria-hidden="true" />Guardar como…</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!active || fileBusy} onSelect={() => showNaming('rename')}><ClipboardPen className="module-list-icon" aria-hidden="true" />Cambiar nombre…</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!active || fileBusy} onSelect={() => { void transition(() => store.closeDocument(true)) }}><ClipboardX className="module-list-icon" aria-hidden="true" />Cerrar UIBoard</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!ready || fileBusy} onSelect={() => { void showRecovery() }}><ClipboardClock className="module-list-icon" aria-hidden="true" />Recuperar UIBoard…</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={!active || fileBusy} onSelect={() => { void store.downloadJson() }}><FileBracesCorner className="module-list-icon" aria-hidden="true" />Descargar JSON</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={fileBusy} onSelect={() => setPermissions('setup')}><FolderCog className="module-list-icon" aria-hidden="true" />Elegir carpeta de trabajo</DropdownMenuItem>
-        <DropdownMenuItem className="file-menu-item module-list-item" disabled={fileBusy} onSelect={() => setPermissions('permissions')}><FolderKey className="module-list-icon" aria-hidden="true" />Permisos</DropdownMenuItem>
-        {active && <><DropdownMenuSeparator /><div role="status" className="document-save-details"><span>{labels.local}</span><span>{labels.folder}</span>{snapshot.workspacePath && <span>{snapshot.workspacePath}</span>}</div></>}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <MenubarMenu>
+      <MenubarTrigger asChild><Button ref={trigger}>Archivo</Button></MenubarTrigger>
+      <MenubarContent align="start" onCloseAutoFocus={event => { if (naming || recovering || permissions || pending) event.preventDefault() }}>
+        <MenubarGroup>
+          <MenubarItem disabled={!ready || fileBusy} onSelect={() => showNaming('new')}><ClipboardPen aria-hidden="true" />Nuevo UIBoard</MenubarItem>
+          <MenubarItem disabled={!ready || fileBusy} onSelect={() => { void selectFile() }}><ClipboardList aria-hidden="true" />Abrir UIBoard…</MenubarItem>
+          <MenubarItem disabled={!active || fileBusy} onSelect={() => { void store.saveDocument().then(saved => { if (!saved && store.getSnapshot().workspacePermissionRequired) setPermissions('setup') }) }}><ClipboardCheck aria-hidden="true" />Guardar</MenubarItem>
+          <MenubarItem disabled={!active || fileBusy} onSelect={() => showNaming('saveAs')}><ClipboardPlus aria-hidden="true" />Guardar como…</MenubarItem>
+          <MenubarItem disabled={!active || fileBusy} onSelect={() => showNaming('rename')}><ClipboardPen aria-hidden="true" />Cambiar nombre…</MenubarItem>
+          <MenubarItem disabled={!active || fileBusy} onSelect={() => { void transition(() => store.closeDocument(true)) }}><ClipboardX aria-hidden="true" />Cerrar UIBoard</MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem disabled={!ready || fileBusy} onSelect={() => { void showRecovery() }}><ClipboardClock aria-hidden="true" />Recuperar UIBoard…</MenubarItem>
+          <MenubarItem disabled={!active || fileBusy} onSelect={() => { void store.downloadJson() }}><FileBracesCorner aria-hidden="true" />Descargar JSON</MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem disabled={fileBusy} onSelect={() => setPermissions('setup')}><FolderCog aria-hidden="true" />Elegir carpeta de trabajo</MenubarItem>
+          <MenubarItem disabled={fileBusy} onSelect={() => setPermissions('permissions')}><FolderKey aria-hidden="true" />Permisos</MenubarItem>
+          {active && <><MenubarSeparator /><div role="status" className={styles.saveDetails}><span>{labels.local}</span><span>{labels.folder}</span>{snapshot.workspacePath && <span>{snapshot.workspacePath}</span>}</div></>}
+        </MenubarGroup>
+      </MenubarContent>
+    </MenubarMenu>
     {permissions === 'setup' && <WorkDirectoryDialog onClose={closePermissions} onCloseFocus={() => { if (naming) nameInput.current?.focus(); else trigger.current?.focus() }} onContinueLocally={() => store.continueLocally()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} onDownload={active ? () => store.downloadJson() : undefined} />}
     {permissions === 'permissions' && <PermissionsDialog onClose={closePermissions} onCloseFocus={() => trigger.current?.focus()} onContinueLocally={() => store.continueLocally()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} onDownload={active ? () => store.downloadJson() : undefined} />}
     <AlertDialog open={Boolean(naming)} onOpenChange={open => { if (!open && !fileBusy && !namingBusy) setNaming(null) }}>
       <FileDialogContent title={naming === 'rename' ? 'Cambiar nombre' : naming === 'saveAs' ? 'Guardar como' : 'Nuevo UIBoard'} icon={naming === 'saveAs' ? ClipboardPlus : ClipboardPen} onClose={() => { if (!store.getSnapshot().fileBusy && !namingSubmission.current) setNaming(null) }}
         onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}>
-        <form className="document-name-form" onSubmit={event => { event.preventDefault(); void acceptName() }}>
+        <AlertDialogForm onSubmit={event => { event.preventDefault(); void acceptName() }}>
           <Input ref={nameInput} aria-label="Nombre" placeholder="Nombre" aria-invalid={Boolean(nameError)} maxLength={100} value={name} disabled={fileBusy || namingBusy}
             onChange={event => { setName(filterWorkspaceName(event.target.value)); setDialogError(null) }} />
           {(nameError || dialogError) && <p role="alert">{nameError || dialogError}</p>}
           {dialogError && <Button disabled={fileBusy} onClick={() => setPermissions('setup')}>Carpeta de trabajo</Button>}
-          <div className="document-dialog-actions">
+          <AlertDialogFooter>
             <Button type="submit" disabled={fileBusy || namingBusy || Boolean(nameError)}>{fileBusy || namingBusy ? 'Preparando…' : 'Aceptar'}</Button>
-            <AlertDialogCancel asChild><Button disabled={fileBusy || namingBusy}>Cancelar</Button></AlertDialogCancel></div>
-        </form>
+            <AlertDialogCancel asChild><Button disabled={fileBusy || namingBusy}>Cancelar</Button></AlertDialogCancel></AlertDialogFooter>
+        </AlertDialogForm>
       </FileDialogContent>
     </AlertDialog>
     <AlertDialog open={Boolean(pending)} onOpenChange={open => { if (!open && !fileBusy) setPending(null) }}>
       <FileDialogContent title="Hay cambios sin guardar." icon={ClipboardCheck} onClose={() => { if (!store.getSnapshot().fileBusy) setPending(null) }}>
         {dialogError && !snapshot.workspacePermissionRequired && <p role="alert">{dialogError}</p>}
-        <div className="document-dialog-actions">
+        <AlertDialogFooter>
           <Button disabled={fileBusy} onClick={() => { void store.saveDocument().then(async saved => {
             if (saved && pending) { const action = pending; setPending(null); await action() }
             else { setDialogError(store.getSnapshot().workspaceMessage ?? store.getSnapshot().fileMessage); if (store.getSnapshot().workspacePermissionRequired) setPermissions('setup') }
           }) }}>Guardar y continuar</Button>
           <Button disabled={fileBusy || (snapshot.autosaveUnavailable && snapshot.workspaceStatus !== 'saved')} onClick={() => { if (pending) { const action = pending; setPending(null); void action() } }}>Continuar sin guardar</Button>
           <AlertDialogCancel asChild><Button disabled={fileBusy}>Cancelar</Button></AlertDialogCancel>
-        </div>
+        </AlertDialogFooter>
       </FileDialogContent>
     </AlertDialog>
     <AlertDialog open={recovering} onOpenChange={open => { if (!open) closeRecovery() }}>
       <FileDialogContent title="Recuperar UIBoard" icon={ClipboardClock} onClose={closeRecovery} height={360}>
         {dialogError && <p role="alert">{dialogError}</p>}
-        <div className="document-dialog-actions">
+        <AlertDialogFooter>
           <Button disabled={fileBusy || recoveryBusy} onClick={() => { void showRecovery() }}><FolderSync aria-hidden="true" />{recoveryBusy ? 'Consultando…' : 'Reintentar'}</Button>
           <Button disabled={fileBusy} onClick={() => { closeRecovery(); setPermissions('setup') }}><FolderCog aria-hidden="true" />Carpeta de trabajo</Button>
-        </div>
+        </AlertDialogFooter>
         <div className="document-recovery-list" aria-label="Versiones recuperables">
           {recoverable.map(copy => <Button key={copy.key} disabled={fileBusy || recoveryBusy} aria-pressed={recoveryKey === copy.key} onClick={() => setRecoveryKey(copy.key)}>
             {copy.title || 'Sin nombre'} · {formatTimelineDate(copy.savedAt)} · {copy.source === 'folder' ? 'Carpeta' : 'Dispositivo'}</Button>)}
           {!recoverable.length && !dialogError && !recoveryBusy && <p>No hay versiones recuperables.</p>}
         </div>
-        <div className="document-dialog-actions"><Button disabled={fileBusy || recoveryBusy || !recoverable.some(copy => copy.key === recoveryKey)} onClick={() => {
+        <AlertDialogFooter><Button disabled={fileBusy || recoveryBusy || !recoverable.some(copy => copy.key === recoveryKey)} onClick={() => {
             const copy = recoverable.find(copy => copy.key === recoveryKey)
             if (!copy) return
             closeRecovery()
             void transition(() => store.restoreDocument(copy.key, copy))
-          }}>Abrir recuperación en rama</Button></div>
+          }}>Abrir recuperación en rama</Button></AlertDialogFooter>
       </FileDialogContent>
     </AlertDialog>
     <input ref={input} type="file" accept=".json,application/json" aria-label="Abrir archivo JSON" hidden onChange={event => {
@@ -224,14 +227,14 @@ export function DocumentNotices({ store = getDocumentStore() }: { store?: Docume
       <FileDialogContent title={snapshot.recoveryTitle ? `¿Quieres continuar con «${snapshot.recoveryTitle}»?` : '¿Quieres continuar?'} icon={ClipboardClock} dismissOnOutside onClose={() => { void store.confirmRecovery(false) }}>
         {snapshot.recoverySeenAt && <p>Última sesión: {formatTimelineDate(snapshot.recoverySeenAt)}</p>}
         {snapshot.fileMessage && <p role="alert">{snapshot.fileMessage}</p>}
-        <div className="document-dialog-actions"><Button disabled={snapshot.fileBusy} onClick={() => { void store.confirmRecovery(true) }}>Continuar</Button>
-          <Button disabled={snapshot.fileBusy} onClick={() => { void store.confirmRecovery(false) }}>Ir al inicio</Button></div>
+        <AlertDialogFooter><Button disabled={snapshot.fileBusy} onClick={() => { void store.confirmRecovery(true) }}>Continuar</Button>
+          <Button disabled={snapshot.fileBusy} onClick={() => { void store.confirmRecovery(false) }}>Ir al inicio</Button></AlertDialogFooter>
       </FileDialogContent>
     </AlertDialog>
     <AlertDialog open={snapshot.replacementBlocked} onOpenChange={open => { if (!open) store.cancelReplacement() }}>
       <FileDialogContent title="No se pudo guardar el trabajo actual" icon={ClipboardCheck} onClose={() => store.cancelReplacement()}>
         <p>El trabajo permanece abierto. Reintenta el guardado o descarga una copia antes de continuar.</p>
-        <div className="document-dialog-actions"><Button onClick={() => { void store.retryAutosave() }}>Reintentar</Button><Button onClick={() => { void store.downloadJson() }}><FileBracesCorner aria-hidden="true" />Descargar JSON</Button><AlertDialogCancel asChild><Button onClick={() => store.cancelReplacement()}>Cancelar</Button></AlertDialogCancel></div>
+        <AlertDialogFooter><Button onClick={() => { void store.retryAutosave() }}>Reintentar</Button><Button onClick={() => { void store.downloadJson() }}><FileBracesCorner aria-hidden="true" />Descargar JSON</Button><AlertDialogCancel asChild><Button onClick={() => store.cancelReplacement()}>Cancelar</Button></AlertDialogCancel></AlertDialogFooter>
       </FileDialogContent>
     </AlertDialog>
   </>

@@ -1,12 +1,12 @@
 import { useId, useState } from 'react'
 import { Delete } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { evaluateExpression } from './expression'
 import type { CalculationResult } from './expression'
-import './calculator.css'
+import styles from './calculator.module.css'
 
 const keys = [
   ['7', '7'], ['8', '8'], ['9', '9'], ['÷', 'Dividir'],
@@ -32,8 +32,8 @@ export function CalculatorModule({ generation = 0 }: { generation?: number } = {
     setResult(next); setError(next.ok ? null : next.error)
   }
 
-  return <form className="calculator-module" onSubmit={event => { event.preventDefault(); calculate() }}>
-    <Input id={`${id}-expression`} aria-label="Operación" className="document-title technical-data" value={expression} disabled={blocked}
+  return <form data-slot="calculator-module" className={`${styles.base} calculator-module`} onSubmit={event => { event.preventDefault(); calculate() }}>
+    <Input id={`${id}-expression`} aria-label="Operación" className="technical-data" value={expression} disabled={blocked}
       autoComplete="off" spellCheck={false} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
       onChange={event => edit(event.target.value)} onKeyDown={event => {
         if (event.key === '=') { event.preventDefault(); calculate() }
@@ -46,11 +46,11 @@ export function CalculatorModule({ generation = 0 }: { generation?: number } = {
     </div>
     <div className="calculator-keypad">
       <Button aria-label="Limpiar" disabled={blocked} onClick={() => edit('')}>C</Button>
-      <Button aria-label="Borrar último carácter" disabled={blocked} onClick={() => edit(expression.slice(0, -1))}><Delete aria-hidden="true" /></Button>
+      <Button variant="text" aria-label="Borrar último carácter" disabled={blocked} onClick={() => edit(expression.slice(0, -1))}><Delete aria-hidden="true" /></Button>
       <Button aria-label="Abrir paréntesis" disabled={blocked} onClick={() => edit(expression + '(')}>(</Button>
       <Button aria-label="Cerrar paréntesis" disabled={blocked} onClick={() => edit(expression + ')')}>)</Button>
       {keys.map(([value, name]) => <Button key={name} aria-label={name} disabled={blocked} onClick={() => edit(expression + value)}>{value}</Button>)}
-      <Button type="submit" className="document-button calculator-equals" aria-label="Calcular" disabled={blocked}>=</Button>
+      <Button type="submit" className="calculator-equals" aria-label="Calcular" disabled={blocked}>=</Button>
     </div>
   </form>
 }

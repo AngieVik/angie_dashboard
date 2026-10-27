@@ -1,0 +1,32 @@
+@layer components {
+  .base { display: flex; flex: none; align-items: center; gap: var(--section-gap); min-width: 0; }
+  .trigger {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    height: var(--control-height);
+    min-height: var(--control-height);
+    padding: 1px 9px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    font-family: var(--font-interface-default);
+    font-size: var(--control-font-size);
+    line-height: 18px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .trigger:disabled { opacity: .5; cursor: default; }
+}
+
+@layer overrides {
+  .trigger,
+  .trigger:is(:hover, :active, :focus-visible, [data-state="open"]) {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-text);
+  }
+  .trigger:is(:hover:not(:disabled), :focus-visible) { text-shadow: 0 0 7px rgb(255 255 255 / 45%); }
+  .trigger[data-state="open"] { color: var(--color-accent-red); text-shadow: none; }
+}

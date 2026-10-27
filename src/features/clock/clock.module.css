@@ -1,0 +1,55 @@
+@layer components {
+  .base {
+    --font-interface: var(--font-clock);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    font-family: var(--font-interface);
+    font-size: var(--font-size-body);
+  }
+
+  .base[data-sizing] { height: auto; }
+  :where(.base) :global(.clock-display) { display: flex; flex: 1 1 0; flex-direction: column; gap: 0; min-width: 0; min-height: calc(64px * var(--module-zoom, 1)); margin: 0; padding: 0; }
+  :where(.base) :global(.clock-top) { display: flex; flex: 1 1 0; min-width: 0; min-height: 0; font-size: var(--control-font-size); }
+  :where(.base) :global(.clock-reference) { display: flex; flex: none; gap: calc(4px * var(--module-zoom, 1)); min-width: 0; white-space: nowrap; font-size: var(--font-size-technical); color: var(--color-text-secondary); }
+  :where(.base) :global(.clock-reference) > span { container: clock-reference-label / inline-size; display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-width: 0; margin: 0; padding: calc(2px * var(--module-zoom, 1)) 0; overflow: hidden; text-overflow: ellipsis; line-height: 1; text-align: center; }
+  :where(.base) :global(.clock-reference) :global(.clock-season-active) { color: var(--color-accent-yellow); }
+  :where(.base) :global(.clock-face) { container-type: size; display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-width: 0; min-height: 0; padding: 0; background: var(--color-module); font-family: inherit; font-size: calc(64px * var(--module-zoom, 1)); font-variant-numeric: tabular-nums; }
+  :where(.base) :global(.clock-esp) { display: flex; flex: none; justify-content: center; gap: 0; width: 100%; min-width: 0; padding: 0; line-height: 1; text-align: center; font-size: min(calc(64px * var(--module-zoom, 1)), 26cqi, 100cqb); font-weight: 600; letter-spacing: 0; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
+  :where(.base) :global(.clock-zulu) { container: clock-zulu / inline-size; display: flex; flex: 2.5 1 0; min-width: 0; min-height: 0; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 0 2px; margin: 0; padding: 0; overflow: hidden; color: var(--color-text-secondary); font-size: calc(16px * var(--module-zoom, 1)); line-height: 1; }
+  :where(.base) :global(.clock-zulu-label), :where(.base) :global(.clock-zulu) output { font-size: inherit; font-family: inherit; white-space: nowrap; }
+  :where(.base) :global(.clock-add-controls) { display: flex; flex: 0 0 var(--control-height); align-items: stretch; gap: 0; min-width: 0; min-height: var(--control-height); margin: 0; padding: 0; }
+  :where(.base) :global(.clock-label-short) { display: none; }
+  @container clock-reference-label (max-width: 5.5em) {
+    :where(.base) :global(.clock-label-full) { display: none; }
+    :where(.base) :global(.clock-label-short) { display: inline; }
+  }
+  @container clock-zulu (max-width: 9em) {
+    :where(.base) :global(.clock-label-full) { display: none; }
+    :where(.base) :global(.clock-label-short) { display: inline; }
+  }
+  :where(.base) :global(.timer-list) { display: grid; flex: var(--clock-timer-count, 1) 1 0; min-width: 0; min-height: 0; grid-auto-rows: minmax(min-content, 1fr); gap: 0; padding: 0; overflow: auto; }
+  :where(.base) :global(.timer-list):empty { display: none; }
+}
+
+@layer overrides {
+  :global(.module-scaled-content):has(> .base) { container-type: normal; }
+  :global(.module-content):has(> :global(.module-scaled-content) > .base) { container-type: inline-size; overflow-x: auto; }
+  :where(.base) :global(.clock-add-controls) > [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+
+  .base[data-sizing] :global(.clock-display), :global(.module-frame)[data-fitting] .base :global(.clock-display) { flex: none; }
+  .base[data-sizing] :global(.clock-top), :global(.module-frame)[data-fitting] .base :global(.clock-top) { flex: none; height: calc(64px * var(--module-zoom, 1)); container-type: normal; }
+  .base[data-sizing] :global(.clock-face), :global(.module-frame)[data-fitting] .base :global(.clock-face) { flex: none; container-type: normal; }
+  .base[data-sizing] :global(.clock-esp), :global(.module-frame)[data-fitting] .base :global(.clock-esp) { font-size: inherit; }
+  .base[data-sizing] :global(.timer-list), :global(.module-frame)[data-fitting] .base :global(.timer-list),
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.timer-list) { flex: none; grid-auto-rows: auto; }
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.clock-face) { container-type: normal; flex: none; }
+}
+
+/* Preserve scrollbar precedence over the shared window rules. */
+:global(.app-shell) :global(.module-frame)[data-scroll-side="right"] :where(.base) :global(.timer-list) { scrollbar-width: thin; }
+:global(.app-shell) :global(.module-frame)[data-scroll-side="right"] :where(.base) :global(.timer-list)::-webkit-scrollbar { display: block; width: 8px; height: 0; }

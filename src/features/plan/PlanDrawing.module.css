@@ -1,0 +1,5 @@
+@layer components {
+  .base { position: absolute; inset: 0; z-index: 650; pointer-events: none; }
+  .base[data-active="true"] { pointer-events: auto; touch-action: none; cursor: crosshair; }
+  .base[data-mode="erase"] { cursor: cell; }
+}

@@ -1,0 +1,4 @@
+@layer components {
+  .base { display: flex; justify-content: space-between; gap: 8px; color: var(--color-text-secondary); }
+  .base output { font-family: var(--font-interface); white-space: nowrap; }
+}

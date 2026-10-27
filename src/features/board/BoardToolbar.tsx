@@ -1,11 +1,13 @@
+import labelStyles from '@/layout/controlValueLabel.module.css'
 import { useEffect, useRef, useState } from 'react'
 import type { Ref } from 'react'
-import { Button } from '../../components/ui/button'
-import { Slider } from '../../components/ui/slider'
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
-import { HelpTooltip } from '../../components/ui/tooltip'
-import { Separator } from '../../components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import { Separator } from '@/components/ui/separator'
 import type { BoardMode } from './boardTypes'
+import styles from './BoardToolbar.module.css'
 import { Pointer, Pencil, Eraser, StickyNote, Ambulance, Package, GitCommitVertical, Palette, PaintRoller, FileImage, ImageOff, SquareDimensions, MopSparkles } from 'lucide-react'
 
 const modes = [
@@ -65,11 +67,11 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
     <Popover open={open && !blocked} onOpenChange={setOpen}>
       <HelpTooltip text="Grosor"><PopoverTrigger asChild><Button ref={trigger} disabled={blocked} aria-label="Abrir deslizador: Grosor"><GitCommitVertical aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
       <PopoverContent side="bottom" aria-label="Grosor" onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
-        <div className="zoom-popover-label"><span>Grosor</span><output>{width}</output></div>
+        <div className={labelStyles.base}><span>Grosor</span><output>{width}</output></div>
         <Slider label="Grosor" value={width} min={1} max={40} step={1} disabled={blocked} onValueChange={onWidth} />
       </PopoverContent>
     </Popover>
-    <span className="board-color-control">
+    <span className={`board-color-control ${styles.colorControl}`}>
       <HelpTooltip text="Color del lápiz"><Button disabled={blocked} aria-label="Elegir color del lápiz" onClick={() => penColor.current?.click()}><Palette aria-hidden="true" /></Button></HelpTooltip>
       <input ref={penColor} type="color" aria-label="Color del lápiz" value={color} disabled={blocked} tabIndex={-1} onChange={event => onColor(event.target.value)} />
     </span>
@@ -78,7 +80,7 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
     <HelpTooltip text="Dotación"><Button disabled={blocked} aria-label="Abrir Dotaciones" onClick={() => onOpenModule?.('dotations')}><Ambulance aria-hidden="true" /></Button></HelpTooltip>
     <HelpTooltip text="Elemento"><Button disabled={blocked} aria-label="Abrir Elementos" onClick={() => onOpenModule?.('elements')}><Package aria-hidden="true" /></Button></HelpTooltip>
     <Separator orientation="vertical" />
-    <span className="board-color-control">
+    <span className={`board-color-control ${styles.colorControl}`}>
       <HelpTooltip text="Color de fondo"><Button disabled={blocked} aria-label="Elegir color de fondo" onClick={() => backgroundColor.current?.click()}><PaintRoller aria-hidden="true" /></Button></HelpTooltip>
       <input ref={backgroundColor} type="color" aria-label="Color de fondo" value={background} disabled={blocked} tabIndex={-1} onChange={event => onBackground(event.target.value)} />
     </span>

@@ -1,7 +1,8 @@
+import { Checkbox } from '@/components/ui/checkbox'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Position } from '../../domain/document/types'
-import { Button } from '../../components/ui/button'
-import { HelpTooltip } from '../../components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { HelpTooltip } from '@/components/ui/tooltip'
 import { CopyPlus, Eye, EyeOff, Trash, Wrench, X } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
@@ -10,7 +11,7 @@ import { createElement, updateElement, updateElements, duplicateElement, deleteE
 import { ElementEditor } from './ElementEditor'
 import { ICON_CATALOG } from './iconCatalog'
 import { pinNameLines } from './pinPresentation'
-import './elements.css'
+import styles from './elements.module.css'
 export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void; placementPosition?: Position; editRequest?: { id: string } }
 type Props = ElementsModuleProps & { isUnit?: boolean }
 export function ElementsModule(props: Props) {
@@ -84,7 +85,7 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
     lastCardTap.current = null
     onSelect(id); setEditor({ kind: 'edit', id })
   }
-  return <div className="elements-module" onPointerDownCapture={event => {
+  return <div data-slot="elements-module" className={`${styles.base} elements-module`} onPointerDownCapture={event => {
     activePointers.current.add(event.pointerId)
     if (activePointers.current.size > 1) cancelHold()
   }}>
@@ -142,13 +143,13 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
         <section aria-label={isUnit ? 'Dotaciones' : 'Generales'}>
           <div className="element-rows">{elements.map(element => {
             return <div className="element-row" key={element.id} data-selected={element.id === selectedId} data-checked={selectionMode && checkedIds.includes(element.id)} data-unit={element.isUnit}>
-              {selectionMode && <input className="element-row-checkbox" type="checkbox" aria-label={`Incluir ${element.name} en selección múltiple`}
-                checked={checkedIds.includes(element.id)} disabled={blocked} onChange={event => {
+              {selectionMode && <Checkbox className="element-row-checkbox" aria-label={`Incluir ${element.name} en selección múltiple`}
+                checked={checkedIds.includes(element.id)} disabled={blocked} onCheckedChange={nextChecked => {
                   if (blockedRef.current) return
-                  const checked = event.target.checked
+                  const checked = nextChecked
                   setCheckedIds(ids => checked ? [...ids.filter(id => id !== element.id), element.id] : ids.filter(id => id !== element.id))
                 }} />}
-              <Button className="document-button element-select" aria-label={`Seleccionar ${element.name}`} aria-pressed={element.id === selectedId} disabled={blocked}
+              <Button className="element-select" aria-label={`Seleccionar ${element.name}`} aria-pressed={element.id === selectedId} disabled={blocked}
                 onClick={() => { if (!blockedRef.current) onSelect(element.id) }}
                 onDoubleClick={() => { if (!longPressed.current) edit(element.id) }} onContextMenu={event => event.preventDefault()}
                 onPointerDown={event => {

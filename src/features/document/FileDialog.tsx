@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ComponentProps, CSSProperties } from 'react'
 import * as Primitive from '@radix-ui/react-alert-dialog'
+import { AlertDialogOverlay, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import type { LucideIcon } from 'lucide-react'
 import GridLayout from 'react-grid-layout'
 import type { EventCallback } from 'react-grid-layout'
@@ -11,7 +12,8 @@ import { HandleBottomRight } from '../../layout/WindowResize'
 import { ViewportContext } from '../../layout/ViewportContext'
 import { useViewportGestures } from '../../layout/useViewportGestures'
 import type { Size } from '../../layout/layoutTypes'
-import './fileDialog.css'
+import styles from './fileDialog.module.css'
+import viewportStyles from '@/layout/mobileViewport.module.css'
 
 function visibleArea() {
   const viewport = window.visualViewport
@@ -25,7 +27,7 @@ function constrain(box: Box, bounds: Size): Box {
   return { width, height, x: Math.max(0, Math.min(box.x, bounds.width - width)), y: Math.max(0, Math.min(box.y, bounds.height - height)) }
 }
 
-export function FileDialogContent({ title, icon, onClose, dismissOnOutside = false, width = 460, height = 180, children, onOpenAutoFocus, ...props }:
+export function FileDialogContent({ title, icon, onClose, dismissOnOutside = false, width = 460, height = 180, children, onOpenAutoFocus, className = '', ...props }:
   Omit<ComponentProps<typeof Primitive.Content>, 'title'> & { title: string; icon?: LucideIcon; onClose: () => void; dismissOnOutside?: boolean; width?: number; height?: number }) {
   const [area, setArea] = useState(visibleArea)
   const content = useRef<HTMLDivElement>(null)
@@ -41,8 +43,8 @@ export function FileDialogContent({ title, icon, onClose, dismissOnOutside = fal
     }
   }, [])
   return <Primitive.Portal>
-    <Primitive.Overlay className="file-dialog-overlay" />
-    <Primitive.Content {...props} ref={content} className="file-dialog-surface" aria-describedby={undefined}
+    <AlertDialogOverlay appearance="transparent" />
+    <Primitive.Content {...props} ref={content} data-slot="file-dialog-content" className={`${styles.surface} ${className}`.trim()} aria-describedby={undefined}
       style={{ left: area.left, top: area.top, width: area.width, height: area.height }}
       onEscapeKeyDown={event => { event.preventDefault(); onClose() }}
       onOpenAutoFocus={event => {
@@ -52,7 +54,7 @@ export function FileDialogContent({ title, icon, onClose, dismissOnOutside = fal
           content.current?.focus()
         }
       }}>
-      <Primitive.Title className="visually-hidden">{title}</Primitive.Title>
+      <AlertDialogTitle className="visually-hidden">{title}</AlertDialogTitle>
       <FileDialogFrame title={title} icon={icon} onClose={onClose} dismissOnOutside={dismissOnOutside} bounds={area} initial={{ width, height }}>{children}</FileDialogFrame>
     </Primitive.Content>
   </Primitive.Portal>
@@ -82,7 +84,7 @@ function FileDialogFrame({ title, icon, onClose, dismissOnOutside, bounds, initi
     node?.style.removeProperty('--module-resize-width'); node?.style.removeProperty('--module-resize-height')
     if (item && !blockedRef.current) setBox(constrain({ x: item.x, y: item.y, width: item.w, height: item.h }, bounds))
   }
-  return <div ref={element} className="file-dialog-workspace logical-workspace" {...handlers}
+  return <div ref={element} data-slot="file-dialog-workspace" data-grid-surface="file-dialog" className={`${styles.workspace} ${viewportStyles.workspace} logical-workspace`} {...handlers}
     onClick={event => { if (dismissOnOutside && !blockedRef.current && event.target instanceof Element && element.current?.contains(event.target) && !event.target.closest('[data-module]')) onClose() }}>
     <ViewportContext value={{ blocked, blockedRef, moduleNavigationRef }}>
       <GridLayout width={bounds.width} style={{ height: bounds.height }} autoSize={false}
@@ -110,7 +112,7 @@ function FileDialogFrame({ title, icon, onClose, dismissOnOutside, bounds, initi
           }} onPointerCancelCapture={() => { iconTap.current = null }}
           onClickCapture={event => { if (dragged.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation() } }}>
           <ModuleFrame title={title} icon={icon} active={active} width={shown.width} height={shown.height} onClose={onClose} onFit={fit}>
-            <div className="file-dialog-body">{children}</div>
+            <div data-slot="file-dialog-body" className={styles.body}>{children}</div>
           </ModuleFrame>
         </div>
       </GridLayout>

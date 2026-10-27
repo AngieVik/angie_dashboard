@@ -1,12 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent, RefObject } from 'react'
-import { Focus, Palette, Pencil, Plus, X } from 'lucide-react'
+import { Focus, Palette, Pencil, Plus, Trash, X } from 'lucide-react'
 import * as L from 'leaflet'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { HelpTooltip } from '../../components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { HelpTooltip } from '@/components/ui/tooltip'
 import type { MapMarker } from '../../domain/document/types'
 import { MAX_MAP_LATITUDE } from './mapNavigation'
+import mapStyles from './map.module.css'
+import styles from './MapMarkers.module.css'
 
 export function MapMarkers({ mapRef, navigationKey, markers, blocked, blockedRef, suppressSelection, menuId, open, selectedId, canAdd, onAdd, onClose, onEdit, onRemove, onSelect, onCenter }: {
   mapRef: RefObject<L.Map | null>
@@ -221,27 +223,27 @@ export function MapMarkers({ mapRef, navigationKey, markers, blocked, blockedRef
 
   const selectedMarker = markers.find(marker => marker.id === selectedId)
   if (!open) return null
-  return <aside id={menuId} className="map-markers-menu" aria-labelledby={`${menuId}-title`} onKeyDown={event => {
+  return <aside id={menuId} className={`${mapStyles.panel} ${styles.base} map-markers-menu`} aria-labelledby={`${menuId}-title`} onKeyDown={event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose() }
   }}>
-    <div className="map-markers-heading">
+    <div className={`${mapStyles.panelHeading} map-markers-heading`}>
       <span id={`${menuId}-title`}>Marcadores</span>
-      <HelpTooltip text="Agregar marcador"><Button aria-label="Agregar marcador" disabled={blocked || !canAdd}
+      <HelpTooltip text="Agregar marcador"><Button className={mapStyles.panelTool} aria-label="Agregar marcador" disabled={blocked || !canAdd}
         onClick={onAdd}><Plus aria-hidden="true" /></Button></HelpTooltip>
-      <HelpTooltip text="Cerrar marcadores"><Button aria-label="Cerrar marcadores" disabled={blocked} onClick={onClose}><X aria-hidden="true" /></Button></HelpTooltip>
+      <HelpTooltip text="Cerrar marcadores"><Button className={mapStyles.panelTool} aria-label="Cerrar marcadores" disabled={blocked} onClick={onClose}><X aria-hidden="true" /></Button></HelpTooltip>
     </div>
-    <div className="map-marker-actions" role="group" aria-label={selectedMarker ? 'Controles de ' + (selectedMarker.name || 'marcador') : 'Controles del marcador seleccionado'}>
-      <span className="map-color-control">
-        <HelpTooltip text="Color del marcador"><Button aria-label="Elegir color del marcador seleccionado" disabled={blocked || !selectedMarker}
+    <div className={`${mapStyles.panelActions} map-marker-actions`} role="group" aria-label={selectedMarker ? 'Controles de ' + (selectedMarker.name || 'marcador') : 'Controles del marcador seleccionado'}>
+      <span className={`${mapStyles.colorControl} map-color-control`}>
+        <HelpTooltip text="Color del marcador"><Button className={mapStyles.panelTool} aria-label="Elegir color del marcador seleccionado" disabled={blocked || !selectedMarker}
           onClick={() => colorInput.current?.click()}><Palette aria-hidden="true" /></Button></HelpTooltip>
         {selectedMarker && <input key={selectedMarker.id} ref={colorInput} type="color" aria-label={'Color de ' + (selectedMarker.name || 'marcador')}
           value={selectedMarker.color} disabled={blocked} tabIndex={-1}
           onChange={event => onEdit(selectedMarker.id, { color: event.target.value.toUpperCase() })} />}
       </span>
-      <HelpTooltip text="Centrar marcador"><Button aria-label="Centrar marcador seleccionado" disabled={blocked || !selectedMarker}
+      <HelpTooltip text="Centrar marcador"><Button className={mapStyles.panelTool} aria-label="Centrar marcador seleccionado" disabled={blocked || !selectedMarker}
         onClick={() => { if (selectedMarker) onCenter(selectedMarker) }}><Focus aria-hidden="true" /></Button></HelpTooltip>
-      <HelpTooltip text="Borrar marcador"><Button aria-label="Borrar marcador seleccionado" disabled={blocked || !selectedMarker}
-        onClick={() => { if (selectedMarker) onRemove(selectedMarker.id) }}><X aria-hidden="true" /></Button></HelpTooltip>
+      <HelpTooltip text="Borrar marcador"><Button className={mapStyles.panelTool} aria-label="Borrar marcador seleccionado" disabled={blocked || !selectedMarker}
+        onClick={() => { if (selectedMarker) onRemove(selectedMarker.id) }}><Trash aria-hidden="true" /></Button></HelpTooltip>
     </div>
     {!markers.length && <p className="map-notice">No hay marcadores.</p>}
     <ul className="map-markers" aria-label="Lista de marcadores" onPointerDown={startListScroll} onPointerMove={moveListScroll} onPointerUp={finishListScroll}
@@ -250,14 +252,14 @@ export function MapMarkers({ mapRef, navigationKey, markers, blocked, blockedRef
         if (suppressListClick.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation(); suppressListClick.current = false }
       }}>
       {markers.map((marker, index) => <li key={marker.id} className="map-marker-row" data-selected={marker.id === selectedMarker?.id}>
-        {editingId === marker.id ? <Input className="document-title map-marker-name" aria-label={`Nombre del marcador ${index + 1}`} value={marker.name}
+        {editingId === marker.id ? <Input className="map-marker-name" aria-label={`Nombre del marcador ${index + 1}`} value={marker.name}
           placeholder="Marcador" maxLength={200} disabled={blocked} autoFocus onChange={event => onEdit(marker.id, { name: event.target.value })}
           onBlur={() => setEditingId(null)} onKeyDown={event => {
             if (event.key === 'Enter' || event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); event.currentTarget.blur() }
-          }} /> : <Button className="document-button map-marker-select" aria-label={marker.name || 'Marcador'} aria-pressed={marker.id === selectedMarker?.id}
+          }} /> : <Button appearance="integrated" className="map-marker-select" aria-label={marker.name || 'Marcador'} aria-pressed={marker.id === selectedMarker?.id}
           title={marker.name} disabled={blocked} onClick={() => { setEditingId(null); onSelect(marker) }}><span>{marker.name || 'Marcador'}</span></Button>}
-        <HelpTooltip text="Editar marcador"><button type="button" className="map-marker-edit" aria-label={'Editar ' + (marker.name || 'marcador')} disabled={blocked}
-          onClick={() => { onSelect(marker); setEditingId(marker.id) }}><Pencil aria-hidden="true" /></button></HelpTooltip>
+        <HelpTooltip text="Editar marcador"><Button type="button" appearance="integrated" className={`${mapStyles.panelTool} map-marker-edit`} aria-label={'Editar ' + (marker.name || 'marcador')} disabled={blocked}
+          onClick={() => { onSelect(marker); setEditingId(marker.id) }}><Pencil aria-hidden="true" /></Button></HelpTooltip>
       </li>)}
     </ul>
   </aside>

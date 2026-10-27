@@ -1,0 +1,32 @@
+@layer components {
+  .trigger { --icon-size: calc(var(--icon-size-base) * var(--module-zoom, 1)); }
+  :where(.base) :global(.map-legend-heading) { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 5px; padding: 2px 5px; border-bottom: 1px solid var(--color-border); }
+  :where(.base) :global(.map-legend-scroll) { min-width: 0; min-height: 0; padding: 6px; overflow: auto; overscroll-behavior: contain; }
+  :where(.base) :global(.map-legend-scroll):focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
+  :where(.base) :global(.map-legend-scroll) p { margin: 0 0 6px; }
+  :where(.base) :global(.map-legend-source) { font-weight: 600; }
+  :where(.base) :global(.map-legend-scroll) a { display: block; width: fit-content; max-width: 100%; margin-top: 6px; color: inherit; text-underline-offset: 2px; overflow-wrap: anywhere; }
+  :where(.base) :global(.map-legend-scroll) a:is(:hover, :focus-visible) { color: var(--color-accent-red); }
+  :where(.base) :global(.map-legend-image) { display: block; max-width: 100%; height: auto; background: #fff; }
+  :where(.base) :global(.map-legend-sheet-heading) { display: flex; justify-content: flex-end; padding: 0 0 4px; }
+  :where(.base) :global(.map-legend-image-viewport) { max-height: min(45vh, 360px); overflow: auto; overscroll-behavior: contain; background: #fff; }
+  :where(.base) :global(.map-legend-image-viewport) > p { padding: 6px; color: #181818; }
+  :where(.base) :global(.map-legend-image-viewport):focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
+  :where(.base) :global(.map-legend-sheet)[data-expanded="true"] :global(.map-legend-image-viewport) { max-height: min(65vh, 650px); }
+  :where(.base) :global(.map-legend-sheet)[data-expanded="true"] :global(.map-legend-image) { max-width: none; }
+  :where(.base) :global(.map-legend-osm) { display: grid; gap: 4px; margin: 0 0 6px; padding: 0; list-style: none; }
+  :where(.base) :global(.map-legend-osm) li { display: grid; grid-template-columns: 60px 1fr; align-items: center; gap: 8px; min-width: 0; }
+  :where(.base) :global(.map-legend-sample) { display: flex; align-items: center; justify-content: center; min-height: 24px; padding: 2px; background: #fff; }
+  :where(.base) :global(.map-legend-sample) :global(.map-legend-image) { max-width: 56px; }
+  :where(.base) :global(.map-legend-sample) p { color: #181818; overflow-wrap: anywhere; }
+  :where(.base) :global(.map-legend-ign) { display: grid; gap: 4px; margin: 0 0 6px; padding: 0; list-style: none; }
+  :where(.base) :global(.map-legend-ign) li { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
+  :where(.base) :global(.map-legend-ign) strong { font-weight: 500; }
+  :where(.base) :global(.map-legend-ign) :global(.map-legend-sample) { min-height: 32px; }
+  :where(.base) :global(.map-legend-meaning) { display: block; color: var(--color-text-secondary); }
+}
+
+@layer overrides {
+  .base { display: flex; flex-direction: column; width: 360px; max-height: min(65vh, var(--radix-popover-content-available-height)); padding: 0; overflow: hidden; }
+  .base:has(:global(.map-legend-sheet)[data-expanded="true"]) { width: min(1000px, calc(100vw - 16px)); max-height: min(85vh, var(--radix-popover-content-available-height)); }
+}

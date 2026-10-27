@@ -4,6 +4,5 @@
 .permission-heading h3 { margin: 0; font-size: inherit; }
 .permission-heading [role="status"] { color: var(--color-text-secondary); }
 .permission-section p { margin: 6px 0; overflow-wrap: anywhere; }
-.permission-section [role="alert"] { margin-top: 8px; }
 .permission-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .document-recovery-list button[aria-pressed="true"] { border-color: var(--color-selection-border); box-shadow: var(--shadow-selection); }

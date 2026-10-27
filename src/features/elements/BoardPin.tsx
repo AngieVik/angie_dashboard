@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MouseEvent, PointerEvent, RefObject } from 'react'
-import { Anchor as PopoverAnchor } from '@radix-ui/react-popover'
 import type { DocumentElement, PinNameColor, Position } from '../../domain/document/types'
-import { Popover, PopoverContent } from '../../components/ui/popover'
+import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import styles from './BoardPin.module.css'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { clampAssetScale, clampPinPosition } from './elementCommands'
 import { getPinBox, ICON_CATALOG } from './iconCatalog'
@@ -112,7 +113,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
     if (enabled && !blockedRef.current && !suppressClick.current) { lastTap.current = null; onEdit?.() }
   }
   const interactive = enabled && !blocked
-  return <div className="board-pin" data-element-id={element.id} data-selected={selected} style={{ position: 'absolute', left: position.x, top: position.y, width: box.width, height: box.height, transform: 'translate(-50%, -50%)', pointerEvents: interactive ? 'auto' : 'none' }}>
+  return <div className={`board-pin ${styles.base}`} data-element-id={element.id} data-selected={selected} style={{ position: 'absolute', left: position.x, top: position.y, width: box.width, height: box.height, transform: 'translate(-50%, -50%)', pointerEvents: interactive ? 'auto' : 'none' }}>
     <button type="button" className="board-pin-visual" aria-label={`Seleccionar ${element.name}`} aria-pressed={selected} disabled={!interactive}
       style={{ width: box.width, height: box.height }} onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish}
       onPointerCancel={() => { lastTap.current = null; cancel() }} onLostPointerCapture={cancel} onClick={select} onDoubleClick={edit}>
@@ -121,7 +122,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
         <span className="board-pin-emoji" aria-hidden="true" style={{ display: 'block', fontSize: 48 * visual.scale, lineHeight: `${64 * visual.scale}px`, transform: pinTransform(visual) }}>{visual.value}</span>}
     </button>
     {!element.nameHidden && <Popover open={colorsOpen && interactive} onOpenChange={setColorsOpen}>
-      <PopoverAnchor asChild><button type="button" className="board-pin-name" aria-label={`Mover nombre de ${element.name}`} title="Mover nombre"
+      <PopoverAnchor asChild><button type="button" className={`board-pin-name ${styles.name}`} aria-label={`Mover nombre de ${element.name}`} title="Mover nombre"
         aria-haspopup="dialog" aria-expanded={colorsOpen && interactive} disabled={!interactive} style={pinNameStyle(nameElement)}
         onPointerDown={event => start(event, 'name')} onPointerMove={move} onPointerUp={finish}
         onPointerCancel={() => { lastTap.current = null; cancel() }} onLostPointerCapture={cancel} onClick={select}
@@ -129,14 +130,14 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
         onKeyDown={event => { if ((event.key === 'Enter' || event.key === ' ') && interactive && !blockedRef.current) { event.preventDefault(); event.stopPropagation(); setColorsOpen(true) } }}>
         {pinNameLines(element.name).join('\n')}
       </button></PopoverAnchor>
-      <PopoverContent className="pin-name-palette" aria-label="Colores del nombre" onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} onCloseAutoFocus={event => event.preventDefault()}>
+      <PopoverContent className={`pin-name-palette ${styles.palette}`} aria-label="Colores del nombre" onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} onCloseAutoFocus={event => event.preventDefault()}>
         {(Object.entries(PIN_NAME_COLORS) as [PinNameColor, typeof PIN_NAME_COLORS[PinNameColor]][]).map(([color, theme]) =>
-          <button key={color} type="button" aria-label={theme.label} aria-pressed={(element.nameColor ?? 'dark') === color}
+          <Button key={color} className={styles.paletteOption} aria-label={theme.label} aria-pressed={(element.nameColor ?? 'dark') === color}
             style={{ backgroundColor: theme.backgroundColor, color: theme.color }} onClick={event => {
               event.stopPropagation()
               if (!enabled || blockedRef.current) return
               onNameColor?.(color); setColorsOpen(false)
-            }}>{theme.label}</button>)}
+            }}>{theme.label}</Button>)}
       </PopoverContent>
     </Popover>}
     {selected && enabled && <button type="button" className="board-pin-resize" aria-label={`Redimensionar ${element.name}`} disabled={blocked}

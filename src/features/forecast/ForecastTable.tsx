@@ -1,7 +1,7 @@
 import { Fragment, useId, useLayoutEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { Button } from '../../components/ui/button'
+import { Button } from '@/components/ui/button'
 import type { ForecastCell, ForecastData, ForecastField, ForecastWarningDetails } from './forecastTypes'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useForecastWarning } from './useForecastWarning'

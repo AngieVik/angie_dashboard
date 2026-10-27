@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { GitCommitHorizontal, GitCommitVertical } from 'lucide-react'
-import { Button } from '../components/ui/button'
-import { Slider } from '../components/ui/slider'
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
-import { HelpTooltip } from '../components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { HelpTooltip } from '@/components/ui/tooltip'
+import styles from './zoomControl.module.css'
+import controlStyles from './controlButton.module.css'
+import labelStyles from './controlValueLabel.module.css'
 
-export function ZoomControl({ scale, onChange, label, disabled = false, side = 'bottom' }: {
-  scale: number; onChange: (scale: number) => void; label: string; disabled?: boolean; side?: 'bottom' | 'right'
+export function ZoomControl({ scale, onChange, label, disabled = false, side = 'bottom', variant = 'default' }: {
+  scale: number; onChange: (scale: number) => void; label: string; disabled?: boolean; side?: 'bottom' | 'right'; variant?: 'default' | 'header' | 'module'
 }) {
   const percent = Math.round(scale * 100)
   const [draft, setDraft] = useState<string | null>(null)
@@ -31,7 +34,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
     if (!open) return
     function check() {
       const node = trigger.current, rect = node?.getBoundingClientRect()
-      const clip = node?.closest('.module-controls,.app-header')?.getBoundingClientRect()
+      const clip = node?.closest('[data-slot="module-controls"],[data-slot="app-header"]')?.getBoundingClientRect()
       if (disabled || !rect || rect.right <= 0 || rect.bottom <= 0 || rect.left >= window.innerWidth || rect.top >= window.innerHeight ||
         (clip && (rect.right <= clip.left || rect.left >= clip.right || rect.bottom <= clip.top || rect.top >= clip.bottom))) setOpen(false)
     }
@@ -50,7 +53,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
     replaceInput.current = true
   }
   const percentage = <>
-    <input ref={input} type="number" inputMode="decimal" aria-label={label} title={label} min={25} max={200} step={1}
+    <input ref={input} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} title={label} min={25} max={200} step={1}
       disabled={disabled} value={draft ?? percent}
       onFocus={() => { replaceInput.current = true }} onPointerDown={() => { replaceInput.current = true }}
       onChange={event => { replaceInput.current = false; setDraft(event.target.value) }} onBlur={commit}
@@ -59,17 +62,17 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
         if (event.key === 'Escape') { event.preventDefault(); setDraft(null); replaceInput.current = true }
       }} /><span aria-hidden="true">%</span>
   </>
-  return <div className="zoom-control technical-data">
+  return <div data-slot="zoom-control" data-variant={variant} className={`${styles.base} technical-data`}>
     {side !== 'right' && percentage}
     <Popover open={open && !disabled} onOpenChange={setOpen}>
-      <HelpTooltip text={label}><PopoverTrigger asChild><Button ref={trigger} className="module-button zoom-trigger" disabled={disabled}
+      <HelpTooltip text={label}><PopoverTrigger asChild><Button ref={trigger} className={controlStyles.base} disabled={disabled}
         aria-label={`Abrir deslizador: ${label}`}><Icon aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
       <PopoverContent side={side} aria-label={label}
         onPointerDownCapture={() => { sliderPointer.current = true }}
         onPointerUpCapture={() => { sliderPointer.current = false }}
         onPointerCancelCapture={() => { sliderPointer.current = false }}
         onKeyDownCapture={() => { sliderPointer.current = false }} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
-        <div className="zoom-popover-label"><span>{label}</span><output>{percent} %</output></div>
+        <div className={labelStyles.base}><span>{label}</span><output>{percent} %</output></div>
         <Slider label={label} value={percent} min={25} max={200} midpoint={100} disabled={disabled} onValueChange={value => {
           const nearest = Math.round(value / 10) * 10
           const percent = sliderPointer.current && Math.abs(value - nearest) <= 2 ? nearest : value

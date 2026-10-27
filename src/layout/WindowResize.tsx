@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createLucideIcon } from 'lucide-react'
 import { useViewportInteraction } from './ViewportContext'
+import styles from './windowResize.module.css'
 
 // Lucide handle-bottom-right (ISC): https://github.com/lucide-icons/lucide/blob/main/icons/handle-bottom-right.svg
 export const HandleBottomRight = createLucideIcon('HandleBottomRight', [
@@ -19,7 +20,7 @@ export function WindowResize({ label }: { label: string }) {
     }
   }
   useEffect(() => { if (blocked) cancel() }, [blocked])
-  return <button type="button" className="window-resize" aria-label={label} title={label} disabled={blocked}
+  return <button type="button" data-slot="window-resize" className={styles.base} aria-label={label} title={label} disabled={blocked}
     onPointerDown={event => {
       const node = event.currentTarget.parentElement
       if (!node || event.button !== 0 || blockedRef.current) return

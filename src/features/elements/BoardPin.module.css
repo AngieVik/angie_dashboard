@@ -1,0 +1,18 @@
+@layer components {
+  :where(.base) :global(.board-pin-visual) { display: block; position: relative; padding: 0; border: 0; background: transparent; color: var(--color-text); cursor: grab; touch-action: none; }
+  :where(.base) :global(.board-pin-visual):disabled { opacity: 1; cursor: inherit; }
+  :where(.base) :global(.board-pin-visual) img { display: block; pointer-events: none; user-select: none; }
+  :where(.base) :global(.board-pin-visual):not(:disabled) img { pointer-events: auto; }
+  .base[data-selected="true"] { outline: 1px solid var(--color-selection-border); outline-offset: 1px; box-shadow: var(--shadow-selection); }
+  .name { position: absolute; box-sizing: border-box; margin: 0; border: 0; border-radius: 2px; font-family: inherit; font-weight: normal; text-align: center; white-space: pre; text-overflow: ellipsis; overflow: hidden; user-select: none; }
+  :where(.base) :global(.board-pin-resize) { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; padding: 0; border: 1px solid var(--color-text); border-radius: 1px; background: var(--color-accent-red); cursor: nwse-resize; touch-action: none; }
+  button.name { cursor: grab; touch-action: none; }
+  button.name:disabled { opacity: 1; cursor: inherit; }
+  button.name:focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: 2px; }
+}
+
+@layer overrides {
+  .palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--section-gap); }
+  .paletteOption { min-width: 0; height: auto; white-space: normal; overflow-wrap: anywhere; touch-action: manipulation; }
+  :where(.palette) .paletteOption[aria-pressed="true"], :where(.palette) .paletteOption:focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: 1px; }
+}

@@ -1,9 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useState } from 'react'
 import { ArrowDownToLine, Search, Trash } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { InputGroup } from '../../components/ui/input-group'
-import { HelpTooltip } from '../../components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { InputGroup } from '@/components/ui/input-group'
+import { HelpTooltip } from '@/components/ui/tooltip'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { toGeographic } from '../coordinates/convertCoordinate'
@@ -49,11 +49,11 @@ export function OpenMeteoModule({ navigationKey, getCoordinatesInput, onReportCh
   return <div className="open-meteo-module">
     <form className="open-meteo-toolbar" onSubmit={event => { event.preventDefault(); consult() }}>
       <InputGroup className="open-meteo-entry">
-        <Input id={id + '-input'} aria-label="Coordenadas de Open-Meteo" className="document-title technical-data" value={input} placeholder="Coordenadas" autoComplete="off" spellCheck={false} disabled={blocked}
+        <Input id={id + '-input'} aria-label="Coordenadas de Open-Meteo" className="technical-data" value={input} placeholder="Coordenadas" autoComplete="off" spellCheck={false} disabled={blocked}
           aria-invalid={Boolean(error)} aria-describedby={error ? id + '-error' : undefined} onChange={event => { if (!blockedRef.current) { setInput(event.target.value); setError(null) } }} />
-        <HelpTooltip text="Consultar ubicación"><Button type="submit" className="open-meteo-action" aria-label="Consultar Open-Meteo por coordenadas" disabled={blocked || weather.loading}><Search aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Traer de Coordenadas"><Button className="open-meteo-action" aria-label="Traer entrada del módulo Coordenadas" disabled={blocked} onClick={bringCoordinates}><ArrowDownToLine aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Quitar ubicación"><Button className="open-meteo-action" aria-label="Quitar ubicación de Open-Meteo" disabled={blocked || (!point && !input)}
+        <HelpTooltip text="Consultar ubicación"><Button appearance="integrated" type="submit" className="open-meteo-action" aria-label="Consultar Open-Meteo por coordenadas" disabled={blocked || weather.loading}><Search aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Traer de Coordenadas"><Button appearance="integrated" className="open-meteo-action" aria-label="Traer entrada del módulo Coordenadas" disabled={blocked} onClick={bringCoordinates}><ArrowDownToLine aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Quitar ubicación"><Button appearance="integrated" className="open-meteo-action" aria-label="Quitar ubicación de Open-Meteo" disabled={blocked || (!point && !input)}
           onClick={() => { if (!blockedRef.current) { clearWeatherPoint(navigationKey); setPoint(null); setInput(''); setError(null) } }}><Trash aria-hidden="true" /></Button></HelpTooltip>
       </InputGroup>
     </form>

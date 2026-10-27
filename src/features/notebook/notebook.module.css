@@ -1,0 +1,29 @@
+@layer components {
+  .base {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  :where(.base) :global(.notebook-toolbar) { display: flex; flex: 0 0 auto; align-items: center; gap: var(--control-gap); padding: var(--control-gap) var(--section-gap); border-bottom: 1px solid var(--color-border); background: var(--surface-header); box-shadow: inset 0 1px 0 rgb(242 242 240 / 6%); }
+  :where(.base) :global(.notebook-list) { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; list-style: none; overflow-anchor: none; }
+  :where(.base) :global(.notebook-block) { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0; margin-bottom: 0; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--surface-inset); box-shadow: inset 0 1px 0 rgb(242 242 240 / 5%); }
+  :where(.base) :global(.notebook-block)[data-dragging="true"] { opacity: .65; }
+  :where(.base) :global(.notebook-block)[data-drop-target="true"] { border-color: var(--color-selection-border); box-shadow: inset 0 0 0 1px var(--color-selection-border); }
+  :where(.base) :global(.notebook-block-content) { position: relative; grid-column: 1; grid-row: 2; align-self: start; min-width: 0; }
+}
+
+@layer overrides {
+  :where(.base) :global(.notebook-handle) { grid-column: 1; grid-row: 1; width: 100%; height: calc(16px * var(--module-zoom, 1)); min-height: 0; min-width: 0; border-radius: 0; touch-action: none; cursor: grab; user-select: none; }
+  :where(.base) :global(.notebook-handle):focus-visible { outline: 1px solid var(--color-selection-border); outline-offset: -1px; }
+  :where(.base) :global(.notebook-delete) { position: absolute; top: 2px; right: 2px; z-index: 1; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+
+  :global(.module-frame)[data-fitting] .base :global(.notebook-list) { flex: none; height: auto; min-height: 0; overflow: visible; }
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.notebook-list) { height: auto; min-height: 0; }
+  :global(.module-frame)[data-auto-height="true"] .base :global(.notebook-list) { overflow-y: visible; }
+}
+
+/* Preserve scrollbar precedence while the shared window rules remain unlayered. */
+:where(.base) :global(.notebook-list) { scrollbar-width: thin; scrollbar-color: var(--color-field-border) var(--color-module); }

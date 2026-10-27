@@ -1,0 +1,17 @@
+@layer components {
+  .base { display: flex; flex-direction: column; gap: 8px; padding: 8px; min-height: 0; }
+  :where(.base) :global(.reports-sections) { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; }
+  :where(.base) :global(.reports-sections) fieldset { min-width: 0; margin: 0; padding: 6px; border: 1px solid var(--color-border); }
+  :where(.base) :global(.reports-sections) label { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  :where(.base) :global(.reports-actions) { display: flex; flex-wrap: wrap; gap: 6px; }
+  :where(.base) :global(.reports-resource-issues) { display: flex; flex-direction: column; gap: 6px; }
+  :where(.base) :global(.reports-resource-actions) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border-left: 2px solid var(--color-accent-red); padding-left: 6px; }
+  :where(.base) :global(.reports-resource-actions) > span { flex: 1 1 180px; overflow-wrap: anywhere; }
+  :where(.base) iframe { width: 100%; min-height: 320px; border: 1px solid var(--color-border); background: white; }
+  :where(.base) :global(.reports-page-toolbar) label { display: flex; align-items: center; gap: 6px; }
+  :where(.base) :global(.reports-page-toolbar) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+}
+
+@layer overrides {
+  :where(.base) :global(.reports-page-toolbar) [data-slot="select"] { max-width: 100%; }
+}

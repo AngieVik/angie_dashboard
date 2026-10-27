@@ -1,8 +1,10 @@
 import { createReportIssue, formatReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue } from './reportIssues'
+import { waitForReportFonts } from './reportTypography'
 
 export interface ReportPageOptions { orientation: 'portrait' | 'landscape'; quality: 'normal' | 'high' }
 export const DEFAULT_REPORT_PAGE: ReportPageOptions = { orientation: 'portrait', quality: 'normal' }
+export const REPORT_PAGE_MARGIN_MM = 12
 
 export function reportPageDimensions(options: ReportPageOptions) {
   return options.orientation === 'landscape' ? { width: 297, height: 210 } : { width: 210, height: 297 }
@@ -10,13 +12,8 @@ export function reportPageDimensions(options: ReportPageOptions) {
 
 export function reportPageStyles(options: ReportPageOptions) {
   const { width, height } = reportPageDimensions(options)
-  return `main{width:${width - 24}mm;max-width:none;margin:0 auto;padding:0}main.report-pages{width:auto;margin:0;padding:0;background:transparent}
-.report-page{box-sizing:border-box;width:${width}mm;height:${height}mm;padding:12mm;margin:16px auto;background:white;box-shadow:0 1px 6px #0003}
-.report-page-content{position:relative;display:flow-root;width:100%;height:100%}.report-page-content>:first-child{margin-top:0}.report-page table{table-layout:fixed}.report-page figure{margin:0}
-th{overflow-wrap:normal;word-break:normal}
-.report-composition-box{position:relative;overflow:hidden}.report-composition-content{position:absolute;top:0;transform-origin:top left}.report-composition-content .report-map-image{margin:0 auto;max-height:none}
-@page{size:A4 ${options.orientation === 'landscape' ? 'landscape' : 'portrait'};margin:0}
-@media print{body{background:white}.report-page{margin:0;box-shadow:none;break-after:page;break-inside:avoid}.report-page:last-child{break-after:auto}thead{display:table-header-group}tr{break-inside:avoid}h2,h3,h4{break-after:avoid}}`
+  return `:root{--report-page-width:${width}mm;--report-page-height:${height}mm;--report-page-padding:${REPORT_PAGE_MARGIN_MM}mm;--report-content-width:${width - 2 * REPORT_PAGE_MARGIN_MM}mm}
+@page{size:A4 ${options.orientation === 'landscape' ? 'landscape' : 'portrait'};margin:0}`
 }
 
 export async function paginateReport<T extends { html: string; issues: ReportIssue[] }>(report: T, options: ReportPageOptions): Promise<T> {
@@ -34,7 +31,7 @@ export async function paginateReport<T extends { html: string; issues: ReportIss
     })
     const doc = frame.contentDocument, main = doc?.querySelector('main')
     if (!doc || !main) throw new Error('No se pudo preparar la paginación.')
-    await doc.fonts.ready
+    await waitForReportFonts(doc)
     const issues = [...report.issues], images = Array.from(doc.images)
     const decoded = await Promise.allSettled(images.map(image => image.decode()))
     let imageUnavailable = false

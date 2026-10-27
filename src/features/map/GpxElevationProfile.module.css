@@ -1,0 +1,27 @@
+@layer components {
+  .base { display: flex; flex-direction: column; flex: 0 1 auto; min-width: 0; min-height: 0; max-height: 50%; border-top: 1px solid var(--color-border); font-size: var(--control-font-size); }
+  :where(.base) :global(.map-profile-body) { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 3px 5px; }
+  :where(.base) :global(.map-profile-summary) { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; }
+  :where(.base) :global(.map-profile-summary) > div { display: flex; align-items: baseline; gap: 4px; }
+  :where(.base) :global(.map-profile-summary) dt { color: var(--color-text-secondary); }
+  :where(.base) :global(.map-profile-summary) dd { margin: 0; font-family: var(--font-interface); }
+  :where(.base) :global(.map-profile-legend), :where(.base) :global(.map-profile-position) { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 3px 0; color: var(--color-text-secondary); }
+  :where(.base) :global(.map-profile-missing)::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 4px; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-field-border) 3px 4px); }
+  :where(.base) :global(.map-profile-position) strong { font: inherit; font-family: var(--font-interface); color: var(--color-text); }
+  :where(.base) :global(.map-profile-chart) { display: block; width: 100%; min-width: calc(260px * var(--module-zoom, 1)); height: calc(150px * var(--module-zoom, 1)); touch-action: pan-y; cursor: crosshair; }
+  :where(.base) :global(.map-profile-chart):focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
+  :where(.base) :global(.map-profile-chart)[aria-disabled="true"] { cursor: default; }
+  :where(.base) :global(.map-profile-chart) text { fill: var(--color-text-secondary); font: var(--control-font-size) var(--font-interface); }
+  :where(.base) :global(.map-profile-hatching) { stroke: var(--color-field-border); stroke-width: 1; }
+  :where(.base) :global(.map-profile-gridline) { fill: none; stroke: var(--color-border); stroke-width: .5; }
+  :where(.base) :global(.map-profile-axis) { fill: none; stroke: var(--color-text-secondary); stroke-width: 1; }
+  :where(.base) :global(.map-profile-cut) { fill: none; stroke: var(--color-text-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
+  :where(.base) :global(.map-profile-trace) { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  :where(.base) :global(.map-profile-selection) { fill: var(--color-accent-red); stroke: var(--color-accent-red); stroke-width: 1.5; }
+  :where(.base) :global(.map-profile-selection) path { stroke-dasharray: 3 3; }
+}
+
+@layer overrides {
+  .trigger { justify-content: flex-start; flex: 1; min-width: 0; }
+  .trigger[aria-expanded="true"] { background: var(--color-selected); }
+}

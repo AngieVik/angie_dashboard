@@ -1,0 +1,23 @@
+@layer components {
+  .base { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+  :where(.base) :global(.board-tool-cursor) { position: absolute; z-index: 2; pointer-events: none; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px #FFFFFF, 0 0 0 2px #000000; }
+  :where(.base) :global(.board-area) { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--color-field); touch-action: none; }
+  :where(.base) :global(.board-surface) { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+  .base[data-mode="pen"] :global(.board-surface) { cursor: none; }
+  .base[data-mode="eraser"] :global(.board-surface) { cursor: none; }
+  :where(.base) :global(.board-notes) { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
+  :where(.base) :global(.board-image-error) { position: absolute; left: 8px; right: 8px; bottom: 8px; pointer-events: none; }
+  :where(.base) :global(.board-image-editor) { position: absolute; z-index: 3; outline: 1px solid #FFFFFF; box-shadow: 0 0 0 2px #000000; cursor: move; touch-action: none; }
+  :where(.base) :global(.board-image-resize) { position: absolute; width: 14px; height: 14px; padding: 0; border: 1px solid #000000; background: #FFFFFF; border-radius: 1px; touch-action: none; }
+  :where(.base) :global(.board-image-resize)[data-corner="nw"] { left: 0; top: 0; cursor: nw-resize; }
+  :where(.base) :global(.board-image-resize)[data-corner="ne"] { right: 0; top: 0; cursor: ne-resize; }
+  :where(.base) :global(.board-image-resize)[data-corner="sw"] { left: 0; bottom: 0; cursor: sw-resize; }
+  :where(.base) :global(.board-image-resize)[data-corner="se"] { right: 0; bottom: 0; cursor: se-resize; }
+}
+
+@layer overrides {
+  .imageNotice { pointer-events: none; }
+}
+
+/* Preserve intrinsic measurement precedence over the window's general rules. */
+:global(.module-frame)[data-fitting] .base :global(.board-area) { flex: none; height: auto; min-height: 0; overflow: visible; }

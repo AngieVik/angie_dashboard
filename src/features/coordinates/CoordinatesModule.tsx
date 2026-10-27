@@ -1,8 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { InputGroup } from '../../components/ui/input-group'
-import { HelpTooltip } from '../../components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { InputGroup } from '@/components/ui/input-group'
+import { HelpTooltip } from '@/components/ui/tooltip'
 import { Check, ClipboardPaste, Trash } from 'lucide-react'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -11,7 +11,7 @@ import { parseCoordinate } from './parseCoordinate'
 import { convertCoordinate, toGeographic } from './convertCoordinate'
 import { createGoogleMapsLink } from './googleMapsLink'
 import type { PlanPin } from '../../domain/document/types'
-import './coordinates.css'
+import styles from './coordinates.module.css'
 
 export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputChange }: { generation?: number; selectedCoordinate?: PlanPin; onInputChange?: (input: string) => void } = {}) {
   const id = useId(), revision = useRef(0)
@@ -78,19 +78,19 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     return { format: format as string, value: conversion?.ok ? conversion.text : null, error: conversion && !conversion.ok ? conversion.error : '' }
   })
   rows.push({ format: 'Maps', value: result?.link ?? null, error: '' })
-  return <div className="coordinates-module">
+  return <div data-slot="coordinates-module" className={`${styles.base} coordinates-module`}>
     <form onSubmit={event => { event.preventDefault(); convert() }}>
-      <InputGroup className="coordinates-entry">
-        <Input id={id + '-input'} aria-label="Coordenadas" className="document-title technical-data" value={input} disabled={blocked}
+      <InputGroup>
+        <Input id={id + '-input'} aria-label="Coordenadas" className="technical-data" value={input} disabled={blocked}
           aria-invalid={Boolean(error)} aria-describedby={error ? id + '-error' : undefined} spellCheck={false} autoComplete="off"
           onChange={event => {
             if (blockedRef.current) return
             revision.current++; clearCopy()
             setInput(event.target.value); setError(null)
           }} />
-        <HelpTooltip text="Validar coordenadas"><Button className="coordinates-action" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked} onClick={convert}><Check aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Pegar coordenadas"><Button className="coordinates-action" aria-label="Pegar coordenadas" disabled={blocked} onClick={() => { void paste() }}><ClipboardPaste aria-hidden="true" /></Button></HelpTooltip>
-        <HelpTooltip text="Borrar coordenadas"><Button className="coordinates-action" aria-label="Borrar coordenadas" disabled={blocked} onClick={clear}><Trash aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Validar coordenadas"><Button appearance="integrated" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked} onClick={convert}><Check aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Pegar coordenadas"><Button appearance="integrated" aria-label="Pegar coordenadas" disabled={blocked} onClick={() => { void paste() }}><ClipboardPaste aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Borrar coordenadas"><Button appearance="integrated" aria-label="Borrar coordenadas" disabled={blocked} onClick={clear}><Trash aria-hidden="true" /></Button></HelpTooltip>
       </InputGroup>
       {error && <p role="alert" id={id + '-error'} className="coordinates-error">{error}</p>}
     </form>

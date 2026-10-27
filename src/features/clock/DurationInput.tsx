@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Input } from '../../components/ui/input'
+import { Input } from '@/components/ui/input'
+import styles from './DurationInput.module.css'
 
 const digitPositions = [0, 1, 3, 4, 6, 7] as const
 type DurationEdit = { value: string; caret: number }
@@ -60,7 +61,7 @@ export function DurationInput({ value, disabled, onChange, onBlur }: {
     return () => node.removeEventListener('beforeinput', beforeInput)
   }, [value, commit])
   return <Input ref={input} aria-label="Duración inicial" title="Duración inicial (hh:mm:ss)"
-    className="technical-data timer-duration" inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
+    className={`${styles.base} technical-data timer-duration`} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
     disabled={disabled} value={value} onBlur={onBlur}
     onKeyDown={event => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return

@@ -1,4 +1,4 @@
-import { reportPageDimensions } from './reportPagination'
+import { REPORT_PAGE_MARGIN_MM, reportPageDimensions } from './reportPagination'
 import type { ReportPageOptions } from './reportPagination'
 
 class ReportRasterLimitError extends Error {}
@@ -9,7 +9,7 @@ export function renderReportRaster<T>(width: number, height: number, page: Repor
   const paper = page ? reportPageDimensions(page) : undefined
   const dpi = page?.quality === 'high' ? 300 : 150
   // The image cannot exceed the printable page; headings and legends may reduce it further.
-  const target = paper ? Math.min((paper.width - 24) * dpi / 25.4 / width, (paper.height - 24) * dpi / 25.4 / height) : 2
+  const target = paper ? Math.min((paper.width - 2 * REPORT_PAGE_MARGIN_MM) * dpi / 25.4 / width, (paper.height - 2 * REPORT_PAGE_MARGIN_MM) * dpi / 25.4 / height) : 2
   const memory = typeof navigator === 'undefined' ? undefined : (navigator as Navigator & { deviceMemory?: number }).deviceMemory
   // Bound simultaneous RGBA surfaces, including Pizarra's separate ink layer.
   const pixelBudget = memory && memory <= 1 ? 4_000_000 : memory && memory <= 2 ? 8_000_000 : 16_000_000
