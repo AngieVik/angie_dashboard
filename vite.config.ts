@@ -2,24 +2,6 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
-import type { Plugin } from 'vite'
-import { handleForecastRequest, isForecastRequest } from './server/forecastApi.mjs'
-
-const forecastBackend: Plugin = {
-  name: 'aemet-forecast-backend',
-  configureServer(server) {
-    server.middlewares.use((request, response, next) => {
-      if (!isForecastRequest(request.url ?? '')) { next(); return }
-      void handleForecastRequest(request, response)
-    })
-  },
-  configurePreviewServer(server) {
-    server.middlewares.use((request, response, next) => {
-      if (!isForecastRequest(request.url ?? '')) { next(); return }
-      void handleForecastRequest(request, response)
-    })
-  },
-}
 
 export default defineConfig({
   resolve: {
@@ -28,7 +10,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    forecastBackend,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

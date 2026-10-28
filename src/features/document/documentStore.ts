@@ -15,7 +15,6 @@ import { createDocumentReport } from './documentReport'
 import type { ReportSelection } from './documentReport'
 import type { MapReportContent } from './mapReport'
 import type { BoardReportContent, BoardReportRequest } from './boardReport'
-import type { WeatherReportContent } from './weatherReport'
 import type { TimerRecord } from '../clock/timerTypes'
 import { createReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue, ReportResourceAction } from './reportIssues'
@@ -398,14 +397,13 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       } catch (error) { update({ fileMessage: 'No se pudo descargar el JSON: ' + message(error) }) }
       finally { update({ fileBusy: false }) }
     },
-    async generateReport(selection?: ReportSelection, mapReport?: MapReportContent, planReport?: MapReportContent, boardRequest?: BoardReportRequest, coordinateInput?: string, weatherReport?: WeatherReportContent, timerRecords?: readonly TimerRecord[] | null, pageOptions: ReportPageOptions = DEFAULT_REPORT_PAGE): Promise<GeneratedReport | null> {
+    async generateReport(selection?: ReportSelection, mapReport?: MapReportContent, planReport?: MapReportContent, boardRequest?: BoardReportRequest, coordinateInput?: string, timerRecords?: readonly TimerRecord[] | null, pageOptions: ReportPageOptions = DEFAULT_REPORT_PAGE): Promise<GeneratedReport | null> {
       if (!state.active || state.replacing) return null
       const generation = state.documentGeneration
       const snapshot = structuredClone(state.document)
       const fields = selection ? structuredClone(selection) : undefined
       const generatedAt = initialContext.now?.() ?? new Date()
       const page = { ...pageOptions }
-      const weatherSnapshot = fields?.weather?.length && weatherReport ? structuredClone(weatherReport) : undefined
       const timerSnapshot = fields?.timers?.length && timerRecords ? structuredClone(timerRecords) : undefined
       const boardOptions = boardRequest ? { page, frame: boardRequest.frame ? { ...boardRequest.frame } : undefined, resourceIds: [...boardRequest.resourceIds], layers: { ...boardRequest.layers },
         blockedImage: boardRequest.blockedImage ? structuredClone(boardRequest.blockedImage) : undefined, iconPixels: boardRequest.iconPixels ? new Map(boardRequest.iconPixels) : undefined, fontFamily: boardRequest.fontFamily, frameMissing: boardRequest.frameMissing }
@@ -421,7 +419,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         }
       }
       if (!state.active || state.replacing || state.documentGeneration !== generation) return null
-      let report = await paginateReport(createDocumentReport(snapshot, generatedAt, fontStyles, fields, mapReport, planReport, boardReport, coordinateInput, weatherSnapshot, timerSnapshot, page), page)
+      let report = await paginateReport(createDocumentReport(snapshot, generatedAt, fontStyles, fields, mapReport, planReport, boardReport, coordinateInput, timerSnapshot, page), page)
       if (!state.active || state.replacing || state.documentGeneration !== generation) return null
       let resolving = false
       function result(): GeneratedReport { return { document: snapshot, report, resolveResource } }
@@ -445,7 +443,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
             if (issue.section === 'map') mapReport = next; else planReport = next
           }
           if (!state.active || state.replacing || state.documentGeneration !== generation) return null
-          report = await paginateReport(createDocumentReport(snapshot, generatedAt, fontStyles, fields, mapReport, planReport, boardReport, coordinateInput, weatherSnapshot, timerSnapshot, page), page)
+          report = await paginateReport(createDocumentReport(snapshot, generatedAt, fontStyles, fields, mapReport, planReport, boardReport, coordinateInput, timerSnapshot, page), page)
           if (!state.active || state.replacing || state.documentGeneration !== generation) return null
           return result()
         } finally { resolving = false }

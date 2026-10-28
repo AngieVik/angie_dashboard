@@ -3,43 +3,108 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { InputGroup } from '@/components/ui/input-group'
 import { HelpTooltip } from '@/components/ui/tooltip'
-import { Check, ClipboardPaste, Trash } from 'lucide-react'
+import { Check, ClipboardPaste, RadioTower, Trash } from 'lucide-react'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
 import { parseCoordinate } from './parseCoordinate'
 import { convertCoordinate, toGeographic } from './convertCoordinate'
 import { createGoogleMapsLink } from './googleMapsLink'
-import type { PlanPin } from '../../domain/document/types'
+import type { GeographicCoordinate } from './coordinateTypes'
 import styles from './coordinates.module.css'
 
-export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputChange }: { generation?: number; selectedCoordinate?: PlanPin; onInputChange?: (input: string) => void } = {}) {
+export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputChange }: { generation?: number; selectedCoordinate?: GeographicCoordinate; onInputChange?: (input: string) => void } = {}) {
   const id = useId(), revision = useRef(0)
   const { blocked, blockedRef } = useViewportInteraction()
-  const source = selectedCoordinate ? `${generation}:${selectedCoordinate.elementId}:${selectedCoordinate.latitude}:${selectedCoordinate.longitude}` : `${generation}:manual`
   const selectedInput = selectedCoordinate ? `${selectedCoordinate.latitude.toFixed(6)}, ${selectedCoordinate.longitude.toFixed(6)}` : ''
-  const [entry, setEntry] = useState({ source, input: selectedInput, generation })
+  const [entry, setEntry] = useState({ selection: selectedCoordinate, input: '', generation, automatic: false })
   const input = entry.input
-  const setInput = (input: string) => setEntry({ source, input, generation })
+  const automatic = entry.generation === generation && entry.automatic
+  const receivedCoordinate = automatic ? selectedCoordinate : undefined
+  const baselineClipboard = useRef<(() => void) | null>(null)
+  const setInput = (input: string) => setEntry(current => ({ ...current, input }))
   const [error, setError] = useValidationNotice(null, generation)
   const [copiedRow, setCopiedRow] = useState<{ format: string; message: string } | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  if (entry.source !== source) {
-    setEntry({ source, input: selectedCoordinate || entry.generation !== generation ? selectedInput : input, generation })
+  if (entry.generation !== generation) {
+    setEntry({ selection: selectedCoordinate, input: '', generation, automatic: false })
     setCopiedRow(null); setError(null)
+  } else if (entry.selection !== selectedCoordinate) {
+    setEntry({ ...entry, selection: selectedCoordinate, input: automatic && selectedCoordinate ? selectedInput : input })
+    if (automatic && selectedCoordinate) { setCopiedRow(null); setError(null) }
   }
   const result = useMemo(() => {
-    const parsed = parseCoordinate(entry.input)
+    const parsed = parseCoordinate(input)
     if (!parsed.ok) return null
     const dd = toGeographic(parsed.coordinate)
     return { conversions: (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => convertCoordinate(parsed.coordinate, format)),
       link: createGoogleMapsLink(dd.latitude, dd.longitude) }
-  }, [entry])
+  }, [input])
   // Selection changes and edits invalidate clipboard operations still in flight.
-  useLayoutEffect(() => { revision.current++ }, [source, input])
+  useLayoutEffect(() => { revision.current++ }, [generation, automatic, receivedCoordinate, input])
+  useLayoutEffect(() => { if (receivedCoordinate) baselineClipboard.current?.() }, [receivedCoordinate])
   useLayoutEffect(() => { onInputChange?.(input) }, [input, onInputChange])
   useEffect(() => () => { clearTimeout(copyTimer.current); revision.current++ }, [])
+  useEffect(() => {
+    if (!automatic) return
+    let cancelled = false, reading = false, unavailable = false
+    let previous: string | undefined
+    async function readClipboard(accept = true) {
+      if (cancelled || reading || unavailable || blockedRef.current || document.visibilityState !== 'visible' || !document.hasFocus()) return
+      reading = true
+      const current = revision.current
+      try {
+        const value = await navigator.clipboard.readText()
+        if (cancelled) return
+        const changed = value !== previous
+        previous = value
+        if (!accept || !changed || current !== revision.current || blockedRef.current || !parseCoordinate(value).ok) return
+        revision.current++
+        clearTimeout(copyTimer.current); setCopiedRow(null)
+        setEntry(entry => ({ ...entry, input: value })); setError(null)
+      } catch {
+        if (!cancelled) {
+          unavailable = true
+          if (current === revision.current) setError('No se pudo leer el portapapeles.')
+        }
+      } finally { reading = false }
+    }
+    const baseline = () => { void readClipboard(false) }
+    baselineClipboard.current = baseline
+    const refresh = () => { void readClipboard() }
+    const clipboardChanged = () => { previous = undefined; refresh() }
+    const pasted = (event: ClipboardEvent) => {
+      const value = event.clipboardData?.getData('text/plain')
+      if (blockedRef.current || !value || !parseCoordinate(value).ok) return
+      if (event.target instanceof HTMLElement && event.target.id === id + '-input') event.preventDefault()
+      previous = value
+      revision.current++
+      clearTimeout(copyTimer.current); setCopiedRow(null)
+      setEntry(entry => ({ ...entry, input: value })); setError(null)
+    }
+    refresh()
+    const timer = setInterval(refresh, 750)
+    window.addEventListener('focus', refresh)
+    navigator.clipboard?.addEventListener('clipboardchange', clipboardChanged)
+    document.addEventListener('visibilitychange', refresh)
+    document.addEventListener('paste', pasted)
+    return () => {
+      cancelled = true
+      if (baselineClipboard.current === baseline) baselineClipboard.current = null
+      clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      navigator.clipboard?.removeEventListener('clipboardchange', clipboardChanged)
+      document.removeEventListener('visibilitychange', refresh)
+      document.removeEventListener('paste', pasted)
+    }
+  }, [automatic, generation, blockedRef, setError, id])
   function clearCopy() { clearTimeout(copyTimer.current); setCopiedRow(null) }
+  function toggleAutomatic() {
+    if (blockedRef.current) return
+    revision.current++; clearCopy(); setError(null)
+    setEntry(current => ({ ...current, automatic: !current.automatic,
+      input: !current.automatic && selectedCoordinate ? selectedInput : current.input }))
+  }
   function convert() {
     if (blockedRef.current) return
     revision.current++; clearCopy()
@@ -89,6 +154,7 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
             setInput(event.target.value); setError(null)
           }} />
         <HelpTooltip text="Validar coordenadas"><Button appearance="integrated" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked} onClick={convert}><Check aria-hidden="true" /></Button></HelpTooltip>
+        <HelpTooltip text="Recepción automática"><Button appearance="integrated" className="coordinates-receiver" aria-label="Recepción automática de coordenadas" aria-pressed={automatic} disabled={blocked} onClick={toggleAutomatic}><RadioTower aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Pegar coordenadas"><Button appearance="integrated" aria-label="Pegar coordenadas" disabled={blocked} onClick={() => { void paste() }}><ClipboardPaste aria-hidden="true" /></Button></HelpTooltip>
         <HelpTooltip text="Borrar coordenadas"><Button appearance="integrated" aria-label="Borrar coordenadas" disabled={blocked} onClick={clear}><Trash aria-hidden="true" /></Button></HelpTooltip>
       </InputGroup>

@@ -37,6 +37,9 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
   const selected = document.elements.find(element => element.id === selectedId && element.isUnit === isUnit)
   const elements = document.elements.filter(element => element.isUnit === isUnit)
   const checked = elements.filter(element => checkedIds.includes(element.id))
+  const actionElements = selectionMode ? checked : selected ? [selected] : []
+  const hidePins = actionElements.some(element => element.pinVisible)
+  const visibilityLabel = `${hidePins ? 'Ocultar' : 'Mostrar'} ${selectionMode ? 'pines' : 'pin'}`
   const edited = editor?.id ? document.elements.find(element => element.id === editor.id && element.isUnit === isUnit) : undefined
   if (editor?.kind === 'edit' && editor.id !== selected?.id) setEditor(null)
   if (editor?.kind === 'batch' && !checked.length) setEditor(null)
@@ -96,14 +99,51 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
           if (!blockedRef.current) setEditor({ kind: 'create', id: null })
         }
       }}>{editor && editor.kind !== 'create' ? 'Guardar' : 'Crear'}</Button>
-      {!editor && selectionMode && <>
-        <HelpTooltip text="Modificar selección"><Button aria-label="Modificar selección" disabled={blocked || !checked.length} onClick={() => {
-          if (!blockedRef.current && checked.length) { cancelHold(); setEditor({ kind: 'batch', id: null }) }
-        }}><Wrench aria-hidden="true" /></Button></HelpTooltip>
-        <span className="elements-selection-count" aria-live="polite">{checked.length}</span>
-        <HelpTooltip text="Salir de selección múltiple"><Button aria-label="Salir de selección múltiple" disabled={blocked} onClick={() => {
-          if (!blockedRef.current) { cancelHold(); setSelectionMode(false); setCheckedIds([]) }
-        }}><X aria-hidden="true" /></Button></HelpTooltip>
+      {!editor && <>
+        <div className="elements-selection-actions" role="group" aria-label={selectionMode ? 'Acciones de la selección' : 'Acciones del elemento seleccionado'}>
+          <HelpTooltip text="Modificar"><Button aria-label="Modificar" disabled={blocked || !actionElements.length} onClick={() => {
+            if (blockedRef.current || !actionElements.length) return
+            cancelHold()
+            if (selectionMode) setEditor({ kind: 'batch', id: null })
+            else edit(actionElements[0]!.id)
+          }}><Wrench aria-hidden="true" /></Button></HelpTooltip>
+          <HelpTooltip text="Duplicar"><Button aria-label="Duplicar" disabled={blocked || !actionElements.length} onClick={() => {
+            if (blockedRef.current || !actionElements.length) return
+            cancelHold()
+            let id = ''
+            store.mutateDocument(document => {
+              for (const element of actionElements) id = duplicateElement(document, element.id).id
+            })
+            addControl.current?.focus(); onSelect(id)
+          }}><CopyPlus aria-hidden="true" /></Button></HelpTooltip>
+          <HelpTooltip text={visibilityLabel}><Button aria-label={visibilityLabel} disabled={blocked || !actionElements.length} onClick={() => {
+            if (blockedRef.current || !actionElements.length) return
+            cancelHold()
+            store.mutateDocument(document => {
+              for (const element of actionElements) if (element.pinVisible === hidePins) togglePinVisibility(document, element.id)
+            })
+          }}>{hidePins ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button></HelpTooltip>
+          <HelpTooltip text="Borrar"><Button aria-label="Borrar" disabled={blocked || !actionElements.length} onClick={() => {
+            if (blockedRef.current || !actionElements.length) return
+            cancelHold()
+            const ids = actionElements.map(element => element.id)
+            store.mutateDocument(document => {
+              for (const id of ids) deleteElement(document, id)
+            })
+            setCheckedIds(checkedIds => checkedIds.filter(id => !ids.includes(id)))
+            if (selectedId && ids.includes(selectedId)) onSelect(null)
+            addControl.current?.focus()
+          }}><Trash aria-hidden="true" /></Button></HelpTooltip>
+        </div>
+        {selectionMode && <div className="elements-selection-controls">
+          <span className="elements-selection-count" aria-live="polite">{checked.length}</span>
+          <HelpTooltip text="Salir de selección múltiple"><Button aria-label="Salir de selección múltiple" disabled={blocked} onClick={() => {
+            if (!blockedRef.current) { cancelHold(); setSelectionMode(false); setCheckedIds([]) }
+          }}><X aria-hidden="true" /></Button></HelpTooltip>
+          <label><Checkbox aria-label="Todos" checked={elements.length > 0 && checked.length === elements.length} disabled={blocked || !elements.length} onCheckedChange={nextChecked => {
+            if (!blockedRef.current) { cancelHold(); setCheckedIds(nextChecked ? elements.map(element => element.id) : []) }
+          }} />Todos</label>
+        </div>}
       </>}
       {editor && <>
         <Button type="submit" form={formId} name="action" value="apply" disabled={blocked}>Aplicar</Button>
@@ -189,28 +229,6 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
                 {element.visual.type === 'asset' ? <img src={ICON_CATALOG[element.visual.assetId].path} alt="" draggable={false} /> : <span className="element-row-emoji" aria-hidden="true">{element.visual.value}</span>}
                 <span className="element-row-text"><strong title={element.name}>{pinNameLines(element.name).map((line, index) => <span key={index}>{line}</span>)}</strong></span>
               </Button>
-              <div className="element-row-actions" role="group" aria-label={`Acciones de ${element.name}`}>
-                <HelpTooltip text="Modificar"><Button aria-label="Modificar" disabled={blocked} onClick={() => {
-                  if (blockedRef.current) return
-                  onSelect(element.id); setEditor({ kind: 'edit', id: element.id })
-                }}><Wrench aria-hidden="true" /></Button></HelpTooltip>
-                <HelpTooltip text="Duplicar"><Button aria-label="Duplicar" disabled={blocked} onClick={() => {
-                  if (blockedRef.current) return
-                  let id = ''
-                  store.mutateDocument(document => { id = duplicateElement(document, element.id).id })
-                  addControl.current?.focus(); onSelect(id)
-                }}><CopyPlus aria-hidden="true" /></Button></HelpTooltip>
-                <HelpTooltip text="Quitar"><Button aria-label="Quitar" disabled={blocked} onClick={() => {
-                  if (blockedRef.current) return
-                  store.mutateDocument(document => deleteElement(document, element.id))
-                  setCheckedIds(ids => ids.filter(id => id !== element.id))
-                  if (selectedId === element.id) onSelect(null)
-                  addControl.current?.focus()
-                }}><Trash aria-hidden="true" /></Button></HelpTooltip>
-                <HelpTooltip text={element.pinVisible ? 'Ocultar pin' : 'Mostrar pin'}><Button aria-label={`${element.pinVisible ? 'Ocultar' : 'Mostrar'} pin de ${element.name}`} disabled={blocked} onClick={() => {
-                  if (!blockedRef.current) store.mutateDocument(document => togglePinVisibility(document, element.id))
-                }}>{element.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button></HelpTooltip>
-              </div>
             </div>
           })}</div>
           {!elements.length && <p className="elements-empty">{isUnit ? 'Sin dotaciones' : 'Sin elementos'}</p>}

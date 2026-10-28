@@ -8,9 +8,8 @@ import { getPinBox, ICON_CATALOG } from './iconCatalog'
 import { clampAssetScale } from './elementCommands'
 import { getPinAnchorFromPoint, getPinAnchorPoint, getPinNameLayout, PIN_NAME_COLORS, pinNameLines, pinNameStyle, pinTransform } from './pinPresentation'
 import { Button } from '@/components/ui/button'
-import { Crosshair, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical } from 'lucide-react'
+import { AArrowDown, AArrowUp, Crosshair, RotateCcw, RotateCw, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Slider } from '@/components/ui/slider'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
@@ -43,6 +42,11 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
   }, [blocked, cancelAnchorGesture])
   const [name, setName] = useState(element?.name ?? '')
   const [nameFontSize, setNameFontSize] = useState(element?.nameFontSize ?? 16)
+  const [nameSizeText, setNameSizeText] = useState<string | null>(null)
+  const setNameSize = (value: number) => {
+    if (blockedRef.current || !Number.isFinite(value)) return
+    changed.current.add('nameFontSize'); setNameFontSize(Math.max(8, Math.min(72, value))); setNameSizeText(null)
+  }
   const [nameHidden, setNameHidden] = useState(element?.nameHidden ?? false)
   const [draftNameColor, setDraftNameColor] = useState<PinNameColor | null>(null)
   const [information, setInformation] = useState(element?.information ?? '')
@@ -58,10 +62,12 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
   const [flipY, setFlipY] = useState(element?.visual.flipY ?? false)
   const savedScale = element?.visual.scale ?? 1
   const [draftScale, setDraftScale] = useState({ source: savedScale, value: savedScale })
+  const [scaleText, setScaleText] = useState<string | null>(null)
   // Direct pin resizing synchronizes scale without replacing the other draft fields.
-  if (draftScale.source !== savedScale) setDraftScale({ source: savedScale, value: savedScale })
+  if (draftScale.source !== savedScale) { setDraftScale({ source: savedScale, value: savedScale }); setScaleText(null) }
   const scale = draftScale.source === savedScale ? draftScale.value : savedScale
-  const setScale = (value: number) => { if (!blockedRef.current) { changed.current.add('scale'); setDraftScale({ source: savedScale, value: clampAssetScale(value) }) } }
+  const scaleValue = Number((1 + (scale - .25) * 99 / 3.75).toFixed(4))
+  const setScale = (value: number) => { if (!blockedRef.current && Number.isFinite(value)) { changed.current.add('scale'); setDraftScale({ source: savedScale, value: clampAssetScale(value) }); setScaleText(null) } }
   const [error, setError] = useValidationNotice()
   const [errorField, setErrorField] = useState<'emoji' | null>(null)
   const transforms = { ...(rotation || element?.visual.rotation !== undefined ? { rotation } : {}),
@@ -115,8 +121,18 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
       {onSaveBatch && <p className="element-batch-summary">{batchCount} pines · Solo controles modificados</p>}
       <div className="element-editor-top">
         {!onSaveBatch && <Input id={nameId} placeholder="Nombre" aria-label="Nombre" autoFocus value={name} onChange={event => setName(event.target.value)} />}
-        {!nameHidden && <span className="element-name-size-control" title={`Tamaño de letra: ${nameFontSize} px`}>
-          <Slider label="Tamaño de letra del nombre" min={8} max={72} value={nameFontSize} onValueChange={value => { if (!blockedRef.current) { changed.current.add('nameFontSize'); setNameFontSize(value) } }} disabled={blocked} />
+        {!nameHidden && <span className="element-name-size-control element-value-control" role="group" aria-label="Tamaño de letra del nombre">
+          <Button aria-label="Reducir tamaño de letra" title="Reducir tamaño de letra" disabled={blocked || nameFontSize <= 8} onClick={() => setNameSize(nameFontSize - 1)}><AArrowDown aria-hidden="true" /></Button>
+          <Input type="number" inputMode="decimal" aria-label="Tamaño de letra del nombre" min={8} max={72} step="any" required value={nameSizeText ?? nameFontSize} onChange={event => {
+            if (blockedRef.current) return
+            const value = event.target.valueAsNumber
+            if (Number.isFinite(value) && value >= 8 && value <= 72) setNameSize(value)
+            setNameSizeText(event.target.value)
+          }} onBlur={event => {
+            if (nameSizeText !== null && event.target.value !== '') setNameSize(event.target.valueAsNumber)
+            setNameSizeText(null)
+          }} />
+          <Button aria-label="Aumentar tamaño de letra" title="Aumentar tamaño de letra" disabled={blocked || nameFontSize >= 72} onClick={() => setNameSize(nameFontSize + 1)}><AArrowUp aria-hidden="true" /></Button>
         </span>}
         <label className="element-name-hidden"><Checkbox disabled={blocked} checked={nameHidden} onCheckedChange={nextChecked => { changed.current.add('nameHidden'); setNameHidden(nextChecked) }} />Ocultar</label>
       </div>
@@ -181,22 +197,28 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
         </div>
       </div>}
       <div className="element-scale-control">
-        <div className="element-slider-row" onKeyDownCapture={event => {
-          if (blockedRef.current || !['ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowUp'].includes(event.key)) return
-          event.preventDefault()
-          const value = Math.round(scale * 100)
-          const next = event.key === 'ArrowRight' || event.key === 'ArrowUp'
-            ? (Math.floor(value / 10) + 1) * 10 : (Math.ceil(value / 10) - 1) * 10
-          setScale(Math.max(25, Math.min(300, next)) / 100)
-        }}>
+        <div className="element-adjustment-row">
           <span>Escala</span>
-          <Slider label="Escala del icono" min={25} max={300} value={Math.round(scale * 100)}
-            onValueChange={value => setScale((value <= 25 ? 25 : Math.round(value / 10) * 10) / 100)} disabled={blocked} />
-          <output aria-label="Escala actual">{Math.round(scale * 100)} %</output>
+          <div className="element-value-control" role="group" aria-label="Escala del icono">
+            <Button aria-label="Reducir escala" title="Reducir escala" disabled={blocked || scaleValue <= 1} onClick={() => setScale(.25 + (scaleValue - 2) * 3.75 / 99)}><AArrowDown aria-hidden="true" /></Button>
+            <Input type="number" inputMode="decimal" aria-label="Escala del icono" min={1} max={100} step="any" required value={scaleText ?? scaleValue} onChange={event => {
+              if (blockedRef.current) return
+              const value = event.target.valueAsNumber
+              if (Number.isFinite(value) && value >= 1 && value <= 100) setScale(.25 + (value - 1) * 3.75 / 99)
+              setScaleText(event.target.value)
+            }} onBlur={event => {
+              if (scaleText !== null && event.target.value !== '') setScale(.25 + (event.target.valueAsNumber - 1) * 3.75 / 99)
+              setScaleText(null)
+            }} />
+            <Button aria-label="Aumentar escala" title="Aumentar escala" disabled={blocked || scaleValue >= 100} onClick={() => setScale(.25 + scaleValue * 3.75 / 99)}><AArrowUp aria-hidden="true" /></Button>
+          </div>
         </div>
-        <div className="element-slider-row">
+        <div className="element-adjustment-row">
           <span>Giro</span>
-          <Slider label="Giro del pin" min={0} max={360} value={rotation} onValueChange={value => { if (!blockedRef.current) { changed.current.add('rotation'); setRotation(value) } }} disabled={blocked} />
+          <div className="element-transform-controls">
+            <Button aria-label="Girar 10° a la izquierda" title="Girar 10° a la izquierda" onClick={() => { if (!blockedRef.current) { changed.current.add('rotation'); setRotation(value => (value + 350) % 360) } }}><RotateCcw aria-hidden="true" /></Button>
+            <Button aria-label="Girar 10° a la derecha" title="Girar 10° a la derecha" onClick={() => { if (!blockedRef.current) { changed.current.add('rotation'); setRotation(value => (value + 10) % 360) } }}><RotateCw aria-hidden="true" /></Button>
+          </div>
           <output aria-label="Giro actual">{rotation}°</output>
           <div className="element-transform-controls">
             <Button aria-label="Invertir horizontalmente" title="Invertir horizontalmente" aria-pressed={flipX} onClick={() => { if (!blockedRef.current) { changed.current.add('flipX'); setFlipX(value => !value) } }}><TrianglesCenterlineDashedVertical aria-hidden="true" /></Button>

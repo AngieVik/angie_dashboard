@@ -26,15 +26,16 @@ export function ClockModule({ store }: { store: TimerStore }) {
     expandPending.current = false
     const node = root.current
     if ((!expand && !collect) || !node) return
+    const availableHeight = node.clientHeight
     node.dataset.sizing = 'true'
     try {
       const height = node.scrollHeight
       if (collect) requestSpace({ width: 0, height }, { fitHeight: true })
-      else requestSpace({ width: 300, height })
+      else if (height > availableHeight) requestSpace({ width: 0, height })
     } finally { delete node.dataset.sizing }
   }, [timers.length, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])
-  return <div ref={root} data-slot="clock-module" className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s`, '--clock-timer-count': timers.length } as CSSProperties}>
+  return <div ref={root} data-slot="clock-module" className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
     <div className="clock-display">
       <div className="clock-reference"><span className="clock-season-active" aria-label="UTC+2 [ST]" title="UTC+2 [ST]"><span className="clock-label-full" aria-hidden="true">UTC+2 [ST]</span><span className="clock-label-short" aria-hidden="true">2ST</span></span><span>ESP</span></div>
       <div className="clock-top">

@@ -5,7 +5,7 @@ import { PIN_ANCHORS, PIN_NAME_COLORS } from './pinPresentation'
 
 export function clampAssetScale(value: number) {
   if (!Number.isFinite(value)) throw new Error('La escala debe ser un número finito.')
-  return Math.max(0.25, Math.min(3, value))
+  return Math.max(0.25, Math.min(4, value))
 }
 export function clampPinPosition(position: Position, _visual: ElementVisual) {
   // Keep the command's existing interface; a stable center no longer depends on its box.

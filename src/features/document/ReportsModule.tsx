@@ -10,7 +10,6 @@ import { WorkDirectoryDialog } from './PermissionsDialog'
 import type { LoadedGpx } from '../map/gpx'
 import type { ReportMapHandle } from './mapReport'
 import type { ReportBoardHandle } from './boardReport'
-import type { WeatherReportContent } from './weatherReport'
 import type { TimerRecord } from '../clock/timerTypes'
 import { formatReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue, ReportResourceAction } from './reportIssues'
@@ -22,7 +21,7 @@ import { prepareReportTypography, waitForReportFonts } from './reportTypography'
 const ReportMap = lazy(() => import('./ReportMap').then(module => ({ default: module.ReportMap })))
 const ReportBoard = lazy(() => import('./ReportBoard').then(module => ({ default: module.ReportBoard })))
 
-export function ReportsModule({ store, files, onFilesChange, getCoordinatesInput, getWeatherReport, getTimerRecords }: { store: DocumentStore; files: LoadedGpx[]; onFilesChange: (files: LoadedGpx[]) => void; getCoordinatesInput: () => string; getWeatherReport: () => WeatherReportContent; getTimerRecords: () => readonly TimerRecord[] | null }) {
+export function ReportsModule({ store, files, onFilesChange, getCoordinatesInput, getTimerRecords }: { store: DocumentStore; files: LoadedGpx[]; onFilesChange: (files: LoadedGpx[]) => void; getCoordinatesInput: () => string; getTimerRecords: () => readonly TimerRecord[] | null }) {
   const [selection, setSelection] = useState<ReportSelection>(defaultReportSelection)
   const [pageOptions, setPageOptions] = useState<ReportPageOptions>(() => ({ ...DEFAULT_REPORT_PAGE }))
   const [preview, setPreview] = useState<Awaited<ReturnType<DocumentStore['generateReport']>>>(null)
@@ -93,9 +92,8 @@ export function ReportsModule({ store, files, onFilesChange, getCoordinatesInput
       const planReport = selection.plan?.length ? planCapture.current?.capture(pageOptions) : undefined
       const boardRequest = selection.board?.includes('image') ? boardCapture.current?.capture() : undefined
       const coordinateInput = selection.coordinates?.length ? getCoordinatesInput() : undefined
-      const weatherReport = selection.weather?.length ? getWeatherReport() : undefined
       const timerRecords = selection.timers?.length ? getTimerRecords() : undefined
-      const generated = await store.generateReport(selection, mapReport, planReport, boardRequest, coordinateInput, weatherReport, timerRecords, pageOptions)
+      const generated = await store.generateReport(selection, mapReport, planReport, boardRequest, coordinateInput, timerRecords, pageOptions)
       if (!generated) return
       setPreviewReady(false); setPreview(generated); setStatus(generated.report.issues.some(issue => !issue.omitted) ? { message: 'Informe incompleto: recursos no disponibles.', error: true } : null); setDirectoryNeeded(false)
     } catch (error) {

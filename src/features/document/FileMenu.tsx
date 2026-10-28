@@ -224,7 +224,7 @@ export function DocumentNotices({ store = getDocumentStore() }: { store?: Docume
     </div>}
     {permissions && <WorkDirectoryDialog onClose={() => setPermissions(false)} onCloseFocus={() => {}} onContinueLocally={() => store.continueLocally()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} onDownload={snapshot.active ? () => store.downloadJson() : undefined} />}
     <AlertDialog open={snapshot.recoveryPending} onOpenChange={open => { if (!open) void store.confirmRecovery(false) }}>
-      <FileDialogContent title={snapshot.recoveryTitle ? `¿Quieres continuar con «${snapshot.recoveryTitle}»?` : '¿Quieres continuar?'} icon={ClipboardClock} dismissOnOutside onClose={() => { void store.confirmRecovery(false) }}>
+      <FileDialogContent title={snapshot.recoveryTitle ? `¿Quieres continuar con «${snapshot.recoveryTitle}»?` : '¿Quieres continuar?'} icon={ClipboardClock} onClose={() => { void store.confirmRecovery(false) }}>
         {snapshot.recoverySeenAt && <p>Última sesión: {formatTimelineDate(snapshot.recoverySeenAt)}</p>}
         {snapshot.fileMessage && <p role="alert">{snapshot.fileMessage}</p>}
         <AlertDialogFooter><Button disabled={snapshot.fileBusy} onClick={() => { void store.confirmRecovery(true) }}>Continuar</Button>

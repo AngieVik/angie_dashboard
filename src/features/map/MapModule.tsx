@@ -46,12 +46,13 @@ const EMPTY_REFERENCES: MapGpxReference[] = []
 const EMPTY_MARKERS: MapMarker[] = []
 const kilometers = (meters: number) => (meters / 1000).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km'
 
-export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, store, overlay }: {
+export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, store, overlay, onCoordinateSelect }: {
   navigationKey: string
   files: LoadedGpx[]
   onFilesChange: (files: LoadedGpx[]) => void
   store: DocumentStore
   overlay?: ReactNode
+  onCoordinateSelect?: (point: GeographicCoordinate) => void
 }) {
   const { document: currentDocument, documentGeneration } = useDocumentStore(store)
   const references = currentDocument.map?.gpx ?? EMPTY_REFERENCES
@@ -88,6 +89,12 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   const [accessNotice, setAccessNotice] = useState<string | null>(null)
   const [useFileInput, setUseFileInput] = useState(false)
   const [selected, setSelected] = useState<MapSelection | null>(null)
+  const publishCoordinate = useRef(onCoordinateSelect)
+  useLayoutEffect(() => { publishCoordinate.current = onCoordinateSelect }, [onCoordinateSelect])
+  function selectCoordinate(point: MapSelection) {
+    setSelected(point)
+    publishCoordinate.current?.(point)
+  }
   const [coordinatesOpen, setCoordinatesOpen] = useState(true)
   const [markersOpen, setMarkersOpen] = useState(false)
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
@@ -126,7 +133,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     if (blockedRef.current) return
     resetSearch()
     const formatted = convertCoordinate({ ...marker, format: 'DD' }, format)
-    setSelected({ latitude: marker.latitude, longitude: marker.longitude }); setCopied(false)
+    selectCoordinate({ latitude: marker.latitude, longitude: marker.longitude }); setCopied(false)
     setSelectedGpxId(null)
     setSelectedMarkerId(marker.id)
     if (formatted.ok) setInput(formatted.text)
@@ -158,7 +165,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const id = crypto.randomUUID()
     if (mutateMap(map => {
       map.markers.push({ id, name: `M.${map.markers.length + 1}`, ...point, color: GPX_COLORS[0]! })
-    })) { setSelected(point); setSelectedGpxId(null); setSelectedMarkerId(id); setCopied(false) }
+    })) { selectCoordinate(point); setSelectedGpxId(null); setSelectedMarkerId(id); setCopied(false) }
   }
   function closeMarkers() {
     setMarkersOpen(false)
@@ -180,7 +187,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     if (blockedRef.current) return
     if (Math.abs(sample.point.latitude) > MAX_MAP_LATITUDE) { setError('Esta cartografía admite latitudes entre −85,05° y 85,05°.'); return }
     resetSearch(); setError(null); setCopied(false)
-    setSelected({ ...sample.point, gpx: { fileId, location: { point: sample.point, distanceMeters: sample.distanceMeters, offsetMeters: 0 } } })
+    selectCoordinate({ ...sample.point, gpx: { fileId, location: { point: sample.point, distanceMeters: sample.distanceMeters, offsetMeters: 0 } } })
     setSelectedGpxId(fileId); setSelectedMarkerId(null)
     const formatted = convertCoordinate({ ...sample.point, format: 'DD' }, format)
     if (formatted.ok) setInput(formatted.text)
@@ -265,6 +272,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
       setCopied(false)
       const point = snapped && nearest ? { ...nearest.location.point, gpx: nearest } : coordinate
       setSelected(point)
+      publishCoordinate.current?.(point)
       setSelectedGpxId(snapped && nearest ? nearest.fileId : null)
       setSelectedMarkerId(null)
       const formatted = convertCoordinate({ ...point, format: 'DD' }, currentFormat.current)
@@ -429,7 +437,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const coordinate = toGeographic(parsed.coordinate)
     if (Math.abs(coordinate.latitude) > MAX_MAP_LATITUDE) { setError('Esta cartografía admite latitudes entre −85,05° y 85,05°.'); return }
     const formatted = convertCoordinate(parsed.coordinate, format)
-    setError(null); setInput(formatted.ok ? formatted.text : parsed.normalizedInput); setSelected(coordinate); setSelectedGpxId(null); setSelectedMarkerId(null); setCopied(false)
+    setError(null); setInput(formatted.ok ? formatted.text : parsed.normalizedInput); selectCoordinate(coordinate); setSelectedGpxId(null); setSelectedMarkerId(null); setCopied(false)
     if (!formatted.ok) setFormat(parsed.coordinate.format)
     mapRef.current?.setView([coordinate.latitude, coordinate.longitude], 15, { animate: false })
   }
@@ -448,7 +456,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const formatted = convertCoordinate({ ...point, format: 'DD' }, format)
     if (formatted.ok) setInput(formatted.text)
     else { setFormat('DD'); setInput(`${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`) }
-    setSelected(point); setSelectedGpxId(null); setSelectedMarkerId(null)
+    selectCoordinate(point); setSelectedGpxId(null); setSelectedMarkerId(null)
     mapRef.current?.setView([point.latitude, point.longitude], 15, { animate: false })
     searchInput.current?.focus()
   }

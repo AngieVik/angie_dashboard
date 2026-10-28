@@ -3,7 +3,6 @@ import { createReadStream, existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, extname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { handleForecastRequest, isForecastRequest } from './forecastApi.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../dist')
 const host = process.env.HOST ?? '127.0.0.1', port = Number(process.env.PORT ?? 4180)
@@ -14,7 +13,6 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf', '.mp3': 'audio/mpeg' }
 
 const server = createServer(async (request, response) => {
-  if (isForecastRequest(request.url ?? '')) { await handleForecastRequest(request, response); return }
   if (!['GET', 'HEAD'].includes(request.method ?? '')) { response.writeHead(405, { Allow: 'GET, HEAD' }); response.end(); return }
   try {
     const path = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname)

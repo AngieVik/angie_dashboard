@@ -5,7 +5,7 @@ export const DOCUMENT_STATUSES = [
 
 export type OperationalStatus = typeof DOCUMENT_STATUSES[number] | 'Personalizada'
 export type AssetId = 'ambulance' | 'pathfinder' | 'quad' | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
-export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'forecast' | 'openMeteo' | 'plan' | 'clock' | 'calculator' | 'notebook' | 'timeline' | 'reports'
+export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'plan' | 'clock' | 'calculator' | 'notebook' | 'timeline' | 'reports'
 
 export interface Position { x: number; y: number }
 export type PinNameColor = 'dark' | 'light' | 'yellow' | 'blue' | 'green' | 'red'

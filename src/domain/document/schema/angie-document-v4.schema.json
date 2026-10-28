@@ -155,8 +155,6 @@
       "properties": {
         "reports": { "$ref": "#/$defs/layout" },
         "plan": { "$ref": "#/$defs/layout" },
-        "forecast": { "$ref": "#/$defs/layout" },
-        "openMeteo": { "$ref": "#/$defs/layout" },
         "map": {
           "$ref": "#/$defs/layout"
         },
@@ -560,7 +558,7 @@
             "scale": {
               "type": "number",
               "minimum": 0.25,
-              "maximum": 3
+              "maximum": 4
             }
           }
         },
@@ -594,7 +592,7 @@
             "scale": {
               "type": "number",
               "minimum": 0.25,
-              "maximum": 3
+              "maximum": 4
             }
           }
         }

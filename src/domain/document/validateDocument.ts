@@ -59,6 +59,13 @@ function compareUtcDates(left: string, right: string): number {
 }
 
 export function validateDocument(input: unknown): ValidationResult<AngieDocumentV4> {
+  if (input && typeof input === 'object' && !Array.isArray(input) && 'moduleLayouts' in input) {
+    const layouts = input.moduleLayouts
+    if (layouts && typeof layouts === 'object' && !Array.isArray(layouts)) {
+      const supported = schema.properties.moduleLayouts.properties
+      input = { ...input, moduleLayouts: Object.fromEntries(Object.entries(layouts).filter(([id]) => Object.hasOwn(supported, id))) }
+    }
+  }
   if (!validateSchema(input)) {
     return { success: false, errors: (validateSchema.errors ?? []).map(issueFromSchema) }
   }

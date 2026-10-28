@@ -10,6 +10,7 @@
   }
 
   .base > form { flex: none; }
+  .base :global(.coordinates-receiver[aria-pressed="true"]) { background: var(--color-selected); color: var(--color-text); }
   :where(.base) :global(.coordinates-error) { margin: 0; font-size: var(--font-size-body); line-height: 1.25; color: var(--color-accent-yellow); overflow-wrap: anywhere; }
   :where(.base) :global(.coordinates-results) { display: flex; flex: 1; flex-direction: column; margin: 0; }
   :where(.base) :global(.coordinates-results) > div { display: grid; flex: 1; grid-template-columns: 4ch minmax(0, 1fr); align-items: center; column-gap: .5ch; min-height: calc(20px * var(--module-zoom, 1)); padding: 0; border-bottom: 1px solid var(--color-border); }

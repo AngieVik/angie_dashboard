@@ -8,6 +8,7 @@ import { useValidationNotice } from '@/hooks/useValidationNotice'
 import type { AngieDocument, PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
+import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { MapModule } from '../map/MapModule'
@@ -29,13 +30,14 @@ const MODES = [
   { mode: 'erase', label: 'Borrar trazo', icon: Eraser },
 ] as const
 
-export function PlanModule({ navigationKey, files, onFilesChange, store, selectedId, onSelect, onEditElement, onOpenModule }: {
+export function PlanModule({ navigationKey, files, onFilesChange, store, selectedId, onSelect, onCoordinateSelect, onEditElement, onOpenModule }: {
   navigationKey: string
   files: LoadedGpx[]
   onFilesChange: (files: LoadedGpx[]) => void
   store: DocumentStore
   selectedId: string | null
   onSelect: (id: string | null) => void
+  onCoordinateSelect?: (point: GeographicCoordinate) => void
   onEditElement: (id: string) => void
   onOpenModule: (id: 'elements' | 'dotations') => void
 }) {
@@ -91,7 +93,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
     </div>
     {mode === 'place' && selected && <p className="plan-notice" role="status">Colocar: {selected.name}</p>}
     {error && <p className="plan-notice plan-error" role="alert">{error}</p>}
-    <MapModule navigationKey={'plan.' + navigationKey} files={files} onFilesChange={onFilesChange} store={store} overlay={<>
+    <MapModule navigationKey={'plan.' + navigationKey} files={files} onFilesChange={onFilesChange} store={store} onCoordinateSelect={onCoordinateSelect} overlay={<>
       <PlanPins navigationKey={navigationKey} elements={document.elements} pins={pins} mode={mode} selectedId={selectedId}
         focusRequest={focusRequest} onSelect={onSelect} onEdit={onEditElement} onMove={(id, point) => apply(document => placePlanPin(document, id, point))}
         onNameMove={(id, nameOffset) => apply(document => updateElement(document, id, { nameOffset }))}
@@ -102,7 +104,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
         })} />
       <PlanDrawing navigationKey={navigationKey} mode={mode} color={color} width={width} strokes={strokes} placeId={selected?.id ?? null}
         onStroke={stroke => apply(document => addPlanStroke(document, stroke))} onErase={id => apply(document => removePlanStroke(document, id))}
-        onPlace={(id, point) => { if (apply(document => placePlanPin(document, id, point))) setMode('select') }} />
+        onPlace={(id, point) => { if (apply(document => placePlanPin(document, id, point))) { setMode('select'); onCoordinateSelect?.(point) } }} />
     </>} />
     {selected && <div className="plan-selection" aria-label="Recurso seleccionado">
       <strong>{selected.name}</strong>

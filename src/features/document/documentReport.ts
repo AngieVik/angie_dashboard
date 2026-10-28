@@ -7,8 +7,6 @@ import type { BoardReportContent } from './boardReport'
 import type { ReportLegendEntry } from './reportLegend'
 import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { UTM_BANDS } from '../coordinates/coordinateTypes'
-import { currentWeatherReportRows, forecastReportRows, formatWeatherDate } from './weatherReport'
-import type { WeatherReportContent } from './weatherReport'
 import { calculateTimerValue, formatDuration } from '../clock/timerEngine'
 import type { TimerRecord } from '../clock/timerTypes'
 import { createReportIssue, formatReportIssue } from './reportIssues'
@@ -28,19 +26,18 @@ export const REPORT_SECTIONS = {
   plan: { title: 'Plano operativo', fields: { image: 'Imagen', resources: 'Recursos' } },
   board: { title: 'Pizarra', fields: { image: 'Imagen', notes: 'Texto de las notas' } },
   coordinates: { title: 'Coordenadas', fields: { value: 'Valor', system: 'Sistema de coordenadas' } },
-  weather: { title: 'Meteorología', fields: { aemet: 'AEMET', openMeteo: 'Open-Meteo' } },
   timers: { title: 'Temporizadores', fields: { name: 'Nombre', status: 'Estado', value: 'Valor' } },
 } as const
 export type ReportSection = keyof typeof REPORT_SECTIONS
 export type ReportSelection = Partial<Record<ReportSection, string[]>>
 export function defaultReportSelection(): ReportSelection {
-  return Object.fromEntries(Object.entries(REPORT_SECTIONS).map(([id, section]) => [id, id === 'map' || id === 'plan' || id === 'board' || id === 'coordinates' || id === 'weather' || id === 'timers' ? [] : Object.keys(section.fields)]))
+  return Object.fromEntries(Object.entries(REPORT_SECTIONS).map(([id, section]) => [id, id === 'map' || id === 'plan' || id === 'board' || id === 'coordinates' || id === 'timers' ? [] : Object.keys(section.fields)]))
 }
 const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 function escape(value: string) { return value.replace(/[&<>"']/g, character => entities[character]!) }
 function text(value: string) { return escape(value).replace(/\n/g, '<br>') }
 
-export function createDocumentReport(document: AngieDocument, generatedAt: Date, fontStyles: string, selection: ReportSelection = defaultReportSelection(), mapReport?: MapReportContent, planReport?: MapReportContent, boardReport?: BoardReportContent, coordinateInput = '', weatherReport: WeatherReportContent = {}, timerRecords?: readonly TimerRecord[] | null, page: ReportPageOptions = DEFAULT_REPORT_PAGE) {
+export function createDocumentReport(document: AngieDocument, generatedAt: Date, fontStyles: string, selection: ReportSelection = defaultReportSelection(), mapReport?: MapReportContent, planReport?: MapReportContent, boardReport?: BoardReportContent, coordinateInput = '', timerRecords?: readonly TimerRecord[] | null, page: ReportPageOptions = DEFAULT_REPORT_PAGE) {
   const selected = (section: ReportSection, field: string) => selection[section]?.includes(field) ?? false
   if (selection.map?.length && mapReport && mapReport.documentId !== document.document.id) throw new Error('El mapa pertenece a otro UIBoard.')
   if (selection.plan?.length && planReport && planReport.documentId !== document.document.id) throw new Error('El plano pertenece a otro UIBoard.')
@@ -147,41 +144,6 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
       : coordinate ? `WGS 84 (EPSG:4326) · ${coordinate.format}` : 'No reconocido'
     coordinates.push({ value: parsed.ok ? parsed.normalizedInput : coordinateInput.trim(), system })
   }
-  let weatherContent = ''
-  if (selected('weather', 'aemet')) {
-    const snapshot = weatherReport.aemet, data = snapshot?.data
-    weatherContent += '<h3>AEMET</h3>' + (snapshot ? `<p>Ubicación: ${text(snapshot.location)}</p>` : '')
-    if (!snapshot || !data) weatherContent += '<p>Sin datos.</p>'
-    else {
-      weatherContent += `<p>Consulta: ${text(formatWeatherDate(data.retrievedAt, data.periodsTimeZone))}<br>Web AEMET: ${text(data.resourceUpdatedAt ? formatWeatherDate(data.resourceUpdatedAt, data.periodsTimeZone) : 'Actualización no indicada')}</p>`
-      if (snapshot.previous || data.stale) weatherContent += '<p>Se muestra una consulta anterior.</p>'
-      weatherContent += rowsTable([['period', 'Fecha y periodo · ' + data.periodsTimeZone], ['information', 'Información'], ['value', 'Valor']], forecastReportRows(data))
-      const details = snapshot.warningDetails
-      if (details) {
-        weatherContent += `<h4>Detalle de avisos</h4><p>${text([details.zone, details.province, details.date].filter(Boolean).join(' · '))}<br>Consulta: ${text(formatWeatherDate(details.retrievedAt, data.periodsTimeZone))}`
-        if (details.resourceUpdatedAt) weatherContent += `<br>Web de avisos: ${text(formatWeatherDate(details.resourceUpdatedAt, data.periodsTimeZone))}`
-        weatherContent += '</p>'
-        if (details.stale) weatherContent += '<p>Se muestra un detalle anterior.</p>'
-        weatherContent += rowsTable([['phenomenon', 'Fenómeno'], ['level', 'Nivel'], ['value', 'Valor'], ['probability', 'Probabilidad'], ['onset', 'Comienzo'], ['expires', 'Finalización'], ['certainty', 'Certeza'], ['comment', 'Comentario']], details.items.map(item => ({
-          phenomenon: item.phenomenonName, level: item.levelName, value: item.value || '—', probability: item.probability || '—',
-          onset: formatWeatherDate(item.onset, data.periodsTimeZone), expires: formatWeatherDate(item.expires, data.periodsTimeZone), certainty: item.certaintyName, comment: item.comment || '—',
-        })))
-      }
-      weatherContent += `<p>${text(data.attribution)}<br>${text(data.sourceUrl)}</p>`
-    }
-  }
-  if (selected('weather', 'openMeteo')) {
-    const snapshot = weatherReport.openMeteo, data = snapshot?.data
-    weatherContent += '<h3>Open-Meteo</h3>' + (snapshot ? `<p>Ubicación consultada: ${text(`${snapshot.point.latitude.toFixed(6)}, ${snapshot.point.longitude.toFixed(6)}`)}</p>` : '')
-    if (!snapshot || !data) weatherContent += '<p>Sin datos.</p>'
-    else {
-      weatherContent += `<p>Dato: ${text(formatWeatherDate(data.validAt, data.timeZone))}<br>Consulta: ${text(formatWeatherDate(data.retrievedAt, data.timeZone))}</p>`
-      if (snapshot.previous) weatherContent += '<p>Se muestra una consulta anterior.</p>'
-      weatherContent += rowsTable([['information', 'Información'], ['value', 'Valor']], currentWeatherReportRows(data))
-      weatherContent += '<p>Estimaciones de modelos meteorológicos · Open-Meteo · CC BY 4.0 · Uso no comercial</p>'
-    }
-  }
-  if (selection.weather?.length) weatherContent = '<section><h2>Meteorología</h2>' + weatherContent + '</section>'
   let timerContent = ''
   if (selection.timers?.length) {
     if (timerRecords == null) timerContent = '<section><h2>Temporizadores</h2><p>Temporizadores no disponibles.</p></section>'
@@ -198,7 +160,7 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
     }
   }
   const content = table('elements', resources(false)) + table('dotations', resources(true)) + table('information', operational) + table('operations', operational)
-    + table('timeline', timeline) + table('notebook', notebook) + mapContent + planContent + boardContent + table('coordinates', coordinates) + weatherContent + timerContent
+    + table('timeline', timeline) + table('notebook', notebook) + mapContent + planContent + boardContent + table('coordinates', coordinates) + timerContent
   const title = document.document.title || 'Sin nombre'
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"><title>Informe · ${escape(title)}</title>
 <style>${fontStyles}

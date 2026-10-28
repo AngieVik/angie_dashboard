@@ -6,25 +6,27 @@
     min-height: 0;
     overflow: hidden;
   }
-  :where(.base) :global(.elements-configure-actions) { flex: 0 0 auto; display: flex; align-items: center; gap: var(--control-gap); padding: var(--control-gap) var(--section-gap); border-bottom: 1px solid var(--color-border); }
+  :where(.base) :global(.elements-configure-actions) { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--control-gap); padding: var(--control-gap) var(--section-gap); border-bottom: 1px solid var(--color-border); }
+  :where(.base) :is(:global(.elements-selection-actions), :global(.elements-selection-controls)) { display: flex; flex: 0 0 auto; align-items: center; gap: var(--control-gap); }
+  :where(.base) :global(.elements-selection-controls) { margin-inline-start: auto; }
+  :where(.base) :global(.elements-selection-controls) label { display: flex; align-items: center; gap: var(--control-gap); white-space: nowrap; }
   :where(.base) :global(.elements-selection-count) { align-self: center; min-width: 2ch; text-align: center; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
   :where(.base) :global(.element-row)[data-checked="true"] { border-color: var(--color-selection-border); }
   :where(.base) :global(.element-batch-summary) { margin: 0 0 var(--section-gap); color: var(--color-text-secondary); }
-  :where(.base) :global(.elements-list) { flex: 1; min-height: 0; padding: 0; overflow-x: hidden; overflow-y: auto; }
-  :where(.base) :global(.elements-list) section { min-height: 100%; }
-  :where(.base) :global(.element-rows) { display: flex; flex-direction: column; min-width: 0; min-height: 100%; }
-  :where(.base) :global(.element-row) { display: flex; align-items: center; gap: 0; min-height: 0; padding: 0; border: 1px solid transparent; border-bottom-color: var(--color-border); border-radius: 2px; flex: 1; }
+  :where(.base) :global(.elements-list) { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: var(--control-gap); overflow-x: hidden; overflow-y: auto; }
+  :where(.base) :global(.elements-list) section { display: flex; flex: 1 0 auto; flex-direction: column; min-height: 0; }
+  :where(.base) :global(.element-rows) { display: flex; flex: 1 0 auto; flex-direction: column; min-width: 0; min-height: 0; }
+  :where(.base) :global(.element-row) { display: flex; align-items: center; gap: 0; min-height: 0; padding: 0 var(--control-gap); border: 1px solid transparent; border-bottom-color: var(--color-border); border-radius: 2px; flex: 1 0 auto; }
   :where(.base) :global(.element-row)[data-selected="true"] { background: var(--color-selected); border-color: var(--color-selection-border); box-shadow: inset 1px 0 var(--color-selection-border); }
   :where(.base) :global(.element-select) > img, :where(.base) :global(.element-row-emoji) { flex: 0 0 calc(34px * var(--module-zoom, 1)); width: calc(34px * var(--module-zoom, 1)); height: calc(30px * var(--module-zoom, 1)); object-fit: contain; text-align: center; font-size: calc(23px * var(--module-zoom, 1)); line-height: calc(30px * var(--module-zoom, 1)); }
   :where(.base) :global(.element-row-text) { flex: 1; min-width: 0; }
   :where(.base) :global(.element-row-text) strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
   :where(.base) :global(.element-row-text) strong > span { display: block; overflow: hidden; text-overflow: ellipsis; }
-  :where(.base) :global(.element-row-actions) { display: flex; flex: 0 0 auto; gap: 0; }
-  :where(.base) :global(.elements-empty) { color: var(--color-text-secondary); padding: 0; }
+  :where(.base) :global(.elements-empty) { color: var(--color-text-secondary); margin: 0; padding: 0; }
   :where(.base) :global(.element-editor) { flex: 1; min-height: 0; padding: var(--section-gap); overflow-x: hidden; overflow-y: auto; }
   :where(.base) :global(.element-editor) fieldset { margin: 0; padding: 0; min-width: 0; border: 0; }
   :where(.base) :global(.element-editor-top) { display: flex; align-items: center; gap: var(--control-gap); margin-bottom: 0; }
-  :where(.base) :global(.element-name-size-control) { flex: 0 0 72px; min-width: 0; }
+  :where(.base) :global(.element-value-control) { display: flex; flex: 0 0 auto; align-items: center; gap: var(--control-gap); min-width: 0; }
   :where(.base) :global(.element-editor) :global(.element-name-hidden) { flex: 0 0 auto; white-space: nowrap; }
   :where(.base) :global(.element-editor) label { display: flex; align-items: center; gap: var(--control-gap); color: var(--color-text-secondary); }
   :where(.base) :global(.element-editor) :global(.element-pin-choice) { margin-block: 0 var(--section-gap); }
@@ -37,8 +39,8 @@
   :where(.base) :global(.element-anchor-picker):focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
   :where(.base) :global(.element-anchor-mark) { position: absolute; width: 20px; height: 20px; transform: translate(-50%, -50%); color: var(--color-accent-red); filter: drop-shadow(0 0 1px #000); pointer-events: none; }
   :where(.base) :global(.element-scale-control) { display: flex; flex-direction: column; align-items: stretch; gap: var(--control-gap); margin-block: var(--section-gap); }
-  :where(.base) :global(.element-slider-row) { display: flex; align-items: center; gap: var(--control-gap); min-width: 0; }
-  :where(.base) :global(.element-slider-row) output { flex: 0 0 5ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-secondary); white-space: nowrap; }
+  :where(.base) :global(.element-adjustment-row) { display: flex; align-items: center; gap: var(--control-gap); min-width: 0; }
+  :where(.base) :global(.element-adjustment-row) output { flex: 0 0 5ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-secondary); white-space: nowrap; }
   :where(.base) :global(.element-transform-controls) { display: flex; align-items: center; gap: var(--control-gap); flex: 0 0 auto; }
   :where(.base) :global(.element-name-controls) { margin-block: var(--control-gap) var(--section-gap); }
   :where(.base) :global(.element-name-colors) { display: flex; align-items: center; gap: var(--control-gap); }
@@ -48,24 +50,27 @@
 
 @layer overrides {
   :where(.base) :global(.element-row-checkbox) { margin: 4px; }
-  :where(.base) :global(.element-row) :global(.element-select) { display: flex; flex: 1; align-items: center; justify-content: flex-start; gap: 0; min-width: 0; height: auto; min-height: 0; padding: 0; border: 0; line-height: normal; text-align: left; user-select: none; -webkit-touch-callout: none; }
+  :where(.base) :global(.element-row) :global(.element-select) { display: flex; flex: 1; align-self: stretch; align-items: center; justify-content: flex-start; gap: 0; min-width: 0; height: auto; min-height: 0; padding: 0; border: 0; line-height: normal; text-align: left; user-select: none; -webkit-touch-callout: none; }
   :where(.base) :global(.element-row) :global(.element-select):not(:hover:enabled, :active:enabled) { background: transparent; box-shadow: none; }
   :where(.base) :global(.element-row)[data-unit="true"] :global(.element-select) { gap: var(--section-gap); }
   :where(.base) :global(.element-editor-top) [data-slot="input"][aria-label="Nombre"] { width: 10ch; flex: 0 1 auto; min-width: 0; }
-  :where(.base) :global(.element-editor) [data-slot="radio-group"] { margin-block: var(--section-gap); gap: calc(2 * var(--section-gap)); }
+  :where(.base) :global(.element-editor) [data-slot="radio-group"] { align-items: center; margin-block: var(--section-gap); gap: calc(2 * var(--section-gap)); }
+  :where(.base) :global(.element-editor) :is(:global(.element-name-hidden), [data-slot="radio-group"] label) { display: grid; grid-template-columns: 16px auto; align-items: center; }
+  :where(.base) :global(.element-editor) [data-slot="radio-group-item"] { justify-self: center; }
   :where(.base) :global(.element-editor) [data-slot="select"] { flex: 1; }
   :where(.base) :global(.element-editor) > fieldset > [data-slot="input"] { width: 10ch; margin-block: 0 var(--section-gap); }
-  :where(.base) :global(.element-slider-row) > span:not([data-slot="slider"]) { flex: 0 0 5ch; color: var(--color-text-secondary); }
-  :where(.base) :global(.element-slider-row) [data-slot="slider"] { flex: 1; min-width: 0; }
+  :where(.base) :global(.element-adjustment-row) > span { flex: 0 0 5ch; color: var(--color-text-secondary); }
+  :where(.base) :global(.element-value-control) [data-slot="input"] { flex: 0 0 auto; width: calc(6ch + 2 * var(--section-gap)); appearance: textfield; text-align: center; font-variant-numeric: tabular-nums; }
+  :where(.base) :global(.element-value-control) input::-webkit-inner-spin-button,
+  :where(.base) :global(.element-value-control) input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+  :where(.base) :global(.element-name-size-control) [data-slot="input"] { width: calc(4ch + 2 * var(--section-gap)); }
   :where(.base) :global(.element-transform-controls) [data-slot="button"][aria-pressed="true"]:not(:hover:enabled) { border-color: var(--color-selection-border); background: var(--color-selected); }
-  :where(.base) :is(:global(.elements-configure-actions), :global(.element-row-actions), :global(.element-transform-controls)) [data-slot="button"]:not([data-text-button]) { width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
+  :where(.base) :is(:global(.elements-configure-actions), :global(.element-transform-controls), :global(.element-value-control)) [data-slot="button"]:not([data-text-button]) { width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
   :global(.module-frame)[data-fitting] .base :is(:global(.elements-list), :global(.element-editor)) { flex: none; height: auto; min-height: 0; overflow: visible; }
-  :global(.module-frame)[data-fitting] .base :global(.elements-list) section { min-height: 0; }
   :global(.module-scaled-content)[data-measuring="true"] .base :is(:global(.elements-list), :global(.element-rows)) { height: auto; min-height: 0; }
-  :global(.module-scaled-content)[data-measuring="true"] .base :global(.element-row) { flex: none; }
-  :global(.module-frame)[data-auto-height="true"] .base :is(:global(.elements-list), :global(.element-editor)) { flex: none; height: auto; min-height: 0; overflow-y: visible; }
-  :global(.module-frame)[data-auto-height="true"] .base :is(:global(.elements-list) section, :global(.element-rows)) { min-height: 0; }
-  :global(.module-frame)[data-auto-height="true"] .base :global(.element-row) { flex: none; }
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.element-row),
+  :global(.module-frame)[data-fitting] .base :global(.element-row) { flex: none; }
+  :global(.module-scaled-content)[data-measuring="minimum-width"] .base :global(.element-row-text) { min-width: max-content; }
 }
 
 /* Preserve scrollbar precedence while the shared window rules remain unlayered. */

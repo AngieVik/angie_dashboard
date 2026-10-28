@@ -9,7 +9,7 @@
     border: 1px solid var(--color-border);
     border-bottom-color: transparent;
     border-radius: 0;
-    background: var(--surface-inset);
+    background: var(--color-field);
   }
   .base + .base { border-top: 0; }
   .base:first-child { border-top-left-radius: 2px; border-top-right-radius: 2px; }
@@ -18,7 +18,7 @@
   :where(.base) :global(.timer-main) {
     --timer-control-gap: calc(4px * var(--module-zoom, 1));
     --timer-controls-width: calc(2 * var(--control-height) + var(--timer-control-gap));
-    --timer-font-size: max(0px, min(calc(40px * var(--module-zoom, 1)), calc((100cqi - var(--timer-controls-width) - var(--timer-control-gap)) / 4.4), 100cqb));
+    --timer-font-size: max(0px, min(calc(32px * var(--module-zoom, 1)), calc((100cqi - var(--timer-controls-width) - var(--timer-control-gap)) / 4.4), 100cqb));
     container-type: size;
     display: grid;
     flex: 1 1 auto;

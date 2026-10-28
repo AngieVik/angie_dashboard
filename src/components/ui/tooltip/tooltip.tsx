@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import type { ComponentProps, ReactElement } from 'react'
 import * as Primitive from '@radix-ui/react-tooltip'
 import { useViewportInteraction } from '@/layout/ViewportContext'
+import { OverlayPortalContext } from '@/layout/OverlayPortalContext'
 import styles from './tooltip.module.css'
 
 export const TooltipProvider = Primitive.Provider
@@ -9,7 +10,8 @@ export const Tooltip = Primitive.Root
 export const TooltipTrigger = Primitive.Trigger
 const HELP_TOOLTIP_OPEN = 'angie-help-tooltip-open'
 export function TooltipContent({ className = '', ...props }: ComponentProps<typeof Primitive.Content>) {
-  return <Primitive.Portal><Primitive.Content data-slot="tooltip-content" className={`${styles.base} ${className}`.trim()} sideOffset={5} collisionPadding={8}
+  const container = useContext(OverlayPortalContext)
+  return <Primitive.Portal container={container ?? undefined}><Primitive.Content data-slot="tooltip-content" className={`${styles.base} ${className}`.trim()} sideOffset={5} collisionPadding={8}
     {...props} /></Primitive.Portal>
 }
 

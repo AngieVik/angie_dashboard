@@ -42,7 +42,6 @@ Las normas de este documento forman el estándar de la interfaz y se aplican por
 | CSS Module del propietario | Base, estados, variantes y composición de cada componente, ventana o funcionalidad. |
 
 - Los estilos de menús, diálogos y ayudas se aplican a sus superficies y portales sin depender de que estén dentro de `app-shell`. La carga diferida y el orden de importación no deben introducir otra base ni cambiar la prioridad acordada.
-- Pronóstico y Open-Meteo conservan su presentación y compatibilidad existentes. Su revisión o retirada requiere una petición propia.
 
 ## Tipografía
 
@@ -98,9 +97,10 @@ Las normas de este documento forman el estándar de la interfaz y se aplican por
 
 - `AlertDialog` conserva la composición Radix, con carpeta propia, CSS Module y exportaciones explícitas. Sus partes compartidas centralizan el contenido centrado, títulos, descripciones, formularios y filas de acciones. Las clases adicionales siempre conservan la base.
 - Los diálogos centrados mantienen el ancho inicial máximo de 460 px, límites respecto al viewport, relleno de 20 px, fondo atenuado y tirador de redimensionado. Usan Roboto Condensed y los tokens de superficie y sombra de diálogo; no se definen bases paralelas en `global.css`.
-- `FileDialog` mantiene su ubicación en Documentos y su CSS Module. Conserva la superficie ajustada al viewport visible, fondo transparente, `ModuleFrame`, movimiento, redimensionado y contenido con relleno de 8 px.
+- `FileDialog` mantiene su ubicación en Documentos y su CSS Module. Conserva la superficie ajustada al viewport visible, fondo transparente, `ModuleFrame`, movimiento, redimensionado y contenido con relleno de 8 px. Sus límites se toman del espacio de trabajo real de la app, compartido con las demás ventanas, sin un desplazamiento propio respecto a la cabecera.
+- `OverlayPortalContext` permite que Popover y Tooltip se monten dentro de la superficie de Archivo. Sus bases y estados siguen siendo los compartidos, y los controles flotantes quedan por encima de la ventana dentro de su capa.
 - Ambas composiciones reutilizan la superposición de `AlertDialog`, con apariencia atenuada o transparente, y las partes compartidas de formulario y acciones. Los botones y campos mantienen sus componentes comunes. Los atributos `data-slot` identifican las superficies y partes para las integraciones de la app.
-- Se conservan los portales, títulos accesibles, foco inicial y de retorno, Escape, cierre exterior donde ya existe y restricciones durante guardado o recuperación. La reorganización del estilo no modifica los procesos de archivos, permisos ni persistencia y no añade textos de ayuda.
+- Se conservan los portales, títulos accesibles, foco inicial y de retorno, Escape y restricciones durante guardado o recuperación. En Archivo, pulsar fuera ejecuta la misma acción de cierre que su botón, con los mismos bloqueos; arrastrar, usar ayudas o manipular el panel flotante de zoom no cuenta como pulsar fuera. La reorganización del estilo no modifica los procesos de archivos, permisos ni persistencia y no añade textos de ayuda.
 
 ## Avisos, etiquetas y separadores
 
@@ -129,6 +129,7 @@ Las normas de este documento forman el estándar de la interfaz y se aplican por
 - ZoomControl conserva sus manejadores y límites de 25–200 %. Sus variantes de presentación `header` y `module` mantienen la tipografía y distribución existentes; la colocación del popover se configura por separado.
 - El campo nativo de porcentaje pertenece a `zoomControl.module.css`. Los selectores nativos de archivo y color conservan su cometido y geometría en sus propietarios; no se restablece una base global alternativa para campos nativos.
 - WindowResize conserva el tirador de 24 × 24 px de los diálogos y su conversión de coordenadas, anclaje y cancelación. Los tiradores de React Grid Layout/react-resizable pertenecen a su integración específica.
+- `windowContentSize.ts` centraliza el cálculo de mínimos por contenido que reutilizan el escritorio y las ventanas de Archivo. Los tamaños recogidos se solicitan desde los controles de cabecera; el tirador respeta el mínimo del contenido expandido.
 - Las reglas del marco para medición, altura automática, tipografía de etiquetas, escalado de iconos y scroll pertenecen a su CSS Module y conservan la prioridad necesaria frente a las funcionalidades. La altura automática mantiene la excepción de Registro y los identificadores utilizados por sus consumidores.
 
 ## Escritorio e integración de ventanas
@@ -195,7 +196,9 @@ Las normas de este documento forman el estándar de la interfaz y se aplican por
 - La composición del listado, barra de acciones y editor pertenece a `elements.module.css`, acotada a la raíz de `ElementsModule`. Dotaciones reutiliza esa misma interfaz; no mantiene una segunda base de estilos.
 - Dotaciones conserva el filtrado de unidades, sus textos y el catálogo de Ambulancia, Pathfinder y Quad. La separación entre icono y nombre se aplica dentro del CSS Module compartido mediante `data-unit`, sin estilos de controles alternativos.
 - Se conservan las filas flexibles, nombres en varias líneas, selección individual y múltiple, edición por lotes y desplazamiento del listado y editor. Sus clases utilizadas por medición, gestos y restauración del desplazamiento permanecen estables.
-- Los campos, acciones, casillas, selector, radios y deslizadores reutilizan los componentes comunes. Las herramientas conservan su área pulsable escalada y sus símbolos reciben una sola aplicación del zoom desde la base compartida.
+- El mínimo expandido de Elementos y Dotaciones se calcula con todo su contenido y márgenes pequeños. Las tarjetas reparten el espacio disponible sin escalar sus textos ni símbolos; la cabecera de ventana conserva su tamaño y comportamiento. El ajuste automático muestra el listado completo, sin el límite de altura de 600 px aplicado a otros listados.
+- Los campos, acciones, casillas, selector y radios reutilizan los componentes comunes. Las herramientas conservan su área pulsable escalada y sus símbolos reciben una sola aplicación del zoom desde la base compartida. PNG y Emoji conservan su elección única, con el control centrado en la misma columna de 16 px utilizada por la casilla de ocultar el nombre.
+- El tamaño de letra del nombre es numérico y editable entre 8 y 72 px. La escala utiliza un valor editable de 1 a 100, convertido linealmente al rango de 25–400 %. Ambos controles utilizan `AArrowDown` y `AArrowUp`, con pasos de una unidad. El giro utiliza `RotateCcw` y `RotateCw`, con pasos de 10°, y conserva su valor visible y las inversiones horizontal y vertical.
 - La previsualización conserva su geometría, punto de anclaje y muestras de colores del nombre. Las reglas de medición y ajuste al contenido del listado y editor pertenecen a `elements.module.css`; el nombre comparte la clase de presentación definida en `BoardPin.module.css` con los pines de Pizarra. Las dimensiones y transformaciones calculadas del símbolo permanecen en el renderizado existente.
 - La reorganización de estilos no modifica creación, guardado, duplicación, borrado, visibilidad, selección, gestos ni datos de los elementos.
 
@@ -238,10 +241,11 @@ Las normas de este documento forman el estándar de la interfaz y se aplican por
 - La composición de la hora española, referencias, Zulu, barra de herramientas y lista pertenece a `clock.module.css`. Las filas y la señal visual de alarma pertenecen a `TimerRow.module.css`; la presentación del campo de duración pertenece a `DurationInput.module.css`.
 - El contenido y los temporizadores conservan Rajdhani mediante el token local de fuente. La cabecera y los avisos mantienen sus componentes compartidos; no hay reglas generales de Reloj que sustituyan el aspecto de todos los botones o de `Alert`.
 - Las herramientas de alta, prueba de sonido, cierre, inicio/pausa y reinicio/desactivación utilizan `Button` con acabado integrado y área común de 25 × 25 px al 100 %, escalada con el zoom. Zulu conserva el espacio flexible entre las herramientas en su orden actual.
-- Las cifras mantienen su adaptación al ancho y alto disponibles. El cálculo del tamaño de los temporizadores reserva el ancho de sus dos herramientas y separaciones; las reglas de medición y ajuste al contenido pertenecen al CSS Module de cada superficie.
+- Las cifras de la hora se adaptan al ancho y alto disponibles sin un tope fijo; las de los temporizadores conservan el ancho reservado para sus dos herramientas y separaciones, con un tamaño más contenido. La hora ocupa el espacio sobrante y las filas mantienen su altura necesaria. El contenido del reloj y los temporizadores utiliza el fondo negro de `Input` mediante `--color-field`. Las reglas de medición y ajuste al contenido pertenecen al CSS Module de cada superficie.
+- El mínimo expandido conserva la composición compacta de referencia: 208 px de ancho de contenido y 64 px para la fila de la hora al 100 %, además de referencias, herramientas, cabecera y controles comunes. Estas medidas siguen el zoom interno y la medición compartida de la ventana; los temporizadores añaden su altura necesaria al mínimo.
 - `DurationInput` reutiliza la base y estados de `Input`, con presentación digital sin borde, tamaño de las cifras y altura de una línea de esas cifras. Conserva la máscara `hh:mm:ss`, edición, selección y pegado existentes.
 - La alarma conserva su parpadeo, colores, sombras y ciclo actuales, el sonido y el reconocimiento mediante la fila o su botón. Las reglas de alarma quedan acotadas a las filas de temporizador.
-- Se mantienen los identificadores utilizados por foco, medición y navegación, el crecimiento al añadir o quitar temporizadores y la barra vertical a la derecha. Los cambios de presentación no modifican motor, cálculos horarios, normalización de duración, acciones, sonido, recuperación, conflictos ni almacenamiento independiente.
+- Se mantienen los identificadores utilizados por foco, medición y navegación. Al añadir temporizadores, la ventana crece solo si falta espacio para mostrarlos; al quitarlos puede ajustarse a la baja. La barra vertical permanece a la derecha. Los cambios de presentación no modifican motor, cálculos horarios, normalización de duración, acciones, sonido, recuperación, conflictos ni almacenamiento independiente.
 
 ## Mapa e integración Leaflet
 
