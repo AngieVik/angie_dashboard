@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator } from '@/components/ui/menubar'
-import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogForm, AlertDialogFooter } from '@/components/ui/alert-dialog'
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogCancel, AlertDialogForm, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { MODULE_REGISTRY } from '../../layout/moduleRegistry'
 
 export type ViewArrangement = 'columns' | 'collapsed-rows' | 'collapsed-columns'
@@ -44,10 +44,9 @@ export function ViewMenu({ disabled, active, onArrange, onAutoArrange, onFitActi
       </MenubarContent>
     </MenubarMenu>
     <AlertDialog open={configuring} onOpenChange={setConfiguring}>
-      <AlertDialogContent onOpenAutoFocus={event => { event.preventDefault(); input.current?.focus(); input.current?.select() }}
+      <AlertDialogContent aria-describedby={undefined} onOpenAutoFocus={event => { event.preventDefault(); input.current?.focus(); input.current?.select() }}
         onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <AlertDialogTitle>Configurar columnas</AlertDialogTitle>
-        <AlertDialogDescription>El número se aplicará al elegir Columnas y se recordará en este dispositivo. No modifica el documento.</AlertDialogDescription>
         <AlertDialogForm onSubmit={event => {
           event.preventDefault()
           const next = Number(draft)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { FolderCog, FolderKey } from 'lucide-react'
+import { FolderCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Alert } from '@/components/ui/alert'
+import { toast } from '@/components/ui/sonner'
 import { AlertDialog, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { FileDialogContent } from './FileDialog'
 import { authorizeWorkDirectory, chooseWorkDirectory, readPersistentStorage, readWorkDirectory, requestPersistentStorage } from '../../platform/pwaPermissions'
@@ -13,13 +13,13 @@ const labels: Record<PermissionStatus, string> = {
 }
 
 interface DialogProps { onClose: () => void; onCloseFocus: () => void }
-interface DirectoryActions {
+export interface DirectoryActions {
   onDirectoryAuthorized: () => Promise<unknown>
   onContinueLocally?: () => void
   onDownload?: () => Promise<void>
 }
 
-export function PermissionsDialog({ onClose, onCloseFocus, onDirectoryAuthorized, onContinueLocally, onDownload }: DialogProps & DirectoryActions) {
+export function StoragePermissionsPanel({ onDirectoryAuthorized, onContinueLocally, onDownload }: DirectoryActions) {
   const [storage, setStorage] = useState<PermissionSnapshot>({ status: 'pending' })
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -38,29 +38,21 @@ export function PermissionsDialog({ onClose, onCloseFocus, onDirectoryAuthorized
     setBusy(true)
     try {
       const next = await requestPersistentStorage()
+      if (!dismissed.current && next.status !== 'granted') toast.error(next.message ?? 'No se pudo autorizar el almacenamiento.', { id: 'storage-permission' })
       if (!dismissed.current) setStorage(next)
     } finally { if (!dismissed.current) setBusy(false) }
   }
 
-  return (
-    <AlertDialog open onOpenChange={open => { if (!open) { dismissed.current = true; onClose() } }}>
-      <FileDialogContent title="Permisos" icon={FolderKey} onClose={() => { dismissed.current = true; onClose() }} width={360} height={280}
-        onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus() }}>
-        <div className="permissions-list" aria-busy={loading || busy}>
-          <section className="permission-section" aria-labelledby="storage-permission-title">
-            <div className="permission-heading">
-              <h3 id="storage-permission-title">Almacenamiento persistente</h3>
-              <span role="status">{loading ? 'Consultando…' : labels[storage.status]}</span>
-            </div>
-            <Button disabled={loading || busy || storage.status === 'unavailable' || storage.status === 'granted'} onClick={() => { void requestStorage() }}>Autorizar</Button>
-            {storage.message && <Alert><span>{storage.message}</span></Alert>}
-          </section>
-          <WorkDirectorySection onDirectoryAuthorized={onDirectoryAuthorized} onStorageChange={setStorage} onDownload={onDownload}
-            onContinueLocally={() => { onContinueLocally?.(); dismissed.current = true; onClose() }} />
-        </div>
-      </FileDialogContent>
-    </AlertDialog>
-  )
+  return <div className="permissions-list" aria-busy={loading || busy}>
+    <section className="permission-section" aria-labelledby="storage-permission-title">
+      <div className="permission-heading">
+        <h3 id="storage-permission-title">Almacenamiento persistente</h3>
+        <span role="status">{loading ? 'Consultando…' : labels[storage.status]}</span>
+      </div>
+      <Button disabled={loading || busy || storage.status === 'unavailable' || storage.status === 'granted'} onClick={() => { void requestStorage() }}>Autorizar</Button>
+    </section>
+    <WorkDirectorySection onDirectoryAuthorized={onDirectoryAuthorized} onStorageChange={setStorage} onDownload={onDownload} onContinueLocally={onContinueLocally} />
+  </div>
 }
 
 export function WorkDirectoryDialog({ onClose, onCloseFocus, onDirectoryAuthorized, onContinueLocally, onDownload }: DialogProps & DirectoryActions) {
@@ -102,6 +94,7 @@ function WorkDirectorySection({ onDirectoryAuthorized, onContinueLocally, onDown
       // Keep the automatic storage request independent of folder preparation.
       void requestPersistentStorage().then(storage => { if (!dismissed.current) onStorageChange?.(storage) })
       const next = await operation
+      if (!dismissed.current && next.status !== 'granted' && next.message) toast.error(next.message, { id: 'directory-permission' })
       if (!dismissed.current) setDirectory(next)
       if (!dismissed.current && next.prepared && next.status === 'granted') {
         // Folder writes have their own status; they must never trap this panel.
@@ -125,8 +118,8 @@ function WorkDirectorySection({ onDirectoryAuthorized, onContinueLocally, onDown
         {directory.handle && directory.status !== 'granted' && <Button disabled={loading || busy || directory.status === 'unavailable'} onClick={() => { void requestDirectory(false) }}>{directory.status === 'error' ? 'Reintentar' : 'Autorizar acceso'}</Button>}
         {onDownload && (directory.status === 'unavailable' || directory.status === 'error') && <Button disabled={loading || busy} onClick={() => { void onDownload() }}>Descargar JSON</Button>}
       </div>
-      {directory.status === 'unavailable' && !directory.message && <Alert><span>Este navegador no permite seleccionar carpetas.</span></Alert>}
-      {directory.message && <Alert><span>{directory.message}</span></Alert>}
+
+
       {!loading && !busy && directory.status !== 'granted' && onContinueLocally && <AlertDialogFooter>
         <Button onClick={onContinueLocally}>Continuar</Button>
       </AlertDialogFooter>}

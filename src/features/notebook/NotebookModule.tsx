@@ -1,8 +1,8 @@
 import { useRef } from 'react'
 import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
-import { HelpTooltip } from '@/components/ui/tooltip'
+
 import { Button } from '@/components/ui/button'
-import { Trash } from 'lucide-react'
+import { ListChecks, StickyNote, Trash } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
@@ -11,6 +11,7 @@ import { ChecklistBlock } from './ChecklistBlock'
 import { useNotebookReorder } from './useNotebookReorder'
 import { addNotebookBlock, editNotebookNote, deleteNotebookBlock, reorderNotebookBlock, addChecklistItem, editChecklistItem, setChecklistItemChecked, deleteChecklistItem } from './notebookCommands'
 import styles from './notebook.module.css'
+import toolbarStyles from '@/layout/moduleToolbar.module.css'
 
 export function NotebookModule({ store }: { store: DocumentStore }) {
   const { document } = useDocumentStore(store)
@@ -30,21 +31,21 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
     })
   }
   return <div ref={root} data-slot="notebook-module" className={`${styles.base} notebook-module`}>
-    <div className="notebook-toolbar">
-      <Button ref={noteControl} disabled={blocked} onClick={() => add('note')}>Nota</Button>
-      <Button ref={checklistControl} disabled={blocked} onClick={() => add('checklist')}>Checklist</Button>
+    <div className={`notebook-toolbar ${toolbarStyles.base}`}>
+      <Button ref={noteControl} aria-label="Nota" disabled={blocked} onClick={() => add('note')}><StickyNote aria-hidden="true" /></Button>
+      <Button ref={checklistControl} aria-label="Checklist" disabled={blocked} onClick={() => add('checklist')}><ListChecks aria-hidden="true" /></Button>
     </div>
     <ol className="notebook-list" aria-label="Bloques del Cuaderno" ref={list}>
       {document.notebook.map((block, index) => <li key={block.id} className="notebook-block" data-block-id={block.id} data-block-type={block.type}
         data-dragging={reorder.preview?.id === block.id} data-drop-target={reorder.preview?.targetId === block.id && reorder.preview.id !== block.id}>
-        <Button appearance="integrated" className="notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} title="Reordenar bloque" disabled={blocked} {...reorder.handleProps(block.id)} />
+        <Button appearance="integrated" className="notebook-handle" aria-label={`Reordenar bloque ${index + 1}`} disabled={blocked} {...reorder.handleProps(block.id)} />
         <div className="notebook-block-content">
-          <HelpTooltip text="Eliminar bloque"><Button appearance="integrated" className="notebook-delete" aria-label="Eliminar bloque" disabled={blocked} onClick={() => {
+          <Button appearance="integrated" className="notebook-delete" aria-label="Eliminar bloque" disabled={blocked} onClick={() => {
             if (blockedRef.current) return
             const addControl = block.type === 'note' ? noteControl : checklistControl
             addControl.current?.focus()
             mutate(document => deleteNotebookBlock(document, block.id))
-          }}><Trash aria-hidden="true" /></Button></HelpTooltip>
+          }}><Trash aria-hidden="true" /></Button>
           {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
             <ChecklistBlock block={block} disabled={blocked}
               onAdd={(afterItemId, initial) => mutate(document => {

@@ -37,8 +37,8 @@ function constrain(box: Box, bounds: Size): Box {
   return { width, height, x: Math.max(0, Math.min(box.x, bounds.width - width)), y: Math.max(0, Math.min(box.y, bounds.height - height)) }
 }
 
-export function FileDialogContent({ title, icon, onClose, width = 460, height = 180, children, onOpenAutoFocus, className = '', ...props }:
-  Omit<ComponentProps<typeof Primitive.Content>, 'title'> & { title: string; icon?: LucideIcon; onClose: () => void; width?: number; height?: number }) {
+export function FileDialogContent({ title, icon, onClose, width = 460, height = 180, fitToContent = false, children, onOpenAutoFocus, className = '', ...props }:
+  Omit<ComponentProps<typeof Primitive.Content>, 'title'> & { title: string; icon?: LucideIcon; onClose: () => void; width?: number; height?: number; fitToContent?: boolean }) {
   const [area, setArea] = useState(visibleArea)
   const content = useRef<HTMLDivElement>(null)
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
@@ -90,17 +90,36 @@ export function FileDialogContent({ title, icon, onClose, width = 460, height = 
       }}>
       <AlertDialogTitle className="visually-hidden">{title}</AlertDialogTitle>
       <OverlayPortalContext value={portalContainer}>
-        <FileDialogFrame title={title} icon={icon} onClose={onClose} bounds={area.workspace} initial={{ width, height }}>{children}</FileDialogFrame>
+        <FileDialogFrame title={title} icon={icon} onClose={onClose} bounds={area.workspace} initial={{ width, height }} fitToContent={fitToContent}>{children}</FileDialogFrame>
       </OverlayPortalContext>
     </Primitive.Content>
   </Primitive.Portal>
 }
 
-function FileDialogFrame({ title, icon, onClose, bounds, initial, children }: { title: string; icon?: LucideIcon; onClose: () => void; bounds: Area; initial: Size; children: ComponentProps<typeof ModuleFrame>['children'] }) {
+function FileDialogFrame({ title, icon, onClose, bounds, initial, fitToContent, children }: { title: string; icon?: LucideIcon; onClose: () => void; bounds: Area; initial: Size; fitToContent: boolean; children: ComponentProps<typeof ModuleFrame>['children'] }) {
   const [box, setBox] = useState(() => constrain({ ...initial, x: (bounds.width - initial.width) / 2, y: (bounds.height - initial.height) / 2 }, bounds))
   const shown = constrain(box, bounds)
   const [active, setActive] = useState(false)
   const element = useRef<HTMLDivElement>(null)
+  const fitted = useRef(false)
+  useLayoutEffect(() => {
+    if (!fitToContent || fitted.current || !element.current) return
+    fitted.current = true
+    const frame = element.current.querySelector<HTMLElement>('.module-frame')
+    if (!frame) return
+    const fitting = frame.getAttribute('data-fitting')
+    let width: number
+    try {
+      frame.setAttribute('data-fitting', 'true')
+      width = Math.max(frame.querySelector<HTMLElement>('[data-slot="file-dialog-body"]')?.scrollWidth ?? 0,
+        frame.querySelector<HTMLElement>('.module-header')?.scrollWidth ?? 0) + 2
+    } finally {
+      if (fitting === null) frame.removeAttribute('data-fitting')
+      else frame.setAttribute('data-fitting', fitting)
+    }
+    const size = constrainWindowContentSize(frame, { width: Math.min(width, bounds.width), height: 0 })
+    setBox(constrain({ ...size, x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2 }, bounds))
+  }, [fitToContent, bounds])
   const dragged = useRef(false)
   const iconTap = useRef<{ pointerId: number; icon: HTMLButtonElement } | null>(null)
   const state = { scale: 1, offsetX: 0, offsetY: 0 }
@@ -136,7 +155,7 @@ function FileDialogFrame({ title, icon, onClose, bounds, initial, children }: { 
         gridConfig={{ cols: bounds.width, rowHeight: 1, maxRows: bounds.height, margin: [0, 0], containerPadding: [0, 0] }}
         compactor={noCompactor} constraints={[contentMinimum, minMaxSize]}
         dragConfig={{ enabled: !blocked, bounded: true, handle: '.module-header', cancel: 'button:not(.module-icon),input,textarea,select' }}
-        resizeConfig={{ enabled: !blocked && shown.height > 29, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar ventana"><HandleBottomRight aria-hidden="true" /></span> }}
+        resizeConfig={{ enabled: !blocked && shown.height > 29, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis}><HandleBottomRight aria-hidden="true" /></span> }}
         onDragStart={(...args) => { dragged.current = true; move(...args) }} onDrag={move} onDragStop={commit}
         onResizeStart={resize} onResize={resize} onResizeStop={commit}>
         <div key="file" data-module="file" style={{ '--module-x': shown.x + 'px', '--module-y': shown.y + 'px' } as CSSProperties}

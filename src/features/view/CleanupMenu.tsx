@@ -1,4 +1,5 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
+import { toast } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator } from '@/components/ui/menubar'
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogFooter } from '@/components/ui/alert-dialog'
@@ -8,19 +9,20 @@ import type { ModuleId } from '../../layout/layoutTypes'
 export interface CleanupRequest { ids: readonly ModuleId[]; close: boolean; generation: number }
 
 const contents: Record<ModuleId, string> = {
-  board: 'Se eliminarán los trazos, las notas y la imagen de la Pizarra, y se restablecerá su fondo. Los Elementos y las Dotaciones seguirán disponibles.',
-  elements: 'Se eliminarán los Elementos y sus pins. También desaparecerán de Pizarra, Plano operativo e Información. Las Dotaciones se conservarán.',
-  dotations: 'Se eliminarán las Dotaciones y sus pins. También desaparecerán de Pizarra, Plano operativo, Información y Operativo. El histórico del Registro se conservará.',
-  information: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Operativo. El histórico del Registro y la información descriptiva se conservarán.',
-  operations: 'Se borrarán los estados, las anotaciones y las etiquetas de todas las Dotaciones, compartidos con Información. El histórico del Registro y la información descriptiva se conservarán.',
-  coordinates: 'Se borrarán la coordenada introducida y sus resultados.',
-  map: 'Se retirarán del mapa los GPX cargados y el punto seleccionado. Los archivos GPX originales se conservarán.',
-  plan: 'Se eliminarán los trazos y las ubicaciones del Plano operativo. Los Elementos, las Dotaciones y los GPX compartidos con Mapa se conservarán.',
-  clock: 'Se detendrán y eliminarán todos los temporizadores, incluidos los guardados en este dispositivo. Sus alarmas dejarán de sonar.',
-  calculator: 'Se borrarán la operación y el resultado de la Calculadora.',
-  notebook: 'Se eliminarán todas las notas y listas del Cuaderno.',
-  timeline: 'Se eliminará todo el Registro. También se quitarán los estados actuales de las Dotaciones, compartidos con Información y Operativo.',
-  reports: 'Se restablecerán la selección de campos y la vista previa de Informes. Los archivos de informes guardados se conservarán.',
+  board: 'Trazos, notas e imagen de fondo.',
+  elements: 'Incluye sus pines. Las Dotaciones se conservan.',
+  dotations: 'Incluye sus pines. El Registro se conserva.',
+  information: 'Estados y anotaciones compartidos con Operativo. El Registro se conserva.',
+  operations: 'Estados y anotaciones compartidos con Información. El Registro se conserva.',
+  coordinates: 'Entrada y resultados.',
+  map: 'GPX y selección. Los archivos originales se conservan.',
+  plan: 'Trazos y ubicaciones. Recursos y GPX se conservan.',
+  clock: 'Incluye los temporizadores guardados y sus alarmas.',
+  calendar: 'Restablece la vista. Los eventos de la agenda transversal se conservan.',
+  calculator: 'Operación y resultado.',
+  notebook: 'Notas y listas.',
+  timeline: 'Incluye los estados actuales de las Dotaciones.',
+  reports: 'Selección y vista previa. Los informes guardados se conservan.',
 }
 
 export function CleanupMenu({ active, disabled, request, onRequest, onCancel, onConfirm, error }: {
@@ -28,6 +30,10 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
   onRequest: (id: ModuleId | null, close: boolean) => void; onCancel: () => void; onConfirm: () => void; error: string | null
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (error) toast.error(error, { id: 'cleanup' })
+    else toast.dismiss('cleanup')
+  }, [error])
   const all = request && request.ids.length > 1
   const target = request ? all ? 'todos los módulos' : MODULE_REGISTRY[request.ids[0]!].name : ''
   return <>
@@ -47,11 +53,9 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
       <AlertDialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <AlertDialogTitle>{request?.close ? 'Limpiar y cerrar ' : 'Limpiar '}{target}</AlertDialogTitle>
         <AlertDialogDescription>
-          {all ? 'Se eliminará el contenido de todos los módulos, incluidos los cerrados: Pizarra, Elementos, Dotaciones, datos operativos, Cuaderno y Registro. También se retirarán los GPX del Mapa, se borrarán las entradas de Coordenadas y Calculadora, y se detendrán y eliminarán todos los temporizadores y sus alarmas.' : request ? contents[request.ids[0]!] : ''}
-          {' Se conservarán la posición, el tamaño y el zoom.'}
-          {request?.close ? all ? ' Después se cerrarán todos los módulos abiertos.' : ' Después se cerrará este módulo.' : ' Los módulos abiertos permanecerán abiertos.'}
+          {all ? 'Incluye módulos cerrados, temporizadores y alarmas.' : request ? contents[request.ids[0]!] : ''}
         </AlertDialogDescription>
-        {error && <p role="alert">{error}</p>}
+
         <AlertDialogFooter>
           <AlertDialogCancel asChild><Button>Cancelar</Button></AlertDialogCancel>
           <Button disabled={disabled} onClick={onConfirm}>{request?.close ? 'Limpiar y cerrar' : 'Limpiar'}</Button>

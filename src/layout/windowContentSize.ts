@@ -1,7 +1,7 @@
-import { MODULE_AUTO_HEIGHT_LIMIT } from './moduleRegistry'
+import type { ModuleSizeMode } from './moduleRegistry'
 import type { Size } from './layoutTypes'
 
-export function constrainWindowContentSize(frame: HTMLElement | null | undefined, size: Size, sizeMode: 'standard' | 'editable' | 'feed' = 'standard'): Size {
+export function constrainWindowContentSize(frame: HTMLElement | null | undefined, size: Size, sizeMode: ModuleSizeMode = 'standard', minimumHeightLimit = Infinity): Size {
   if (!frame) return size
   let w = size.width
   const h = size.height
@@ -9,10 +9,12 @@ export function constrainWindowContentSize(frame: HTMLElement | null | undefined
   if (!content) return size
   const measuring = content.getAttribute('data-measuring'), width = content.style.width
   const clock = content.querySelector<HTMLElement>('.clock-module'), clockSizing = clock?.getAttribute('data-sizing')
-  const elements = content.querySelector<HTMLElement>('.elements-module')
   const header = frame.querySelector<HTMLElement>('.module-header')
   const scrollbar = frame.querySelector<HTMLElement>('.module-content')
   const scrollbarWidth = scrollbar ? scrollbar.offsetWidth - scrollbar.clientWidth : 0
+  const scrolls = [frame, ...frame.querySelectorAll<HTMLElement>('*')]
+    .filter(node => node.scrollTop || node.scrollLeft)
+    .map(node => ({ node, top: node.scrollTop, left: node.scrollLeft }))
   try {
     clock?.setAttribute('data-sizing', 'true')
     content.setAttribute('data-measuring', 'minimum-width')
@@ -33,9 +35,19 @@ export function constrainWindowContentSize(frame: HTMLElement | null | undefined
     const chrome = (header?.offsetHeight ?? 27)
       + (frame.querySelector<HTMLElement>('.module-controls')?.offsetHeight ?? 25) + 2
     let minimumHeight = content.scrollHeight
-    if ((sizeMode === 'editable' || sizeMode === 'feed') && !elements) {
-      const viewport = content.querySelector<HTMLElement>('.information-module,.timeline-entries,.notebook-list,.timer-list')
-      const row = viewport?.querySelector<HTMLElement>('.information-card,.timeline-entries li,.notebook-block,.timer-row')
+    // Long forms can scroll; their first control block defines the minimum viewport.
+    const scrollContent = content.querySelector<HTMLElement>('[data-minimum-scroll-content]')
+    const firstBlock = scrollContent?.firstElementChild
+    if (scrollContent && firstBlock instanceof HTMLElement) {
+      const style = getComputedStyle(scrollContent), blockStyle = getComputedStyle(firstBlock)
+      const firstBlockHeight = firstBlock.offsetHeight
+        + (parseFloat(blockStyle.marginTop) || 0) + (parseFloat(blockStyle.marginBottom) || 0)
+        + (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0)
+      minimumHeight += firstBlockHeight - scrollContent.offsetHeight
+    }
+    if (!Number.isFinite(minimumHeightLimit) && (sizeMode === 'editable' || sizeMode === 'feed')) {
+      const viewport = content.querySelector<HTMLElement>('.elements-list,.information-module,.timeline-entries,.notebook-list,.timer-list')
+      const row = viewport?.querySelector<HTMLElement>('.element-row,.information-card,.timeline-entries li,.notebook-block,.timer-row')
       if (viewport && row && !clock) {
         const style = getComputedStyle(viewport), rowStyle = getComputedStyle(row)
         const firstRowHeight = row.offsetHeight + (parseFloat(rowStyle.marginTop) || 0) + (parseFloat(rowStyle.marginBottom) || 0)
@@ -43,14 +55,15 @@ export function constrainWindowContentSize(frame: HTMLElement | null | undefined
           + (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0)
         minimumHeight -= Math.max(0, viewport.offsetHeight - firstRowHeight)
       }
-      minimumHeight = clock ? Math.ceil(minimumHeight + chrome) : Math.min(MODULE_AUTO_HEIGHT_LIMIT, Math.ceil(minimumHeight + chrome))
+      minimumHeight = Math.ceil(minimumHeight + chrome)
     } else minimumHeight = Math.ceil(minimumHeight + chrome)
-    return { width: w, height: Math.max(h, minimumHeight) }
+    return { width: w, height: Math.max(h, Math.min(minimumHeightLimit, minimumHeight)) }
   } finally {
     if (measuring === null) content.removeAttribute('data-measuring')
     else content.setAttribute('data-measuring', measuring)
     content.style.width = width
     if (clockSizing == null) clock?.removeAttribute('data-sizing')
     else clock?.setAttribute('data-sizing', clockSizing)
+    for (const { node, top, left } of scrolls) { node.scrollTop = top; node.scrollLeft = left }
   }
 }

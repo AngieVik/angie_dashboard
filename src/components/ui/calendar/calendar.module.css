@@ -1,0 +1,27 @@
+@layer components {
+.base {
+  --rdp-accent-color: var(--color-text);
+  --rdp-accent-background-color: var(--color-selected);
+  --rdp-day-width: var(--cell-size, 30px);
+  --rdp-day-height: var(--cell-size, 30px);
+  --rdp-day_button-width: var(--cell-size, 30px);
+  --rdp-day_button-height: var(--cell-size, 30px);
+  --rdp-day_button-border-radius: var(--radius-control);
+  --rdp-selected-border: 1px solid var(--color-selection-border);
+  --rdp-today-color: var(--color-accent-yellow);
+  --rdp-range_middle-background-color: var(--color-selected);
+  --rdp-range_middle-color: var(--color-text);
+  --rdp-range_start-background: var(--color-selection-border);
+  --rdp-range_end-background: var(--color-selection-border);
+  --rdp-range_start-color: var(--color-text);
+  --rdp-range_end-color: var(--color-text);
+  --rdp-disabled-opacity: .5;
+  color: var(--color-text);
+  font-family: var(--font-interface-default);
+  font-size: var(--font-size-body);
+}
+.base .day { display: grid; place-items: center; width: var(--rdp-day_button-width); height: var(--rdp-day_button-height); padding: 0; min-height: 0; color: inherit; font-size: inherit; }
+.base :global(.rdp-month_caption) { height: 32px; font-size: var(--font-size-title); }
+.base :global(.rdp-chevron) { fill: none; stroke: currentColor; width: var(--icon-size-base); height: var(--icon-size-base); }
+.base :global(.rdp-selected) .day { border: var(--rdp-selected-border); }
+}

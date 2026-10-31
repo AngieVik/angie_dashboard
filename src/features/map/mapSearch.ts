@@ -2,7 +2,7 @@ import { parseCoordinate } from '../coordinates/parseCoordinate'
 import type { CoordinateParseResult, GeographicCoordinate } from '../coordinates/coordinateTypes'
 import { MAX_MAP_LATITUDE } from './mapNavigation'
 
-export interface MapPlace extends GeographicCoordinate { id: string; name: string; label: string }
+export interface MapPlace extends GeographicCoordinate { id: string; name: string; label: string; kind?: string }
 type MapQuery = { kind: 'coordinate'; parsed: Extract<CoordinateParseResult, { ok: true }> } |
   { kind: 'place'; query: string } | { kind: 'invalid'; error: string }
 
@@ -30,7 +30,8 @@ function record(value: unknown): value is Record<string, unknown> { return typeo
 function validPlace(value: unknown): value is MapPlace {
   return record(value) && typeof value.id === 'string' && typeof value.name === 'string' && typeof value.label === 'string' &&
     typeof value.latitude === 'number' && Number.isFinite(value.latitude) && Math.abs(value.latitude) <= MAX_MAP_LATITUDE &&
-    typeof value.longitude === 'number' && Number.isFinite(value.longitude) && Math.abs(value.longitude) <= 180
+    typeof value.longitude === 'number' && Number.isFinite(value.longitude) && Math.abs(value.longitude) <= 180 &&
+    (value.kind === undefined || typeof value.kind === 'string')
 }
 function cacheEntries(): CacheEntry[] {
   try {
@@ -77,7 +78,8 @@ function decodePlaces(data: unknown): MapPlace[] {
     if (Math.abs(latitude) > MAX_MAP_LATITUDE) continue
     const id = `${latitude},${longitude}:${label}`
     if (!places.some(place => place.id === id)) places.push({ id, latitude, longitude, label,
-      name: typeof item.name === 'string' && item.name.trim() ? item.name : label.split(',')[0]! })
+      name: typeof item.name === 'string' && item.name.trim() ? item.name : label.split(',')[0]!,
+      ...(typeof item.addresstype === 'string' ? { kind: item.addresstype } : {}) })
   }
   return places
 }

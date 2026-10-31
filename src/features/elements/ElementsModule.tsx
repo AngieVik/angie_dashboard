@@ -2,8 +2,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Position } from '../../domain/document/types'
 import { Button } from '@/components/ui/button'
-import { HelpTooltip } from '@/components/ui/tooltip'
-import { CopyPlus, Eye, EyeOff, Trash, Wrench, X } from 'lucide-react'
+
+import { ArrowLeft, Check, CopyPlus, Eye, EyeOff, Plus, Save, Trash, Wrench, X } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
@@ -12,6 +12,7 @@ import { ElementEditor } from './ElementEditor'
 import { ICON_CATALOG } from './iconCatalog'
 import { pinNameLines } from './pinPresentation'
 import styles from './elements.module.css'
+import toolbarStyles from '@/layout/moduleToolbar.module.css'
 export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void; placementPosition?: Position; editRequest?: { id: string } }
 type Props = ElementsModuleProps & { isUnit?: boolean }
 export function ElementsModule(props: Props) {
@@ -92,63 +93,63 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
     activePointers.current.add(event.pointerId)
     if (activePointers.current.size > 1) cancelHold()
   }}>
-    <div className="elements-configure-actions">
-      <Button ref={addControl} type={editor ? 'submit' : 'button'} form={editor ? formId : undefined} disabled={blocked} onClick={event => {
-        if (!editor) {
-          event.preventDefault()
-          if (!blockedRef.current) setEditor({ kind: 'create', id: null })
-        }
-      }}>{editor && editor.kind !== 'create' ? 'Guardar' : 'Crear'}</Button>
-      {!editor && <>
-        <div className="elements-selection-actions" role="group" aria-label={selectionMode ? 'Acciones de la selección' : 'Acciones del elemento seleccionado'}>
-          <HelpTooltip text="Modificar"><Button aria-label="Modificar" disabled={blocked || !actionElements.length} onClick={() => {
-            if (blockedRef.current || !actionElements.length) return
-            cancelHold()
-            if (selectionMode) setEditor({ kind: 'batch', id: null })
-            else edit(actionElements[0]!.id)
-          }}><Wrench aria-hidden="true" /></Button></HelpTooltip>
-          <HelpTooltip text="Duplicar"><Button aria-label="Duplicar" disabled={blocked || !actionElements.length} onClick={() => {
-            if (blockedRef.current || !actionElements.length) return
-            cancelHold()
-            let id = ''
-            store.mutateDocument(document => {
-              for (const element of actionElements) id = duplicateElement(document, element.id).id
-            })
-            addControl.current?.focus(); onSelect(id)
-          }}><CopyPlus aria-hidden="true" /></Button></HelpTooltip>
-          <HelpTooltip text={visibilityLabel}><Button aria-label={visibilityLabel} disabled={blocked || !actionElements.length} onClick={() => {
-            if (blockedRef.current || !actionElements.length) return
-            cancelHold()
-            store.mutateDocument(document => {
-              for (const element of actionElements) if (element.pinVisible === hidePins) togglePinVisibility(document, element.id)
-            })
-          }}>{hidePins ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button></HelpTooltip>
-          <HelpTooltip text="Borrar"><Button aria-label="Borrar" disabled={blocked || !actionElements.length} onClick={() => {
-            if (blockedRef.current || !actionElements.length) return
-            cancelHold()
-            const ids = actionElements.map(element => element.id)
-            store.mutateDocument(document => {
-              for (const id of ids) deleteElement(document, id)
-            })
-            setCheckedIds(checkedIds => checkedIds.filter(id => !ids.includes(id)))
-            if (selectedId && ids.includes(selectedId)) onSelect(null)
-            addControl.current?.focus()
-          }}><Trash aria-hidden="true" /></Button></HelpTooltip>
-        </div>
-        {selectionMode && <div className="elements-selection-controls">
-          <span className="elements-selection-count" aria-live="polite">{checked.length}</span>
-          <HelpTooltip text="Salir de selección múltiple"><Button aria-label="Salir de selección múltiple" disabled={blocked} onClick={() => {
-            if (!blockedRef.current) { cancelHold(); setSelectionMode(false); setCheckedIds([]) }
-          }}><X aria-hidden="true" /></Button></HelpTooltip>
-          <label><Checkbox aria-label="Todos" checked={elements.length > 0 && checked.length === elements.length} disabled={blocked || !elements.length} onCheckedChange={nextChecked => {
-            if (!blockedRef.current) { cancelHold(); setCheckedIds(nextChecked ? elements.map(element => element.id) : []) }
-          }} />Todos</label>
-        </div>}
-      </>}
-      {editor && <>
-        <Button type="submit" form={formId} name="action" value="apply" disabled={blocked}>Aplicar</Button>
-        <Button disabled={blocked} onClick={() => { if (!blockedRef.current) back() }}>Atrás</Button>
-      </>}
+    <div className={`elements-configure-actions ${toolbarStyles.base}`}>
+      <div className="elements-primary-actions">
+        <Button ref={addControl} aria-label={editor && editor.kind !== 'create' ? 'Guardar' : 'Crear'} type={editor ? 'submit' : 'button'} form={editor ? formId : undefined} disabled={blocked} onClick={event => {
+          if (!editor) {
+            event.preventDefault()
+            if (!blockedRef.current) setEditor({ kind: 'create', id: null })
+          }
+        }}>{editor && editor.kind !== 'create' ? <Save aria-hidden="true" /> : <Plus aria-hidden="true" />}</Button>
+        {!editor &&
+          <div className="elements-selection-actions" role="group" aria-label={selectionMode ? 'Acciones de la selección' : 'Acciones del elemento seleccionado'}>
+            <Button aria-label="Modificar" disabled={blocked || !actionElements.length} onClick={() => {
+              if (blockedRef.current || !actionElements.length) return
+              cancelHold()
+              if (selectionMode) setEditor({ kind: 'batch', id: null })
+              else edit(actionElements[0]!.id)
+            }}><Wrench aria-hidden="true" /></Button>
+            <Button aria-label="Duplicar" disabled={blocked || !actionElements.length} onClick={() => {
+              if (blockedRef.current || !actionElements.length) return
+              cancelHold()
+              let id = ''
+              store.mutateDocument(document => {
+                for (const element of actionElements) id = duplicateElement(document, element.id).id
+              })
+              addControl.current?.focus(); onSelect(id)
+            }}><CopyPlus aria-hidden="true" /></Button>
+            <Button aria-label={visibilityLabel} disabled={blocked || !actionElements.length} onClick={() => {
+              if (blockedRef.current || !actionElements.length) return
+              cancelHold()
+              store.mutateDocument(document => {
+                for (const element of actionElements) if (element.pinVisible === hidePins) togglePinVisibility(document, element.id)
+              })
+            }}>{hidePins ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button>
+            <Button aria-label="Borrar" disabled={blocked || !actionElements.length} onClick={() => {
+              if (blockedRef.current || !actionElements.length) return
+              cancelHold()
+              const ids = actionElements.map(element => element.id)
+              store.mutateDocument(document => {
+                for (const id of ids) deleteElement(document, id)
+              })
+              setCheckedIds(checkedIds => checkedIds.filter(id => !ids.includes(id)))
+              if (selectedId && ids.includes(selectedId)) onSelect(null)
+              addControl.current?.focus()
+            }}><Trash aria-hidden="true" /></Button>
+          </div>}
+        {editor && <>
+          <Button type="submit" form={formId} name="action" value="apply" aria-label="Aplicar" disabled={blocked}><Check aria-hidden="true" /></Button>
+          <Button aria-label="Atrás" disabled={blocked} onClick={() => { if (!blockedRef.current) back() }}><ArrowLeft aria-hidden="true" /></Button>
+        </>}
+      </div>
+      {!editor && selectionMode && <div className="elements-selection-controls">
+        <label><Checkbox aria-label="Todos" checked={elements.length > 0 && checked.length === elements.length} disabled={blocked || !elements.length} onCheckedChange={nextChecked => {
+          if (!blockedRef.current) { cancelHold(); setCheckedIds(nextChecked ? elements.map(element => element.id) : []) }
+        }} />Todos</label>
+        <Button aria-label="Salir de selección múltiple" disabled={blocked} onClick={() => {
+          if (!blockedRef.current) { cancelHold(); setSelectionMode(false); setCheckedIds([]) }
+        }}><X aria-hidden="true" /></Button>
+      </div>}
     </div>
     {editor?.kind === 'batch' ? <ElementEditor key="batch" element={checked[0]} creating={false} isUnit={isUnit} formId={formId} batchCount={checked.length}
       onSaveBatch={(patch, keepOpen) => {
@@ -226,8 +227,8 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
                     event.preventDefault(); edit(element.id)
                   } else lastCardTap.current = { id: element.id, time, x: event.clientX, y: event.clientY }
                 }} onPointerCancel={cancelHold} onPointerLeave={() => { if (cardPointer.current?.elementId === element.id) cancelHold() }}>
-                {element.visual.type === 'asset' ? <img src={ICON_CATALOG[element.visual.assetId].path} alt="" draggable={false} /> : <span className="element-row-emoji" aria-hidden="true">{element.visual.value}</span>}
-                <span className="element-row-text"><strong title={element.name}>{pinNameLines(element.name).map((line, index) => <span key={index}>{line}</span>)}</strong></span>
+                {element.visual.type === 'asset' ? <img className="element-row-visual" src={ICON_CATALOG[element.visual.assetId].path} alt="" draggable={false} /> : <span className="element-row-visual element-row-emoji" aria-hidden="true">{element.visual.value}</span>}
+                <span className="element-row-text"><strong>{pinNameLines(element.name).map((line, index) => <span key={index}>{line}</span>)}</strong></span>
               </Button>
             </div>
           })}</div>

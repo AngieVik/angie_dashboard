@@ -1,12 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Alert } from '@/components/ui/alert'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { toast, Toaster } from '@/components/ui/sonner'
 import { AppHeader } from './AppHeader'
 import styles from './app.module.css'
 import type { ModuleActions } from '../layout/ModuleFrame'
 import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
 import { repositionModules } from '../layout/repositionModules'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { DocumentNotices } from '../features/document/FileMenu'
+
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import type { ViewArrangement } from '../features/view/ViewMenu'
 import type { CleanupRequest } from '../features/view/CleanupMenu'
@@ -17,13 +16,16 @@ import { InformationModule } from '../features/information/InformationModule'
 import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
 import { ReportsModule } from '../features/document/ReportsModule'
+import type { ReportsNotice } from '../features/document/ReportsModule'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import type { GeographicCoordinate } from '../features/coordinates/coordinateTypes'
 import type { LoadedGpx } from '../features/map/gpx'
+import type { MapNotice } from '../features/map/MapModule'
 import { CalculatorModule } from '../features/calculator/CalculatorModule'
 import { NotebookModule } from '../features/notebook/NotebookModule'
 import { getTimerStore } from '../features/clock/timerStore'
+import { getCalendarStore } from '../features/calendar/calendarStore'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
@@ -39,6 +41,7 @@ import { createEmptyDocument } from '../domain/document/defaultDocument'
 
 const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
 const PlanModule = lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule })))
+const CalendarModule = lazy(() => import('../features/calendar/CalendarModule').then(module => ({ default: module.CalendarModule })))
 
 type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
 
@@ -58,11 +61,51 @@ function presentedLayout(module: PresentedModule, saved: ModuleLayout, bounds: {
 export function App() {
   const store = getDocumentStore()
   const timers = getTimerStore()
+  const calendar = getCalendarStore()
+  const calendarError = useSyncExternalStore(calendar.subscribe, () => calendar.getSnapshot().error)
+  useEffect(() => {
+    if (calendarError) toast.error(calendarError, { id: 'calendar-notice' })
+    else toast.dismiss('calendar-notice')
+  }, [calendarError])
+  useEffect(() => { void calendar.initialize(); return calendar.connect() }, [calendar])
+  const timerProblem = useSyncExternalStore<'conflict' | 'unavailable' | null>(timers.subscribe, () => {
+    const snapshot = timers.getSnapshot()
+    return snapshot.storageConflict ? 'conflict' : snapshot.storageUnavailable ? 'unavailable' : null
+  })
+  const audioProblem = useSyncExternalStore(timers.alarm.subscribe, () => timers.alarm.getSnapshot().error)
+  const clockNotified = useRef({ storage: false, audio: false })
+  useEffect(() => {
+    const storageAdded = timerProblem && !clockNotified.current.storage
+    const audioAdded = audioProblem && !clockNotified.current.audio
+    clockNotified.current = { storage: Boolean(timerProblem), audio: Boolean(audioProblem) }
+    if (storageAdded) toast.error(timerProblem === 'conflict' ? 'Los temporizadores han cambiado en otra pestaña.' : 'Autoguardado de temporizadores no disponible.', { id: 'clock-notice' })
+    else if (audioAdded && audioProblem) toast.error(audioProblem, { id: 'clock-notice' })
+    if (!timerProblem && !audioProblem) toast.dismiss('clock-notice')
+  }, [timerProblem, audioProblem])
+  useEffect(() => () => { toast.dismiss('clock-notice') }, [])
   useEffect(() => { void timers.initialize(); return timers.connect() }, [timers])
   const { document, documentGeneration, ready, openModules: savedOpenModules, replacing, active: boardActive } = useDocumentStore(store)
+  const [reportNotices, setReportNotices] = useState<{ generation: number; value: ReportsNotice | null }>({ generation: documentGeneration, value: null })
+  const updateReportNotices = useCallback((value: ReportsNotice | null) => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return
+    setReportNotices(current => current.generation === documentGeneration && current.value === value ? current : { generation: documentGeneration, value })
+  }, [store, documentGeneration])
+  const [mapNotices, setMapNotices] = useState<{ generation: number; value: Partial<Record<'map' | 'plan', MapNotice>> }>({ generation: documentGeneration, value: {} })
+  const updateMapNotices = useCallback((source: 'map' | 'plan', notice: MapNotice | null) => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return
+    setMapNotices(current => {
+      const previous: Partial<Record<'map' | 'plan', MapNotice>> = current.generation === documentGeneration ? current.value : {}
+      if ((previous[source] ?? null) === notice) return current
+      const value = { ...previous }
+      if (notice) value[source] = notice
+      else delete value[source]
+      return { generation: documentGeneration, value }
+    })
+  }, [store, documentGeneration])
   const [mapFiles, setMapFiles] = useState<{ generation: number; files: LoadedGpx[] }>({ generation: documentGeneration, files: [] })
   if (mapFiles.generation !== documentGeneration) setMapFiles({ generation: documentGeneration, files: [] })
   const boardImage = useBoardImage(store)
+  const boardImageInput = useRef<HTMLInputElement>(null)
   useEffect(() => { void store.initialize(); return store.connectWorkspaceAutosave() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const modulesTrigger = useRef<HTMLButtonElement>(null)
@@ -106,7 +149,10 @@ export function App() {
   const blankPointer = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const [active, setActive] = useState<ModuleId | null>(null)
   const [locationHighlight, setLocationHighlight] = useState<{ id: ModuleId; sequence: number; generation: number } | null>(null)
-  const [modulesError, setModulesError] = useState<string | null>(null)
+  const setModulesError = (message: string | null) => {
+    if (message) toast.error(message, { id: 'module-arrangement' })
+    else toast.dismiss('module-arrangement')
+  }
   const moduleActions = useRef<Partial<Record<ModuleId, ModuleActions>>>({})
   const pendingEditModule = useRef<ModuleId | null>(null)
   const registerModuleActions = useCallback((id: ModuleId, actions: ModuleActions | null) => {
@@ -124,11 +170,28 @@ export function App() {
   const selectedId = selection.generation === documentGeneration && document.elements.some(element => element.id === selection.id) ? selection.id : null
   const [coordinateSelection, setCoordinateSelection] = useState<{ generation: number; point: GeographicCoordinate } | null>(null)
   const selectedCoordinate = coordinateSelection?.generation === documentGeneration ? coordinateSelection.point : undefined
+  const [radar, setRadar] = useState<{ generation: number; active: boolean; point: GeographicCoordinate | null }>({ generation: documentGeneration, active: false, point: null })
+  const radarActive = radar.generation === documentGeneration && radar.active
+  const radarPoint = radar.generation === documentGeneration ? radar.point : null
+  const toggleRadar = useCallback(() => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration || !store.getSnapshot().active || store.getSnapshot().replacing) return
+    setRadar(previous => ({ generation: documentGeneration, active: previous.generation === documentGeneration ? !previous.active : true,
+      point: selectedCoordinate ?? (previous.generation === documentGeneration ? previous.point : null) }))
+  }, [store, documentGeneration, selectedCoordinate])
   const selectCoordinate = useCallback((point: GeographicCoordinate) => {
-    if (store.getSnapshot().documentGeneration === documentGeneration) setCoordinateSelection({ generation: documentGeneration, point: { latitude: point.latitude, longitude: point.longitude } })
+    if (store.getSnapshot().documentGeneration === documentGeneration) {
+      const received = { latitude: point.latitude, longitude: point.longitude }
+      setCoordinateSelection({ generation: documentGeneration, point: received })
+      setRadar(previous => ({ generation: documentGeneration, active: previous.generation === documentGeneration && previous.active, point: received }))
+    }
   }, [store, documentGeneration])
   const coordinateInput = useRef({ generation: documentGeneration, value: '' })
-  const rememberCoordinateInput = useCallback((value: string) => { coordinateInput.current = { generation: documentGeneration, value } }, [documentGeneration])
+  const rememberCoordinateInput = useCallback((value: string, point: GeographicCoordinate | null = null) => {
+    coordinateInput.current = { generation: documentGeneration, value }
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return
+    setRadar(previous => previous.generation !== documentGeneration || !previous.active ||
+      previous.point?.latitude === point?.latitude && previous.point?.longitude === point?.longitude ? previous : { ...previous, point })
+  }, [store, documentGeneration])
   const getCoordinatesInput = useCallback(() => coordinateInput.current.generation === documentGeneration ? coordinateInput.current.value : '', [documentGeneration])
   const getTimerRecords = useCallback(() => {
     const snapshot = timers.getSnapshot()
@@ -347,8 +410,10 @@ export function App() {
     activate(id)
   }
   return (
-    <TooltipProvider delayDuration={800}><div data-slot="app-shell" className={`${styles.shell} app-shell`}>
-      <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store }}
+    <><div data-slot="app-shell" className={`${styles.shell} app-shell`}>
+      <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store }} reportNotices={reportNotices.generation === documentGeneration ? reportNotices.value : null} mapNotices={mapNotices.generation === documentGeneration ? mapNotices.value : {}}
+        boardNotice={boardImage.resourceError && open.some(module => module.id === 'board') ? { message: boardImage.resourceError, busy: boardImage.busy, onChoose: () => boardImageInput.current?.click() } : null}
+        clockNotice={timerProblem || audioProblem ? { storage: timerProblem, audio: audioProblem, onRetry: () => { void timers.retryPersistence() }, onActivate: () => { void timers.alarm.activateSound() } } : null}
         modulesMenu={{ trigger: modulesTrigger, modules, disabled: !ready || !boardActive || replacing, onToggle: toggle }}
         viewMenu={{ disabled: !ready || !boardActive || replacing || !open.length, active: open.some(module => module.id === active),
           onArrange: arrangeOpen, onAutoArrange: recolocate, onFitActive: fitActiveModule }}
@@ -357,6 +422,7 @@ export function App() {
           onRequest: requestCleanup, onCancel: () => { setCleanupRequest(null); setCleanupError(null) }, onConfirm: confirmCleanup }}
         moduleShortcuts={{ modules: open, active, disabled: !ready || replacing, onSelect: selectOpenModule }}
         magnet={{ active: magnet, onToggle: () => setMagnet(value => !value) }}
+        radar={{ active: radarActive, onToggle: toggleRadar, disabled: !ready || !boardActive || replacing }}
         onOrigin={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}
         onZoom={scale => setViewport(previous => ({ ...previous,
           state: zoomAt(previous.state, scale, { x: 0, y: 0 }, previous.size, sceneBounds) }))} />
@@ -367,18 +433,17 @@ export function App() {
           if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4) start.moved = true
         }} onPointerCancelCapture={() => { blankPointer.current = null }}
         onClick={event => {
-          if (blankPointer.current?.moved || !(event.target instanceof Element) || event.target.closest('.module-header,.board-pin,.quick-note,.element-row,button,input,textarea,select,a,[role="button"],[role="radio"],[role="checkbox"],[contenteditable="true"]')) return
+          if (blankPointer.current?.moved || !(event.target instanceof Element) || event.target.closest('.module-header,.board-pin,.quick-note,.element-row,button,input,textarea,select,a,[role="button"],[role="radio"],[role="menuitemradio"],[role="checkbox"],[contenteditable="true"]')) return
           if (event.target.closest('[data-module="operations"],[data-module="information"]')) return
           if (event.target.closest('[data-module]')?.querySelector('.element-editor')) return
           selectElement(null); setSelectionReset(value => value + 1)
           if (!event.target.closest('[data-module]')) setActive(null)
         }}>
-        <DocumentNotices store={store} />
-        {modulesError && <div className="document-notices"><Alert>{modulesError}</Alert></div>}
+
         <div data-slot="app-workspace-content" className={styles.content} inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
-            renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} selectedId={selectedId} onSelect={selectElement}
+            renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
               onEditElement={elementId => {
                 const element = document.elements.find(element => element.id === elementId)
@@ -397,13 +462,14 @@ export function App() {
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
-              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords}
+              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices}
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
                 onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles(current => ({ generation: documentGeneration,
                   files: [...new Map([...(current.generation === documentGeneration ? current.files : []), ...files].map(file => [file.id, file])).values()] })) }} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
-              id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} /> :
-              id === 'plan' ? <Suspense fallback={<p role="status">Cargando plano operativo…</p>}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store}
+              id === 'calendar' ? <Suspense fallback={null}><CalendarModule key={moduleRevisions.calendar ?? 0} store={calendar} /></Suspense> :
+              id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} radar={{ active: radarActive, onToggle: toggleRadar }} /> :
+              id === 'plan' ? <Suspense fallback={null}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store} onNoticesChange={updateMapNotices}
                 selectedId={selectedId} onSelect={selectElement} onCoordinateSelect={selectCoordinate}
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
                 onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }}
@@ -416,14 +482,14 @@ export function App() {
                   if (open.some(module => module.id === id)) { moduleActions.current[id]?.('expand'); activate(id) }
                   else { pendingEditModule.current = id; toggle(id) }
                 }} /></Suspense> :
-              id === 'map' ? <Suspense fallback={<p role="status">Cargando mapa…</p>}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store} onCoordinateSelect={selectCoordinate}
+              id === 'map' ? <Suspense fallback={null}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store} onCoordinateSelect={selectCoordinate} onNoticesChange={updateMapNotices}
                 files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
                 onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }} /></Suspense> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
-              id === 'calculator' ? <CalculatorModule generation={documentGeneration} /> : null} />
+              id === 'calculator' ? <CalculatorModule generation={documentGeneration} radar={{ active: radarActive, onToggle: toggleRadar }} radarPoint={radarPoint} calendar={calendar} /> : null} />
         </MobileViewport>
         </div>
       </main>
-    </div></TooltipProvider>
+    </div><Toaster scale={viewport.state.scale} /></>
   )
 }

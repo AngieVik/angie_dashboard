@@ -11,6 +11,7 @@ export function useBoardImage(store: DocumentStore) {
   const { document, documentGeneration } = useDocumentStore(store)
   const saved = document.board.backgroundImage
   const [state, setState] = useState<{ generation: number; noticeRevision: number; image: BoardImage | null; error: string | null; busy: boolean }>({ generation: documentGeneration, noticeRevision: 0, image: null, error: null, busy: false })
+  const [resourceError, setResourceError] = useState<{ generation: number; dataUrl: string; message: string } | null>(null)
   const resource = useRef<{ generation: number; dataUrl: string; image: BoardImage } | null>(null)
   const request = useRef(0)
   const noticeSession = useRef(0)
@@ -19,11 +20,6 @@ export function useBoardImage(store: DocumentStore) {
     noticeSession.current++
     setState(previous => previous.error ? { ...previous, error: null } : previous)
   }, [])
-  useEffect(() => {
-    if (!state.error || state.generation !== documentGeneration) return
-    const timer = setTimeout(dismissError, 5000)
-    return () => clearTimeout(timer)
-  }, [state.error, state.noticeRevision, state.generation, documentGeneration, dismissError])
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; resource.current?.image.dispose(); resource.current = null } }, [])
   const dataUrl = saved?.dataUrl
   useEffect(() => {
@@ -31,6 +27,7 @@ export function useBoardImage(store: DocumentStore) {
     const sequence = ++request.current
     resource.current?.image.dispose()
     resource.current = null
+    setResourceError(null)
     setState({ generation: documentGeneration, noticeRevision: sequence, image: null, error: null, busy: Boolean(dataUrl) })
     if (!dataUrl) return
     let active = true
@@ -39,7 +36,10 @@ export function useBoardImage(store: DocumentStore) {
       if (result.success) {
         resource.current = { generation: documentGeneration, dataUrl, image: result }
         setState({ generation: documentGeneration, noticeRevision: sequence, image: result, error: null, busy: false })
-      } else setState({ generation: documentGeneration, noticeRevision: sequence, image: null, error: result.message, busy: false })
+      } else {
+        setResourceError({ generation: documentGeneration, dataUrl, message: result.message })
+        setState({ generation: documentGeneration, noticeRevision: sequence, image: null, error: null, busy: false })
+      }
     })
     return () => { active = false }
   }, [dataUrl, documentGeneration, store])
@@ -48,6 +48,7 @@ export function useBoardImage(store: DocumentStore) {
     store.mutateDocument(document => { delete document.board.backgroundImage })
     resource.current?.image.dispose()
     resource.current = null
+    setResourceError(null)
     setState({ generation: store.getSnapshot().documentGeneration, noticeRevision: request.current, image: null, error: null, busy: false })
   }
   async function load(file: File) {
@@ -63,11 +64,12 @@ export function useBoardImage(store: DocumentStore) {
       store.mutateDocument(document => { document.board.backgroundImage = { dataUrl: source, layout: initialImageLayout(result.width, result.height) } })
       resource.current?.image.dispose()
       resource.current = { generation, dataUrl: source, image: result }
+      setResourceError(null)
       setState({ generation, noticeRevision: sequence, image: result, error: null, busy: false })
       return true
     } catch (error) {
       result.dispose()
-      if (mounted.current && sequence === request.current && generation === store.getSnapshot().documentGeneration) setState(previous => ({ ...previous, busy: false, error: error instanceof Error ? error.message : 'No se pudo guardar la imagen.' }))
+      if (mounted.current && sequence === request.current && generation === store.getSnapshot().documentGeneration) setState(previous => ({ ...previous, busy: false, error: noticeSession.current === noticeGeneration ? error instanceof Error ? error.message : 'No se pudo guardar la imagen.' : null }))
     }
   }
   function updateLayout(layout: BoardImageLayout) {
@@ -77,6 +79,7 @@ export function useBoardImage(store: DocumentStore) {
   }
   return { layout: saved?.layout ?? null, updateLayout, noticeRevision: state.noticeRevision, image: state.generation === documentGeneration ? state.image : null,
     error: state.generation === documentGeneration ? state.error : null,
+    resourceError: resourceError?.generation === documentGeneration && resourceError.dataUrl === dataUrl ? resourceError.message : null,
     busy: state.generation === documentGeneration && state.busy, load, clear, dismissError }
 }
 export type BoardImageSession = ReturnType<typeof useBoardImage>

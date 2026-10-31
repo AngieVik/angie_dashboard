@@ -53,11 +53,11 @@ export function TimerRow({ timer, index, now, store, disabled = false }: { timer
         ? <DurationInput disabled={disabled} value={durationText} onBlur={normalize} onChange={setDurationText} />
         : snapshot.alertActive ? <Button appearance="integrated" className="timer-acknowledge" aria-label="Reconocer alerta" onClick={recognize}>{time}</Button> : time}
       <div className="timer-controls">
-        <Button appearance="integrated" aria-label={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'} title={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'}
+        <Button appearance="integrated" aria-label={snapshot.status === 'running' ? 'Pausar' : 'Iniciar'}
           disabled={disabled || snapshot.status === 'completed' || timer.kind !== 'tzero' && timer.status === 'idle' && enteredDuration() === 0} onClick={() => { if (snapshot.status === 'running') store.pause(timer.id); else start() }}>
           {snapshot.status === 'running' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </Button>
-        <Button appearance="integrated" ref={resetControl} aria-label={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'} title={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'}
+        <Button appearance="integrated" ref={resetControl} aria-label={timer.kind === 'advisory' ? 'Desactivar' : 'Reiniciar'}
           disabled={disabled} onClick={stop}><Square aria-hidden="true" /></Button>
       </div>
     </div>

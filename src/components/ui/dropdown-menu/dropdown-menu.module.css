@@ -1,5 +1,5 @@
 @layer components {
-  /* Menubar imports these same surface and item classes: one menu appearance. */
+  /* Menubar and ContextMenu share these surface and item classes. */
   .content {
     z-index: 10;
     min-width: min(max(145px, var(--radix-dropdown-menu-trigger-width, 0px)), calc(100vw - 16px));

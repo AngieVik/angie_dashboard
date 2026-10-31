@@ -2,7 +2,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useLayoutEffect, useRef } from 'react'
 import type { NotebookBlock } from '../../domain/document/types'
 import { Textarea } from '@/components/ui/textarea'
-import { HelpTooltip } from '@/components/ui/tooltip'
+
 import { Button } from '@/components/ui/button'
 import { Minus, Plus } from 'lucide-react'
 import { useAutoGrowingTextarea } from './useAutoGrowingTextarea'
@@ -40,15 +40,15 @@ export function ChecklistBlock({ block, disabled, onAdd, onEdit, onCheck, onDele
           else { pendingFocus.current = 0; onAdd(undefined, { text, checked: false }) }
         }} />
         <div className="notebook-item-actions">
-          {index > 0 && <HelpTooltip text="Eliminar elemento"><Button appearance="integrated" className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled || !item} onClick={() => {
+          {index > 0 && <Button appearance="integrated" className="notebook-item-control" aria-label={`Eliminar elemento ${index + 1}`} disabled={disabled || !item} onClick={() => {
             if (!item || index === 0) return
             pendingFocus.current = Math.max(0, Math.min(index, block.items.length - 2))
             onDelete(item.id)
-          }}><Minus aria-hidden="true" /></Button></HelpTooltip>}
-          <HelpTooltip text="Añadir elemento"><Button appearance="integrated" className="notebook-item-control" aria-label={item ? `Añadir elemento después de ${index + 1}` : 'Añadir elemento'} disabled={disabled} onClick={() => {
+          }}><Minus aria-hidden="true" /></Button>}
+          <Button appearance="integrated" className="notebook-item-control" aria-label={item ? `Añadir elemento después de ${index + 1}` : 'Añadir elemento'} disabled={disabled} onClick={() => {
             pendingFocus.current = item ? index + 1 : 0
             onAdd(item?.id)
-          }}><Plus aria-hidden="true" /></Button></HelpTooltip>
+          }}><Plus aria-hidden="true" /></Button>
         </div>
       </div>
     </li>)}</ul>

@@ -1,5 +1,7 @@
 // shadcn/ui Radix composition, with shared dialog presentation and actions.
 import type { ComponentProps } from 'react'
+import { useEffect, useId } from 'react'
+import { toast } from '@/components/ui/sonner'
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog'
 import { WindowResize } from '@/layout/WindowResize'
 import styles from './alert-dialog.module.css'
@@ -36,6 +38,14 @@ export function AlertDialogFooter({ className = '', ...props }: ComponentProps<'
   return <div data-slot="alert-dialog-footer" className={`${styles.footer} ${className}`.trim()} {...props} />
 }
 
-export function AlertDialogForm({ className = '', ...props }: ComponentProps<'form'>) {
-  return <form data-slot="alert-dialog-form" className={`${styles.form} ${className}`.trim()} {...props} />
+export function AlertDialogForm({ className = '', onInvalidCapture, ...props }: ComponentProps<'form'>) {
+  const noticeId = useId()
+  useEffect(() => () => { toast.dismiss(noticeId) }, [noticeId])
+  return <form data-slot="alert-dialog-form" className={`${styles.form} ${className}`.trim()} {...props} onInvalidCapture={event => {
+    onInvalidCapture?.(event)
+    if (event.defaultPrevented) return
+    event.preventDefault()
+    const field = event.target
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) toast.error(field.validationMessage, { id: noticeId })
+  }} />
 }

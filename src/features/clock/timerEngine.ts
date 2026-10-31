@@ -45,10 +45,10 @@ export function resetTimer(timer: TimerRecord): TimerRecord {
 export function deactivateTimer(timer: TimerRecord): TimerRecord { return timer.kind === 'advisory' ? resetTimer(timer) : timer }
 export function acknowledgeTimer(timer: TimerRecord): TimerRecord { return timer.alertActive ? { ...timer, alertActive: false } : timer }
 const clockOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' } as const
-const espFormatter = new Intl.DateTimeFormat('en-GB', { ...clockOptions, timeZone: 'Europe/Madrid' })
+const clockFormatters = new Map<string, Intl.DateTimeFormat>()
 const utcFormatter = new Intl.DateTimeFormat('en-GB', { ...clockOptions, timeZone: 'UTC' })
-export function spanishClock(now: number) {
-  const esp = espFormatter.format(now), zulu = utcFormatter.format(now)
-  const offset = (Number(esp.slice(0, 2)) - Number(zulu.slice(0, 2)) + 24) % 24
-  return { esp, zulu, season: offset === 2 ? 'ST' : 'WT' }
+export function referenceClock(now: number, timeZone: string) {
+  let formatter = clockFormatters.get(timeZone)
+  if (!formatter) { formatter = new Intl.DateTimeFormat('en-GB', { ...clockOptions, timeZone }); clockFormatters.set(timeZone, formatter) }
+  return { local: formatter.format(now), zulu: utcFormatter.format(now) }
 }

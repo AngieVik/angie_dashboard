@@ -1,8 +1,10 @@
 // shadcn/ui Radix composition, adapted to Angie's shared controls and tokens.
 import type { ComponentProps } from 'react'
+import { useContext } from 'react'
 import * as Primitive from '@radix-ui/react-dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
+import { OverlayPortalContext } from '@/layout/OverlayPortalContext'
 import styles from './dropdown-menu.module.css'
 
 export const DropdownMenu = Primitive.Root
@@ -11,7 +13,8 @@ export const DropdownMenuGroup = Primitive.Group
 export const DropdownMenuRadioGroup = Primitive.RadioGroup
 
 export function DropdownMenuContent({ className = '', ...props }: ComponentProps<typeof Primitive.Content>) {
-  return <Primitive.Portal>
+  const container = useContext(OverlayPortalContext)
+  return <Primitive.Portal container={container ?? undefined}>
     <Primitive.Content data-slot="dropdown-menu-content" sideOffset={4} align="start" collisionPadding={8}
       className={`${styles.content} ${className}`.trim()} {...props} />
   </Primitive.Portal>

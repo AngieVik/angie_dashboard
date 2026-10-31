@@ -9,7 +9,7 @@
   :where(.base) :global(.reports-map-toolbar) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   :where(.base) :global(.reports-map-viewport) { position: relative; isolation: isolate; flex: none; height: 280px; min-width: 0; overflow: hidden; border: 1px solid var(--color-border); touch-action: none; }
   :where(.base) :global(.reports-map-render) { position: absolute; inset: 0; transform-origin: center; }
-  :where(.base) :global(.reports-map-notice) { margin: 0; padding: 3px 5px; border-left: 2px solid var(--color-accent-red); overflow-wrap: anywhere; }
+  :where(.base) :global(.reports-map-loading) { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; pointer-events: none; }
 }
 
 @layer overrides {

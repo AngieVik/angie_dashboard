@@ -27,7 +27,6 @@
   :where(.base) :global(.map-search-results) [data-slot="button"] > span { color: var(--color-text-secondary); }
   :where(.base) :global(.map-search-coordinate) { font-family: var(--font-interface); }
   :where(.base) :global(.map-notice) { flex: none; margin: 0; padding: 3px 5px; font-size: var(--control-font-size); }
-  :where(.base) :global(.map-error) { color: var(--color-text); border-left: 2px solid var(--color-accent-red); overflow-wrap: anywhere; }
   :where(.base) :global(.map-workspace) { display: flex; flex: 1; min-width: 0; min-height: 50px; }
   :where(.base) :global(.map-sidepanels) { display: flex; flex-direction: column; flex: none; box-sizing: border-box; width: var(--map-panel-width); max-width: 60%; min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid var(--color-border); background: var(--color-module); }
   :where(.base) :global(.map-sidepanels)[hidden] { display: none; }
@@ -36,11 +35,8 @@
   :where(.base) :global(.map-area) { position: relative; flex: 1; min-width: 0; min-height: 50px; isolation: isolate; }
   :where(.base) :global(.map-canvas) { width: 100%; height: 100%; }
   :where(.base) :global(.map-zoom) { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; top: 8px; left: 8px; z-index: 1000; }
-  :where(.base) :global(.map-tile-notice) { position: absolute; z-index: 1000; bottom: 28px; left: 4px; right: 4px; margin: 0; padding: 4px; background: var(--color-module); border-left: 2px solid var(--color-accent-red); font-size: var(--control-font-size); pointer-events: none; }
   :where(.gpxPanel) :global(.map-files) { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0 2px; }
   :where(.gpxPanel) :global(.map-files) li { display: flex; flex: none; align-items: center; gap: 1px; min-width: 0; padding: 0; }
-  :where(.base) :global(.map-gpx-pending) { display: flex; align-items: center; gap: 5px; }
-  :where(.base) :global(.map-gpx-pending) > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   :where(.pkPopover) :global(.map-pk-heading) { display: flex; align-items: center; gap: 6px; font-size: var(--control-font-size); }
   :where(.pkPopover) :global(.map-pk-heading) output { margin-left: auto; font-family: var(--font-interface); }
   :where(.pkPopover) :global(.map-pk-steps) { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-family: var(--font-interface); font-size: var(--font-size-technical); }
@@ -61,7 +57,6 @@
   :where(.gpxPanel) :global(.map-file-name) { display: block; box-sizing: border-box; flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
   :where(.gpxPanel) :global(.map-file-name)[data-visible="false"] { color: var(--color-text-secondary); }
   :where(.gpxPanel) :global(.map-file-name)[aria-pressed="true"] { border-color: var(--color-selection-border); background: var(--color-selected); }
-  :where(.base) :global(.map-gpx-pending) > [data-slot="button"] { flex: none; }
   :where(.base) :global(.map-coordinate-field) { flex: 1; align-items: center; }
   :where(.base) :global(.map-coordinate-action):not([data-text-button]),
   :where(.base) :is(:global(.map-panel-toggles), :global(.map-zoom)) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }

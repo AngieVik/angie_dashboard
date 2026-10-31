@@ -60,7 +60,7 @@ export function DurationInput({ value, disabled, onChange, onBlur }: {
     node.addEventListener('beforeinput', beforeInput)
     return () => node.removeEventListener('beforeinput', beforeInput)
   }, [value, commit])
-  return <Input ref={input} aria-label="Duración inicial" title="Duración inicial (hh:mm:ss)"
+  return <Input ref={input} aria-label="Duración inicial"
     className={`${styles.base} technical-data timer-duration`} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
     disabled={disabled} value={value} onBlur={onBlur}
     onKeyDown={event => {

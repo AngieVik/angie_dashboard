@@ -1,5 +1,5 @@
-import mtn25Image from './legends/mtn25.png?inline'
-import ignOrthoImage from './legends/ignbase_orto.png?inline'
+import mtn25Image from './legends/mtn25.png?no-inline'
+import ignOrthoImage from './legends/ignbase_orto.png?no-inline'
 import osmMainRoadsImage from './legends/mainroad15.svg?inline'
 import osmIntermittentWaterImage from './legends/intermittent_water.svg?inline'
 import osmSummitImage from './legends/summit.svg?inline'

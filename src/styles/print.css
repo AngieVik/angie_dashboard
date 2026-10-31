@@ -1,7 +1,6 @@
 @layer utilities {
   @media print {
     [data-slot="app-header"],
-    [data-slot="tooltip-content"],
     [data-slot="popover-content"],
     [data-slot="dropdown-menu-content"],
     [data-slot="menubar-content"],

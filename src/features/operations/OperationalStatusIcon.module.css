@@ -1,0 +1,24 @@
+@layer components {
+  .base {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: calc(var(--icon-size-base) * var(--module-zoom, 1));
+    height: calc(var(--icon-size-base) * var(--module-zoom, 1));
+    font-size: var(--control-font-size);
+    line-height: 1;
+  }
+
+  .circle {
+    box-sizing: border-box;
+    border: calc(1px * var(--module-zoom, 1)) solid #000;
+    border-radius: 50%;
+  }
+
+  .base[data-icon="🟢"] { background-color: #16c60c; }
+  .base[data-icon="🟡"] { background-color: #fff100; }
+  .base[data-icon="🔵"] { background-color: #0078d7; }
+  .base[data-icon="🔴"] { background-color: #e81224; }
+  .base[data-icon="🟠"] { background-color: #f7630c; }
+  .base[data-icon="⚫"] { background-color: #383838; }
+}

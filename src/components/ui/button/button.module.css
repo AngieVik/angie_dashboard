@@ -31,7 +31,7 @@
     box-shadow: inset 0 1px 3px rgb(0 0 0 / 50%);
   }
 
-  .base:disabled {
+  .base:disabled, .disabled {
     opacity: 0.5;
     cursor: default;
   }

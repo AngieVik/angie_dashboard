@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Check, PenLine, Trash } from 'lucide-react'
 import { getTimelineEntryLabel, isTimelineEntryDeleted, isTimelineEntryCorrected, isCurrentTimelineEntry } from '../../domain/operations/timelineProjection'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
-import { addManualTimelineEntry, deleteTimelineEntry, reviseTimelineText, formatTimelineTime, formatTimelineDate } from './timelineCommands'
+import { addManualTimelineEntry, deleteTimelineEntry, reviseTimelineText, formatTimelineTime } from './timelineCommands'
 import styles from './timeline.module.css'
 
 export function TimelineModule({ store }: { store: DocumentStore }) {
@@ -20,7 +20,6 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
   const [text, setText] = useState('')
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null)
   const [error, setError] = useValidationNotice()
-  const errorId = useId()
   const [errorField, setErrorField] = useState<'new' | 'edit' | null>(null)
   const list = useRef<HTMLDivElement>(null)
   const newEntryInput = useRef<HTMLInputElement>(null)
@@ -42,7 +41,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
     <div className="timeline-entries" role="log" aria-label="Entradas cronológicas" ref={list}>
       <ol>{document.timeline.filter(entry => !isTimelineEntryDeleted(entry)).map(entry => <li key={entry.id} data-entry-type={entry.type} data-current={isCurrentTimelineEntry(document, entry)} data-editing={editing?.id === entry.id}>
         <div className="timeline-entry-line">
-          <time className="technical-data" dateTime={entry.occurredAt} title={formatTimelineDate(entry.occurredAt)}>{formatTimelineTime(entry.occurredAt)}</time>
+          <time className="technical-data" dateTime={entry.occurredAt}>{formatTimelineTime(entry.occurredAt)}</time>
           <span className="timeline-text">{getTimelineEntryLabel(entry)}{entry.type === 'status-change' && entry.nextStatus === 'Personalizada' && <span className="timeline-custom-color" aria-hidden="true" style={{ backgroundColor: entry.customColor ?? 'transparent' }} />}</span>
           {isTimelineEntryCorrected(entry) && <Badge variant="outline">Corregida</Badge>}
         </div>
@@ -52,13 +51,13 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
           if (attempt(() => store.mutateDocument(document => reviseTimelineText(document, entry.id, editing.text, new Date().toISOString())), 'edit')) finishEditing()
         }}>
           {entry.type === 'status-change' && <p className="timeline-edit-context">{entry.unitName} · {entry.nextStatus === 'Personalizada' ? entry.customLabel : entry.nextStatus}</p>}
-          <Textarea aria-label="Texto de entrada" aria-invalid={Boolean(error && errorField === 'edit')} aria-describedby={error && errorField === 'edit' ? errorId : undefined} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ ...editing, text: event.target.value })} />
+          <Textarea aria-label="Texto de entrada" aria-invalid={Boolean(error && errorField === 'edit')} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ ...editing, text: event.target.value })} />
           <div><Button type="submit" disabled={blocked}><Check aria-hidden="true" />Guardar entrada</Button><Button disabled={blocked} onClick={finishEditing}>Cancelar</Button></div>
         </form> : <div className="timeline-entry-actions">
-          <Button aria-label="Editar entrada" title="Editar entrada" disabled={blocked} onClick={() => {
+          <Button aria-label="Editar entrada" disabled={blocked} onClick={() => {
             if (!blockedRef.current) setEditing({ id: entry.id, text: getTimelineEntryLabel(entry) })
           }}><PenLine aria-hidden="true" /></Button>
-          <Button aria-label="Eliminar entrada" title="Eliminar entrada" disabled={blocked} onClick={() => {
+          <Button aria-label="Eliminar entrada" disabled={blocked} onClick={() => {
             if (blockedRef.current) return
             if (attempt(() => store.mutateDocument(document => deleteTimelineEntry(document, entry.id)))) finishEditing()
           }}><Trash aria-hidden="true" /></Button>
@@ -71,9 +70,9 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
       if (attempt(() => store.mutateDocument(document => { addManualTimelineEntry(document, text, new Date()) }), 'new')) { setText(''); newEntryInput.current?.focus() }
     }}>
       <div className="timeline-add-field">
-        <Input ref={newEntryInput} aria-label="Acontecimiento" aria-invalid={Boolean(error && errorField === 'new')} aria-describedby={error && errorField === 'new' ? errorId : undefined} placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />
+        <Input ref={newEntryInput} aria-label="Acontecimiento" aria-invalid={Boolean(error && errorField === 'new')} placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />
       </div>
     </form>
-    {error && <p id={errorId} className="timeline-error" role="alert">{error}</p>}
+
   </div>
 }

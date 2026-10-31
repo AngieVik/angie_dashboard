@@ -1,0 +1,22 @@
+@layer components {
+  .content { position: fixed; z-index: 21; display: flex; flex-direction: column; gap: 10px; min-height: 0; max-height: 100dvh; padding: 12px; border: 1px solid var(--color-frame-border); background: var(--surface-overlay); color: var(--color-text); box-shadow: var(--shadow-panel); outline: none; font-family: var(--font-interface-default); font-size: var(--font-size-body); }
+  .content[data-side="right"] { top: 0; right: 0; bottom: 0; width: min(360px, 100vw); --sheet-x: 100%; --sheet-y: 0; }
+  .content[data-side="left"] { top: 0; bottom: 0; left: 0; width: min(360px, 100vw); --sheet-x: -100%; --sheet-y: 0; }
+  .content[data-side="top"] { top: 0; right: 0; left: 0; max-height: 80dvh; --sheet-x: 0; --sheet-y: -100%; }
+  .content[data-side="bottom"] { right: 0; bottom: 0; left: 0; max-height: 80dvh; --sheet-x: 0; --sheet-y: 100%; }
+  .content[data-state="open"] { animation: enter var(--duration-fast) ease-out; }
+  .content[data-state="closed"] { animation: leave var(--duration-fast) ease-in; }
+  .overlay[data-state="open"] { animation: fade-in var(--duration-fast) ease-out; }
+  .overlay[data-state="closed"] { animation: fade-out var(--duration-fast) ease-in; }
+  .header { display: flex; flex: none; flex-direction: column; gap: 4px; padding-inline-end: 26px; }
+  .title { margin: 0; font-size: var(--font-size-title); font-weight: 600; overflow-wrap: anywhere; }
+  .description { margin: 0; color: var(--color-text-secondary); line-height: 1.4; overflow-wrap: anywhere; }
+  .body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+  .footer { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: var(--section-gap); margin-top: auto; }
+  .close { position: absolute; top: 6px; right: 6px; }
+  @keyframes enter { from { transform: translate(var(--sheet-x), var(--sheet-y)); opacity: 0; } to { transform: translate(0, 0); opacity: 1; } }
+  @keyframes leave { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--sheet-x), var(--sheet-y)); opacity: 0; } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .content, .overlay { animation: none; } }
+}

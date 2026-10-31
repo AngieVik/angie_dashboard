@@ -102,7 +102,6 @@
   @media (prefers-reduced-motion: reduce) {
     :where(.base) :global(.module-locator) { animation: module-locate-static 1200ms steps(1, end) 1; }
   }
-  :where(.base) :global(.module-action-error) { margin: 4px; color: var(--color-accent-yellow); }
   @keyframes module-locate {
     0%, 100% { opacity: 0; }
     40%, 60% { opacity: 1; }
@@ -134,6 +133,8 @@
 :where(.base) :global(.module-scaled-content)[data-measuring="true"] > * { height: auto; min-height: 0; }
 :global(.app-shell) .base[data-scroll-side] :global(.module-content) { overflow-y: auto; scrollbar-width: thin; }
 :global(.app-shell) .base[data-scroll-side] :global(.module-content)::-webkit-scrollbar { display: block; width: 8px; height: 0; }
+:global(.app-shell) .base :global(.elements-list) { scrollbar-width: thin; }
+:global(.app-shell) .base :global(.elements-list)::-webkit-scrollbar { display: block; width: 8px; height: 0; }
 .base[data-fitting] { height: auto; }
 .base[data-fitting] :global(.module-content) { flex: none; height: auto; overflow: visible; }
 .base[data-fitting][data-icon-only="true"] :global(.module-header) { padding: 0; gap: 0; }
@@ -142,5 +143,5 @@
 
 /* Labels and automatic height retain their precedence within the window. */
 :global(.logical-workspace) .base :global(.module-content) label { font-size: var(--field-font-size); }
-.base[data-auto-height="true"] :global(.module-scaled-content):not(:has(> :global(.timeline-module))),
-.base[data-auto-height="true"] :global(.module-scaled-content) > :not(:global(.timeline-module)) { height: auto; min-height: 0; }
+.base[data-auto-height="true"] :global(.module-scaled-content):not(:has(> :is(:global(.timeline-module), :global(.information-module)))),
+.base[data-auto-height="true"] :global(.module-scaled-content) > :not(:global(.timeline-module), :global(.information-module)) { height: auto; min-height: 0; }

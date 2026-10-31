@@ -1,22 +1,38 @@
-import { Ambulance, Calculator, ClipboardList, Clock3, FileText, Info, Map, MapPinned, MapPin, NotebookPen, Package, PanelsTopLeft, Radio } from 'lucide-react'
+import { Ambulance, Calculator, CalendarDays, ClipboardList, Clock3, FileText, Info, Map, MapPinned, MapPin, NotebookPen, Package, PanelsTopLeft, Radio } from 'lucide-react'
 import type { ModuleId } from './layoutTypes'
 
-interface ModuleDefinition { name: string; initial: readonly [number, number]; minimum: readonly [number, number]; contentMinimum: readonly [number, number]; sizeMode: 'standard' | 'editable' | 'feed' | 'specific' }
-export const MODULE_AUTO_HEIGHT_LIMIT = 600
+export type ModuleSizeMode = 'standard' | 'editable' | 'feed' | 'specific'
+interface ModuleDefinition { name: string; initial: readonly [number, number]; minimum: readonly [number, number]; autoHeightLimit?: number; contentHeight?: boolean; sizeMode: ModuleSizeMode }
+export const MODULE_AUTO_HEIGHT_LIMIT = 350
 export const MODULE_REGISTRY = {
-  board: { name: 'Pizarra', initial: [720, 480], minimum: [25, 25], contentMinimum: [320, 220], sizeMode: 'specific' },
-  elements: { name: 'Elementos', initial: [300, 420], minimum: [25, 25], contentMinimum: [220, 240], sizeMode: 'editable' },
-  dotations: { name: 'Dotaciones', initial: [300, 420], minimum: [25, 25], contentMinimum: [220, 240], sizeMode: 'editable' },
-  information: { name: 'Información', initial: [320, 240], minimum: [25, 25], contentMinimum: [220, 140], sizeMode: 'feed' },
-  operations: { name: 'Operativo', initial: [340, 320], minimum: [25, 25], contentMinimum: [240, 200], sizeMode: 'specific' },
-  coordinates: { name: 'Coordenadas', initial: [360, 280], minimum: [25, 25], contentMinimum: [260, 180], sizeMode: 'standard' },
-  map: { name: 'Mapa', initial: [600, 450], minimum: [25, 25], contentMinimum: [300, 220], sizeMode: 'specific' },
-  plan: { name: 'Plano operativo', initial: [720, 480], minimum: [25, 25], contentMinimum: [320, 240], sizeMode: 'specific' },
-  clock: { name: 'Reloj', initial: [440, 260], minimum: [25, 25], contentMinimum: [360, 260], sizeMode: 'editable' },
-  calculator: { name: 'Calculadora', initial: [280, 360], minimum: [25, 25], contentMinimum: [220, 280], sizeMode: 'standard' },
-  notebook: { name: 'Cuaderno', initial: [360, 420], minimum: [25, 25], contentMinimum: [260, 220], sizeMode: 'editable' },
-  timeline: { name: 'Registro', initial: [420, 320], minimum: [25, 25], contentMinimum: [280, 180], sizeMode: 'feed' },
-  reports: { name: 'Informes', initial: [600, 480], minimum: [25, 25], contentMinimum: [280, 220], sizeMode: 'specific' },
+  board: { name: 'Pizarra', initial: [720, 480], minimum: [25, 25], sizeMode: 'specific' },
+  elements: { name: 'Elementos', initial: [180, 350], minimum: [25, 25], contentHeight: true, autoHeightLimit: MODULE_AUTO_HEIGHT_LIMIT, sizeMode: 'editable' },
+  dotations: { name: 'Dotaciones', initial: [180, 350], minimum: [25, 25], contentHeight: true, autoHeightLimit: MODULE_AUTO_HEIGHT_LIMIT, sizeMode: 'editable' },
+  information: { name: 'Información', initial: [210, 240], minimum: [25, 25], contentHeight: true, autoHeightLimit: MODULE_AUTO_HEIGHT_LIMIT, sizeMode: 'feed' },
+  operations: { name: 'Operativo', initial: [150, 320], minimum: [25, 25], contentHeight: true, sizeMode: 'specific' },
+  coordinates: { name: 'Coordenadas', initial: [250, 280], minimum: [25, 25], contentHeight: true, sizeMode: 'standard' },
+  map: { name: 'Mapa', initial: [600, 450], minimum: [25, 25], sizeMode: 'specific' },
+  plan: { name: 'Plano operativo', initial: [720, 480], minimum: [25, 25], sizeMode: 'specific' },
+  clock: { name: 'Reloj', initial: [210, 260], minimum: [25, 25], contentHeight: true, sizeMode: 'editable' },
+  calendar: { name: 'Calendario', initial: [340, 500], minimum: [25, 25], sizeMode: 'specific' },
+  calculator: { name: 'Calculadora', initial: [150, 360], minimum: [25, 25], contentHeight: true, sizeMode: 'standard' },
+  notebook: { name: 'Cuaderno', initial: [210, 420], minimum: [25, 25], contentHeight: true, sizeMode: 'editable' },
+  timeline: { name: 'Registro', initial: [250, 320], minimum: [25, 25], contentHeight: true, autoHeightLimit: MODULE_AUTO_HEIGHT_LIMIT, sizeMode: 'feed' },
+  reports: { name: 'Informes', initial: [600, 480], minimum: [25, 25], sizeMode: 'specific' },
 } as const satisfies Record<ModuleId, ModuleDefinition>
 
-export const MODULE_ICONS = { board: PanelsTopLeft, elements: Package, dotations: Ambulance, information: Info, operations: Radio, coordinates: MapPin, map: Map, plan: MapPinned, clock: Clock3, calculator: Calculator, notebook: NotebookPen, timeline: ClipboardList, reports: FileText }
+export function moduleAutoHeightLimit(id?: ModuleId): number {
+  const definition: ModuleDefinition | undefined = id ? MODULE_REGISTRY[id] : undefined
+  return definition?.autoHeightLimit ?? Infinity
+}
+
+export function moduleUsesContentHeight(id?: ModuleId): boolean {
+  const definition: ModuleDefinition | undefined = id ? MODULE_REGISTRY[id] : undefined
+  return definition?.contentHeight === true
+}
+
+export function moduleCollapsedWidth(id?: ModuleId): number {
+  return id && (moduleUsesContentHeight(id) || id === 'calendar') ? MODULE_REGISTRY[id].initial[0] : 200
+}
+
+export const MODULE_ICONS = { board: PanelsTopLeft, elements: Package, dotations: Ambulance, information: Info, operations: Radio, coordinates: MapPin, map: Map, plan: MapPinned, clock: Clock3, calendar: CalendarDays, calculator: Calculator, notebook: NotebookPen, timeline: ClipboardList, reports: FileText }

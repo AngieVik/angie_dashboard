@@ -124,7 +124,7 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
     style={{ left: box.position.x, top: box.position.y, width: box.width, height: box.height,
       pointerEvents: enabled && !blocked ? 'auto' : 'none', zIndex: selected ? 1 : undefined } as CSSProperties}>
     <div className="quick-note-header" aria-label="Mover nota rápida" onPointerDown={event => start(event, 'move')} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel} />
-    <Button appearance="integrated" className="quick-note-delete" disabled={!enabled || blocked} aria-label="Eliminar nota" title="Eliminar nota" onPointerDown={event => { event.stopPropagation(); event.preventDefault() }}
+    <Button appearance="integrated" className="quick-note-delete" disabled={!enabled || blocked} aria-label="Eliminar nota" onPointerDown={event => { event.stopPropagation(); event.preventDefault() }}
       onClick={() => { deleted.current = true; active.current = null; onDelete() }}><X aria-hidden="true" /></Button>
     <div className="quick-note-body" onPointerDown={event => event.stopPropagation()} onWheelCapture={event => {
       if (!event.ctrlKey && textarea.current && textarea.current.scrollHeight > textarea.current.clientHeight) event.stopPropagation()

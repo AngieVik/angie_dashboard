@@ -8,7 +8,7 @@ import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
 import { snapModulePosition, snapModuleSize } from './snapModulePosition'
 import { ModuleFrame } from './ModuleFrame'
 import type { ModuleActions } from './ModuleFrame'
-import { MODULE_REGISTRY } from './moduleRegistry'
+import { MODULE_REGISTRY, moduleAutoHeightLimit, moduleCollapsedWidth, moduleUsesContentHeight } from './moduleRegistry'
 import { constrainWindowContentSize } from './windowContentSize'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
 import { readNavigation, writeNavigation } from './navigationStorage'
@@ -86,17 +86,17 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     const next = magnet ? snapModuleSize({ ...unpack(item, bounds), width: w, height: h }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale)
       : { width: w, height: h }
     // Use the requested size so nearby module edges cannot pull a compact bar off its detents.
-    return { w: collapsed && Math.abs(w - 200) <= threshold ? 200 : next.width,
-      h: module && !iconOnly && h <= 50 ? 27 : next.height }
+    const collapsedWidth = moduleCollapsedWidth(item.i as ModuleId)
+    return { w: collapsed && Math.abs(w - collapsedWidth) <= threshold ? collapsedWidth : next.width,
+      h: collapsed && h <= 50 ? 27 : next.height }
   } }
   const contentMinimum: LayoutConstraint = { name: 'module-content-minimum', constrainSize: (item, w, h) => {
     if (blockedRef.current) return { w, h }
     const sizeMode = MODULE_REGISTRY[item.i as ModuleId].sizeMode
-    if (sizeMode === 'specific') return { w, h }
     const module = modules.find(module => module.id === item.i)
     if (!module || module.layout.height <= 29) return { w, h }
     const frame = grid.current?.querySelector<HTMLElement>('[data-module="' + item.i + '"] .module-frame')
-    const size = constrainWindowContentSize(frame, { width: w, height: h }, sizeMode)
+    const size = constrainWindowContentSize(frame, { width: w, height: h }, sizeMode, moduleUsesContentHeight(item.i as ModuleId) ? Math.min(600, moduleAutoHeightLimit(item.i as ModuleId)) : Infinity)
     return { w: size.width, h: size.height }
   } }
   function park(id: ModuleId, size: Size) {
@@ -170,7 +170,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
       constraints={[magneticEdges, contentMinimum, origin, minMaxSize]}
       positionStrategy={{ ...transformStrategy, scale }}
       dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button:not(.module-icon),input,textarea,select' }}
-      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis} title="Redimensionar módulo"><HandleBottomRight aria-hidden="true" /></span> }}
+      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis}><HandleBottomRight aria-hidden="true" /></span> }}
       onDragStart={(...args) => {
         if (!blockedRef.current && args[2]) {
           draggedModule.current = args[2].i as ModuleId

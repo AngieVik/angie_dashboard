@@ -13,7 +13,7 @@ import type { BoardReportLayers, ReportBoardHandle } from './boardReport'
 import { ReportMapArea } from './ReportMapArea'
 import type { ReportMapArea as Area, ReportMapFraming } from './reportMapFraming'
 import { createReportIssue, formatReportIssue } from './reportIssues'
-import type { ReportIssue } from './reportIssues'
+import type { ReportGraphicSection, ReportIssue } from './reportIssues'
 import framingStyles from './reportFraming.module.css'
 import styles from './ReportBoard.module.css'
 
@@ -30,7 +30,7 @@ interface BoardPreview {
   fontFamily?: string
 }
 
-export function ReportBoard({ store, captureRef }: { store: DocumentStore; captureRef: RefObject<ReportBoardHandle | null> }) {
+export function ReportBoard({ store, captureRef, onNotice }: { store: DocumentStore; captureRef: RefObject<ReportBoardHandle | null>; onNotice: (section: ReportGraphicSection, message: string | null) => void }) {
   const { document: currentDocument, documentGeneration } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const documentId = currentDocument.document.id
@@ -55,6 +55,11 @@ export function ReportBoard({ store, captureRef }: { store: DocumentStore; captu
   const canPrepare = framing === 'current' ? Boolean(sourceFrame) : framing === 'area' ? Boolean(areaFrame) : true
   const current = preview !== null && preview.document === currentDocument && preview.requestedFrame === requestedFrame && preview.resourceIds === resourceIds && preview.layers === layers
   const ready = canPrepare && current && Boolean(preview?.image && preview.frame)
+  const preparationError = !ready && current ? preview?.error ?? null : null
+  useEffect(() => {
+    onNotice('board', preparationError)
+    return () => onNotice('board', null)
+  }, [preparationError, onNotice])
 
   useEffect(() => subscribeBoardFrame(documentId, () => setSourceFrame(readBoardFrame(documentId))), [documentId])
   useEffect(() => {
@@ -116,11 +121,11 @@ export function ReportBoard({ store, captureRef }: { store: DocumentStore; captu
       </label>)}
     </div>
     <div ref={viewport} className="reports-map-viewport" data-map-surface role="region" aria-label="Encuadre: Pizarra">
+      {!ready && !preparationError && <p className="reports-map-loading" role="status">Preparando pizarra…</p>}
       {frame && <div className="reports-map-render" style={{ width: frame.width * scale, height: frame.height * scale, left: '50%', top: '50%', right: 'auto', bottom: 'auto', transform: 'translate(-50%, -50%)' }}>
         <img className="reports-board-image" src={preview?.image} alt="Pizarra del informe" draggable={false} />
         {framing === 'area' && <ReportMapArea area={area} disabled={blocked} busyRef={areaGesture} onChange={setArea} />}
       </div>}
     </div>
-    {!ready && <p className={current && preview?.error ? 'reports-map-notice' : undefined} role="status">{current && preview?.error ? preview.error : 'Preparando pizarra…'}</p>}
   </div>
 }

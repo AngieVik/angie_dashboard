@@ -20,7 +20,7 @@ export function WindowResize({ label }: { label: string }) {
     }
   }
   useEffect(() => { if (blocked) cancel() }, [blocked])
-  return <button type="button" data-slot="window-resize" className={styles.base} aria-label={label} title={label} disabled={blocked}
+  return <button type="button" data-slot="window-resize" className={styles.base} aria-label={label} disabled={blocked}
     onPointerDown={event => {
       const node = event.currentTarget.parentElement
       if (!node || event.button !== 0 || blockedRef.current) return

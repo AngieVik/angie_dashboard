@@ -1,0 +1,8 @@
+@layer components {
+  .content { --radix-dropdown-menu-content-available-height: var(--radix-context-menu-content-available-height); }
+  .item[data-inset="true"] { padding-inline-start: calc(6px + var(--checkbox-size) + var(--control-gap)); }
+  .item[data-variant="destructive"] { box-shadow: inset 2px 0 var(--color-accent-red); }
+  .label { padding: 4px 6px; color: var(--color-text-secondary); font-size: var(--control-font-size); font-weight: 600; }
+  .shortcut { margin-inline-start: auto; padding-inline-start: 12px; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+  .item .subArrow { margin-inline-start: auto; }
+}

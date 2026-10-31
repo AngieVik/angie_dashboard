@@ -154,6 +154,7 @@
       "additionalProperties": false,
       "properties": {
         "reports": { "$ref": "#/$defs/layout" },
+        "calendar": { "$ref": "#/$defs/layout" },
         "plan": { "$ref": "#/$defs/layout" },
         "map": {
           "$ref": "#/$defs/layout"

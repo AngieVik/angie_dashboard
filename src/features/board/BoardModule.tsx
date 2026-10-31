@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Image, Line, Circle, Group } from 'react-konva'
-import type { PointerEvent } from 'react'
+import type { PointerEvent, RefObject } from 'react'
 import type { BoardStroke, Position } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
@@ -19,9 +19,8 @@ import { updateElement } from '../elements/elementCommands'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { readNavigation, writeNavigation } from '../../layout/navigationStorage'
-import { Alert } from '@/components/ui/alert'
+import { toast } from '@/components/ui/sonner'
 import styles from './board.module.css'
-import toolbarStyles from './BoardToolbar.module.css'
 import { Textarea } from '@/components/ui/textarea'
 import noteStyles from './QuickNote.module.css'
 
@@ -33,13 +32,22 @@ function Stroke({ stroke }: { stroke: BoardStroke }) {
     lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
 }
 
-export function BoardModule({ store, imageSession, selectedId = null, onSelect, onViewChange, onOpenModule, onEditElement, selectionReset = 0 }: {
+export function BoardModule({ store, imageSession, imageInputRef, selectedId = null, onSelect, onViewChange, onOpenModule, onEditElement, selectionReset = 0 }: {
   selectionReset?: number; store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
+  imageInputRef: RefObject<HTMLInputElement | null>
   onViewChange?: (center: Position) => void; onOpenModule?: (id: 'dotations' | 'elements') => void; onEditElement?: (id: string) => void
 }) {
   const { document, documentGeneration } = useDocumentStore(store)
   const dismissImageError = imageSession.dismissError
-  useEffect(() => () => dismissImageError(), [dismissImageError])
+  const noticeId = 'board-image-' + documentGeneration
+  const shownRevision = useRef<number | null>(null)
+  useEffect(() => {
+    if (imageSession.error && shownRevision.current !== imageSession.noticeRevision) {
+      shownRevision.current = imageSession.noticeRevision
+      toast.error(imageSession.error, { id: noticeId })
+    }
+  }, [imageSession.error, imageSession.noticeRevision, noticeId])
+  useEffect(() => () => { dismissImageError(); toast.dismiss(noticeId) }, [dismissImageError, noticeId])
   const { blocked, blockedRef } = useViewportInteraction()
   const [state, setState] = useState(() => createBoardState(document.board))
   const interaction = useRef(state)
@@ -205,8 +213,8 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
   }
   const image = imageSession.image
   const strokes = state.draft && !blocked ? [...document.board.strokes, state.draft] : document.board.strokes
-  return <div className={`board-module ${styles.base} ${toolbarStyles.scope}`} data-mode={state.mode}>
-    <BoardToolbar toolbarRef={toolbar} mode={state.mode} onMode={mode => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'mode', mode }) }}
+  return <div className={`board-module ${styles.base}`} data-mode={state.mode}>
+    <BoardToolbar toolbarRef={toolbar} imageInputRef={imageInputRef} mode={state.mode} onMode={mode => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'mode', mode }) }}
       onAddNote={addNote} background={document.board.backgroundColor} onBackground={color => { cancelImage(); imageSession.clear(); if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }); dispatch({ type: 'background', color }) }}
       color={color} onColor={setColor} width={width} onWidth={setWidth} onClearStrokes={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'clear-strokes' }) }} hasStrokes={Boolean(document.board.strokes.length || state.draft)} onClearImage={() => { cancelImage(); imageSession.clear(); if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }) }} hasImage={Boolean(imageSession.image)} onOpenModule={onOpenModule} onImage={file => { cancelImage(); void imageSession.load(file).then(loaded => { if (loaded) setView(current => ({ ...current, offsetX: 0, offsetY: 0 })) }) }} busy={imageSession.busy} blocked={blocked} />
     <div ref={area} className="board-area">
@@ -277,7 +285,6 @@ export function BoardModule({ store, imageSession, selectedId = null, onSelect, 
             onEdit={patch => { if (store.getSnapshot().documentGeneration === documentGeneration) dispatch({ type: 'edit-note', id: note.id, ...patch }) }} onDelete={() => { focusTool(); dispatch({ type: 'delete-note', id: note.id }) }} />)}
         </div>
       </div>
-      {imageSession.error && <div className="board-image-error"><Alert className={styles.imageNotice}>{imageSession.error}</Alert></div>}
     </div>
   </div>
 }

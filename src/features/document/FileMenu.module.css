@@ -1,3 +1,10 @@
 @layer components {
   .saveDetails { display: flex; flex-direction: column; gap: 3px; max-width: 280px; padding: 6px; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+  .noticeSlot { display: flex; flex: 0 0 var(--control-height-base); align-items: center; width: var(--control-height-base); }
+  .noticeSlot[data-empty="true"] { visibility: hidden; }
+  .noticePanel { display: flex; flex-direction: column; gap: 10px; width: 360px; overflow-wrap: anywhere; }
+  .noticePanel section { display: flex; flex-direction: column; gap: var(--section-gap); }
+  .noticePanel h3, .noticePanel p { margin: 0; }
+  .noticePanel h3 { font: inherit; font-weight: 650; }
+  .noticeActions { display: flex; flex-wrap: wrap; gap: var(--section-gap); }
 }

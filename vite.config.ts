@@ -14,12 +14,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html}'],
+        globPatterns: ['**/*.{js,css,html}', 'assets/*.{png,jpg,jpeg,svg,webp,avif,wasm}'],
+        // The offline geographic time-zone database is a separate 4.3 MB WASM asset.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Public resources receive their revisions through includeAssets.
         // Do not include the public font stylesheet a second time.
         globIgnores: ['assets/fonts/**'],
       },
-      includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/fonts/rajdhani/*', 'assets/elements/*.png', 'assets/audio/alarm.mp3'],
+      includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/fonts/rajdhani/*', 'assets/elements/*.png', 'assets/audio/alarm.mp3', 'assets/licenses/*'],
       manifest: {
         id: '/',
         name: 'Angie Dashboard',
@@ -47,6 +49,8 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
+            { name: 'ui', test: /node_modules[\\/](@radix-ui[\\/]|@floating-ui[\\/]|sonner[\\/])/ },
+            { name: 'windows', test: /node_modules[\\/](react-grid-layout|react-draggable|react-resizable)[\\/]/ },
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'canvas', test: /node_modules[\\/](konva|react-konva|react-reconciler)[\\/]/ },
             { name: 'coordinates', test: /node_modules[\\/](proj4|mgrs|wkt-parser)[\\/]/ },

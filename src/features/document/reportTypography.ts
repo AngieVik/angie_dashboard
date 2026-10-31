@@ -9,12 +9,15 @@ const definitions = [...fontStyles.matchAll(/@font-face\s*\{[^}]*\}/g)]
 let preparation: Promise<string> | undefined
 
 export async function waitForReportFonts(target: Document): Promise<void> {
+  const fallback = () => {
+    if (target !== document) target.documentElement.style.setProperty('--report-font-family', 'sans-serif')
+  }
   try {
     const faces = [...target.fonts].filter(face => face.family.replace(/["']/g, '').trim() === FONT_FAMILY && face.style === 'normal')
-    if (!definitions.length || faces.length < definitions.length) throw new Error(FONT_ERROR)
-    await Promise.all(faces.map(face => face.load()))
+    const loaded = await Promise.allSettled(faces.map(face => face.load()))
+    if (!definitions.length || faces.length < definitions.length || loaded.some(result => result.status === 'rejected')) fallback()
     await target.fonts.ready
-  } catch (cause) { throw new Error(FONT_ERROR, { cause }) }
+  } catch { fallback() }
 }
 
 async function embedReportFonts(): Promise<string> {
@@ -35,6 +38,6 @@ async function embedReportFonts(): Promise<string> {
 export function prepareReportTypography(): Promise<string> {
   preparation ??= Promise.all([embedReportFonts(), waitForReportFonts(document)])
     .then(([styles]) => styles)
-    .catch(cause => { preparation = undefined; throw new Error(FONT_ERROR, { cause }) })
+    .catch(() => '')
   return preparation
 }

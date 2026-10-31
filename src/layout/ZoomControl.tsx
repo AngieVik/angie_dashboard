@@ -3,7 +3,6 @@ import { GitCommitHorizontal, GitCommitVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { HelpTooltip } from '@/components/ui/tooltip'
 import styles from './zoomControl.module.css'
 import controlStyles from './controlButton.module.css'
 import labelStyles from './controlValueLabel.module.css'
@@ -53,7 +52,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
     replaceInput.current = true
   }
   const percentage = <>
-    <input ref={input} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} title={label} min={25} max={200} step={1}
+    <input ref={input} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={25} max={200} step={1}
       disabled={disabled} value={draft ?? percent}
       onFocus={() => { replaceInput.current = true }} onPointerDown={() => { replaceInput.current = true }}
       onChange={event => { replaceInput.current = false; setDraft(event.target.value) }} onBlur={commit}
@@ -65,14 +64,14 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
   return <div data-slot="zoom-control" data-variant={variant} className={`${styles.base} technical-data`}>
     {side !== 'right' && percentage}
     <Popover open={open && !disabled} onOpenChange={setOpen}>
-      <HelpTooltip text={label}><PopoverTrigger asChild><Button ref={trigger} className={controlStyles.base} disabled={disabled}
-        aria-label={`Abrir deslizador: ${label}`}><Icon aria-hidden="true" /></Button></PopoverTrigger></HelpTooltip>
+      <PopoverTrigger asChild><Button ref={trigger} className={controlStyles.base} disabled={disabled}
+        aria-label={`Abrir deslizador: ${label}`}><Icon aria-hidden="true" /></Button></PopoverTrigger>
       <PopoverContent side={side} aria-label={label}
         onPointerDownCapture={() => { sliderPointer.current = true }}
         onPointerUpCapture={() => { sliderPointer.current = false }}
         onPointerCancelCapture={() => { sliderPointer.current = false }}
         onKeyDownCapture={() => { sliderPointer.current = false }} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
-        <div className={labelStyles.base}><span>{label}</span><output>{percent} %</output></div>
+        <div className={labelStyles.base}><output>{percent}%</output></div>
         <Slider label={label} value={percent} min={25} max={200} midpoint={100} disabled={disabled} onValueChange={value => {
           const nearest = Math.round(value / 10) * 10
           const percent = sliderPointer.current && Math.abs(value - nearest) <= 2 ? nearest : value

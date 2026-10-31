@@ -1,0 +1,4 @@
+@layer overrides {
+  .base[data-control="coordinate-radar"][aria-pressed="true"] { background: var(--color-selected); color: var(--color-text); }
+  .base[data-activation-color="yellow"][aria-pressed="true"] { background: transparent; color: var(--color-accent-yellow); }
+}

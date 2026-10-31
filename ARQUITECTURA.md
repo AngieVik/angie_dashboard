@@ -1,0 +1,76 @@
+# Arquitectura de Angie Dashboard
+
+Mapa de la implementación para localizar responsabilidades. [AGENTS.md](AGENTS.md) contiene las reglas de trabajo y [DISEÑO.md](DISEÑO.md) las decisiones visuales compartidas. Los parámetros y comportamientos se consultan en su código propietario; este mapa no acredita comprobaciones de funcionamiento.
+
+## Entradas y estructura
+
+| Área            | Propietario y responsabilidad                                                                                                                                                                                                                                                 |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inicio          | `src/main.tsx` carga las capas y estilos comunes y monta `App` en React StrictMode.                                                                                                                                                                                           |
+| Ensamblaje      | `src/app/App.tsx` coordina documento, apertura de módulos, selección, navegación, geometría y comunicación entre funcionalidades. `AppHeader` presenta la barra superior.                                                                                                     |
+| Ventanas        | `src/layout/DashboardGrid.tsx` integra React Grid Layout, arrastre y redimensionado. `ModuleFrame.tsx` gestiona cabecera, estados recogidos, zoom interno, scroll y autoajuste.                                                                                               |
+| Geometría       | `windowContentSize.ts` mide mínimos de contenido y controles. `moduleRegistry.ts` identifica módulos, tamaños iniciales, modos y límites de altura automática. Los mínimos numéricos del registro también permiten los estados recogidos; no representan el mínimo expandido. |
+| Navegación      | `MobileViewport`, `useViewportGestures`, `viewportMath`, `workspaceExtent` y `navigationStorage` separan espacio lógico, viewport y navegación local.                                                                                                                         |
+| Funcionalidades | `src/features/` contiene cada módulo, sus componentes, comandos y CSS Modules. `DotationsModule` especializa `ElementsModule` con `isUnit`. `PlanModule` reutiliza la superficie de `MapModule`.                                                                              |
+| Dominio         | `src/domain/document/` define, valida, serializa y migra el documento. `src/domain/operations/` mantiene estados operativos y su relación con Registro.                                                                                                                       |
+| Plataforma      | `src/platform/` adapta archivos, carpetas, permisos, imágenes y portapapeles a las capacidades del navegador.                                                                                                                                                                 |
+| Interfaz común  | `src/components/ui/` contiene los controles adaptados a Angie. `src/styles/` centraliza tokens, capas, fuentes, estilos generales e integraciones.                                                                                                                            |
+
+`FileMenu` coordina las acciones de Archivo y sus confirmaciones; `RecoveryDialog` presenta las vistas, páginas y filtro de recuperaciones. La apertura reciente pertenece a `documentStore`. El calendario compartido en `components/ui/calendar/` adapta React DayPicker a los controles y estilos del proyecto.
+
+`features/settings/SettingsDialog.tsx` centraliza Configuración desde Archivo: ubicación predeterminada y el panel reutilizado de almacenamiento y permisos. La búsqueda de localidades reutiliza `map/useMapSearch` y `mapSearch`, con consulta explícita, caché y cancelación. `useSettings` comparte la configuración confirmada con los consumidores; guardar una ubicación actualiza sus cálculos sin activar el radar.
+
+`App` mantiene el estado temporal del radar por generación de documento. Cabecera, Coordenadas y Calculadora comparten `coordinates/RadarButton`; los puntos de Mapa/Plano y las coordenadas válidas recibidas alimentan la vista solar cuando está activado. La recepción de portapapeles sigue perteneciendo a Coordenadas mientras esté abierto. `astronomy/astronomy.ts` calcula con SunCalc sin red: Calculadora usa el punto del radar o la ubicación predeterminada y Calendario muestra la fase lunar del día seleccionado.
+
+`coordinates/timeZoneLookup.ts` resuelve el punto del radar mediante tzf-wasm, cargado bajo demanda, con datos geográficos locales simplificados. `useCoordinateTimeZone` descarta respuestas de un punto anterior. Calculadora utiliza la zona detectada o una corrección manual temporal asociada a esas coordenadas; sin punto del radar utiliza la zona de Configuración. `platform/timeZones.ts` comparte opciones y presentación del desfase UTC, y la conversión civil utiliza Intl del dispositivo. La zona del reloj y la referencia lunar del Calendario proceden de Configuración, con Europe/Madrid como valor inicial, y son independientes del radar. Los resultados y correcciones solares no se guardan en el UIBoard.
+
+`calendarStore.selectedDate` es la fecha de trabajo común de Calendario y Calculadora, inicialmente el día local del dispositivo. Calendario la actualiza al seleccionar o navegar y mediante Hoy; Calculadora la consulta sin selector propio, también con radar activo. La selección es temporal durante la sesión de la app y se conserva al cerrar/reabrir módulos o cambiar de UIBoard; la persistencia de eventos sigue siendo independiente.
+
+El binario geográfico WASM se sirve desde el mismo origen y se incluye en la precaché PWA; `vite.config.ts` admite su tamaño por separado de los paquetes JavaScript y `server/server.mjs` sirve el MIME WebAssembly. Las atribuciones y licencias están en `public/assets/licenses/`.
+
+`SolarCalculator` mantiene el ajuste y reintento del huso y monta sus botones mediante un portal en el contenedor de herramientas de `CalculatorModule`, antes del radar. Las acciones comparten la barra sin intervenir en la altura de las filas de datos.
+
+`components/ui/context-menu/`, `sheet/` y `resizable/` son componentes compartidos disponibles para futuros consumidores. ContextMenu usa la presentación común de DropdownMenu; Sheet y ContextMenu respetan `OverlayPortalContext` para los portales anidados. Los divisores de Resizable pertenecen al contenido y conservan su mecanismo de interacción propio.
+
+## Conexión de los módulos
+
+- Los identificadores portables están en `domain/document/types.ts`; `layout/layoutTypes.ts` los reutiliza. Nombres, iconos, tamaños iniciales, modos y límites se registran en `layout/moduleRegistry.ts`.
+- `App` ensambla las instancias dentro de `DashboardGrid` y `ModuleFrame`. Mapa y Plano operativo se cargan mediante `lazy` y `Suspense`.
+- `ModuleZoomContext` comunica zoom y medición al contenido. `ModuleSizeContext` permite solicitar espacio sin duplicar la gestión de la ventana.
+- `layout/moduleToolbar.module.css` comparte la base de las barras de Pizarra, Calculadora, Cuaderno y Elementos/Dotaciones; sus componentes conservan acciones, orden y comportamiento. Dotaciones reutiliza `ElementsModule` con `isUnit`.
+- En los módulos de altura por contenido, `moduleRegistry.ts` define el ancho inicial y de colapsado y distingue el límite de crecimiento automático del mínimo vertical reducible. El ajuste manual desactiva el autoajuste mediante la navegación local; mover la ventana conserva su posición en el documento.
+- Las clases funcionales y los atributos de medición conectan contenido, CSS, observadores, gestos y restauración del scroll. Antes de cambiarlos, busca todos sus consumidores.
+- Selección de elementos, coordenadas y recursos GPX se coordinan desde `App`; no son copias independientes de los datos del documento.
+
+## Datos y persistencia
+
+| Dato               | Recorrido y destino                                                                                                                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documento portable | `features/document/documentStore.ts` → comandos del área → validación y serialización del contrato V4. Incluye contenido y geometría de módulos, con referencias GPX y una imagen de Pizarra incrustada cuando existe.              |
+| Recuperación local | `storage/autosave.ts` → `DocumentRepository` → IndexedDB `angie-dashboard`. Conserva sesión de módulos abiertos, revisiones y candidatos de recuperación.                                                                           |
+| Carpeta de trabajo | `storage/workspaceAutosave.ts` → `platform/files/workspaceFiles.ts`. Coordina `dashboard.json`, recursos, copias, versiones y conflictos cuando existe acceso autorizado a carpeta.                                                 |
+| Navegación local   | `layout/navigationStorage.ts` usa claves `angie.navigation.` por documento y superficie en localStorage: zoom, desplazamiento, tamaño de restauración y estado de autoajuste. Mapa y Pizarra tienen sus adaptaciones de navegación. |
+| Temporizadores     | `features/clock/timerStore.ts` y `timerRepository.ts` usan la base independiente `angie-dashboard-timers`. No viajan como parte del documento portable; Informes puede tomar una instantánea para su salida.                        |
+| Agenda transversal | `features/calendar/calendarStore.ts` → `calendarRepository.ts` → IndexedDB `angie-dashboard-calendar`. Guarda eventos por identificador y revisión, compartidos entre UIBoards y con cambios coordinados entre pestañas. Los eventos no se incluyen en el documento portable ni se borran al limpiar un UIBoard. |
+| Configuración local | `features/settings/settingsStore.ts` → `settingsRepository.ts` → IndexedDB `angie-dashboard-settings`. Conserva la ubicación predeterminada y su zona horaria por dispositivo, con validación y revisión para evitar sobrescrituras de otra pestaña. No forma parte del UIBoard portable. |
+| Accesos a recursos | Los repositorios de acceso a carpetas y GPX recuerdan permisos y referencias locales; un permiso recordado no garantiza acceso disponible al reabrir.                                                                               |
+
+- El contrato actual es V4. `migrateDocument.ts` reconoce V1 → V2 → V3 → V4 y valida cada contrato; `serializeDocument.ts` valida antes de producir JSON.
+- `documentGeneration` permite descartar resultados de un documento anterior. Al modificar un proceso asíncrono, sigue su generación y el destino de la escritura.
+- Cambios en memoria, guardado en dispositivo, guardado en carpeta, recursos pendientes y descarga iniciada son estados distintos.
+- Los mecanismos existentes de lectura de documentos antiguos no autorizan ejecutar migraciones nuevas ni alterar documentos reales.
+
+## Cartografía, informes y funcionamiento sin conexión
+
+- `features/map/mapBackgrounds.ts` declara OSM, PNOA e IGN. `mapSearch.ts` implementa búsqueda de lugares y `terrainElevation.ts` consulta elevación del terreno. Coordenadas se interpreta y convierte en `features/coordinates/`.
+- Mapa, Plano y Pizarra usan espacios de coordenadas diferentes. Los helpers del propietario convierten entre pantalla, espacio lógico, lienzo y coordenadas geográficas.
+- `ReportsModule` y las piezas de `features/document/` preparan selección, encuadres, recursos, paginación y HTML autónomo. Los estilos de ese HTML y sus fuentes incrustadas tienen un recorrido propio, distinto de la impresión de la app.
+- `vite.config.ts` configura la PWA y precarga código y recursos locales seleccionados. No configura una descarga offline general de teselas ni de respuestas de proveedores; las funciones externas dependen de sus recursos y de la conectividad.
+- `server/server.mjs` sirve `dist` por HTTP; no contiene un backend de negocio y responde 404 a `/api/`. Open-Meteo y Pronóstico ya no forman parte de la app.
+
+## Herramientas y comprobaciones
+
+- `package.json` y `package-lock.json` son las fuentes de dependencias declaradas y resueltas. La interfaz usa React, primitivas Radix, controles locales y Sonner; cartografía usa Leaflet, lienzos Konva, persistencia Dexie y validación AJV.
+- Los comandos disponibles son `dev`, `start`, `lint`, `typecheck` y `build`. `build` incluye tipos y empaquetado. No hay un comando `test` ni una suite de pruebas configurada en el repositorio.
+- La ejecución de comprobaciones sigue la política y las autorizaciones de `AGENTS.md`. Un build no demuestra interacción táctil, permisos, recuperación completa ni comportamiento de una PWA instalada.
+- `docs/` permanece local y fuera de Git. Sus documentos de trabajo pueden conservar propuestas o estados anteriores; no son una dependencia de este mapa.

@@ -161,6 +161,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       update({ ready: true, recoveryPending: Boolean(recent), recoveryTitle: recent ? recovered.document.title : null,
         recoverySeenAt: recent ? presence.seenAt : null, autosaveUnavailable: false, fileMessage: null,
         recoveredPrevious: repository.recoverySource === 'previous' })
+      if (recoveryCandidate && age < 60 * 1000) await replace({ ...recoveryCandidate, fileDirty: true })
     } catch {
       if (generation === state.documentGeneration && !state.active && !state.fileBusy) update({ ready: true, autosaveUnavailable: true,
         fileMessage: 'No se pudo leer la recuperación de este dispositivo. Reintenta o abre un archivo desde su carpeta.' })
@@ -266,7 +267,8 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     finally { update({ fileBusy: false, replacing: false }) }
   }
   async function recoverInBranch(candidate: LocalDocument, localRecovery: boolean) {
-    const base = [...filterWorkspaceName(candidate.document.document.title || 'UIBoard')].slice(0, 75).join('').trim().replace(/[ .]+$/, '') || 'UIBoard'
+    const original = filterWorkspaceName(candidate.document.document.title || 'UIBoard').replace(/(?:_recuperado(?:_\d+)?)+$/i, '')
+    const base = [...original].slice(0, 75).join('').trim().replace(/[ .]+$/, '') || 'UIBoard'
     const stem = base + '_recuperado'
     let title = stem, number = 1
     while (true) {
@@ -495,6 +497,22 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         if (expected && ((expected.documentId && candidate.document.document.id !== expected.documentId) || candidate.savedAt !== expected.savedAt)) throw new Error('La recuperación seleccionada cambió. Vuelve a abrir la lista y elige su versión.')
         return await recoverInBranch(candidate, !key.startsWith('workspace:'))
       } catch (error) { update({ fileMessage: message(error) }); return false }
+    },
+    async openRecentDocument() {
+      if (!state.ready || state.fileBusy) return false
+      update({ fileBusy: true, fileMessage: null })
+      try {
+        await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+        const presence = await repository.readPresence?.()
+        const records = await repository.listRecoverable?.() ?? []
+        const latest = records.find(copy => copy.documentId === presence?.documentId && copy.key.startsWith('board:'))
+          ?? records.find(copy => copy.documentId === presence?.documentId)
+          ?? records.find(copy => copy.key.startsWith('board:')) ?? records[0]
+        const candidate = latest ? await repository.loadRecoverable?.(latest.key) : null
+        if (!candidate) { update({ fileMessage: 'No hay un UIBoard reciente disponible en este dispositivo.' }); return false }
+        return await replace({ ...candidate, fileDirty: true }, undefined, false, true)
+      } catch (error) { update({ fileMessage: message(error) }); return false }
+      finally { update({ fileBusy: false }) }
     },
     async recoverCurrent() {
       if (!state.active || state.fileBusy) return false

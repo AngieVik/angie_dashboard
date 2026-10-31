@@ -5,7 +5,7 @@ import type { PointerEvent, RefObject } from 'react'
 import { Focus, Minus, Plus } from 'lucide-react'
 import * as L from 'leaflet'
 import { Button } from '@/components/ui/button'
-import { HelpTooltip } from '@/components/ui/tooltip'
+
 import type { AssetId, MapGpxReference, MapMarker, PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { readGpxAccess } from '../../storage/gpxAccessRepository'
@@ -39,13 +39,14 @@ const EMPTY_PINS: PlanPin[] = []
 const EMPTY_STROKES: PlanStroke[] = []
 const EMPTY_IMAGES = new Map<AssetId, HTMLImageElement>()
 
-export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, captureRef, kind = 'map' }: {
+export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, captureRef, kind = 'map', onNotice }: {
   store: DocumentStore
   files: LoadedGpx[]
   onFilesChange: (files: LoadedGpx[]) => void
   fields: string[]
   captureRef: RefObject<ReportMapHandle | null>
   kind?: 'map' | 'plan'
+  onNotice: (section: ReportGraphicSection, message: string | null) => void
 }) {
   const { document: currentDocument, documentGeneration } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
@@ -98,6 +99,11 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
   }, [selection.resources, availableResources])
   const selectedResources = useMemo(() => resources.filter(resource => resourceIds.has(resource.element.id.toLowerCase())), [resources, resourceIds])
   const assetKey = imageSelected && isPlan ? [...new Set(selectedResources.flatMap(({ element }) => element.visual.type === 'asset' ? [element.visual.assetId] : []))].sort().join('|') : ''
+  const unavailableIcons = Boolean(isPlan && assetKey && assets.key === assetKey && assets.unavailable.length)
+  useEffect(() => {
+    onNotice(kind, imageSelected ? [tileStatus, unavailableIcons ? 'No se pudieron cargar los iconos del plano.' : null].filter(Boolean).join(' ') || null : null)
+    return () => onNotice(kind, null)
+  }, [kind, imageSelected, tileStatus, unavailableIcons, onNotice])
   const assetImages = assets.key === assetKey ? assets.images : EMPTY_IMAGES
   const planDrawing = useMemo<PlanReportDrawing | undefined>(() => isPlan ? { resources: selectedResources, strokes: showStrokes ? strokes : EMPTY_STROKES, images: assetImages, fontFamily: planFont } : undefined,
     [isPlan, selectedResources, showStrokes, strokes, assetImages, planFont])
@@ -416,9 +422,9 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
         <label><Checkbox checked={showLegend} disabled={blocked} onCheckedChange={nextChecked => setShowLegend(nextChecked)} />Leyenda</label>
         {isPlan && <label><Checkbox checked={showStrokes} disabled={blocked} onCheckedChange={nextChecked => setShowStrokes(nextChecked)} />Trazos</label>}
         {framing === 'area' && <>
-          <HelpTooltip text="Centrar selección"><Button disabled={blocked || (!selectedMarkers.length && !drawnFiles.length && !planDrawing?.resources.length && !planDrawing?.strokes.length)} aria-label={'Centrar selección: ' + title} onClick={centerSelection}><Focus aria-hidden="true" /></Button></HelpTooltip>
-          <HelpTooltip text="Acercar"><Button disabled={blocked} aria-label={'Acercar: ' + title} onClick={() => mapRef.current?.zoomIn()}><Plus aria-hidden="true" /></Button></HelpTooltip>
-          <HelpTooltip text="Alejar"><Button disabled={blocked} aria-label={'Alejar: ' + title} onClick={() => mapRef.current?.zoomOut()}><Minus aria-hidden="true" /></Button></HelpTooltip>
+          <Button disabled={blocked || (!selectedMarkers.length && !drawnFiles.length && !planDrawing?.resources.length && !planDrawing?.strokes.length)} aria-label={'Centrar selección: ' + title} onClick={centerSelection}><Focus aria-hidden="true" /></Button>
+          <Button disabled={blocked} aria-label={'Acercar: ' + title} onClick={() => mapRef.current?.zoomIn()}><Plus aria-hidden="true" /></Button>
+          <Button disabled={blocked} aria-label={'Alejar: ' + title} onClick={() => mapRef.current?.zoomOut()}><Minus aria-hidden="true" /></Button>
         </>}
       </div>
       <div ref={viewport} className="reports-map-viewport" data-map-surface onPointerDownCapture={touchStart}
@@ -431,8 +437,6 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
           {framing === 'area' && <ReportMapArea area={area} disabled={blocked} busyRef={areaGesture} onChange={setArea} />}
         </div>
       </div>
-      {tileStatus && <p className="reports-map-notice" role="status">{tileStatus}</p>}
-      {isPlan && assetKey && assets.key === assetKey && assets.unavailable.length > 0 && <p className="reports-map-notice" role="status">No se pudieron cargar los iconos del plano.</p>}
     </>}
   </div>
 }

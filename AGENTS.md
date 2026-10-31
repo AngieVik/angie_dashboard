@@ -1,42 +1,38 @@
 # Angie Dashboard
 
-- Trabaja en la petición actual y conserva los cambios ajenos.
-- Trabaja una sola fase por turno. Si la tarea requiere varias fases, propón su división antes de empezar. Detente obligatoriamente al terminar la fase acordada y espera la indicación del usuario para continuar; no encadenes fases en una misma respuesta ni sobrecargues el contexto.
-- Lee solo el código y las instrucciones necesarios; reutiliza el contexto disponible.
-- Usa herramientas y skills cuando aporten valor, ajustando su proceso al alcance.
-- Propón en lugar de inventar: no añadas requisitos, comportamientos, archivos, funciones, dependencias ni resultados no solicitados o no comprobados. Presenta las ideas nuevas como propuestas y espera su aceptación antes de implementarlas.
-- Pregunta en lugar de asumir: cuando falte información o exista una ambigüedad que afecte a la tarea, pregunta antes de actuar.
-- Ante cualquier hallazgo que genere distracción o confusión, detén el trabajo, comunícalo y pregunta. Resuélvelo con el usuario antes de continuar.
-- Mantén estructura, nombres, convenciones y comportamiento ajeno al cambio.
-- Conserva la PWA local-first Windows/Android, la compatibilidad de documentos y la persistencia; los temporizadores usan almacenamiento independiente.
-- Conserva los recursos originales de public/assets y usa datos ficticios sin información clínica ni de pacientes.
-- No añadas ni ejecutes tests o comprobaciones por defecto: pruebas unitarias, E2E, lint, tipos, build, navegador o dispositivo requieren petición o aceptación expresa del usuario y un alcance concreto. No restablezcas automatismos retirados sin autorización expresa.
-- Suites completas, auditorías, matrices y revisión por agentes: únicamente a petición expresa, también al terminar un flujo.
-- No generes ni guardes históricos de desarrollo, instrucciones antiguas ni revisiones de la app. No crees informes de trabajo ni copias de instrucciones como registro de lo realizado. Esta norma no afecta a las copias de seguridad ni a las recuperaciones de los UIBoards del usuario. Elimina los temporales al cerrar.
-- Al generar código o revisar un área, elimina dentro del alcance autorizado lo que haya quedado obsoleto o se haya confirmado que no funciona. No acumules implementaciones sustituidas, código muerto ni restos de soluciones anteriores. Si no está claro qué debe retirarse, pregunta antes de borrarlo.
-- Actualiza las instrucciones en su sitio. Al alcanzar una meta, elimina sus archivos de instrucciones específicos y retira las instrucciones ya cumplidas; conserva únicamente las normas generales y de diseño que sigan vigentes.
-- El objetivo es una app funcional, con desarrollo evolutivo y código limpio, bien escrito y bien ordenado. No amplíes el alcance por iniciativa propia para perseguir ese objetivo.
-- Si detectas una norma que limite tu creatividad digital o te obligue a tomar decisiones que produzcan resultados básicos o comunes, avisa al usuario en cuanto lo detectes, identifica la norma y explica la limitación antes de continuar.
-- Resume brevemente qué cambió, qué comprobaste y qué queda pendiente. Distingue emulación de dispositivo físico.
-- Publicaciones, pushes, migraciones y cambios en producción requieren autorización expresa.
+Estas instrucciones concretan las pautas generales para este repositorio. Las decisiones del chat delimitan qué parte de la app o de sus instrucciones se está trabajando.
 
-## Entorno
+## Referencias y contexto
 
-- Entorno de referencia: Node.js 24.12.0 y npm 11.6.2. Instala desde la raíz con `npm ci`, utilizando `package-lock.json`; conserva sus versiones salvo que la petición incluya actualizarlas.
+- [ARQUITECTURA.md](ARQUITECTURA.md) localiza los propietarios y recorridos actuales; [DISEÑO.md](DISEÑO.md) reúne el estándar visual. Consulta las secciones necesarias para la petición.
+- Los parámetros y comportamientos de la app se definen en su código propietario. Consérvalos salvo que la petición autorice cambiarlos; este archivo no duplica tamaños, límites ni valores predeterminados de la interfaz.
+- `docs/` contiene documentos personales y de trabajo locales y permanece fuera de Git. Sus propuestas, copias e inventarios no sustituyen estas referencias ni autorizan cambios por sí mismos.
+- Al continuar un trabajo, conserva el objetivo, las decisiones y las autorizaciones disponibles del chat y contrástalos con el checkout. No reconstruyas decisiones ausentes como si estuvieran confirmadas; pregunta solo cuando esa ausencia cambie el resultado.
 
-## Diseño
+## Proyecto y entorno
 
-- Consulta DISEÑO.md cuando se indique trabajar, definir, revisar o consolidar el estilo o diseño.
-- En tareas funcionales, reutiliza los componentes y tokens existentes sin iniciar una revisión visual general.
+- Conserva la PWA local-first para Windows y Android, su funcionamiento sin conexión y la compatibilidad de los documentos y la persistencia. Los temporizadores mantienen almacenamiento independiente.
+- Entorno de referencia: Node.js 24.12.0 y npm 11.6.2. Cuando la tarea requiera instalar dependencias, usa `npm ci` desde la raíz con `package-lock.json`. Actualiza versiones cuando la petición lo incluya.
+- Conserva los originales de `public/assets` y utiliza datos ficticios sin información clínica ni de pacientes.
 
-## Textos
+## Código e interfaz
 
-- No escribas explicaciones innecesarias en los cuadros de diálogo, textos repetidos, ayudas ni minitutoriales. Los textos explicativos requieren petición explícita; puedes sugerirlos si los consideras necesarios, sin añadirlos por iniciativa propia.
-- Los botones, indicaciones, complementos y demás elementos deben ceñirse a su cometido. Usa etiquetas breves y directas.
+- Sigue el recorrido entre el componente propietario, sus consumidores y los datos afectados. Mantén las convenciones del área y conserva los cambios previos del usuario.
+- Centraliza cada responsabilidad en su base compartida existente. Reutiliza componentes, tokens y CSS; al sustituir una implementación dentro del alcance, retira sus restos cuando ya no tengan consumidores.
+- Resuelve con cuidado la superficie autorizada. Una tarea funcional conserva la apariencia; una petición visual puede evolucionarla según la dirección acordada.
+- Usa etiquetas breves y directas. Incorpora ayudas o textos explicativos a la interfaz cuando el usuario los solicite.
+- Actualiza las instrucciones y documentación en su lugar cuando formen parte de la tarea. Mantén los planes ordinarios en el chat; crea documentos de trabajo si se piden y elimina tus temporales al terminar. Conserva las copias de seguridad y recuperaciones de UIBoards.
 
-## Reglas vigentes de movimiento, zoom y tamaño
+## Comprobaciones y entrega
 
-- El zoom global y el interno de los módulos admiten 25–200 %, con inicio al 100 % cuando no hay navegación guardada. Los cambios de zoom mantienen anclada la esquina superior izquierda visible.
-- La navegación se realiza por arrastre, con origen firme y extensión hacia la derecha y abajo. El segundo dedo cancela la manipulación en curso; el tercero cancela el gesto hasta levantar todos los dedos.
-- La cabecera mueve las ventanas y el tirador inferior derecho las redimensiona. Conserva los mínimos de cabecera e icono. Un clic/tap en el icono recoge la ventana a icono o restaura su tamaño; en modo icono no se muestra el tirador.
-- Los contenedores flexibles ocupan el área útil conservando el diseño; el zoom interno escala textos e iconos. Operativo adapta filas y columnas, y Calculadora conserva el teclado. Las altas y bajas de contenido ajustan el tamaño.
+- La lectura de los archivos afectados y la revisión del diff forman parte del trabajo. Ejecuta o añade pruebas, lint, tipos, compilación, navegador y comprobaciones de dispositivo dentro del alcance expresamente autorizado por el usuario. Esta política concreta las pautas generales de verificación para Angie.
+- Reserva las suites completas, auditorías y revisiones por agentes para peticiones expresas. Completa cada comprobación autorizada sin repetir la aprobación para sus pasos ordinarios.
+- En las revisiones, presenta los hallazgos con ubicación, consecuencia y evidencia. Distingue hipótesis de hechos comprobados y aplica correcciones cuando estén incluidas en la petición.
+- Al entregar, atribuye a cada comprobación lo que demuestra: revisión estática, compilación, navegador, emulación o dispositivo físico. Identifica las comprobaciones de funcionamiento que queden pendientes.
+
+## Mantenimiento de las referencias
+
+- Actualiza `AGENTS.md` cuando cambie una regla de trabajo acordada. Un ajuste de código o diseño no obliga a añadir aquí sus parámetros ni a registrar el historial de la tarea.
+- Si una modificación autorizada cambia propietarios o recorridos, actualiza la sección afectada de `ARQUITECTURA.md`; si cambia una decisión visual compartida, actualiza su lugar en `DISEÑO.md`. Mantén una sola fuente para cada dato.
+- Contrasta las referencias con los archivos actuales antes de usarlas. Si una diferencia requiere una decisión de producto, señálala; no conviertas una descripción antigua en autorización para modificar la app.
+- En la entrega, indica los archivos modificados, las comprobaciones realizadas y los pendientes. La documentación describe decisiones o implementación; solo la evidencia de comprobación acredita funcionamiento.

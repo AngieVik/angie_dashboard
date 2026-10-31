@@ -70,13 +70,11 @@
   --surface-button: linear-gradient(180deg, var(--palette-gray-675), var(--palette-gray-800));
   --surface-button-hover: linear-gradient(180deg, var(--palette-gray-600), var(--palette-gray-700));
   --surface-overlay: linear-gradient(160deg, var(--palette-gray-750), var(--palette-gray-900));
-  --surface-tooltip: linear-gradient(160deg, var(--palette-gray-750-alpha-85), var(--palette-gray-900-alpha-85));
   --surface-dialog-backdrop: var(--palette-black-alpha-65);
   --surface-toolbar: linear-gradient(180deg, var(--palette-gray-725), var(--palette-gray-850) 80%);
   --surface-inset: linear-gradient(180deg, var(--palette-gray-800), var(--palette-gray-875));
   --shadow-selection: 0 0 6px var(--palette-red-alpha-7);
   --shadow-panel: 0 8px 25px var(--palette-black-alpha-45), 0 1px 3px var(--palette-black-alpha-50), inset 0 1px var(--palette-white-alpha-2);
-  --shadow-tooltip: 0 2px 6px var(--palette-black-alpha-25);
   --shadow-dialog: 0 10px 40px var(--palette-black-alpha-70);
 
   /* Semantic measures and default typography. */

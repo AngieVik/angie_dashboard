@@ -1,0 +1,7 @@
+@layer components {
+  .base { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 4px; font-size: var(--font-size-technical); color: var(--color-text-secondary); }
+  .base svg { flex: none; width: calc(22px * var(--module-zoom, 1)); height: calc(22px * var(--module-zoom, 1)); }
+  .base circle { fill: var(--color-field); stroke: currentColor; stroke-width: 0.75; }
+  .base path { fill: currentColor; }
+  .fraction { font-variant-numeric: tabular-nums; }
+}

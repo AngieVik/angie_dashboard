@@ -1,0 +1,18 @@
+Offline geographic time-zone lookup
+
+Engine: tzf-wasm 2.0.1 by ringsaturn, MIT license.
+Source: https://github.com/ringsaturn/tzf-wasm
+The MIT license is included alongside this file as tzf-wasm.LICENSE.txt.
+
+Geographic time-zone boundaries are supplied by the bundled tzf-rs/tzf data,
+derived from timezone-boundary-builder and OpenStreetMap contributors.
+Database license: Open Database License (ODbL) 1.0.
+License: https://opendatacommons.org/licenses/odbl/1-0/
+Data sources and corresponding database downloads:
+https://github.com/ringsaturn/tzf-dist
+https://github.com/evansiroky/timezone-boundary-builder
+https://www.openstreetmap.org/copyright
+
+The bundled boundaries are simplified; automatic geographic lookup can be
+ambiguous near a boundary. The solar calculator provides a manual correction.
+Civil-time conversion and daylight-saving rules use the device's Intl database.
