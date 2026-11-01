@@ -11,6 +11,12 @@ export class DocumentSave {
   constructor(private readonly source: AngieDocument, private text?: string) {
     this.documentId = source.document.id
   }
+  // A worker already detached and validated this immutable revision.
+  static fromPrepared(prepared: PreparedDocumentSave): DocumentSave {
+    const save = new DocumentSave(prepared.document, prepared.text)
+    save.prepared = prepared
+    return save
+  }
   prepare(): PreparedDocumentSave {
     if (!this.prepared) {
       this.text ??= serializeDocument(this.source)

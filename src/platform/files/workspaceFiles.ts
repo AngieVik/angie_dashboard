@@ -1,4 +1,5 @@
-import { migrateDocument } from '../../domain/document/migrateDocument'
+import { analyzeDocument } from './documentWorkerClient'
+import type { SizedTextFile } from './readInputFile'
 import { serializeDocument } from '../../domain/document/serializeDocument'
 import { DocumentSave } from '../../storage/documentSave'
 import { portableDocument } from '../../storage/imageResources'
@@ -12,7 +13,7 @@ import { workspaceNameError } from './workspaceNames'
 import type { LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
 import { directoryErrorMessage } from '../pwaPermissions'
 import { readJsonText } from './readInputFile'
-import { checkDocumentBudget, checkFileBytes, InputBudgetError } from '../../domain/input/inputBudgets'
+import { checkFileBytes, InputBudgetError } from '../../domain/input/inputBudgets'
 import { createDatabase } from '../../storage/db'
 import { catalogRecord } from '../../storage/documentCatalog'
 import type { CatalogEntry, RecoveryPage, RecoveryQuery } from '../../storage/documentCatalog'
@@ -96,20 +97,19 @@ export function workspaceFolderName(document: AngieDocument): string {
 }
 
 async function readDashboard(folder: WorkspaceDirectory): Promise<{ text: string; document: AngieDocument } | null> {
-  let text: string
-  try { text = await readJsonText(await (await folder.getFileHandle('dashboard.json')).getFile()) }
+  let file: SizedTextFile
+  try { file = await (await folder.getFileHandle('dashboard.json')).getFile() }
   catch (error) { if (isMissing(error)) return null; throw error }
   try {
-    const result = parseWorkspaceDocument(text)
-    return result.success ? { text, document: result.document } : null
+    // Keep the exact original text for conflict detection, without a UTF-8 scan
+    // or a second JSON parser on the UI thread.
+    const { result, sourceText } = await analyzeDocument(file, { documentGeneration: 0, retainText: true })
+    return result.success && sourceText !== undefined ? { text: sourceText, document: result.document } : null
   } catch (error) { if (error instanceof InputBudgetError) throw error; return null }
 }
 
-function parseWorkspaceDocument(text: string) {
-  const input: unknown = JSON.parse(text)
-  const budget = checkDocumentBudget(input)
-  if (budget) throw new InputBudgetError(budget)
-  return migrateDocument(input)
+async function parseWorkspaceDocument(source: SizedTextFile | string) {
+  return (await analyzeDocument(source)).result
 }
 
 async function writeText(folder: WorkspaceDirectory, name: string, text: string) {
@@ -167,7 +167,7 @@ export function createWorkspaceFiles(
           let entry: CatalogEntry
           try {
             const saved = version ? await readVersion(parent) : null
-            const parsed = version ? null : parseWorkspaceDocument(await readJsonText(file))
+            const parsed = version ? null : await parseWorkspaceDocument(file)
             const document = saved?.document ?? (parsed?.success ? parsed.document : null)
             if (!document) throw new Error('Registro sin validar')
             entry = catalogRecord({ key: 'board:' + document.document.id, document })!
@@ -499,7 +499,7 @@ export function createWorkspaceFiles(
     const container = filename === 'dashboard.json' ? folder : version
       ? await (await folder.getDirectoryHandle('copias')).getDirectoryHandle(filename) : await folder.getDirectoryHandle('copias')
     const saved = version ? await readVersion(container, true) : null
-    const result = version ? null : parseWorkspaceDocument(await readJsonText(await (await container.getFileHandle(filename)).getFile()))
+    const result = version ? null : await parseWorkspaceDocument(await (await container.getFileHandle(filename)).getFile())
     const document = saved?.document ?? (result?.success ? result.document : null)
     return document ? { document, session: { openModules: [] }, savedAt: document.document.updatedAt, resourceFolder: name,
       resourceAccessId: selected.accessId, resourceVersion: version ? filename : undefined } : null
@@ -560,7 +560,7 @@ export function createWorkspaceFiles(
       if (!match) continue
       try {
         const saved = entry.kind === 'directory' ? await readVersion(entry) : null
-        const result = entry.kind === 'file' ? parseWorkspaceDocument(await readJsonText(await entry.getFile())) : null
+        const result = entry.kind === 'file' ? await parseWorkspaceDocument(await entry.getFile()) : null
         const document = saved?.document ?? (result?.success ? result.document : null)
         if (document?.document.id === previous.document.document.id) owned.push({ name, time: Number(match[1]), directory: entry.kind === 'directory' })
       } catch { /* Unrecognized copies belong to the user and are never pruned. */ }

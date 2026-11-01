@@ -28,7 +28,7 @@ export interface ActiveDocumentRepository {
   saveActive(document: AngieDocument, session?: DocumentSession, prepared?: PreparedDocumentSave): Promise<LocalResourceStatus | void>
   clearActive(documentId?: string): Promise<void>
   loadActiveSession?(): Promise<DocumentSession>
-  replaceActive?(document: AngieDocument, session: DocumentSession): Promise<LocalResourceStatus | void>
+  replaceActive?(document: AngieDocument, session: DocumentSession, prepared?: PreparedDocumentSave): Promise<LocalResourceStatus | void>
   readGpx?(reference: MapGpxReference): Promise<File | null>
   listRecoverable?(): Promise<RecoverableDocument[]>
   listRecoveryPage?(query?: RecoveryQuery): Promise<RecoveryPage>
@@ -222,7 +222,7 @@ export class DocumentRepository implements ActiveDocumentRepository {
     return { documentId: id, gpxFingerprints }
   }
   saveActive(document: AngieDocument, session?: DocumentSession, prepared?: PreparedDocumentSave) { return this.write(document, session, false, prepared) }
-  replaceActive(document: AngieDocument, session: DocumentSession) { return this.write(document, session, true) }
+  replaceActive(document: AngieDocument, session: DocumentSession, prepared?: PreparedDocumentSave) { return this.write(document, session, true, prepared) }
 
   async listRecoveryPage(query: RecoveryQuery = {}): Promise<RecoveryPage> {
     await this.open()

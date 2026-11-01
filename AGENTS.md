@@ -26,11 +26,16 @@
 - Documentación y estado: Actualiza las instrucciones en su lugar cuando formen parte de la tarea. Mantén los planes ordinarios en el chat; crea documentos de trabajo si se piden y elimina tus temporales al terminar. Conserva las copias de seguridad y recuperaciones de UIBoards.
 - Mantenimiento documental: Si una modificación autorizada cambia propietarios o recorridos, actualiza `ARQUITECTURA.md`; si cambia una decisión visual, actualiza `DISEÑO.md`. Actualiza este `AGENTS.md` solo cuando cambie una regla de trabajo general.
 
-## Pruebas y depuración silenciosa
+## Pruebas y depuración
 
-- **Pruebas E2E desactivadas:** No ejecutes tests automatizados ni comandos de frameworks de testing. La validación funcional la realiza el desarrollador manualmente.
-- **Bloqueo de inundación de contexto:** Prohibido imprimir arrays de datos pesados o hacer volcados completos del DOM/interfaz en la consola.
-- **Verificación permitida:** Limítate a realizar comprobaciones estáticas (lint, tipos) o de compilación dentro del alcance autorizado.
+- **Pruebas E2E (Playwright):** 
+    - Las pruebas automatizadas están desactivadas temporalmente para evitar el consumo excesivo de recursos ("context flooding").
+    - La validación funcional de la interfaz y la lógica de dominio la realizará el desarrollador de forma estrictamente manual.
+- **Depuración silenciosa (Para el Agente):**
+    - Prohibido: Imprimir arrays de datos pesados o hacer volcados completos del DOM (ej. `screen.debug()`) en la consola.
+    - Excepción: Solo puedes imprimir la traza de error mínima necesaria para identificar la línea exacta que falla (ej. `console.error(err.message)`).
+- **Validación Estática:**
+    - Realiza comprobaciones estáticas (lint, tipos) y compilación (`npm run build`) para verificar la refactorización antes de solicitar pruebas manuales.
 
 ## Comprobaciones y entrega
 

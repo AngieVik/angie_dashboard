@@ -4,11 +4,12 @@ import { renameDocument } from './documentEdits'
 import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { serializeWorkingDocument as serializeDocument } from '../../domain/document/serializeWorkingDocument'
 import { serializeDocument as serializePortableDocument } from '../../domain/document/serializeDocument'
-import { workingDocument, portableDocument } from '../../storage/imageResources'
+import { workingDocument, portableDocument, registerImage } from '../../storage/imageResources'
 import { checkDocumentBudget, InputBudgetError } from '../../domain/input/inputBudgets'
 import type { AngieDocument, DocumentModuleId, MapGpxReference } from '../../domain/document/types'
 import { createBrowserFilePlatform, loadVisibleDocument, suggestFilename } from '../../platform/files/fileAccess'
 import type { DocumentFile, FileAccessContext, SaveFileHandle } from '../../platform/files/fileAccess'
+import type { VisibleDocumentPreparation } from '../../platform/files/documentWorkerProtocol'
 import { DocumentRepository, DocumentConflictError, normalizeSession } from '../../storage/documentRepository'
 import type { ActiveDocumentRepository, DocumentSession, LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
 import type { RecoveryQuery, RecoveryPage, RetainedRemoval } from '../../storage/documentCatalog'
@@ -16,6 +17,7 @@ import { readGpxAccess } from '../../storage/gpxAccessRepository'
 import { registerGpx, releaseGpxOriginals } from '../../storage/gpxResources'
 import { createAutosave } from '../../storage/autosave'
 import { DocumentSave } from '../../storage/documentSave'
+import type { PreparedDocumentSave } from '../../storage/documentSave'
 import { createWorkspaceAutosave } from '../../storage/workspaceAutosave'
 import { createBrowserWorkspaceFiles } from '../../platform/files/workspaceFiles'
 import type { WorkspaceSaveResult } from '../../platform/files/workspaceFiles'
@@ -50,6 +52,7 @@ export interface DocumentSnapshot {
   replacementBlocked: boolean
   replacing: boolean
   fileBusy: boolean
+  documentReading: boolean
   fileDirty: boolean
   fileSavedAt: string | null
   downloadStartedAt: string | null
@@ -73,7 +76,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     document: createEmptyDocument(), documentGeneration: 0, active: false, ready: false, openModules: [],
     autosaveUnavailable: false, localStorageMessage: null, autosaveSaving: false, localSavedAt: null, localGpxFingerprints: [], storageConflict: false, recoveredPrevious: false,
     recoveryPending: false, recoveryTitle: null, recoverySeenAt: null, replacementBlocked: false, replacing: false,
-    fileBusy: false, fileDirty: false, fileSavedAt: null, downloadStartedAt: null, fileMessage: null, fileMessageRevision: 0,
+    fileBusy: false, documentReading: false, fileDirty: false, fileSavedAt: null, downloadStartedAt: null, fileMessage: null, fileMessageRevision: 0,
     workspaceStatus: 'unconfigured', workspacePath: null,
     workspaceSavedAt: null, workspaceMessage: null, workspacePermissionRequired: false,
   }
@@ -85,10 +88,16 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
   let folderPaused = false, lastQueuedWorkspace: number | null = null
   let workLocally = false
   let presenceWrite = Promise.resolve()
+  let pendingRead: { controller: AbortController; generation: number; revision: number } | null = null
   const listeners = new Set<() => void>()
   const now = () => (initialContext.now?.() ?? new Date()).toISOString()
   const session = (): DocumentSession => ({ openModules: state.openModules })
   function update(patch: Partial<DocumentSnapshot>) {
+    if (pendingRead && (patch.replacing || (patch.documentGeneration !== undefined && patch.documentGeneration !== pendingRead.generation))) {
+      pendingRead.controller.abort()
+      pendingRead = null
+      patch.documentReading = false
+    }
     if (patch.document) {
       const next = new Set(patch.document.map?.gpx.map(reference => reference.fingerprint) ?? [])
       releaseGpxOriginals((state.document.map?.gpx ?? []).map(reference => reference.fingerprint).filter(fingerprint => !next.has(fingerprint)))
@@ -175,7 +184,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       const recovered = await repository.loadActive()
       const savedSession = await repository.loadActiveSession?.() ?? { openModules: [] }
       const presence = await repository.readPresence?.() ?? null
-      if (generation !== state.documentGeneration || state.active || state.fileBusy) return
+      if (generation !== state.documentGeneration || state.active || state.fileBusy || state.documentReading) return
       const age = presence ? Date.parse(now()) - Date.parse(presence.seenAt) : Infinity
       const recent = recovered && presence && !presence.closed && presence.documentId === recovered.document.id && age >= 0 && age < 30 * 60 * 1000
       recoveryCandidate = recent ? { document: recovered, session: savedSession } : null
@@ -184,7 +193,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         recoveredPrevious: repository.recoverySource === 'previous' })
       if (recoveryCandidate && age < 60 * 1000) await replace({ ...recoveryCandidate, fileDirty: true })
     } catch (error) {
-      if (generation === state.documentGeneration && !state.active && !state.fileBusy) update({ ready: true, autosaveUnavailable: true,
+      if (generation === state.documentGeneration && !state.active && !state.fileBusy && !state.documentReading) update({ ready: true, autosaveUnavailable: true,
         fileMessage: error instanceof InputBudgetError ? error.message : 'No se pudo leer la recuperación de este dispositivo. Reintenta o abre un archivo desde su carpeta.' })
     }
   }
@@ -213,9 +222,9 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     void persist()
     return true
   }
-  function activate(candidate: Replacement, protectedLocally: boolean, result?: WorkspaceSaveResult, gpxFingerprints: string[] = []) {
+  function activate(candidate: Replacement, protectedLocally: boolean, result?: WorkspaceSaveResult, gpxFingerprints: string[] = [], prepared?: PreparedDocumentSave) {
     revision++; localRevision++
-    documentSave = new DocumentSave(candidate.document)
+    documentSave = prepared ? DocumentSave.fromPrepared(prepared) : new DocumentSave(candidate.document)
     localSavedRevision = protectedLocally ? localRevision : -1
     recoveryCandidate = null
     folderPaused = false; lastQueuedWorkspace = null
@@ -236,29 +245,39 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     if (state.storageConflict) return false
     return localSavedRevision === localRevision || state.workspaceStatus === 'saved'
   }
-  async function replace(candidate: Replacement, result?: WorkspaceSaveResult, carriesCurrent = false, adopt = false) {
-    update({ fileBusy: true, replacing: true, fileMessage: null })
+  async function replace(candidate: Replacement, result?: WorkspaceSaveResult, carriesCurrent = false, adopt = false, visible?: VisibleDocumentPreparation) {
+    const generation = state.documentGeneration
+    const current = () => generation === state.documentGeneration
+    update({ fileBusy: true, documentReading: false, replacing: true, fileMessage: null })
     try {
+      if (visible?.image) await registerImage(visible.image.blob, visible.image.id)
+      if (!current()) return false
       candidate = { ...candidate, document: await workingDocument(candidate.document) }
-      serializeDocument(candidate.document)
+      if (!current()) return false
+      const prepared = visible?.prepared
+      if (prepared && prepared.document !== candidate.document) throw new Error('La instantánea no pertenece al documento que se abre.')
+      if (!prepared) serializeDocument(candidate.document)
       if (!carriesCurrent && !await protectCurrent()) {
-        update({ fileBusy: false, replacing: false, replacementBlocked: true })
+        if (current()) update({ fileBusy: false, replacing: false, replacementBlocked: true })
         return false
       }
+      if (!current()) return false
       let protectedLocally = true
       let gpxFingerprints: string[] = []
       try {
         if (adopt) await repository.prepareOpen?.(candidate.document.document.id, candidate.revision)
-        const resources = repository.replaceActive ? await repository.replaceActive(candidate.document, candidate.session)
-          : await repository.saveActive(candidate.document, candidate.session)
+        if (!current()) return false
+        const resources = repository.replaceActive ? await repository.replaceActive(candidate.document, candidate.session, prepared)
+          : await repository.saveActive(candidate.document, candidate.session, prepared)
         gpxFingerprints = resources?.gpxFingerprints ?? []
       } catch (error) {
-        if (error instanceof DocumentConflictError) throw error
+        if (visible || error instanceof DocumentConflictError) throw error
         protectedLocally = false
       }
-      activate(candidate, protectedLocally, result, gpxFingerprints)
+      if (!current()) return false
+      activate(candidate, protectedLocally, result, gpxFingerprints, prepared)
       return true
-    } catch (error) { update({ fileBusy: false, replacing: false, fileMessage: message(error) }); return false }
+    } catch (error) { if (current()) update({ fileBusy: false, replacing: false, fileMessage: message(error) }); return false }
   }
   async function uniqueName(requested: string, id?: string, localOnly = false) {
     if (!requested.trim()) requested = ''
@@ -323,14 +342,26 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     }
     return createBoard(title, candidate, localRecovery)
   }
+  function cancelDocumentRead() {
+    if (!pendingRead) return
+    pendingRead.controller.abort()
+    pendingRead = null
+    update({ documentReading: false })
+  }
   async function load(file: DocumentFile, handle?: SaveFileHandle) {
     if (state.fileBusy) return false
-    update({ fileBusy: true })
-    const captured = revision
-    const result = await loadVisibleDocument(file)
-    if (result.status === 'error') { update({ fileBusy: false, fileMessage: result.message }); return false }
-    if (captured !== revision) { update({ fileBusy: false, fileMessage: 'Hubo cambios durante la lectura. Vuelve a abrir el archivo.' }); return false }
-    return replace({ document: result.document, session: { openModules: [] }, handle, fileDirty: result.migrated }, undefined, false, true)
+    cancelDocumentRead()
+    const operation = { controller: new AbortController(), generation: state.documentGeneration, revision }
+    pendingRead = operation
+    update({ documentReading: true, fileMessage: null })
+    const result = await loadVisibleDocument(file, { documentGeneration: operation.generation, signal: operation.controller.signal })
+    if (pendingRead !== operation || operation.generation !== state.documentGeneration || operation.controller.signal.aborted) return false
+    pendingRead = null
+    if (result.status === 'cancelled') { update({ documentReading: false }); return false }
+    if (result.status === 'error') { update({ documentReading: false, fileMessage: result.message }); return false }
+    if (state.fileBusy) { update({ documentReading: false, fileMessage: 'Hay otra operación en curso. Vuelve a abrir el archivo.' }); return false }
+    if (operation.revision !== revision) { update({ documentReading: false, fileMessage: 'Hubo cambios durante la lectura. Vuelve a abrir el archivo.' }); return false }
+    return replace({ document: result.document, session: { openModules: [] }, handle, fileDirty: result.migrated }, undefined, false, true, result.visible)
   }
   return {
     getSnapshot: () => state,
@@ -389,13 +420,16 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     newDocument(title = '') { return createBoard(title) },
     saveAs(title: string) { return state.active ? createBoard(title, { document: state.document, session: session() }) : Promise.resolve(false) },
     loadDocument(file: DocumentFile, handle?: SaveFileHandle) { return load(file, handle) },
+    cancelDocumentRead,
     hasOpenPicker: () => Boolean(initialContext.platform.pickOpen),
     async pickDocument() {
+      cancelDocumentRead()
       try { return await initialContext.platform.pickOpen?.() ?? null }
       catch (error) { if (!cancelled(error)) update({ fileMessage: message(error) }); return null }
     },
     async openDocument() {
       if (state.fileBusy || !initialContext.platform.pickOpen) return false
+      cancelDocumentRead()
       try {
         const selected = await initialContext.platform.pickOpen()
         return await load(selected.file, selected.handle)
@@ -554,6 +588,8 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       finally { update({ fileBusy: false }) }
     },
     async restoreDocument(key: string, expected?: RecoverableDocument) {
+      if (state.fileBusy) return false
+      cancelDocumentRead()
       try {
         const candidate = key.startsWith('workspace:') ? await initialContext.workspace?.loadRecoverable?.(key) : await repository.loadRecoverable?.(key)
         if (!candidate) { update({ fileMessage: 'La recuperación ya no está disponible.' }); return false }
@@ -564,6 +600,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     },
     async openRecentDocument() {
       if (!state.ready || state.fileBusy) return false
+      cancelDocumentRead()
       update({ fileBusy: true, fileMessage: null })
       try {
         await Promise.all([autosave.flush(), workspaceAutosave?.flush()])

@@ -103,6 +103,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
     } finally { namingSubmission.current = false; setNamingBusy(false) }
   }
   async function selectFile() {
+    store.cancelDocumentRead()
     if (!store.hasOpenPicker()) { input.current?.click(); return }
     const selected = await store.pickDocument()
     if (selected) await transition(() => store.loadDocument(selected.file, selected.handle))
@@ -122,11 +123,15 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
 
   return <>
     <MenubarMenu>
-      <MenubarTrigger asChild><Button ref={trigger}>Archivo</Button></MenubarTrigger>
+      <MenubarTrigger asChild><Button ref={trigger} aria-busy={snapshot.documentReading}>Archivo</Button></MenubarTrigger>
       <MenubarContent align="start" onCloseAutoFocus={event => { if (naming || recovering || configuration || pending || closing) event.preventDefault() }}>
         <MenubarGroup>
           <MenubarItem disabled={!ready || fileBusy} onSelect={() => showNaming('new')}><ClipboardPen aria-hidden="true" />Nuevo UIBoard</MenubarItem>
           <MenubarItem disabled={!ready || fileBusy} onSelect={() => { void selectFile() }}><ClipboardList aria-hidden="true" />Abrir UIBoard…</MenubarItem>
+          {snapshot.documentReading && <>
+            <div role="status" className={styles.saveDetails}>Abriendo UIBoard…</div>
+            <MenubarItem onSelect={() => store.cancelDocumentRead()}><ClipboardX aria-hidden="true" />Cancelar apertura</MenubarItem>
+          </>}
           <MenubarItem disabled={!active || fileBusy} onSelect={() => { void store.saveDocument() }}><ClipboardCheck aria-hidden="true" />Guardar</MenubarItem>
           <MenubarItem disabled={!active || fileBusy} onSelect={() => showNaming('saveAs')}><ClipboardPlus aria-hidden="true" />Guardar como…</MenubarItem>
           <MenubarItem disabled={!active || fileBusy} onSelect={() => showNaming('rename')}><ClipboardPen aria-hidden="true" />Cambiar nombre…</MenubarItem>

@@ -1,9 +1,9 @@
-import { migrateDocument } from '../../domain/document/migrateDocument'
-import { validateEmbeddedImage } from './embeddedImage'
 import type { AngieDocument } from '../../domain/document/types'
 import type { WorkspaceFiles } from './workspaceFiles'
-import { readJsonText } from './readInputFile'
 import { InputBudgetError } from '../../domain/input/inputBudgets'
+import { analyzeDocument } from './documentWorkerClient'
+import type { DocumentReadOptions } from './documentWorkerClient'
+import type { VisibleDocumentPreparation } from './documentWorkerProtocol'
 
 export interface SaveFileHandle {
   getFile?(): Promise<DocumentFile>
@@ -28,7 +28,8 @@ export interface FileAccessContext {
 }
 
 export type LoadOutcome =
-  | { status: 'loaded'; document: AngieDocument; migrated: boolean }
+  | { status: 'loaded'; document: AngieDocument; migrated: boolean; visible: VisibleDocumentPreparation }
+  | { status: 'cancelled' }
   | { status: 'error'; message: string }
 
 export type DocumentFile = Pick<File, 'size' | 'text'>
@@ -51,13 +52,14 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Error desconocido'
 }
 
-export async function loadVisibleDocument(file: DocumentFile): Promise<LoadOutcome> {
+export async function loadVisibleDocument(file: DocumentFile, options: DocumentReadOptions = { documentGeneration: 0 }): Promise<LoadOutcome> {
   try {
-    const result = migrateDocument(JSON.parse(await readJsonText(file)))
+    const { result, visible } = await analyzeDocument(file, { ...options, prepareVisible: true })
     if (!result.success) return { status: 'error', message: result.errors.map(error => error.message).join('\n') }
-    if (result.document.board.backgroundImage) await validateEmbeddedImage(result.document.board.backgroundImage.dataUrl)
-    return { status: 'loaded', document: result.document, migrated: result.migrated }
+    if (!visible) throw new Error('No se recibió el documento preparado.')
+    return { status: 'loaded', document: result.document, migrated: result.migrated, visible }
   } catch (error) {
+    if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) return { status: 'cancelled' }
     if (error instanceof InputBudgetError) return { status: 'error', message: error.message }
     return { status: 'error', message: `No se pudo leer el JSON: ${errorMessage(error)}` }
   }
