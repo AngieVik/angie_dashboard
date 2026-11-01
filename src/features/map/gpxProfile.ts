@@ -16,7 +16,12 @@ export interface GpxProfile {
   missingPoints: number
 }
 
+const profiles = new WeakMap<GpxData, GpxProfile>()
+export function primeGpxProfile(data: GpxData, profile: GpxProfile) { profiles.set(data, profile) }
+
 export function getGpxProfile(data: GpxData): GpxProfile {
+  const cached = profiles.get(data)
+  if (cached) return cached
   const metrics = getGpxMetrics(data)
   const profile: GpxProfile = { segments: [], samples: [], gaps: [], cuts: [], totalMeters: metrics.totalMeters, missingPoints: 0 }
   let ascent = 0, descent = 0, pairs = 0
@@ -53,6 +58,7 @@ export function getGpxProfile(data: GpxData): GpxProfile {
     }
   }
   if (pairs) { profile.ascent = ascent; profile.descent = descent }
+  profiles.set(data, profile)
   return profile
 }
 

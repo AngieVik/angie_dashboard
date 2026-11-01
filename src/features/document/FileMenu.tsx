@@ -27,6 +27,7 @@ const SettingsDialog = lazy(() => import('../settings/SettingsDialog').then(modu
 
 function saveLabels(snapshot: DocumentSnapshot) {
   const local = snapshot.autosaveSaving ? 'Guardando en este dispositivo…' : snapshot.autosaveUnavailable ? 'Recuperación del dispositivo no disponible' :
+    snapshot.document.map?.gpx.some(reference => !snapshot.localGpxFingerprints.includes(reference.fingerprint)) ? 'Dispositivo: GPX pendientes de protección local' :
     snapshot.localSavedAt ? 'Dispositivo: guardado ' + formatTimelineTime(snapshot.localSavedAt) : 'Dispositivo: pendiente de guardar'
   const folder = snapshot.workspaceStatus === 'unconfigured' ? 'Carpeta: sin configurar' : snapshot.workspaceStatus === 'saving' ? 'Guardando en carpeta…' :
     snapshot.workspaceStatus === 'saved' ? 'Carpeta: guardado' + (snapshot.workspaceSavedAt ? ' ' + formatTimelineTime(snapshot.workspaceSavedAt) : '') : 'Carpeta: pendiente de guardar'
@@ -198,13 +199,14 @@ export function DocumentNotices({ store = getDocumentStore(), reports = null, ma
   const workspaceMessage = store.isWorkingLocally() ? null : snapshot.workspaceMessage
   const workspaceProblem = !store.isWorkingLocally() && Boolean(workspaceMessage || snapshot.workspacePermissionRequired || (directoryRequested && snapshot.workspaceStatus !== 'saved'))
   const localProblem = snapshot.autosaveUnavailable
+  const pendingGpx = snapshot.active ? snapshot.document.map?.gpx.filter(reference => !snapshot.localGpxFingerprints.includes(reference.fingerprint)) ?? [] : []
   const fileProblem = Boolean(fileMessage && !['Guardado', 'Sin cambios pendientes', 'Descarga JSON iniciada'].includes(fileMessage) &&
     fileMessage !== workspaceMessage && !directoryRequested &&
     !(localProblem && (!snapshot.active || snapshot.storageConflict)))
   const issueKey = [workspaceProblem && 'workspace', localProblem && 'local', fileProblem && 'file'].filter(Boolean).join(',')
   const notified = useRef(new Set<string>())
   const mapEntries = Object.entries(maps) as ['map' | 'plan', MapNotice][]
-  const hasIssues = Boolean(issueKey || reports || mapEntries.length || board || clock)
+  const hasIssues = Boolean(issueKey || pendingGpx.length || reports || mapEntries.length || board || clock)
   const hasNotices = hasIssues || snapshot.recoveryPending
   useEffect(() => {
     const current = issueKey ? issueKey.split(',') : []
@@ -233,6 +235,7 @@ export function DocumentNotices({ store = getDocumentStore(), reports = null, ma
           </section>}
           {localProblem && <section>
             <h3>{snapshot.storageConflict ? 'Cambios en otra pestaña' : 'Recuperación del dispositivo no disponible'}</h3>
+            {snapshot.localStorageMessage && <p>{snapshot.localStorageMessage}</p>}
             <p>{!snapshot.active ? fileMessage ?? 'No se pudo leer la recuperación de este dispositivo.' : snapshot.storageConflict ? 'Abre una recuperación en rama para conservar tus cambios.' : snapshot.workspaceStatus === 'saved' ? 'El trabajo está guardado en carpeta.' : 'Los cambios de esta sesión aún no tienen protección confirmada.'}</p>
             <div className={styles.noticeActions}>
               {snapshot.storageConflict ? <Button disabled={snapshot.fileBusy || branching} onClick={() => {
@@ -241,6 +244,11 @@ export function DocumentNotices({ store = getDocumentStore(), reports = null, ma
                 void store.recoverCurrent().finally(() => { branchRequest.current = false; setBranching(false) })
               }}>Abrir recuperación en rama</Button> : <Button disabled={snapshot.fileBusy || snapshot.autosaveSaving} onClick={() => { void store.retryAutosave() }}>Reintentar recuperación local</Button>}
             </div>
+          </section>}
+          {pendingGpx.length > 0 && <section>
+            <h3>GPX sin protección local</h3>
+            <p>{pendingGpx.map(reference => reference.name).join(', ')}. Su copia local todavía no está confirmada.</p>
+            <div className={styles.noticeActions}><Button disabled={snapshot.fileBusy || snapshot.autosaveSaving} onClick={() => { void store.retryAutosave() }}>Reintentar protección local</Button></div>
           </section>}
           {fileProblem && <section><h3>Archivo</h3><p>{fileMessage}</p></section>}
           {snapshot.active && issueKey && <div className={styles.noticeActions}><Button disabled={snapshot.fileBusy} onClick={() => { void store.downloadJson() }}><FileBracesCorner aria-hidden="true" />Descargar JSON</Button></div>}

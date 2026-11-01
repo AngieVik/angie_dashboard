@@ -1,21 +1,40 @@
-import type Dexie from 'dexie'
+import Dexie from 'dexie'
 import { migrateDocument } from '../domain/document/migrateDocument'
-import { serializeDocument } from '../domain/document/serializeDocument'
+import { serializeWorkingDocument as serializeDocument } from '../domain/document/serializeWorkingDocument'
+import { validateWorkingDocument } from '../domain/document/validateDocument'
+import { imageResource, registerImage, workingDocument } from './imageResources'
+import type { ImageResource } from './imageResources'
+import { gpxResource, registerGpx, commitGpxOriginals } from './gpxResources'
+import type { GpxResource } from './gpxResources'
 import { checkDocumentBudget, InputBudgetError } from '../domain/input/inputBudgets'
-import type { AngieDocument, DocumentModuleId } from '../domain/document/types'
+import type { AngieDocument, DocumentModuleId, MapGpxReference } from '../domain/document/types'
 import { createDatabase } from './db'
+import { DocumentSave } from './documentSave'
+import type { PreparedDocumentSave } from './documentSave'
+import { catalogRecord } from './documentCatalog'
+import { catalogPage } from './catalogPage'
+import type { CatalogEntry, LocalRecord, RecoveryQuery, RecoveryPage, RetainedRemoval, LibraryStorage } from './documentCatalog'
+import { readStorageCapacity } from '../platform/storageCapacity'
+import { removeOrphanedResources } from './resourceCleanup'
+import type { ResourceCleanupResult } from './resourceCleanup'
 
 export interface DocumentSession { openModules: DocumentModuleId[] }
 export interface SessionPresence { documentId: string; seenAt: string; closed: boolean }
-export interface RecoverableDocument { key: string; title: string; savedAt: string; documentId?: string; source?: 'device' | 'folder' }
+export interface RecoverableDocument { key: string; title: string; savedAt: string; documentId?: string; source?: 'device' | 'folder'; revision?: number; kind?: string; resourceIds?: string[] }
 export interface LocalDocument { document: AngieDocument; session: DocumentSession; savedAt?: string; revision?: number; resourceFolder?: string; resourceAccessId?: string; resourceVersion?: string }
+export interface LocalResourceStatus { documentId: string; gpxFingerprints: string[] }
 export interface ActiveDocumentRepository {
   loadActive(): Promise<AngieDocument | null>
-  saveActive(document: AngieDocument, session?: DocumentSession): Promise<void>
+  saveActive(document: AngieDocument, session?: DocumentSession, prepared?: PreparedDocumentSave): Promise<LocalResourceStatus | void>
   clearActive(documentId?: string): Promise<void>
   loadActiveSession?(): Promise<DocumentSession>
-  replaceActive?(document: AngieDocument, session: DocumentSession): Promise<void>
+  replaceActive?(document: AngieDocument, session: DocumentSession): Promise<LocalResourceStatus | void>
+  readGpx?(reference: MapGpxReference): Promise<File | null>
   listRecoverable?(): Promise<RecoverableDocument[]>
+  listRecoveryPage?(query?: RecoveryQuery): Promise<RecoveryPage>
+  hasDocumentTitle?(title: string, excludingId?: string): Promise<boolean>
+  measureStorage?(): Promise<LibraryStorage>
+  removeRetained?(request: RetainedRemoval): Promise<ResourceCleanupResult | void>
   loadRecoverable?(key: string): Promise<LocalDocument | null>
   readPresence?(): Promise<SessionPresence | null>
   rememberPresence?(presence: SessionPresence): Promise<void>
@@ -24,7 +43,6 @@ export interface ActiveDocumentRepository {
   lastSavedAt?: string
   needsUpgrade?: boolean
 }
-interface LocalRecord { key: string; document: unknown; session?: unknown; revision?: number; savedAt?: string; capturedAt?: string }
 const moduleIds = new Set(['board', 'elements', 'dotations', 'information', 'operations', 'coordinates', 'map', 'plan', 'clock', 'calendar', 'calculator', 'notebook', 'timeline', 'reports'])
 export function normalizeSession(value: unknown): DocumentSession {
   const ids = value && typeof value === 'object' && 'openModules' in value ? value.openModules : []
@@ -43,19 +61,84 @@ export class DocumentRepository implements ActiveDocumentRepository {
   constructor(private readonly db: Dexie = createDatabase()) {}
   private async open() { if (!this.db.isOpen()) await this.db.open() }
 
+  // Both legacy portable records and referenced working records enter through this gate.
+  // waitFor keeps IndexedDB alive while checking a blob's digest or importing legacy bytes.
+  private async readDocument(input: unknown) {
+    const image = (input as AngieDocument | null)?.board?.backgroundImage
+    const referenced = image && typeof image === 'object' && 'resourceId' in image
+    const result = referenced ? validateWorkingDocument(input) : migrateDocument(input)
+    if (!result.success) return result
+    if (referenced) {
+      const resource = await this.db.table<ImageResource, string>('imageResources').get(image.resourceId)
+      if (!resource) throw new Error('Falta la imagen original de la recuperación. Se conserva el registro.')
+      await Dexie.waitFor(registerImage(resource.blob, image.resourceId))
+    }
+    return { ...result, document: await Dexie.waitFor(workingDocument(result.document)),
+      migrated: 'migrated' in result && result.migrated === true }
+  }
+  private async storeResources(document: AngieDocument) {
+    const image = document.board.backgroundImage
+    if (image && 'resourceId' in image) {
+      const resource = imageResource(image.resourceId)
+      const table = this.db.table<ImageResource, string>('imageResources')
+      const existing = await table.get(resource.id)
+      if (existing) await Dexie.waitFor(registerImage(existing.blob, resource.id))
+      else await table.add(resource)
+    }
+    const table = this.db.table<GpxResource, string>('gpxResources')
+    const protectedGpx = new Set<string>()
+    for (const reference of document.map?.gpx ?? []) {
+      if (protectedGpx.has(reference.fingerprint)) continue
+      const existing = await table.get(reference.fingerprint)
+      const resource = existing ?? gpxResource(reference.fingerprint)
+      // Historical documents may have only references. Keep them recoverable and report the gap.
+      if (!resource) continue
+      await Dexie.waitFor(registerGpx(resource.blob, reference.fingerprint, false))
+      if (!existing) await table.add(resource)
+      protectedGpx.add(reference.fingerprint)
+    }
+    return [...protectedGpx]
+  }
+  private transaction<T>(mode: 'r' | 'rw', action: () => Promise<T>): Promise<T> {
+    return this.db.transaction(mode, ['documents', 'documentCatalog', 'imageResources', 'gpxResources'], action)
+  }
+
+  private async putRecord(record: LocalRecord) {
+    await this.db.table<LocalRecord, string>('documents').put(record)
+    const entry = catalogRecord(record)
+    if (!entry) return
+    const catalog = this.db.table<CatalogEntry, string>('documentCatalog')
+    await catalog.put(entry)
+  }
+
+  private async deleteRecords(keys: string[]) {
+    await this.db.table('documents').bulkDelete(keys)
+    await this.db.table('documentCatalog').bulkDelete(keys)
+  }
+
+  async readGpx(reference: MapGpxReference): Promise<File | null> {
+    await this.open()
+    const resource = await this.db.table<GpxResource, string>('gpxResources').get(reference.fingerprint)
+    if (!resource) return null
+    await registerGpx(resource.blob, reference.fingerprint, false)
+    return new File([resource.blob], reference.name, { type: 'application/gpx+xml', lastModified: reference.lastModified })
+  }
+
   async loadActive(): Promise<AngieDocument | null> {
     await this.open()
     const table = this.db.table<LocalRecord, string>('documents')
-    const loaded = await this.db.transaction('r', table, async () => {
+    const loaded = await this.transaction('r', async () => {
       const [record, previous] = await Promise.all([table.get('active'), table.get('previous')])
       if (!record) return null
       const budget = checkDocumentBudget(record.document)
       if (budget) throw new InputBudgetError(budget)
       let selected = record
-      let result = migrateDocument(record.document)
+      let result
+      try { result = await this.readDocument(record.document) }
+      catch { result = { success: false as const, errors: [{ path: 'board.backgroundImage', message: 'No se pudo leer el original de la imagen.' }] } }
       this.recoverySource = 'active'
       if (!result.success && previous) {
-        const fallback = migrateDocument(previous.document)
+        const fallback = await this.readDocument(previous.document)
         if (fallback.success) { result = fallback; selected = previous; this.recoverySource = 'previous' }
       }
       if (!result.success) throw new Error(result.errors.map(error => error.message).join('\n'))
@@ -72,95 +155,129 @@ export class DocumentRepository implements ActiveDocumentRepository {
   }
   async loadActiveSession(): Promise<DocumentSession> { return structuredClone(this.session) }
 
-  private async write(document: AngieDocument, session: DocumentSession | undefined, archive: boolean) {
-    const copy: AngieDocument = JSON.parse(serializeDocument(document))
+  private async write(document: AngieDocument, session: DocumentSession | undefined, archive: boolean, prepared?: PreparedDocumentSave) {
+    if (prepared && prepared.document !== document) throw new Error('La instantánea no pertenece al documento que se guarda.')
+    const snapshot = prepared ?? new DocumentSave(document).prepare()
+    const copy = await workingDocument(snapshot.document)
+    const text = copy === snapshot.document ? snapshot.text : serializeDocument(copy)
     const localSession = normalizeSession(session ?? this.session)
     await this.open()
     const table = this.db.table<LocalRecord, string>('documents')
     const id = copy.document.id, key = 'board:' + id, timestamp = new Date().toISOString()
     let nextRevision = 0
-    await this.db.transaction('rw', table, async () => {
+    let gpxFingerprints: string[] = []
+    await this.transaction('rw', async () => {
       const current = await table.get(key)
       const expected = this.expectedRevisions.get(id)
       const actual = current ? current.revision ?? 0 : null
       if (expected !== undefined && expected !== actual) throw new DocumentConflictError()
-      if (expected === undefined && current && serializeDocument(migrateRecord(current)) !== serializeDocument(copy)) throw new DocumentConflictError()
+      const migrated = current ? await this.readDocument(current.document) : null
+      const currentText = migrated?.success ? serializeDocument(migrated.document) : null
+      if (expected === undefined && current) {
+        if (!migrated?.success) throw new Error('La recuperación local no es válida. Se conserva para su recuperación.')
+        if (currentText !== text) throw new DocumentConflictError()
+      }
+      gpxFingerprints = await this.storeResources(copy)
       nextRevision = (actual ?? 0) + 1
       const active = await table.get('active')
       if (active) {
-        const legacy = migrateDocument(active.document)
+        const legacy = await this.readDocument(active.document)
         if (legacy.success) {
+          await this.storeResources(legacy.document)
+          const localActive = { ...active, document: legacy.document }
           const legacyKey = 'board:' + legacy.document.document.id
-          if (!await table.get(legacyKey)) await table.put({ ...active, key: legacyKey })
-          await table.put({ ...active, key: 'previous' })
-        } else await table.put({ ...active, key: 'damaged:' + crypto.randomUUID() })
+          if (!await table.get(legacyKey)) await this.putRecord({ ...localActive, key: legacyKey })
+          await this.putRecord({ ...localActive, key: 'previous' })
+        } else await this.putRecord({ ...active, key: 'damaged:' + crypto.randomUUID() })
       }
-      if (current && migrateDocument(current.document).success && serializeDocument(migrateRecord(current)) !== serializeDocument(copy)) {
-        await table.put({ ...current, key: 'previous:' + id })
-        const snapshots = (await table.toArray()).filter(record => record.key.startsWith('snapshot:' + id + ':'))
-          .sort((a, b) => (b.capturedAt ?? b.savedAt ?? '').localeCompare(a.capturedAt ?? a.savedAt ?? ''))
+      if (current && migrated?.success && currentText !== text) {
+        await this.storeResources(migrated.document)
+        const localCurrent = { ...current, document: migrated.document }
+        await this.putRecord({ ...localCurrent, key: 'previous:' + id })
+        const snapshots: Pick<LocalRecord, 'key' | 'capturedAt' | 'savedAt'>[] = []
+        // Pruning reads catalog metadata for this UIBoard, never version bodies.
+        await this.db.table<CatalogEntry, string>('documentCatalog').where('[documentId+kind]').equals([id, 'snapshot']).each(({ key, capturedAt, savedAt }) => {
+          snapshots.push({ key, capturedAt, savedAt })
+        })
+        snapshots.sort((a, b) => (b.capturedAt ?? b.savedAt ?? '').localeCompare(a.capturedAt ?? a.savedAt ?? ''))
         if (archive || !snapshots.length || Date.parse(timestamp) - Date.parse(snapshots[0]!.capturedAt ?? snapshots[0]!.savedAt ?? '') >= 5 * 60 * 1000) {
-          const snapshot = { ...current, key: `snapshot:${id}:${crypto.randomUUID()}`, capturedAt: timestamp }
-          await table.put(snapshot)
-          snapshots.unshift(snapshot)
-          await table.bulkDelete(snapshots.slice(5).map(record => record.key))
+          const snapshot = { ...localCurrent, key: `snapshot:${id}:${crypto.randomUUID()}`, capturedAt: timestamp }
+          await this.putRecord(snapshot)
+          snapshots.unshift({ key: snapshot.key, capturedAt: timestamp })
+          await this.deleteRecords(snapshots.slice(5).map(record => record.key))
         }
-      } else if (current && !migrateDocument(current.document).success) {
-        await table.put({ ...current, key: 'damaged:' + id + ':' + crypto.randomUUID() })
+      } else if (current && !migrated?.success) {
+        await this.putRecord({ ...current, key: 'damaged:' + id + ':' + crypto.randomUUID() })
       }
       const record = { key, document: copy, session: localSession, revision: nextRevision, savedAt: timestamp }
-      await table.put(record)
-      await table.put({ ...record, key: 'active' })
+      await this.putRecord(record)
+      await this.putRecord({ ...record, key: 'active' })
     })
+    commitGpxOriginals(gpxFingerprints)
     this.expectedRevisions.set(id, nextRevision)
     this.session = localSession
     this.lastSavedAt = timestamp
     this.needsUpgrade = false
     this.recoverySource = 'active'
+    return { documentId: id, gpxFingerprints }
   }
-  saveActive(document: AngieDocument, session?: DocumentSession): Promise<void> { return this.write(document, session, false) }
-  replaceActive(document: AngieDocument, session: DocumentSession): Promise<void> { return this.write(document, session, true) }
+  saveActive(document: AngieDocument, session?: DocumentSession, prepared?: PreparedDocumentSave) { return this.write(document, session, false, prepared) }
+  replaceActive(document: AngieDocument, session: DocumentSession) { return this.write(document, session, true) }
 
-  async listRecoverable(): Promise<RecoverableDocument[]> {
+  async listRecoveryPage(query: RecoveryQuery = {}): Promise<RecoveryPage> {
     await this.open()
-    const records = (await this.db.table<LocalRecord, string>('documents').toArray())
-      .filter(record => /^(board:|previous:|snapshot:|archive:)/.test(record.key) || record.key === 'previous' || record.key === 'active')
-      .flatMap(record => {
-        const result = migrateDocument(record.document)
-        return result.success ? [{ record, document: result.document, savedAt: record.savedAt ?? result.document.document.updatedAt }] : []
-      }).sort((a, b) => b.savedAt.localeCompare(a.savedAt))
-    const groups = new Map<string, typeof records>()
-    for (const entry of records) {
-      const id = entry.document.document.id
-      const group = groups.get(id) ?? []
-      group.push(entry); groups.set(id, group)
-    }
-    const recoverable: RecoverableDocument[] = []
-    for (const [id, group] of groups) {
-      const current = group.find(entry => entry.record.key === 'board:' + id) ?? group[0]!
-      const versions = group.filter(entry => /^(snapshot:|archive:)/.test(entry.record.key))
-      const candidates = versions.length ? versions : group.filter(entry => entry !== current)
-      const selected = [current], contents = new Set([serializeDocument(current.document)])
-      for (const entry of candidates) {
-        const text = serializeDocument(entry.document)
-        if (contents.has(text)) continue
-        selected.push(entry); contents.add(text)
-        if (selected.length === 6) break
-      }
-      for (const entry of selected) recoverable.push({ key: entry.record.key, title: entry.document.document.title,
-        documentId: id, savedAt: entry.savedAt, source: 'device' })
-    }
-    return recoverable.sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    return catalogPage(this.db.table<CatalogEntry, string>('documentCatalog'), query)
   }
-  async loadRecoverable(key: string): Promise<LocalDocument | null> {
-    if (!/^(board:|previous:|snapshot:|archive:)/.test(key) && key !== 'previous' && key !== 'active') return null
+
+  // Compatibility for older consumers: a bounded first page, never all payloads.
+  async listRecoverable(): Promise<RecoverableDocument[]> { return (await this.listRecoveryPage({ limit: 100 })).entries }
+
+  async hasDocumentTitle(title: string, excludingId?: string): Promise<boolean> {
     await this.open()
-    const record = await this.db.table<LocalRecord, string>('documents').get(key)
-    if (!record) return null
-    const result = migrateDocument(record.document)
-    if (!result.success) throw new Error(result.errors.map(error => error.message).join('\n'))
-    return { document: result.document, session: normalizeSession(record.session), savedAt: record.savedAt ?? result.document.document.updatedAt,
-      revision: key.startsWith('board:') ? record.revision : undefined }
+    return !!await this.db.table<CatalogEntry, string>('documentCatalog').where('titleKey')
+      .equals(title.toLocaleLowerCase('es')).filter(entry => entry.documentId !== excludingId).first()
+  }
+
+  async measureStorage(): Promise<LibraryStorage> {
+    await this.open()
+    const catalog = this.db.table<CatalogEntry, string>('documentCatalog')
+    const [identities, versions] = await Promise.all([catalog.orderBy('documentId').uniqueKeys(),
+      catalog.where('[listed+savedAt+key]').between([1, Dexie.minKey, Dexie.minKey], [1, Dexie.maxKey, Dexie.maxKey]).count()])
+    return { documents: identities.filter(id => typeof id === 'string' && !id.startsWith('unidentified:')).length, versions, ...await readStorageCapacity() }
+  }
+
+  async removeRetained(request: RetainedRemoval): Promise<ResourceCleanupResult> {
+    if (!!request.key === !!request.documentId) throw new Error('Selecciona una versión o un documento.')
+    await this.open()
+    const cleanup = await this.transaction('rw', async () => {
+      const catalog = this.db.table<CatalogEntry, string>('documentCatalog')
+      const entries = request.key ? [await catalog.get(request.key)].filter((entry): entry is CatalogEntry => !!entry)
+        : await catalog.where('documentId').equals(request.documentId!).toArray()
+      if (!entries.length) throw new Error('La selección ya no está disponible. Actualiza la biblioteca.')
+      const active = await catalog.get('active')
+      if (entries.some(entry => entry.key === 'active' || entry.documentId === active?.documentId)) throw new Error('Cierra el UIBoard activo antes de eliminar sus guardados.')
+      if (request.key && entries[0]!.kind === 'board') throw new Error('El guardado actual se elimina junto con su documento.')
+      const selected = request.key ? entries[0] : entries.find(entry => entry.kind === 'board')
+      if (selected && ((request.expectedRevision !== undefined && selected.revision !== request.expectedRevision) ||
+        (request.expectedSavedAt !== undefined && selected.savedAt !== request.expectedSavedAt))) throw new DocumentConflictError()
+      await this.deleteRecords(entries.map(entry => entry.key))
+      return removeOrphanedResources(this.db)
+    })
+    if (request.documentId) this.expectedRevisions.delete(request.documentId)
+    return cleanup
+  }
+
+  async loadRecoverable(key: string): Promise<LocalDocument | null> {
+    if (!/^(board:|previous:|snapshot:|archive:|damaged:)/.test(key) && key !== 'previous' && key !== 'active') return null
+    await this.open()
+    return this.transaction('r', async () => {
+      const record = await this.db.table<LocalRecord, string>('documents').get(key)
+      if (!record) return null
+      const result = await this.readDocument(record.document)
+      if (!result.success) throw new Error(result.errors.map(error => error.message).join('\n'))
+      return { document: result.document, session: normalizeSession(record.session), savedAt: record.savedAt ?? result.document.document.updatedAt,
+        revision: key.startsWith('board:') ? record.revision : undefined }
+    })
   }
   async prepareOpen(documentId: string, revision?: number): Promise<void> {
     await this.open()
@@ -184,37 +301,31 @@ export class DocumentRepository implements ActiveDocumentRepository {
   async clearActive(documentId?: string): Promise<void> {
     await this.open()
     const table = this.db.table<LocalRecord, string>('documents')
-    await this.db.transaction('rw', table, async () => {
+    await this.transaction('rw', async () => {
       const active = await table.get('active')
-      const result = active ? migrateDocument(active.document) : null
+      const result = active ? await this.readDocument(active.document) : null
       if (documentId && result?.success && result.document.document.id !== documentId) return
       const id = documentId ?? (result?.success ? result.document.document.id : undefined)
       if (active) {
         if (result?.success) {
           const key = 'board:' + result.document.document.id
-          if (!await table.get(key)) await table.put({ ...active, key })
+          if (!await table.get(key)) await this.putRecord({ ...active, key })
         } else {
-          await table.put({ ...active, key: 'damaged:' + crypto.randomUUID() })
+          await this.putRecord({ ...active, key: 'damaged:' + crypto.randomUUID() })
           const previous = await table.get('previous')
-          const fallback = previous ? migrateDocument(previous.document) : null
+          const fallback = previous ? await this.readDocument(previous.document) : null
           if (previous && fallback?.success && (!documentId || fallback.document.document.id === documentId)) {
             const key = 'board:' + fallback.document.document.id
-            if (!await table.get(key)) await table.put({ ...previous, key })
+            if (!await table.get(key)) await this.putRecord({ ...previous, key })
           }
         }
       }
-      await table.delete('active')
+      await this.deleteRecords(['active'])
       const presence = (await table.get('session-presence'))?.document
       if (id && (!presence || typeof presence !== 'object' || !('documentId' in presence) || presence.documentId === id)) {
-        await table.put({ key: 'session-presence', document: { documentId: id, seenAt: new Date().toISOString(), closed: true } })
+        await this.putRecord({ key: 'session-presence', document: { documentId: id, seenAt: new Date().toISOString(), closed: true } })
       }
     })
     this.session = { openModules: [] }
   }
-}
-
-function migrateRecord(record: LocalRecord): AngieDocument {
-  const result = migrateDocument(record.document)
-  if (!result.success) throw new Error('La recuperación local no es válida. Se conserva para su recuperación.')
-  return result.document
 }

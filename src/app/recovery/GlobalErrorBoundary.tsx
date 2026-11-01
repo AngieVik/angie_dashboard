@@ -6,14 +6,15 @@ import { createBrowserFilePlatform } from '../../platform/files/fileAccess'
 import { ErrorBoundary } from './ErrorBoundary'
 import { createEmergencyCopy, listenForUnexpectedErrors } from './uiRecovery'
 import styles from './recovery.module.css'
+import { portableDocument } from '../../storage/imageResources'
 
 function RecoveryCopy() {
   const [message, setMessage] = useState<string | null>(null)
   const [manualCopy, setManualCopy] = useState<string | null>(null)
-  function download() {
+  async function download() {
     let text: string | undefined
     try {
-      const copy = createEmergencyCopy(getDocumentStore().getSnapshot().document)
+      const copy = createEmergencyCopy(await portableDocument(getDocumentStore().getSnapshot().document))
       text = copy.text
       createBrowserFilePlatform().download(copy.text, copy.filename)
       setManualCopy(null)

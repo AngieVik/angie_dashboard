@@ -1,13 +1,21 @@
 import { useSyncExternalStore } from 'react'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
-import { serializeDocument } from '../../domain/document/serializeDocument'
+import { renameDocument } from './documentEdits'
+import type { DocumentCommand } from '../../domain/document/documentCommand'
+import { serializeWorkingDocument as serializeDocument } from '../../domain/document/serializeWorkingDocument'
+import { serializeDocument as serializePortableDocument } from '../../domain/document/serializeDocument'
+import { workingDocument, portableDocument } from '../../storage/imageResources'
 import { checkDocumentBudget, InputBudgetError } from '../../domain/input/inputBudgets'
 import type { AngieDocument, DocumentModuleId, MapGpxReference } from '../../domain/document/types'
 import { createBrowserFilePlatform, loadVisibleDocument, suggestFilename } from '../../platform/files/fileAccess'
 import type { DocumentFile, FileAccessContext, SaveFileHandle } from '../../platform/files/fileAccess'
 import { DocumentRepository, DocumentConflictError, normalizeSession } from '../../storage/documentRepository'
 import type { ActiveDocumentRepository, DocumentSession, LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
+import type { RecoveryQuery, RecoveryPage, RetainedRemoval } from '../../storage/documentCatalog'
+import { readGpxAccess } from '../../storage/gpxAccessRepository'
+import { registerGpx, releaseGpxOriginals } from '../../storage/gpxResources'
 import { createAutosave } from '../../storage/autosave'
+import { DocumentSave } from '../../storage/documentSave'
 import { createWorkspaceAutosave } from '../../storage/workspaceAutosave'
 import { createBrowserWorkspaceFiles } from '../../platform/files/workspaceFiles'
 import type { WorkspaceSaveResult } from '../../platform/files/workspaceFiles'
@@ -30,8 +38,10 @@ export interface DocumentSnapshot {
   ready: boolean
   openModules: DocumentModuleId[]
   autosaveUnavailable: boolean
+  localStorageMessage: string | null
   autosaveSaving: boolean
   localSavedAt: string | null
+  localGpxFingerprints: string[]
   storageConflict: boolean
   recoveredPrevious: boolean
   recoveryPending: boolean
@@ -39,7 +49,6 @@ export interface DocumentSnapshot {
   recoverySeenAt: string | null
   replacementBlocked: boolean
   replacing: boolean
-  recoverable: RecoverableDocument[]
   fileBusy: boolean
   fileDirty: boolean
   fileSavedAt: string | null
@@ -62,35 +71,45 @@ interface Replacement extends LocalDocument { handle?: SaveFileHandle; fileDirty
 export function createDocumentStore(repository: ActiveDocumentRepository, initialContext: FileAccessContext) {
   let state: DocumentSnapshot = {
     document: createEmptyDocument(), documentGeneration: 0, active: false, ready: false, openModules: [],
-    autosaveUnavailable: false, autosaveSaving: false, localSavedAt: null, storageConflict: false, recoveredPrevious: false,
-    recoveryPending: false, recoveryTitle: null, recoverySeenAt: null, replacementBlocked: false, replacing: false, recoverable: [],
+    autosaveUnavailable: false, localStorageMessage: null, autosaveSaving: false, localSavedAt: null, localGpxFingerprints: [], storageConflict: false, recoveredPrevious: false,
+    recoveryPending: false, recoveryTitle: null, recoverySeenAt: null, replacementBlocked: false, replacing: false,
     fileBusy: false, fileDirty: false, fileSavedAt: null, downloadStartedAt: null, fileMessage: null, fileMessageRevision: 0,
     workspaceStatus: 'unconfigured', workspacePath: null,
     workspaceSavedAt: null, workspaceMessage: null, workspacePermissionRequired: false,
   }
   let revision = 0, localRevision = 0
+  let localSavedRevision = -1
+  let documentSave: DocumentSave | undefined
   let initialization: Promise<void> | undefined
   let recoveryCandidate: LocalDocument | null = null
-  let folderPaused = false, lastQueuedWorkspace = ''
+  let folderPaused = false, lastQueuedWorkspace: number | null = null
   let workLocally = false
   let presenceWrite = Promise.resolve()
   const listeners = new Set<() => void>()
   const now = () => (initialContext.now?.() ?? new Date()).toISOString()
   const session = (): DocumentSession => ({ openModules: state.openModules })
   function update(patch: Partial<DocumentSnapshot>) {
+    if (patch.document) {
+      const next = new Set(patch.document.map?.gpx.map(reference => reference.fingerprint) ?? [])
+      releaseGpxOriginals((state.document.map?.gpx ?? []).map(reference => reference.fingerprint).filter(fingerprint => !next.has(fingerprint)))
+    }
     state = { ...state, ...patch, fileMessageRevision: 'fileMessage' in patch ? state.fileMessageRevision + 1 : state.fileMessageRevision }
     listeners.forEach(listener => listener())
   }
-  const autosave = createAutosave(repository, (available, error) => {
+  const autosave = createAutosave(repository, (available, error, resources) => {
     const conflict = error instanceof DocumentConflictError
-    update({ autosaveUnavailable: !available, storageConflict: available ? false : conflict || state.storageConflict })
+    const quota = error && typeof error === 'object' && 'name' in error && error.name === 'QuotaExceededError'
+    update({ autosaveUnavailable: !available, storageConflict: available ? false : conflict || state.storageConflict,
+      localStorageMessage: available ? null : quota ? 'No hay espacio disponible. Los guardados anteriores se conservan. Gestiona los documentos del dispositivo desde Recuperar UIBoard y reintenta.' : null,
+      ...(resources?.documentId === state.document.document.id ? { localGpxFingerprints: resources.gpxFingerprints } : {}) })
   })
-  const workspaceAutosave = initialContext.workspace ? createWorkspaceAutosave({ save: document => {
+  const workspaceAutosave = initialContext.workspace ? createWorkspaceAutosave({ save: (document, prepared) => {
     if (workLocally) return Promise.resolve<WorkspaceSaveResult>({ status: 'unconfigured' })
     if (folderPaused || state.storageConflict) return Promise.resolve<WorkspaceSaveResult>({ status: 'error',
       message: state.workspaceMessage ?? 'El guardado en carpeta está pausado. Resuelve el aviso y pulsa Reintentar.', permissionRequired: state.workspacePermissionRequired })
-    return initialContext.workspace!.save(document)
+    return initialContext.workspace!.save(document, prepared)
   } }) : undefined
+  function currentSave() { return documentSave ??= new DocumentSave(state.document) }
 
   function rememberPresence() {
     if (!state.active || state.replacing || !repository.rememberPresence) return presenceWrite
@@ -98,14 +117,14 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     presenceWrite = presenceWrite.then(() => repository.rememberPresence!(presence)).catch(() => {})
     return presenceWrite
   }
-  function applyWorkspaceResult(result: WorkspaceSaveResult, text: string) {
+  function applyWorkspaceResult(result: WorkspaceSaveResult, savedRevision: number) {
     if (result.status === 'saved') {
       if (result.resourcesPending) folderPaused = true
-      update({ workspaceStatus: result.resourcesPending ? 'error' : text === serializeDocument(state.document) ? 'saved' : 'pending', workspacePath: result.path,
+      update({ workspaceStatus: result.resourcesPending ? 'error' : savedRevision === revision ? 'saved' : 'pending', workspacePath: result.path,
         workspaceSavedAt: result.savedAt, workspaceMessage: result.message ?? null, workspacePermissionRequired: false,
-        fileDirty: Boolean(result.resourcesPending) || text !== serializeDocument(state.document), fileSavedAt: result.savedAt })
+        fileDirty: Boolean(result.resourcesPending) || savedRevision !== revision, fileSavedAt: result.savedAt })
     } else if (result.status === 'error') {
-      folderPaused = true; lastQueuedWorkspace = ''
+      folderPaused = true; lastQueuedWorkspace = null
       update({ workspaceStatus: 'error', workspaceMessage: result.message, workspacePermissionRequired: result.permissionRequired ?? false })
     } else update({ workspaceStatus: workLocally ? 'pending' : 'unconfigured', workspacePath: null, workspaceSavedAt: null,
       workspaceMessage: workLocally ? 'Guardado en carpeta pausado durante esta apertura. Puedes elegir o autorizar la carpeta cuando quieras.' : null,
@@ -114,19 +133,19 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
   function queueWorkspace(force = false): Promise<WorkspaceSaveResult> {
     if (!state.active || !workspaceAutosave) return Promise.resolve({ status: 'unconfigured' })
     if (workLocally && !force) {
-      applyWorkspaceResult({ status: 'unconfigured' }, serializeDocument(state.document))
+      applyWorkspaceResult({ status: 'unconfigured' }, revision)
       return Promise.resolve({ status: 'unconfigured' })
     }
     if (state.storageConflict) return Promise.resolve({ status: 'error', message: 'Hay cambios en otra pestaña. Utiliza Guardar como para conservar los tuyos.' })
     if (folderPaused && !force) return Promise.resolve({ status: 'error', message: state.workspaceMessage ?? 'Guardado en carpeta pendiente.' })
     if (force) folderPaused = false
-    const text = serializeDocument(state.document)
-    if (!force && text === lastQueuedWorkspace) return Promise.resolve({ status: 'unconfigured' })
-    lastQueuedWorkspace = text
+    const captured = revision
+    if (!force && captured === lastQueuedWorkspace) return Promise.resolve({ status: 'unconfigured' })
+    lastQueuedWorkspace = captured
     const generation = state.documentGeneration
     update({ workspaceStatus: 'saving' })
-    return workspaceAutosave.schedule(state.document).then(result => {
-      if (generation === state.documentGeneration) applyWorkspaceResult(result, text)
+    return workspaceAutosave.schedule(currentSave()).then(result => {
+      if (generation === state.documentGeneration) applyWorkspaceResult(result, captured)
       return result
     })
   }
@@ -143,9 +162,10 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     update({ autosaveSaving: true })
     // Folder timing must not depend on the speed or availability of IndexedDB.
     void queueWorkspace()
-    const saved = await autosave.save(state.document, session())
+    const saved = await autosave.save(currentSave(), session())
     if (generation === state.documentGeneration) {
-      update({ ...(saved ? { localSavedAt: now() } : {}), ...(captured === localRevision ? { autosaveSaving: false } : {}) })
+      if (saved) localSavedRevision = Math.max(localSavedRevision, captured)
+      if (captured === localRevision) update({ ...(saved ? { localSavedAt: now() } : {}), autosaveSaving: false })
     }
     return saved
   }
@@ -160,7 +180,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       const recent = recovered && presence && !presence.closed && presence.documentId === recovered.document.id && age >= 0 && age < 30 * 60 * 1000
       recoveryCandidate = recent ? { document: recovered, session: savedSession } : null
       update({ ready: true, recoveryPending: Boolean(recent), recoveryTitle: recent ? recovered.document.title : null,
-        recoverySeenAt: recent ? presence.seenAt : null, autosaveUnavailable: false, fileMessage: null,
+        recoverySeenAt: recent ? presence.seenAt : null, autosaveUnavailable: false, localStorageMessage: null, fileMessage: null,
         recoveredPrevious: repository.recoverySource === 'previous' })
       if (recoveryCandidate && age < 60 * 1000) await replace({ ...recoveryCandidate, fileDirty: true })
     } catch (error) {
@@ -168,38 +188,45 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         fileMessage: error instanceof InputBudgetError ? error.message : 'No se pudo leer la recuperación de este dispositivo. Reintenta o abre un archivo desde su carpeta.' })
     }
   }
-  function mutateDocument(mutate: (document: AngieDocument) => void) {
+  function applyDocumentCommand(command: DocumentCommand) {
     if (!state.active || state.replacing || state.fileBusy) return false
-    const candidate = structuredClone(state.document)
-    mutate(candidate)
-    candidate.document = { ...candidate.document, id: state.document.document.id, createdAt: state.document.document.createdAt, updatedAt: state.document.document.updatedAt }
+    const result = command(state.document)
+    // The boolean returned by the store means accepted; changed belongs to the command.
+    if (!result.changed) return true
+    return commitDocument(result.document)
+  }
+  function commitDocument(document: AngieDocument) {
+    const candidate = { ...document, document: { ...document.document,
+      id: state.document.document.id, createdAt: state.document.document.createdAt,
+      updatedAt: new Date(Math.max(Date.parse(now()), Date.parse(state.document.document.updatedAt))).toISOString() } }
     const budget = checkDocumentBudget(candidate)
     if (budget) { update({ fileMessage: budget.message }); return false }
-    try {
-      if (serializeDocument(candidate) === serializeDocument(state.document)) return true
-    } catch (error) {
+    let text: string
+    try { text = serializeDocument(candidate) }
+    catch (error) {
       if (!(error instanceof InputBudgetError)) throw error
       update({ fileMessage: error.message }); return false
     }
-    candidate.document.updatedAt = new Date(Math.max(Date.parse(now()), Date.parse(candidate.document.updatedAt))).toISOString()
-    serializeDocument(candidate)
     revision++; localRevision++
+    documentSave = new DocumentSave(candidate, text)
     update({ document: candidate, fileDirty: true, ...(folderPaused || workLocally ? {} : { workspaceStatus: 'pending' as const }) })
     void persist()
     return true
   }
-  function activate(candidate: Replacement, protectedLocally: boolean, result?: WorkspaceSaveResult) {
+  function activate(candidate: Replacement, protectedLocally: boolean, result?: WorkspaceSaveResult, gpxFingerprints: string[] = []) {
     revision++; localRevision++
+    documentSave = new DocumentSave(candidate.document)
+    localSavedRevision = protectedLocally ? localRevision : -1
     recoveryCandidate = null
-    folderPaused = false; lastQueuedWorkspace = ''
+    folderPaused = false; lastQueuedWorkspace = null
     update({ active: true, document: candidate.document, openModules: candidate.session.openModules,
       documentGeneration: state.documentGeneration + 1, fileBusy: false, replacing: false, replacementBlocked: false,
       recoveryPending: false, recoveryTitle: null, recoverySeenAt: null, fileMessage: null, fileDirty: true,
-      fileSavedAt: null, downloadStartedAt: null, autosaveSaving: false, autosaveUnavailable: !protectedLocally,
-      storageConflict: false, localSavedAt: protectedLocally ? now() : null,
+      fileSavedAt: null, downloadStartedAt: null, autosaveSaving: false, autosaveUnavailable: !protectedLocally, localStorageMessage: null,
+      storageConflict: false, localSavedAt: protectedLocally ? now() : null, localGpxFingerprints: gpxFingerprints,
       workspaceStatus: 'unconfigured', workspacePath: null, workspaceSavedAt: null, workspaceMessage: null, workspacePermissionRequired: false })
     autosave.resume()
-    if (result) applyWorkspaceResult(result, serializeDocument(candidate.document))
+    if (result) applyWorkspaceResult(result, revision)
     else void queueWorkspace()
     void rememberPresence()
   }
@@ -207,27 +234,29 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     if (!state.active) return true
     await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
     if (state.storageConflict) return false
-    return !state.autosaveUnavailable || state.workspaceStatus === 'saved'
+    return localSavedRevision === localRevision || state.workspaceStatus === 'saved'
   }
   async function replace(candidate: Replacement, result?: WorkspaceSaveResult, carriesCurrent = false, adopt = false) {
-    try { serializeDocument(candidate.document) }
-    catch (error) { update({ fileMessage: message(error), fileBusy: false }); return false }
     update({ fileBusy: true, replacing: true, fileMessage: null })
     try {
+      candidate = { ...candidate, document: await workingDocument(candidate.document) }
+      serializeDocument(candidate.document)
       if (!carriesCurrent && !await protectCurrent()) {
         update({ fileBusy: false, replacing: false, replacementBlocked: true })
         return false
       }
       let protectedLocally = true
+      let gpxFingerprints: string[] = []
       try {
         if (adopt) await repository.prepareOpen?.(candidate.document.document.id, candidate.revision)
-        if (repository.replaceActive) await repository.replaceActive(candidate.document, candidate.session)
-        else await repository.saveActive(candidate.document, candidate.session)
+        const resources = repository.replaceActive ? await repository.replaceActive(candidate.document, candidate.session)
+          : await repository.saveActive(candidate.document, candidate.session)
+        gpxFingerprints = resources?.gpxFingerprints ?? []
       } catch (error) {
         if (error instanceof DocumentConflictError) throw error
         protectedLocally = false
       }
-      activate(candidate, protectedLocally, result)
+      activate(candidate, protectedLocally, result, gpxFingerprints)
       return true
     } catch (error) { update({ fileBusy: false, replacing: false, fileMessage: message(error) }); return false }
   }
@@ -235,11 +264,12 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     if (!requested.trim()) requested = ''
     const error = workspaceNameError(requested)
     if (error) throw new Error(error)
-    const records = await repository.listRecoverable?.().catch(() => []) ?? []
+    const records = repository.hasDocumentTitle ? [] : await repository.listRecoverable?.() ?? []
     const occupied = new Set(records.filter(record => record.documentId !== id).map(record => record.title.toLowerCase()))
-    if (requested && occupied.has(requested.toLowerCase())) throw new Error('Ya existe un guardado con ese nombre. Elige otro.')
+    const exists = (title: string) => repository.hasDocumentTitle ? repository.hasDocumentTitle(title, id) : Promise.resolve(occupied.has(title.toLowerCase()))
+    if (requested && await exists(requested)) throw new Error('Ya existe un guardado con ese nombre. Elige otro.')
     let name = requested
-    if (!name) { let number = 1; do { name = `UIBoard_noname${number++}` } while (occupied.has(name.toLowerCase())) }
+    if (!name) { let number = 1; do { name = `UIBoard_noname${number++}` } while (await exists(name)) }
     if (localOnly || workLocally || !initialContext.workspace?.availableName) return name
     if (requested) return initialContext.workspace.availableName(name, id)
     while (true) {
@@ -248,7 +278,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         if (!(error instanceof Error) || !error.message.startsWith('Ya existe una carpeta')) throw error
         const number = Number(name.replace('UIBoard_noname', '')) + 1
         name = `UIBoard_noname${number}`
-        while (occupied.has(name.toLowerCase())) name = `UIBoard_noname${Number(name.replace('UIBoard_noname', '')) + 1}`
+        while (await exists(name)) name = `UIBoard_noname${Number(name.replace('UIBoard_noname', '')) + 1}`
       }
     }
   }
@@ -256,7 +286,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     if (state.fileBusy) return false
     update({ fileBusy: true, replacing: true, fileMessage: null })
     try {
-      const carriesCurrent = source && source.document.document.id === state.document.document.id && serializeDocument(source.document) === serializeDocument(state.document)
+      const carriesCurrent = source?.document === state.document
       if (carriesCurrent) await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
       if (!carriesCurrent && !await protectCurrent()) { update({ replacementBlocked: true }); return false }
       let name: string
@@ -308,10 +338,10 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     initialize() { initialization ??= recover(); return initialization },
     isWorkingLocally: () => workLocally,
     continueLocally() {
-      workLocally = true; folderPaused = false; lastQueuedWorkspace = ''
-      if (state.active) applyWorkspaceResult({ status: 'unconfigured' }, serializeDocument(state.document))
+      workLocally = true; folderPaused = false; lastQueuedWorkspace = null
+      if (state.active) applyWorkspaceResult({ status: 'unconfigured' }, revision)
     },
-    mutateDocument,
+    applyDocumentCommand,
     async setTitle(title: string) {
       if (!state.active || state.fileBusy) return false
       if (title.trim() && title === state.document.document.title && (workLocally || !initialContext.workspace || state.workspacePath?.endsWith('/' + title + '/dashboard.json'))) return true
@@ -328,20 +358,21 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
             return false
           }
         }
-        const candidate = structuredClone(state.document)
-        candidate.document.title = name
-        candidate.document.updatedAt = new Date(Math.max(Date.parse(now()), Date.parse(candidate.document.updatedAt))).toISOString()
-        serializeDocument(candidate)
+        const renamed = renameDocument(state.document, name).document
+        const candidate = { ...renamed, document: { ...renamed.document,
+          updatedAt: new Date(Math.max(Date.parse(now()), Date.parse(renamed.document.updatedAt))).toISOString() } }
+        const text = serializeDocument(candidate)
         const result = workLocally ? { status: 'unconfigured' as const } : await initialContext.workspace?.rename?.(state.document, name, candidate.document.updatedAt) ?? { status: 'unconfigured' as const }
         if (result.status === 'error') {
           if (result.path) update({ workspacePath: result.path, workspaceStatus: 'error', workspaceMessage: result.message })
           throw new Error(result.message)
         }
         revision++; localRevision++
-        lastQueuedWorkspace = ''; folderPaused = false
+        documentSave = new DocumentSave(candidate, text)
+        lastQueuedWorkspace = null; folderPaused = false
         update({ document: candidate, fileDirty: true, fileMessage: result.status === 'saved' ? result.message ?? null : null })
         if (result.status === 'saved') {
-          lastQueuedWorkspace = serializeDocument(candidate)
+          lastQueuedWorkspace = revision
           applyWorkspaceResult(result, lastQueuedWorkspace)
         }
         await persist(true)
@@ -352,7 +383,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     setOpenModules(ids: DocumentModuleId[]) {
       if (!state.ready || !state.active || state.replacing) return
       const openModules = normalizeSession({ openModules: ids }).openModules
-      if (JSON.stringify(openModules) === JSON.stringify(state.openModules)) return
+      if (openModules.length === state.openModules.length && openModules.every((id, index) => id === state.openModules[index])) return
       localRevision++; update({ openModules }); void persist()
     },
     newDocument(title = '') { return createBoard(title) },
@@ -395,8 +426,8 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         await repository.clearActive(state.document.document.id)
         recoveryCandidate = null
         update({ active: false, document: createEmptyDocument(), documentGeneration: state.documentGeneration + 1,
-          openModules: [], fileDirty: false, fileSavedAt: null, downloadStartedAt: null, localSavedAt: null, autosaveSaving: false,
-          autosaveUnavailable: false, storageConflict: false, recoveredPrevious: false, recoveryPending: false, recoveryTitle: null, recoverySeenAt: null,
+          openModules: [], fileDirty: false, fileSavedAt: null, downloadStartedAt: null, localSavedAt: null, localGpxFingerprints: [], autosaveSaving: false,
+          autosaveUnavailable: false, localStorageMessage: null, storageConflict: false, recoveredPrevious: false, recoveryPending: false, recoveryTitle: null, recoverySeenAt: null,
           workspaceStatus: 'unconfigured', workspacePath: null,
           workspaceSavedAt: null, workspaceMessage: null, workspacePermissionRequired: false, fileMessage: null })
         return true
@@ -407,7 +438,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       if (!state.active || state.fileBusy) return
       update({ fileBusy: true })
       try {
-        initialContext.platform.download(serializeDocument(state.document), suggestFilename(state.document.document.title, initialContext.now?.()))
+        initialContext.platform.download(serializePortableDocument(await portableDocument(state.document)), suggestFilename(state.document.document.title, initialContext.now?.()))
         update({ downloadStartedAt: now(), fileMessage: 'Descarga JSON iniciada' })
       } catch (error) { update({ fileMessage: 'No se pudo descargar el JSON: ' + message(error) }) }
       finally { update({ fileBusy: false }) }
@@ -492,22 +523,42 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     cancelReplacement() { update({ replacementBlocked: false, fileMessage: null }) },
     async refreshRecoverable() {
       await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
-      const [local, folder] = await Promise.allSettled([
-        repository.listRecoverable?.() ?? Promise.resolve([]),
-        initialContext.workspace?.listRecoverable?.() ?? Promise.resolve([]),
-      ])
-      const messages: string[] = []
-      if (local.status === 'rejected') messages.push('No se pudieron leer las recuperaciones del dispositivo.')
-      if (folder.status === 'rejected') messages.push('No se pudieron leer las recuperaciones de la carpeta. ' + message(folder.reason))
-      update({ recoverable: [...(local.status === 'fulfilled' ? local.value : []), ...(folder.status === 'fulfilled' ? folder.value : [])]
-        .sort((a, b) => b.savedAt.localeCompare(a.savedAt)) })
-      return messages.length ? messages.join(' ') : null
+      initialContext.workspace?.invalidateRecoveryCatalog?.()
+      return null
+    },
+    async listRecoveryPage(query: RecoveryQuery = {}, source: 'device' | 'folder' | 'all' = 'device'): Promise<RecoveryPage> {
+      if (source === 'folder') return initialContext.workspace?.listRecoveryPage?.(query) ?? { entries: [] }
+      if (source === 'all') {
+        const limit = Math.max(1, Math.min(100, Math.floor(query.limit ?? 10) || 10))
+        const [local, folder] = await Promise.allSettled([
+          repository.listRecoveryPage?.({ ...query, limit }) ?? Promise.resolve(repository.listRecoverable?.() ?? []).then(entries => ({ entries: entries.slice(0, limit) as RecoveryPage['entries'] } as RecoveryPage)),
+          initialContext.workspace?.listRecoveryPage?.({ ...query, limit }) ?? Promise.resolve({ entries: [] } as RecoveryPage),
+        ])
+        const entries = [...(local.status === 'fulfilled' ? local.value.entries : []), ...(folder.status === 'fulfilled' ? folder.value.entries : [])]
+          .sort((a, b) => a.savedAt !== b.savedAt ? a.savedAt < b.savedAt ? 1 : -1 : a.key < b.key ? 1 : a.key > b.key ? -1 : 0)
+        const last = entries[Math.min(entries.length, limit) - 1]
+        const more = entries.length > limit || local.status === 'fulfilled' && !!local.value.nextCursor || folder.status === 'fulfilled' && !!folder.value.nextCursor
+        const warning = [local, folder].filter(result => result.status === 'rejected').map(result => message((result as PromiseRejectedResult).reason)).join(' ')
+        return { entries: entries.slice(0, limit), ...(more && last ? { nextCursor: [last.savedAt, last.key] as [string, string] } : {}), ...(warning ? { warning } : {}) }
+      }
+      if (repository.listRecoveryPage) return repository.listRecoveryPage(query)
+      return { entries: (await repository.listRecoverable?.() ?? []).slice(0, query.limit ?? 10) as RecoveryPage['entries'] }
+    },
+    measureStorage: () => repository.measureStorage?.(),
+    async removeRetained(request: RetainedRemoval) {
+      if (state.fileBusy) throw new Error('Espera a que termine la operación actual.')
+      if (!repository.removeRetained) throw new Error('La gestión local no está disponible.')
+      if (state.active && request.documentId === state.document.document.id) throw new Error('Cierra el UIBoard antes de eliminarlo.')
+      update({ fileBusy: true })
+      try { await autosave.flush(); await repository.removeRetained(request) }
+      finally { update({ fileBusy: false }) }
     },
     async restoreDocument(key: string, expected?: RecoverableDocument) {
       try {
         const candidate = key.startsWith('workspace:') ? await initialContext.workspace?.loadRecoverable?.(key) : await repository.loadRecoverable?.(key)
         if (!candidate) { update({ fileMessage: 'La recuperación ya no está disponible.' }); return false }
-        if (expected && ((expected.documentId && candidate.document.document.id !== expected.documentId) || candidate.savedAt !== expected.savedAt)) throw new Error('La recuperación seleccionada cambió. Vuelve a abrir la lista y elige su versión.')
+        if (expected && ((expected.documentId && candidate.document.document.id !== expected.documentId) || candidate.savedAt !== expected.savedAt ||
+          (expected.revision !== undefined && candidate.revision !== undefined && expected.revision !== candidate.revision))) throw new Error('La recuperación seleccionada cambió. Vuelve a abrir la lista y elige su versión.')
         return await recoverInBranch(candidate, !key.startsWith('workspace:'))
       } catch (error) { update({ fileMessage: message(error) }); return false }
     },
@@ -517,10 +568,18 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       try {
         await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
         const presence = await repository.readPresence?.()
-        const records = await repository.listRecoverable?.() ?? []
-        const latest = records.find(copy => copy.documentId === presence?.documentId && copy.key.startsWith('board:'))
-          ?? records.find(copy => copy.documentId === presence?.documentId)
-          ?? records.find(copy => copy.key.startsWith('board:')) ?? records[0]
+        let latest: RecoverableDocument | undefined
+        if (repository.listRecoveryPage) {
+          if (presence?.documentId) latest = (await repository.listRecoveryPage({ documentId: presence.documentId, kind: 'board', limit: 1 })).entries[0]
+            ?? (await repository.listRecoveryPage({ documentId: presence.documentId, limit: 1 })).entries[0]
+          latest ??= (await repository.listRecoveryPage({ kind: 'board', limit: 1 })).entries[0]
+            ?? (await repository.listRecoveryPage({ limit: 1 })).entries[0]
+        } else {
+          const records = await repository.listRecoverable?.() ?? []
+          latest = records.find(copy => copy.documentId === presence?.documentId && copy.key.startsWith('board:'))
+            ?? records.find(copy => copy.documentId === presence?.documentId)
+            ?? records.find(copy => copy.key.startsWith('board:')) ?? records[0]
+        }
         const candidate = latest ? await repository.loadRecoverable?.(latest.key) : null
         if (!candidate) { update({ fileMessage: 'No hay un UIBoard reciente disponible en este dispositivo.' }); return false }
         return await replace({ ...candidate, fileDirty: true }, undefined, false, true)
@@ -529,16 +588,32 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     },
     async recoverCurrent() {
       if (!state.active || state.fileBusy) return false
-      try { return await recoverInBranch({ document: structuredClone(state.document), session: structuredClone(session()) }, true) }
+      try { return await recoverInBranch({ document: state.document, session: session() }, true) }
       catch (error) { update({ fileMessage: message(error) }); return false }
     },
     flushAutosave: () => autosave.flush(),
-    async readWorkspaceGpx(reference: MapGpxReference) {
+    protectGpxResources: () => persist(),
+    async readGpx(reference: MapGpxReference) {
       const generation = state.documentGeneration
-      try {
-        const file = await initialContext.workspace?.readGpx?.(state.document, reference) ?? null
-        return generation === state.documentGeneration ? file : null
-      } catch { return null }
+      const document = state.document
+      const current = () => generation === state.documentGeneration && state.document.map?.gpx.some(item => item.id === reference.id && item.fingerprint === reference.fingerprint)
+      const sources = [() => repository.readGpx?.(reference), () => initialContext.workspace?.readGpx?.(document, reference), () => readGpxAccess(reference.fingerprint)]
+      for (const [index, source] of sources.entries()) {
+        try {
+          const file = await source()
+          if (!current()) return null
+          if (!file) continue
+          await registerGpx(file, reference.fingerprint, index > 0)
+          if (!current()) {
+            if (!state.document.map?.gpx.some(item => item.fingerprint === reference.fingerprint)) releaseGpxOriginals([reference.fingerprint])
+            return null
+          }
+          // External originals join the normal document transaction; a cache hit alone is never protection.
+          if (index > 0) void persist()
+          return file
+        } catch { /* Keep the reference and try the next existing access path. */ }
+      }
+      return null
     },
     saveWorkspaceNow,
     async flushWorkspaceSave() { await Promise.all([autosave.flush(), workspaceAutosave?.flush()]) },

@@ -48,7 +48,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
         {editing?.id === entry.id ? <form className="timeline-edit" aria-label="Editar entrada" onSubmit={event => {
           event.preventDefault()
           if (blockedRef.current) return
-          if (attempt(() => store.mutateDocument(document => reviseTimelineText(document, entry.id, editing.text, new Date().toISOString())), 'edit')) finishEditing()
+          if (attempt(() => store.applyDocumentCommand(document => reviseTimelineText(document, entry.id, editing.text, new Date().toISOString())), 'edit')) finishEditing()
         }}>
           {entry.type === 'status-change' && <p className="timeline-edit-context">{entry.unitName} · {entry.nextStatus === 'Personalizada' ? entry.customLabel : entry.nextStatus}</p>}
           <Textarea aria-label="Texto de entrada" aria-invalid={Boolean(error && errorField === 'edit')} autoFocus value={editing.text} disabled={blocked} onChange={event => setEditing({ ...editing, text: event.target.value })} />
@@ -59,7 +59,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
           }}><PenLine aria-hidden="true" /></Button>
           <Button aria-label="Eliminar entrada" disabled={blocked} onClick={() => {
             if (blockedRef.current) return
-            if (attempt(() => store.mutateDocument(document => deleteTimelineEntry(document, entry.id)))) finishEditing()
+            if (attempt(() => store.applyDocumentCommand(document => deleteTimelineEntry(document, entry.id)))) finishEditing()
           }}><Trash aria-hidden="true" /></Button>
         </div>}
       </li>)}</ol>
@@ -67,7 +67,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
     <form aria-label="Nueva entrada" className="timeline-add" onSubmit={event => {
       event.preventDefault()
       if (blockedRef.current) return
-      if (attempt(() => store.mutateDocument(document => { addManualTimelineEntry(document, text, new Date()) }), 'new')) { setText(''); newEntryInput.current?.focus() }
+      if (attempt(() => store.applyDocumentCommand(document => addManualTimelineEntry(document, text, new Date())), 'new')) { setText(''); newEntryInput.current?.focus() }
     }}>
       <div className="timeline-add-field">
         <Input ref={newEntryInput} aria-label="Acontecimiento" aria-invalid={Boolean(error && errorField === 'new')} placeholder="Acontecimiento" value={text} disabled={blocked} onChange={event => setText(event.target.value)} />

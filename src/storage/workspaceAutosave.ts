@@ -1,9 +1,9 @@
-import type { AngieDocument } from '../domain/document/types'
+import type { DocumentSave } from './documentSave'
 import type { WorkspaceFiles, WorkspaceSaveResult } from '../platform/files/workspaceFiles'
 
 // Coalesce edits per dashboard, but retain outgoing dashboards until written.
 export function createWorkspaceAutosave(files: WorkspaceFiles, delayMs = 1000) {
-  type Job = { document: AngieDocument; resolve: ((result: WorkspaceSaveResult) => void)[] }
+  type Job = { save: DocumentSave; resolve: ((result: WorkspaceSaveResult) => void)[] }
   const pending = new Map<string, Job>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let running: Promise<void> | undefined
@@ -14,7 +14,7 @@ export function createWorkspaceAutosave(files: WorkspaceFiles, delayMs = 1000) {
       const [id, job] = pending.entries().next().value!
       pending.delete(id)
       let result: WorkspaceSaveResult
-      try { result = await files.save(job.document) }
+      try { const snapshot = job.save.prepare(); result = await files.save(snapshot.document, snapshot) }
       catch { result = { status: 'error', message: 'No se pudo guardar en la carpeta de trabajo.' } }
       job.resolve.forEach(resolve => resolve(result))
     }
@@ -31,11 +31,10 @@ export function createWorkspaceAutosave(files: WorkspaceFiles, delayMs = 1000) {
   }
 
   return {
-    schedule(document: AngieDocument) {
-      const copy = structuredClone(document)
-      const id = copy.document.id
+    schedule(save: DocumentSave) {
+      const id = save.documentId
       const result = new Promise<WorkspaceSaveResult>(resolve => {
-        pending.set(id, { document: copy, resolve: [...(pending.get(id)?.resolve ?? []), resolve] })
+        pending.set(id, { save, resolve: [...(pending.get(id)?.resolve ?? []), resolve] })
       })
       if (!running) {
         clearTimeout(timer)

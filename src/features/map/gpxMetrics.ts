@@ -1,13 +1,14 @@
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import type { GpxData, GpxPoint } from './gpx'
 
-interface GpxMetrics { distances: number[][]; totalMeters: number }
+export interface GpxMetrics { distances: number[][]; totalMeters: number }
 export interface GpxLocation { point: GpxPoint; distanceMeters?: number; offsetMeters: number }
 export interface KilometerMark { point: GpxPoint; kilometer: number }
 
 const EARTH_RADIUS = 6_371_000
 const radians = Math.PI / 180
 const metricsCache = new WeakMap<GpxData, GpxMetrics>()
+export function primeGpxMetrics(data: GpxData, metrics: GpxMetrics) { metricsCache.set(data, metrics) }
 const wrapLongitude = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180
 
 export function geographicDistance(a: GeographicCoordinate, b: GeographicCoordinate): number {
@@ -69,24 +70,29 @@ export function closestGpxLocation(data: GpxData, query: GeographicCoordinate): 
 }
 
 export function getKilometerMarks(data: GpxData, minimumIntervalKm: number): KilometerMark[] {
+  return Array.from(iterateKilometerMarks(data, minimumIntervalKm)).filter((mark): mark is KilometerMark => mark !== undefined)
+}
+
+// Empty yields bound scanning work too, including tracks with few/no PKs.
+export function* iterateKilometerMarks(data: GpxData, minimumIntervalKm: number, maximumMarks = 1000): Generator<KilometerMark | undefined> {
   const metrics = getGpxMetrics(data)
   // Bound the number of labels even for unusually long or malformed journeys.
-  const minimum = Math.max(0.1, minimumIntervalKm, metrics.totalMeters / 1_000_000)
+  const minimum = Math.max(0.1, minimumIntervalKm, metrics.totalMeters / (Math.max(1, maximumMarks) * 1000))
   const magnitude = 10 ** Math.floor(Math.log10(minimum))
   const intervalKm = [1, 2, 5, 10].find(step => step * magnitude >= minimum)! * magnitude
   const intervalMeters = intervalKm * 1000
-  const marks: KilometerMark[] = []
   let next = intervalMeters
+  let work = 0
   for (let lineIndex = 0; lineIndex < data.lines.length; lineIndex++) {
     const line = data.lines[lineIndex]!, distances = metrics.distances[lineIndex]!
     for (let index = 1; index < line.length; index++) {
+      if (++work % 256 === 0) yield undefined
       const from = distances[index - 1]!, to = distances[index]!
       if (to <= from) continue
       while (next <= to) {
-        marks.push({ point: interpolate(line[index - 1]!, line[index]!, (next - from) / (to - from)), kilometer: next / 1000 })
+        yield { point: interpolate(line[index - 1]!, line[index]!, (next - from) / (to - from)), kilometer: next / 1000 }
         next += intervalMeters
       }
     }
   }
-  return marks
 }

@@ -1,6 +1,8 @@
 import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
-import { parseGpx } from './gpx'
+import { analyzeGpx } from './gpxWorkerClient'
+import type { GpxReadOptions } from './gpxWorkerClient'
 import { checkFileBytes, INPUT_BUDGETS, InputBudgetError, budgetIssue } from '../../domain/input/inputBudgets'
+import { retainGpx } from '../../storage/gpxResources'
 
 export function pickGpxFiles(multiple: boolean): Promise<GpxReadHandle[]> | null {
   const browser = window as Window & {
@@ -15,15 +17,11 @@ export function pickGpxFiles(multiple: boolean): Promise<GpxReadHandle[]> | null
   }) : null
 }
 
-export async function readGpxFile(file: File, expectedFingerprint?: string) {
+export async function readGpxFile(file: File, expectedFingerprint?: string, retainOriginal = true, options: GpxReadOptions = { documentGeneration: 0 }) {
   checkFileBytes(file.size, 'gpx')
   if (file.name.length > INPUT_BUDGETS.gpxNameCharacters) throw new InputBudgetError(budgetIssue('gpx.name', INPUT_BUDGETS.gpxNameCharacters, 'caracteres'))
-  const bytes = await file.arrayBuffer()
-  checkFileBytes(bytes.byteLength, 'gpx')
-  const hash = await crypto.subtle.digest('SHA-256', bytes)
-  const fingerprint = Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join('')
-  if (expectedFingerprint && expectedFingerprint !== fingerprint) {
-    throw new Error('El contenido no coincide con el GPX guardado. Selecciona su archivo original.')
-  }
-  return { fingerprint, data: parseGpx(new TextDecoder().decode(bytes)) }
+  const { fingerprint, data } = await analyzeGpx(file, expectedFingerprint, options)
+  options.signal?.throwIfAborted()
+  if (retainOriginal) retainGpx({ fingerprint, blob: file })
+  return { fingerprint, data }
 }

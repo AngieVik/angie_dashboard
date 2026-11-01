@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, PointerEvent, ReactNode } from 'react'
 import { Copy, Crosshair, Eye, EyeOff, Flag, Focus, FolderOpen, Layers, Minus, Palette, Plus, Route, Search, Trash, X } from 'lucide-react'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
@@ -22,9 +22,11 @@ import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { PK_INTERVALS } from './gpx'
 import type { LoadedGpx } from './gpx'
 import { pickGpxFiles, readGpxFile } from './gpxFileAccess'
-import { readGpxAccess, rememberGpxAccess, rememberGpxFile } from '../../storage/gpxAccessRepository'
+import { useGpxFiles } from './useGpxFiles'
+import { releaseGpxOriginals } from '../../storage/gpxResources'
+import { rememberGpxAccess } from '../../storage/gpxAccessRepository'
 import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
-import { closestGpxLocation, getGpxMetrics, getKilometerMarks } from './gpxMetrics'
+import { closestGpxLocation, getGpxMetrics } from './gpxMetrics'
 import type { GpxLocation } from './gpxMetrics'
 import { MAX_MAP_LATITUDE, readMapView, writeMapView, writeMapFrame } from './mapNavigation'
 import { MAP_BACKGROUNDS, PNOA_INFORMATION } from './mapBackgrounds'
@@ -32,6 +34,7 @@ import type { MapBackground } from './mapBackgrounds'
 import type { MapDocument, MapGpxReference, MapMarker } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
+import { replaceMap } from '../document/documentEdits'
 import { MapMarkers } from './MapMarkers'
 import { MapSurfaceContext } from './MapSurfaceContext'
 import { MapLegend } from './MapLegend'
@@ -39,6 +42,7 @@ import { classifyMapQuery } from './mapSearch'
 import type { MapPlace } from './mapSearch'
 import { useMapSearch } from './useMapSearch'
 import { MapElevation } from './MapElevation'
+import { GpxLayers } from './gpxLayers'
 import { GpxElevationProfile } from './GpxElevationProfile'
 import type { GpxProfileSample } from './gpxProfile'
 import styles from './map.module.css'
@@ -59,10 +63,8 @@ export interface MapNotice {
   onOpenGpx: () => void
 }
 
-export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, store, overlay, onCoordinateSelect, onNoticesChange, noticeSource = 'map' }: {
+export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, onNoticesChange, noticeSource = 'map' }: {
   navigationKey: string
-  files: LoadedGpx[]
-  onFilesChange: (files: LoadedGpx[]) => void
   store: DocumentStore
   overlay?: ReactNode
   onCoordinateSelect?: (point: GeographicCoordinate) => void
@@ -72,13 +74,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   const { document: currentDocument, documentGeneration, workspaceStatus } = useDocumentStore(store)
   const references = currentDocument.map?.gpx ?? EMPTY_REFERENCES
   const markers = currentDocument.map?.markers ?? EMPTY_MARKERS
-  const files = useMemo(() => {
-    const data = new Map(loadedFiles.map(file => [file.id, file]))
-    return references.flatMap(reference => {
-      const loaded = data.get(reference.id)
-      return loaded && loaded.fingerprint === reference.fingerprint ? [{ ...reference, data: loaded.data }] : []
-    })
-  }, [references, loadedFiles])
+  const { files, onFilesChange, loadGpx, admitGpx, withGpxAdmission, getGpxGeometry } = useGpxFiles(store, documentGeneration, references)
   const canvas = useRef<HTMLDivElement>(null), inputFile = useRef<HTMLInputElement>(null)
   const coordinatesTrigger = useRef<HTMLButtonElement>(null)
   const searchInput = useRef<HTMLInputElement>(null)
@@ -87,13 +83,12 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   const markersMenuId = useId()
   const gpxTrigger = useRef<HTMLButtonElement>(null), gpxColorInput = useRef<HTMLInputElement>(null)
   const gpxMenuId = useId()
-  const mapRef = useRef<L.Map | null>(null), layers = useRef(new Map<string, L.FeatureGroup>())
-  const kilometerLayers = useRef(new Map<string, { group: L.LayerGroup; zoom: number; color: string; interval: number }>())
+  const mapRef = useRef<L.Map | null>(null), gpxLayers = useRef<GpxLayers | null>(null)
   const currentFiles = useRef(files)
   const publishFiles = useRef(onFilesChange)
   const currentFormat = useRef<CoordinateFormat>('DD')
   const selection = useRef<L.CircleMarker | null>(null)
-  const request = useRef({ revision: 0, reading: false })
+  const request = useRef<{ revision: number; reading: boolean; controller?: AbortController }>({ revision: 0, reading: false })
   const relinkTarget = useRef<string | null>(null)
   const touches = useRef(new Set<number>()), cancelledTouch = useRef(false), suppressSelection = useRef(false)
   const { blocked, blockedRef } = useViewportInteraction()
@@ -123,6 +118,19 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   const showInformation = background === 'pnoa' && pnoaInformation
   const [format, setFormat] = useState<CoordinateFormat>('DD')
   const noticeId = navigationKey + '-map-notice'
+  const cancelImport = useCallback(() => {
+    request.current.revision++; request.current.controller?.abort(); request.current.controller = undefined
+    request.current.reading = false; setBusy(false)
+  }, [])
+  useLayoutEffect(() => {
+    const unsubscribe = store.subscribe(() => {
+      const snapshot = store.getSnapshot()
+      if (snapshot.replacing || !snapshot.active || snapshot.documentGeneration !== documentGeneration) {
+        cancelImport(); gpxLayers.current?.dispose()
+      }
+    })
+    return () => { unsubscribe(); cancelImport() }
+  }, [store, documentGeneration, cancelImport])
   const selectionRevision = useRef(0)
   const { state: searchState, search: searchPlaces, reset: resetSearch } = useMapSearch(navigationKey)
   useEffect(() => {
@@ -131,13 +139,10 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   }, [searchState, noticeId])
   useEffect(() => () => { selectionRevision.current++; toast.dismiss(noticeId) }, [noticeId])
 
-  function mutateMap(update: (map: MapDocument) => void): boolean {
+  function mutateMap(update: (map: MapDocument) => MapDocument): boolean {
     if (blockedRef.current || store.getSnapshot().documentGeneration !== documentGeneration) return false
     try {
-      const accepted = store.mutateDocument(document => {
-        document.map ??= { markers: [], gpx: [] }
-        update(document.map)
-      })
+      const accepted = store.applyDocumentCommand(document => replaceMap(document, update(document.map ?? { markers: [], gpx: [] })))
       if (!accepted) { setError(store.getSnapshot().fileMessage); return false }
       setError(null)
       return true
@@ -147,10 +152,10 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     }
   }
   function changeReferences(update: (files: MapGpxReference[]) => MapGpxReference[]) {
-    mutateMap(map => { map.gpx = update(map.gpx) })
+    mutateMap(map => ({ ...map, gpx: update(map.gpx) }))
   }
   function editMarker(id: string, patch: Partial<Omit<MapMarker, 'id'>>) {
-    return mutateMap(map => { map.markers = map.markers.map(marker => marker.id === id ? { ...marker, ...patch } : marker) })
+    return mutateMap(map => ({ ...map, markers: map.markers.map(marker => marker.id === id ? { ...marker, ...patch } : marker) }))
   }
   function selectMarker(marker: MapMarker) {
     if (blockedRef.current) return
@@ -171,9 +176,9 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     let neighbor: MapMarker | undefined
     if (mutateMap(map => {
       const index = map.markers.findIndex(marker => marker.id === id)
-      if (index < 0) return
+      if (index < 0) return map
       neighbor = map.markers[index + 1] ?? map.markers[index - 1]
-      map.markers = map.markers.filter(marker => marker.id !== id)
+      return { ...map, markers: map.markers.filter(marker => marker.id !== id) }
     }) && selectedMarkerId === id) {
       if (neighbor) selectMarker(neighbor)
       else { setSelectedMarkerId(null); setSelected(null) }
@@ -186,9 +191,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     const point = toGeographic(parsed.coordinate)
     if (Math.abs(point.latitude) > MAX_MAP_LATITUDE) { setError('Esta cartografía admite latitudes entre −85,05° y 85,05°.'); return }
     const id = crypto.randomUUID()
-    if (mutateMap(map => {
-      map.markers.push({ id, name: `M.${map.markers.length + 1}`, ...point, color: GPX_COLORS[0]! })
-    })) { selectCoordinate(point); setSelectedGpxId(null); setSelectedMarkerId(id) }
+    if (mutateMap(map => ({ ...map, markers: [...map.markers, { id, name: `M.${map.markers.length + 1}`, ...point, color: GPX_COLORS[0]! }] }))) { selectCoordinate(point); setSelectedGpxId(null); setSelectedMarkerId(id) }
   }
   function closeMarkers() {
     setMarkersOpen(false)
@@ -219,9 +222,14 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   async function loadChosenFiles(selection: Promise<({ file: File; handle?: never } | { handle: GpxReadHandle; file?: never })[]>, targetId: string | null) {
     if (request.current.reading || blockedRef.current) return
     const current = ++request.current.revision
+    const controller = new AbortController()
+    request.current.controller = controller
     request.current.reading = true; setBusy(true); setError(null)
     const added: LoadedGpx[] = [], errors: string[] = []
-    const isCurrent = () => current === request.current.revision && store.getSnapshot().documentGeneration === documentGeneration
+    let originalsRead = false
+    const stagedOriginals = new Set<string>()
+    const isCurrent = () => !controller.signal.aborted && current === request.current.revision &&
+      store.getSnapshot().active && !store.getSnapshot().replacing && store.getSnapshot().documentGeneration === documentGeneration
     let chosen: Awaited<typeof selection>
     try { chosen = await selection } catch (failure) {
       if (isCurrent()) {
@@ -234,59 +242,66 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
       return
     }
     const failedAccess: string[] = [], rememberedAccess: string[] = []
-    for (const choice of chosen) {
-      if (!isCurrent()) return
-      let name = choice.file?.name ?? choice.handle!.name
-      try {
-        const file = choice.file ?? await choice.handle!.getFile()
-        name = file.name
+    try {
+      for (const choice of chosen) {
         if (!isCurrent()) return
-        const saved = store.getSnapshot().document.map?.gpx ?? EMPTY_REFERENCES
-        const target = targetId ? saved.find(item => item.id === targetId) : undefined
-        if (targetId && !target) continue
-        const { fingerprint, data } = await readGpxFile(file, target?.fingerprint)
-        if (!isCurrent()) return
-        checkGpxPointTotal([...currentFiles.current, ...added, { fingerprint, data }])
-        rememberGpxFile(fingerprint, file)
-        const reference = targetId ? saved.find(item => item.id === targetId) : saved.find(item => item.fingerprint === fingerprint)
-        if (choice.handle) (await rememberGpxAccess(fingerprint, choice.handle) ? rememberedAccess : failedAccess).push(fingerprint)
-        if (!isCurrent()) return
-        if (currentFiles.current.some(item => item.fingerprint === fingerprint) || added.some(item => item.fingerprint === fingerprint)) continue
-        added.push({ ...(reference ?? {
-          id: crypto.randomUUID(), name: file.name, size: file.size, lastModified: file.lastModified, fingerprint, visible: true,
-          color: GPX_COLORS[(saved.length + added.filter(item => !saved.some(reference => reference.id === item.id)).length) % GPX_COLORS.length]!,
-          kilometers: false, kilometerInterval: 1,
-        }), data })
-      } catch (failure) { errors.push(`${name}: ${failure instanceof Error ? failure.message : 'No se pudo leer el archivo.'}`) }
-    }
-    if (!isCurrent()) return
-    if (added.length) {
-      const liveReferences = store.getSnapshot().document.map?.gpx ?? EMPTY_REFERENCES
-      if (targetId && !liveReferences.some(reference => reference.id === targetId && reference.fingerprint === added[0]?.fingerprint)) {
-        setBusy(false); request.current.reading = false; return
+        let name = choice.file?.name ?? choice.handle!.name
+        try {
+          await withGpxAdmission(async allowance => {
+            if (!isCurrent()) return
+            const file = choice.file ?? await choice.handle!.getFile()
+            name = file.name
+            if (!isCurrent()) return
+            const saved = store.getSnapshot().document.map?.gpx ?? EMPTY_REFERENCES
+            const target = targetId ? saved.find(item => item.id === targetId) : undefined
+            if (targetId && !target) return
+            const { fingerprint, data } = await readGpxFile(file, target?.fingerprint, true, { documentGeneration, signal: controller.signal, allowance, getCached: getGpxGeometry })
+            stagedOriginals.add(fingerprint)
+            if (!isCurrent()) return
+            admitGpx([...currentFiles.current, { fingerprint, data }])
+            originalsRead = true
+            if (choice.handle) (await rememberGpxAccess(fingerprint, choice.handle) ? rememberedAccess : failedAccess).push(fingerprint)
+            if (!isCurrent()) return
+            const live = store.getSnapshot().document.map?.gpx ?? EMPTY_REFERENCES
+            const reference = targetId ? live.find(item => item.id === targetId && item.fingerprint === fingerprint) : live.find(item => item.fingerprint === fingerprint)
+            if (targetId && !reference) return
+            if (currentFiles.current.some(item => item.fingerprint === fingerprint)) return
+            const loaded: LoadedGpx = { ...(reference ?? {
+              id: crypto.randomUUID(), name: file.name, size: file.size, lastModified: file.lastModified, fingerprint, visible: true,
+              color: GPX_COLORS[saved.length % GPX_COLORS.length]!,
+              kilometers: false, kilometerInterval: 1,
+            }), data }
+            const accepted = reference ? !blockedRef.current : mutateMap(map => {
+              const { data: _data, ...nextReference } = loaded
+              void _data
+              return { ...map, gpx: [...map.gpx, nextReference] }
+            })
+            if (!accepted || !isCurrent()) return
+            // Publish before releasing admission: later files share the remaining
+            // allowance and this file can already appear while the next is parsed.
+            const next = [...currentFiles.current, loaded]
+            currentFiles.current = next; publishFiles.current(next); added.push(loaded)
+          })
+        } catch (failure) { errors.push(`${name}: ${failure instanceof Error ? failure.message : 'No se pudo leer el archivo.'}`) }
       }
-      const newFiles = added.filter(file => !liveReferences.some(reference => reference.id === file.id))
-      const saved = newFiles.length ? mutateMap(map => {
-        for (const file of newFiles) if (!map.gpx.some(reference => reference.id === file.id)) {
-          // Keep the parsed geometry in memory; only this explicit reference enters the JSON.
-          const { id, name, size, lastModified, fingerprint, visible, color, kilometers, kilometerInterval } = file
-          map.gpx.push({ id, name, size, lastModified, fingerprint, visible, color, kilometers, kilometerInterval })
-        }
-      }) : !blockedRef.current
-      if (saved) {
-        const next = [...currentFiles.current, ...added]
-        currentFiles.current = next
-        publishFiles.current(next)
+      if (!isCurrent()) return
+      if (added.length) {
         selectGpx(added[0]!.id)
-        const points = added.filter(file => file.visible).flatMap(file => [...file.data.lines.flat(), ...file.data.waypoints])
-        if (points.length) mapRef.current?.fitBounds(L.latLngBounds(points.map(point => L.latLng(point.latitude, point.longitude))), { padding: [24, 24], maxZoom: 16, animate: false })
-      } else { setBusy(false); request.current.reading = false; return }
+        const bounds = L.latLngBounds([])
+        for (const file of added) if (file.visible && file.data.bounds) bounds.extend(file.data.bounds)
+        if (bounds.isValid()) mapRef.current?.fitBounds(bounds, { padding: [24, 24], maxZoom: 16, animate: false })
+      }
+      if (originalsRead) void store.protectGpxResources()
+      setAccessWarnings(current => [...new Set([...current.filter(fingerprint => !rememberedAccess.includes(fingerprint)), ...failedAccess])])
+      setImportErrors(errors)
+      if (errors.length) toast.error('No se pudieron cargar algunos archivos GPX.', { id: noticeId })
+      setBusy(false); request.current.reading = false
+      if (added.length) void store.saveWorkspaceNow()
+    } finally {
+      if (isCurrent()) { request.current.reading = false; request.current.controller = undefined; setBusy(false) }
+      const live = new Set(store.getSnapshot().document.map?.gpx.map(reference => reference.fingerprint) ?? [])
+      releaseGpxOriginals([...stagedOriginals].filter(fingerprint => !live.has(fingerprint)))
     }
-    setAccessWarnings(current => [...new Set([...current.filter(fingerprint => !rememberedAccess.includes(fingerprint)), ...failedAccess])])
-    setImportErrors(errors)
-    if (errors.length) toast.error('No se pudieron cargar algunos archivos GPX.', { id: noticeId })
-    setBusy(false); request.current.reading = false
-    if (added.length) void store.saveWorkspaceNow()
   }
   function chooseFiles(id: string | null = null) {
     if (blockedRef.current || request.current.reading || !inputFile.current) return
@@ -316,11 +331,9 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
       for (const reference of references) {
         if (!isCurrent()) return
         if (currentFiles.current.some(file => file.id === reference.id && file.fingerprint === reference.fingerprint)) continue
-        const file = await store.readWorkspaceGpx(reference) ?? await readGpxAccess(reference.fingerprint)
-        if (!isCurrent()) return
-        if (!file) continue
         try {
-          const { data } = await readGpxFile(file, reference.fingerprint)
+          const data = await loadGpx(reference)
+          if (!data) continue
           if (!isCurrent()) return
           checkGpxPointTotal([...currentFiles.current, { fingerprint: reference.fingerprint, data }])
           const liveReference = store.getSnapshot().document.map?.gpx.find(item => item.id === reference.id && item.fingerprint === reference.fingerprint)
@@ -337,18 +350,18 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     }
     void recover()
     return () => { cancelled = true }
-  }, [references, documentGeneration, navigationKey, blocked, busy, blockedRef, store])
+  }, [references, documentGeneration, navigationKey, blocked, busy, blockedRef, store, loadGpx])
 
   useLayoutEffect(() => {
     const node = canvas.current
     if (!node) return
-    const renderedLayers = layers.current
-    const renderedKilometers = kilometerLayers.current
     const pendingRequest = request.current
     const view = readMapView(navigationKey)
     const map = L.map(node, { zoomControl: false, minZoom: 2, maxZoom: 19, zoomSnap: .25, zoomDelta: .25, wheelPxPerZoomLevel: 240, preferCanvas: true, zoomAnimation: false })
       .setView([view.latitude, view.longitude], view.zoom)
     mapRef.current = map
+    const renderedGpx = new GpxLayers(map)
+    gpxLayers.current = renderedGpx
     function rememberFrame() {
       if (!node || !node.clientWidth || !node.clientHeight) return
       const size = map.getSize(), center = map.getPixelBounds().getCenter()
@@ -390,9 +403,10 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
     })
     observer.observe(node)
     return () => {
-      pendingRequest.revision++; pendingRequest.reading = false
+      pendingRequest.revision++; pendingRequest.controller?.abort(); pendingRequest.reading = false
       observer.disconnect(); cancelAnimationFrame(frame)
-      map.remove(); mapRef.current = null; renderedLayers.clear(); renderedKilometers.clear(); selection.current = null
+      renderedGpx.dispose(); gpxLayers.current = null
+      map.remove(); mapRef.current = null; selection.current = null
     }
   }, [navigationKey, blockedRef, resetSearch])
 
@@ -458,53 +472,8 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   }, [fitContentRef])
 
   useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    for (const [id, group] of layers.current) if (!files.some(file => file.id === id)) { map.removeLayer(group); layers.current.delete(id) }
-    for (const [id, item] of kilometerLayers.current) if (!files.some(file => file.id === id)) { map.removeLayer(item.group); kilometerLayers.current.delete(id) }
-    for (const file of files) {
-      const color = file.color ?? GPX_COLORS[0]!
-      let group = layers.current.get(file.id)
-      if (!group) {
-        group = L.featureGroup()
-        for (const line of file.data.lines) {
-          const points = line.map(point => L.latLng(point.latitude, point.longitude))
-          if (points.length === 1) L.circleMarker(points[0]!, { radius: 4, color }).addTo(group)
-          else L.polyline(points, { color, weight: 3 }).addTo(group)
-        }
-        for (const point of file.data.waypoints) {
-          const marker = L.circleMarker([point.latitude, point.longitude], { radius: 5, color, weight: 2, fillColor: color, fillOpacity: 1 }).addTo(group)
-          if (point.name) { const label = document.createElement('span'); label.textContent = point.name; marker.bindTooltip(label) }
-        }
-        layers.current.set(file.id, group)
-      }
-      group.eachLayer(layer => { if (layer instanceof L.Path) layer.setStyle({ color, fillColor: color }) })
-      if (file.visible) group.addTo(map)
-      else map.removeLayer(group)
-      let marks = kilometerLayers.current.get(file.id)
-      const interval = file.kilometerInterval ?? 1
-      if (file.kilometers && (!marks || marks.zoom !== mapZoom || marks.color !== color || marks.interval !== interval)) {
-        if (marks) map.removeLayer(marks.group)
-        const markers = L.layerGroup()
-        for (const mark of getKilometerMarks(file.data, Math.max(interval, 2 ** (13 - mapZoom)))) {
-          const label = document.createElement('span')
-          label.textContent = mark.kilometer.toLocaleString('es-ES')
-          label.style.borderColor = color
-          label.title = 'PK ' + mark.kilometer.toLocaleString('es-ES')
-          L.marker([mark.point.latitude, mark.point.longitude], {
-            icon: L.divIcon({ className: 'map-kilometer', html: label, iconSize: [30, 20], iconAnchor: [15, 10] }),
-            interactive: false, keyboard: false, zIndexOffset: 200,
-          }).addTo(markers)
-        }
-        marks = { group: markers, zoom: mapZoom, color, interval }
-        kilometerLayers.current.set(file.id, marks)
-      }
-      if (marks) {
-        if (file.visible && file.kilometers) marks.group.addTo(map)
-        else map.removeLayer(marks.group)
-      }
-    }
-  }, [files, mapZoom])
+    gpxLayers.current?.sync(files, mapZoom)
+  }, [files, mapZoom, navigationKey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -679,6 +648,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
       }}>
         <div className={`${styles.panelHeading} map-gpx-heading`}>
           <span id={`${gpxMenuId}-title`}>GPX</span>
+          {busy && <Button className={styles.panelTool} aria-label="Cancelar importación GPX" disabled={blocked} onClick={cancelImport}><X aria-hidden="true" /></Button>}
           <Button className={styles.panelTool} aria-label="Agregar GPX" disabled={blocked || busy} onClick={() => chooseFiles()}><Plus aria-hidden="true" /></Button>
           <Button className={styles.panelTool} aria-label="Cerrar GPX" disabled={blocked} onClick={closeGpx}><X aria-hidden="true" /></Button>
         </div>
@@ -715,7 +685,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
           <Button className={styles.panelTool} aria-label={activeFile ? 'Centrar ' + activeFile.name : 'Centrar GPX'} disabled={blocked || !activeFile?.visible || !selectedFile}
             onClick={() => { if (activeFile) fitFiles([activeFile.id]) }}><Focus aria-hidden="true" /></Button>
           <Button className={styles.panelTool} aria-label={activeFile ? 'Retirar ' + activeFile.name : 'Retirar GPX'} disabled={blocked || busy || !activeFile} onClick={() => {
-            if (activeFile && mutateMap(map => { map.gpx = map.gpx.filter(item => item.id !== activeFile.id) })) {
+            if (activeFile && mutateMap(map => ({ ...map, gpx: map.gpx.filter(item => item.id !== activeFile.id) }))) {
               onFilesChange(files.filter(item => item.id !== activeFile.id))
               setSelectedGpxId(null)
               if (selected?.gpx?.fileId === activeFile.id) setSelected(null)

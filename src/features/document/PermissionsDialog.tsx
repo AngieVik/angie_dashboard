@@ -7,6 +7,9 @@ import { FileDialogContent } from './FileDialog'
 import { authorizeWorkDirectory, chooseWorkDirectory, readPersistentStorage, readWorkDirectory, requestPersistentStorage } from '../../platform/pwaPermissions'
 import type { PermissionSnapshot, PermissionStatus, WorkDirectoryPermission } from '../../platform/pwaPermissions'
 import './permissions.css'
+import { readStorageCapacity } from '@/platform/storageCapacity'
+import type { StorageCapacity } from '@/platform/storageCapacity'
+import { StorageUsage } from './StorageUsage'
 
 const labels: Record<PermissionStatus, string> = {
   granted: 'Autorizado', pending: 'Pendiente', denied: 'No autorizado', unavailable: 'No disponible', error: 'Error',
@@ -21,6 +24,7 @@ export interface DirectoryActions {
 
 export function StoragePermissionsPanel({ onDirectoryAuthorized, onContinueLocally, onDownload }: DirectoryActions) {
   const [storage, setStorage] = useState<PermissionSnapshot>({ status: 'pending' })
+  const [capacity, setCapacity] = useState<StorageCapacity>()
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const dismissed = useRef(false)
@@ -31,6 +35,7 @@ export function StoragePermissionsPanel({ onDirectoryAuthorized, onContinueLocal
     void readPersistentStorage().then(local => {
       if (active) { setStorage(local); setLoading(false) }
     })
+    void readStorageCapacity().then(value => { if (active) setCapacity(value) })
     return () => { active = false; dismissed.current = true }
   }, [])
 
@@ -50,6 +55,8 @@ export function StoragePermissionsPanel({ onDirectoryAuthorized, onContinueLocal
         <span role="status">{loading ? 'Consultando…' : labels[storage.status]}</span>
       </div>
       <Button disabled={loading || busy || storage.status === 'unavailable' || storage.status === 'granted'} onClick={() => { void requestStorage() }}>Autorizar</Button>
+      <StorageUsage capacity={capacity} />
+      <Button disabled={busy} onClick={() => { void readStorageCapacity().then(value => { if (!dismissed.current) setCapacity(value) }) }}>Actualizar espacio</Button>
     </section>
     <WorkDirectorySection onDirectoryAuthorized={onDirectoryAuthorized} onStorageChange={setStorage} onDownload={onDownload} onContinueLocally={onContinueLocally} />
   </div>

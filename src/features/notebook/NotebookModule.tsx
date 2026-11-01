@@ -1,11 +1,12 @@
 import { useRef } from 'react'
-import type { AngieDocument, NotebookBlock } from '../../domain/document/types'
+import type { NotebookBlock } from '../../domain/document/types'
 
 import { Button } from '@/components/ui/button'
 import { ListChecks, StickyNote, Trash } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
+import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { NoteBlock } from './NoteBlock'
 import { ChecklistBlock } from './ChecklistBlock'
 import { useNotebookReorder } from './useNotebookReorder'
@@ -20,14 +21,14 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
   const list = useRef<HTMLOListElement>(null)
   const noteControl = useRef<HTMLButtonElement>(null)
   const checklistControl = useRef<HTMLButtonElement>(null)
-  function mutate(command: (document: AngieDocument) => void) {
-    if (!blockedRef.current) store.mutateDocument(command)
+  function mutate(command: DocumentCommand) {
+    if (!blockedRef.current) store.applyDocumentCommand(command)
   }
   const reorder = useNotebookReorder(document.notebook, list, (id, targetId) => mutate(document => reorderNotebookBlock(document, id, targetId)))
   function add(type: NotebookBlock['type']) {
     mutate(document => {
-      const block = addNotebookBlock(document, type)
-      if (block.type === 'checklist') addChecklistItem(document, block.id)
+      const result = addNotebookBlock(document, type)
+      return result.value.type === 'checklist' ? addChecklistItem(result.document, result.value.id) : result
     })
   }
   return <div ref={root} data-slot="notebook-module" className={`${styles.base} notebook-module`}>
@@ -48,10 +49,7 @@ export function NotebookModule({ store }: { store: DocumentStore }) {
           }}><Trash aria-hidden="true" /></Button>
           {block.type === 'note' ? <NoteBlock block={block} disabled={blocked} onEdit={text => mutate(document => editNotebookNote(document, block.id, text))} /> :
             <ChecklistBlock block={block} disabled={blocked}
-              onAdd={(afterItemId, initial) => mutate(document => {
-                const item = addChecklistItem(document, block.id, afterItemId)
-                if (initial) { item.text = initial.text; item.checked = initial.checked }
-              })}
+              onAdd={(afterItemId, initial) => mutate(document => addChecklistItem(document, block.id, afterItemId, initial))}
               onEdit={(id, text) => mutate(document => editChecklistItem(document, block.id, id, text))}
               onCheck={(id, checked) => mutate(document => setChecklistItemChecked(document, block.id, id, checked))}
               onDelete={id => mutate(document => deleteChecklistItem(document, block.id, id))} />}

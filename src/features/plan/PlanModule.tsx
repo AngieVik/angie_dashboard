@@ -5,7 +5,7 @@ import { Select } from '@/components/ui/select'
 
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { toast } from '@/components/ui/sonner'
-import type { AngieDocument, PlanPin, PlanStroke } from '../../domain/document/types'
+import type { PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
@@ -13,12 +13,12 @@ import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { MapModule } from '../map/MapModule'
 import type { MapNotice } from '../map/MapModule'
-import type { LoadedGpx } from '../map/gpx'
+import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { PlanDrawing } from './PlanDrawing'
 import { PlanPins } from './PlanPins'
 import { PlanStrokeControls } from './PlanStrokeControls'
 import { updateElement } from '../elements/elementCommands'
-import { addPlanStroke, placePlanPin, removePlanPin, removePlanStroke, togglePlanPin } from './planCommands'
+import { addPlanStroke, clearPlanStrokes, placePlanPin, removePlanPin, removePlanStroke, togglePlanPin } from './planCommands'
 import styles from './plan.module.css'
 
 export type PlanMode = 'navigate' | 'select' | 'draw' | 'erase' | 'place'
@@ -31,10 +31,8 @@ const MODES = [
   { mode: 'erase', label: 'Borrar trazo', icon: Eraser },
 ] as const
 
-export function PlanModule({ navigationKey, files, onFilesChange, store, selectedId, onSelect, onCoordinateSelect, onEditElement, onOpenModule, onNoticesChange }: {
+export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoordinateSelect, onEditElement, onOpenModule, onNoticesChange }: {
   navigationKey: string
-  files: LoadedGpx[]
-  onFilesChange: (files: LoadedGpx[]) => void
   store: DocumentStore
   selectedId: string | null
   onSelect: (id: string | null) => void
@@ -60,10 +58,10 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
   const strokes = document.plan?.strokes ?? EMPTY_STROKES
   const selected = document.elements.find(element => element.id === selectedId)
   const pin = pins.find(pin => pin.elementId.toLowerCase() === selectedId?.toLowerCase())
-  function apply(update: (document: AngieDocument) => void) {
+  function apply(update: DocumentCommand) {
     const snapshot = store.getSnapshot()
     if (blockedRef.current || !snapshot.ready || snapshot.replacing || snapshot.documentGeneration !== documentGeneration) return false
-    try { return store.mutateDocument(update) }
+    try { return store.applyDocumentCommand(update) }
     catch (failure) { toast.error(failure instanceof Error ? failure.message : 'No se pudo actualizar el plano.', { id: noticeId }); return false }
   }
   return <div className={`plan-module ${styles.base}`} data-mode={mode}>
@@ -98,14 +96,14 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
         <Button aria-label="Abrir Dotaciones" disabled={blocked} onClick={() => { if (!blockedRef.current) onOpenModule('dotations') }}><Ambulance aria-hidden="true" /></Button>
       </div>
     </div>
-    <MapModule navigationKey={'plan.' + navigationKey} files={files} onFilesChange={onFilesChange} store={store} onCoordinateSelect={onCoordinateSelect} onNoticesChange={onNoticesChange} noticeSource="plan" overlay={<>
+    <MapModule navigationKey={'plan.' + navigationKey} store={store} onCoordinateSelect={onCoordinateSelect} onNoticesChange={onNoticesChange} noticeSource="plan" overlay={<>
       <PlanPins navigationKey={navigationKey} elements={document.elements} pins={pins} mode={mode} selectedId={selectedId}
         focusRequest={focusRequest} onSelect={onSelect} onEdit={onEditElement} onMove={(id, point) => apply(document => placePlanPin(document, id, point))}
         onNameMove={(id, nameOffset) => apply(document => updateElement(document, id, { nameOffset }))}
         onScale={(id, scale) => apply(document => {
           const element = document.elements.find(element => element.id === id)
           if (!element) throw new Error('El recurso ya no existe.')
-          updateElement(document, id, { visual: { ...element.visual, scale } })
+          return updateElement(document, id, { visual: { ...element.visual, scale } })
         })} />
       <PlanDrawing navigationKey={navigationKey} mode={mode} color={color} width={width} strokes={strokes} placeId={selected?.id ?? null}
         onReject={message => toast.error(message, { id: noticeId })}
@@ -129,7 +127,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
         <AlertDialogDescription>Los pines y los GPX se conservan.</AlertDialogDescription>
         <AlertDialogFooter>
           <AlertDialogCancel asChild><Button>Cancelar</Button></AlertDialogCancel>
-          <Button onClick={() => { if (apply(document => { if (document.plan) document.plan.strokes = [] })) setClearOpen(false) }}>Borrar trazos</Button>
+          <Button onClick={() => { if (apply(clearPlanStrokes)) setClearOpen(false) }}>Borrar trazos</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

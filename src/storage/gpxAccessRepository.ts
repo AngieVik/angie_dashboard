@@ -1,5 +1,8 @@
 import Dexie from 'dexie'
 import type { Table } from 'dexie'
+import { gpxResource } from './gpxResources'
+import type { GpxResource } from './gpxResources'
+import { createDatabase } from './db'
 
 export interface GpxReadHandle {
   readonly name: string
@@ -8,11 +11,6 @@ export interface GpxReadHandle {
 }
 
 interface GpxAccessRecord { fingerprint: string; handle: GpxReadHandle }
-const sessionFiles = new Map<string, File>()
-
-export function rememberGpxFile(fingerprint: string, file: File) {
-  sessionFiles.set(fingerprint, file)
-}
 
 // Separate from document recovery: only authorized handles, never GPX contents.
 async function withAccessTable<T>(action: (table: Table<GpxAccessRecord, string>) => Promise<T>): Promise<T> {
@@ -32,8 +30,15 @@ export async function rememberGpxAccess(fingerprint: string, handle: GpxReadHand
 }
 
 export async function readGpxAccess(fingerprint: string): Promise<File | null> {
-  const sessionFile = sessionFiles.get(fingerprint)
-  if (sessionFile) return sessionFile
+  const original = gpxResource(fingerprint)?.blob
+  if (original) return original instanceof File ? original : new File([original], 'recorrido.gpx', { type: 'application/gpx+xml' })
+  const db = createDatabase()
+  try {
+    await db.open()
+    const resource = await db.table<GpxResource, string>('gpxResources').get(fingerprint)
+    if (resource) return new File([resource.blob], 'recorrido.gpx', { type: 'application/gpx+xml' })
+  } catch { /* Try the existing authorized handle when local storage is unavailable. */ }
+  finally { db.close() }
   try {
     const record = await withAccessTable(table => table.get(fingerprint))
     if (!record || await record.handle.queryPermission({ mode: 'read' }) !== 'granted') return null

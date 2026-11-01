@@ -1,5 +1,8 @@
 import { migrateDocument } from '../../domain/document/migrateDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
+import { DocumentSave } from '../../storage/documentSave'
+import { portableDocument } from '../../storage/imageResources'
+import type { PreparedDocumentSave } from '../../storage/documentSave'
 import type { AngieDocument, MapGpxReference } from '../../domain/document/types'
 import { readGpxAccess } from '../../storage/gpxAccessRepository'
 import { readWorkDirectoryConfiguration, readWorkspaceBaseline, rememberWorkspaceBaseline } from '../../storage/workDirectoryAccessRepository'
@@ -10,6 +13,11 @@ import type { LocalDocument, RecoverableDocument } from '../../storage/documentR
 import { directoryErrorMessage } from '../pwaPermissions'
 import { readJsonText } from './readInputFile'
 import { checkDocumentBudget, checkFileBytes, InputBudgetError } from '../../domain/input/inputBudgets'
+import { createDatabase } from '../../storage/db'
+import { catalogRecord } from '../../storage/documentCatalog'
+import type { CatalogEntry, RecoveryPage, RecoveryQuery } from '../../storage/documentCatalog'
+import { catalogPage } from '../../storage/catalogPage'
+import type Dexie from 'dexie'
 
 export interface WorkspaceFile extends SaveFileHandle {
   readonly kind: 'file'
@@ -34,13 +42,15 @@ export type WorkspaceSaveResult =
   | { status: 'saved'; path: string; savedAt: string; message?: string; resourcesPending?: boolean }
   | { status: 'error'; message: string; permissionRequired?: boolean; path?: string }
 export interface WorkspaceFiles {
-  save(document: AngieDocument): Promise<WorkspaceSaveResult>
+  save(document: AngieDocument, prepared?: PreparedDocumentSave): Promise<WorkspaceSaveResult>
   readGpx?(document: AngieDocument, reference: MapGpxReference): Promise<File | null>
   saveReport?(document: AngieDocument, report: { filename: string; html: string }): Promise<WorkspaceSaveResult>
   availableName?(name: string, id?: string): Promise<string>
   create?(document: AngieDocument, source?: AngieDocument, sourceFolder?: string, sourceAccessId?: string, sourceVersion?: string, localRecovery?: boolean): Promise<WorkspaceSaveResult>
   rename?(document: AngieDocument, title: string, updatedAt?: string): Promise<WorkspaceSaveResult>
   listRecoverable?(): Promise<RecoverableDocument[]>
+  listRecoveryPage?(query?: RecoveryQuery): Promise<RecoveryPage>
+  invalidateRecoveryCatalog?(): void
   loadRecoverable?(key: string): Promise<LocalDocument | null>
 }
 
@@ -119,6 +129,73 @@ export function createWorkspaceFiles(
   const verifiedGpx = new Map<string, { size: number; lastModified: number }>()
   const createdGpx = new Set<string>()
   let writing: Promise<void> = Promise.resolve()
+  let recoveryIndex: Promise<{ accessId: string; db: Dexie }> | undefined
+  let recoveryDatabase: Dexie | undefined
+
+  function invalidateRecoveryCatalog() { recoveryIndex = undefined }
+
+  async function listRecoveryPage(query: RecoveryQuery = {}): Promise<RecoveryPage> {
+    await writing
+    const selected = await rootDirectory()
+    if (!selected) return { entries: [] }
+    if (recoveryIndex && (await recoveryIndex).accessId !== selected.accessId) invalidateRecoveryCatalog()
+    recoveryIndex ??= indexRecoveryCatalog(selected).catch(error => { recoveryIndex = undefined; throw error })
+    const index = await recoveryIndex
+    return catalogPage(index.db.table<CatalogEntry, string>('workspaceCatalog'), query, index.accessId)
+  }
+
+  async function indexRecoveryCatalog(selected: { root: WorkspaceDirectory; accessId: string }) {
+    const db = recoveryDatabase ??= createDatabase()
+    try {
+      await db.open()
+      type FolderEntry = CatalogEntry & { id: string; accessId: string; stamp: string }
+      const catalog = db.table<FolderEntry, string>('workspaceCatalog')
+      const old = new Map((await catalog.where('accessId').equals(selected.accessId).toArray()).map(entry => [entry.key, entry]))
+      const entries: FolderEntry[] = []
+      for await (const [name, folder] of selected.root.entries()) {
+        if (folder.kind !== 'directory') continue
+        const transfer = await transferState(folder)
+        if (transfer && !transfer.ready) continue
+        const scan = async (filename: string, parent: WorkspaceDirectory, version: boolean) => {
+          const key = `workspace:${encodeURIComponent(name)}:${encodeURIComponent(filename)}`
+          let file: Awaited<ReturnType<WorkspaceFile['getFile']>>
+          try { file = await (await parent.getFileHandle(version ? 'dashboard.json' : filename)).getFile() }
+          catch (error) { if (isMissing(error)) return; throw error }
+          const stamp = `${file.size}:${file.lastModified ?? ''}`
+          const cached = old.get(key)
+          if (cached && file.lastModified !== undefined && cached.stamp === stamp) { entries.push(cached); return }
+          let entry: CatalogEntry
+          try {
+            const saved = version ? await readVersion(parent) : null
+            const parsed = version ? null : parseWorkspaceDocument(await readJsonText(file))
+            const document = saved?.document ?? (parsed?.success ? parsed.document : null)
+            if (!document) throw new Error('Registro sin validar')
+            entry = catalogRecord({ key: 'board:' + document.document.id, document })!
+          } catch (error) {
+            if (error instanceof InputBudgetError) throw error
+            entry = { ...(cached ?? catalogRecord({ key: 'damaged:' + key, document: null })!),
+              title: cached?.title ?? name, titleKey: (cached?.title ?? name).toLocaleLowerCase('es'), kind: 'damaged', referencesComplete: false }
+          }
+          entries.push({ ...entry, key, kind: entry.kind === 'damaged' ? 'damaged' : filename === 'dashboard.json' ? 'board' : 'snapshot', source: 'folder',
+            id: JSON.stringify([selected.accessId, key]), accessId: selected.accessId, stamp })
+        }
+        await scan('dashboard.json', folder, false)
+        try {
+          const copies = await folder.getDirectoryHandle('copias')
+          for await (const [filename, copy] of copies.entries()) {
+            if (copy.kind === 'directory' && backupFolderPattern.test(filename)) await scan(filename, copy, true)
+            else if (copy.kind === 'file' && backupPattern.test(filename)) await scan(filename, copies, false)
+          }
+        } catch (error) { if (!isMissing(error)) throw error }
+      }
+      // Do not replace a previously usable catalog when indexing hits quota.
+      await db.transaction('rw', catalog, async () => {
+        await catalog.where('accessId').equals(selected.accessId).delete()
+        await catalog.bulkPut(entries)
+      })
+      return { accessId: selected.accessId, db }
+    } catch (error) { db.close(); recoveryDatabase = undefined; throw error }
+  }
 
   async function rootDirectory() {
     const selected = await getRoot()
@@ -408,36 +485,7 @@ export function createWorkspaceFiles(
     return { status: 'saved', path: `angie_dashboard/${title}/dashboard.json`, savedAt: now().toISOString(), message }
   }
 
-  async function listRecoverable(): Promise<RecoverableDocument[]> {
-    await writing
-    const selected = await rootDirectory()
-    if (!selected) return []
-    const result: RecoverableDocument[] = []
-    for await (const [name, entry] of selected.root.entries()) {
-      if (entry.kind !== 'directory') continue
-      const transfer = await transferState(entry)
-      if (transfer && !transfer.ready) continue
-      const current = await readDashboard(entry)
-      if (current) result.push({ key: `workspace:${encodeURIComponent(name)}:dashboard.json`, title: current.document.document.title,
-        documentId: current.document.document.id, savedAt: current.document.document.updatedAt, source: 'folder' })
-      try {
-        const copies = await entry.getDirectoryHandle('copias')
-        for await (const [filename, file] of copies.entries()) {
-          if (file.kind === 'file' ? !backupPattern.test(filename) : !backupFolderPattern.test(filename)) continue
-          try {
-            const saved = file.kind === 'directory' ? await readVersion(file) : null
-            const parsed = file.kind === 'file' ? parseWorkspaceDocument(await readJsonText(await file.getFile())) : null
-            const document = saved?.document ?? (parsed?.success ? parsed.document : null)
-            if (document && (!current || document.document.id === current.document.document.id)) result.push({
-              key: `workspace:${encodeURIComponent(name)}:${encodeURIComponent(filename)}`, title: document.document.title,
-              documentId: document.document.id, savedAt: document.document.updatedAt, source: 'folder',
-            })
-          } catch (error) { if (error instanceof InputBudgetError) throw error; /* Keep unreadable copies and continue listing the valid ones. */ }
-        }
-      } catch (error) { if (!isMissing(error)) throw error }
-    }
-    return result.sort((a, b) => b.savedAt.localeCompare(a.savedAt))
-  }
+  async function listRecoverable(): Promise<RecoverableDocument[]> { return (await listRecoveryPage({ limit: 100 })).entries }
   async function loadRecoverable(key: string): Promise<LocalDocument | null> {
     await writing
     const parts = key.split(':')
@@ -559,9 +607,9 @@ export function createWorkspaceFiles(
     }
   }
 
-  async function save(document: AngieDocument): Promise<WorkspaceSaveResult> {
+  async function save(document: AngieDocument, preparedText?: string): Promise<WorkspaceSaveResult> {
     try {
-      const text = serializeDocument(document)
+      const text = preparedText ?? serializeDocument(document)
       const selected = await getRoot()
       if (!selected) return { status: 'unconfigured' }
       if (await selected.handle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
@@ -630,6 +678,7 @@ export function createWorkspaceFiles(
 
   // One lock across tabs prevents interleaved reads, backups and writes.
   function withWrite(action: () => Promise<WorkspaceSaveResult>) {
+    invalidateRecoveryCatalog()
     const result = writing.then(async () => {
       if (!navigator.locks?.request) return action()
       const controller = new AbortController()
@@ -647,11 +696,23 @@ export function createWorkspaceFiles(
     writing = result.then(() => {}, () => {})
     return result.catch((error): WorkspaceSaveResult => ({ status: 'error', message: directoryErrorMessage(error), permissionRequired: error instanceof DOMException && error.name === 'NotAllowedError' }))
   }
-  return { readGpx, availableName, listRecoverable, loadRecoverable,
-    create: (document, source, sourceFolder, sourceAccessId, sourceVersion, localRecovery) => { const copy = structuredClone(document); return withWrite(() => create(copy, source ? structuredClone(source) : undefined, sourceFolder, sourceAccessId, sourceVersion, localRecovery)) },
-    rename: (document, title, updatedAt) => { const copy = structuredClone(document); return withWrite(() => rename(copy, title, false, updatedAt)) },
-    save: document => { const copy = structuredClone(document); return withWrite(() => save(copy)) },
-    saveReport: (document, report) => { const copy = structuredClone(document); return withWrite(() => saveReport(copy, report)) },
+  return { readGpx, availableName, listRecoverable, listRecoveryPage, invalidateRecoveryCatalog, loadRecoverable,
+    create: (document, source, sourceFolder, sourceAccessId, sourceVersion, localRecovery) => {
+      const copy = structuredClone(document), sourceCopy = source ? structuredClone(source) : undefined
+      return withWrite(async () => create(await portableDocument(copy), sourceCopy ? await portableDocument(sourceCopy) : undefined, sourceFolder, sourceAccessId, sourceVersion, localRecovery))
+    },
+    rename: (document, title, updatedAt) => { const copy = structuredClone(document); return withWrite(async () => rename(await portableDocument(copy), title, false, updatedAt)) },
+    save: (document, prepared) => {
+      if (prepared && prepared.document !== document) return Promise.resolve({ status: 'error', message: 'La instantánea no pertenece al documento que se guarda.' })
+      try {
+        const snapshot = prepared ?? new DocumentSave(document).prepare()
+        return withWrite(async () => {
+          const portable = await portableDocument(snapshot.document)
+          return save(portable, portable === snapshot.document ? snapshot.text : serializeDocument(portable))
+        })
+      } catch (error) { return Promise.resolve({ status: 'error', message: directoryErrorMessage(error) }) }
+    },
+    saveReport: (document, report) => { const copy = structuredClone(document); return withWrite(async () => saveReport(await portableDocument(copy), report)) },
   }
 }
 

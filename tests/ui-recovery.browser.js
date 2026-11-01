@@ -37,14 +37,15 @@ async page => {
     DocumentRepository.prototype.saveActive = async () => { throw new Error('Almacenamiento bloqueado en prueba') }
   })
   await page.getByRole('textbox', { name: 'Texto de nota' }).fill('Cambios pendientes antes del fallo')
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    const { editNotebookNote } = await import('/src/features/notebook/notebookCommands.ts')
     const store = window.__recoveryStore
     const current = store.getSnapshot()
     if (!current.fileDirty) throw new Error('La prueba necesita cambios pendientes')
     window.__expectedGeneration = current.documentGeneration
     window.__expectedId = current.document.document.id
     window.__failNotebook = true
-    store.mutateDocument(document => { document.notebook[0].text += ' · conservados' })
+    store.applyDocumentCommand(document => editNotebookNote(document, document.notebook[0].id, document.notebook[0].text + ' · conservados'))
     window.__expectedNote = store.getSnapshot().document.notebook[0].text
   })
   await page.getByRole('alert', { name: 'Error en Cuaderno' }).waitFor()
@@ -78,12 +79,13 @@ async page => {
   await page.getByRole('button', { name: 'Cerrar aviso', exact: true }).click()
   await page.evaluate(async () => {
     const { getTimerStore } = await import('/src/features/clock/timerStore.ts')
+    const { editNotebookNote } = await import('/src/features/notebook/notebookCommands.ts')
     window.__timerStore = getTimerStore()
     getTimerStore().add('tminus')
     getTimerStore().setNote(getTimerStore().getSnapshot().timers.at(-1).id, 'Temporizador conservado')
     window.__timersBefore = JSON.stringify(getTimerStore().getSnapshot().timers)
     window.__failApp = true
-    window.__recoveryStore.mutateDocument(document => { document.notebook[0].text += ' · rescate global' })
+    window.__recoveryStore.applyDocumentCommand(document => editNotebookNote(document, document.notebook[0].id, document.notebook[0].text + ' · rescate global'))
     window.__globalCopyExpected = JSON.stringify(window.__recoveryStore.getSnapshot().document)
   })
   await page.getByRole('alert', { name: 'Recuperación de Angie' }).waitFor()

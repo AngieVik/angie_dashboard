@@ -20,7 +20,6 @@ import type { ReportsNotice } from '../features/document/ReportsModule'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import type { GeographicCoordinate } from '../features/coordinates/coordinateTypes'
-import type { LoadedGpx } from '../features/map/gpx'
 import type { MapNotice } from '../features/map/MapModule'
 import { CalculatorModule } from '../features/calculator/CalculatorModule'
 import { NotebookModule } from '../features/notebook/NotebookModule'
@@ -37,7 +36,7 @@ import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
 import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import { readNavigation, writeNavigation } from '../layout/navigationStorage'
 import type { Position } from '../domain/document/types'
-import { createEmptyDocument } from '../domain/document/defaultDocument'
+import { clearDocumentModules, updateModuleLayouts } from '../features/document/documentEdits'
 
 const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
 const PlanModule = lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule })))
@@ -102,8 +101,6 @@ export function App() {
       return { generation: documentGeneration, value }
     })
   }, [store, documentGeneration])
-  const [mapFiles, setMapFiles] = useState<{ generation: number; files: LoadedGpx[] }>({ generation: documentGeneration, files: [] })
-  if (mapFiles.generation !== documentGeneration) setMapFiles({ generation: documentGeneration, files: [] })
   const boardImage = useBoardImage(store)
   const boardImageInput = useRef<HTMLInputElement>(null)
   useEffect(() => { void store.initialize(); return store.connectWorkspaceAutosave() }, [store])
@@ -247,7 +244,7 @@ export function App() {
       placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
     }
     const saved = placed
-    try { store.mutateDocument(candidate => { for (const item of saved) candidate.moduleLayouts[item.id] = item.layout }) }
+    try { store.applyDocumentCommand(document => updateModuleLayouts(document, saved)) }
     catch { return }
     setModules(previous => previous.map(module => {
       const shown = placed.find(item => item.id === module.id)!, source = saved.find(item => item.id === module.id)!
@@ -286,7 +283,7 @@ export function App() {
     const saved = { ...layout, width: manual.width, height: manual.height, referenceSize: {
       width: Math.ceil(Math.max(bounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)), height: Math.ceil(Math.max(bounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)),
     } }
-    store.mutateDocument(document => { document.moduleLayouts[id] = saved })
+    store.applyDocumentCommand(document => updateModuleLayouts(document, [{ id, layout: saved }]))
     setModules(previous => previous.map(module => module.id === id ? { ...module, layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
   }
   function close(id: ModuleId) {
@@ -313,33 +310,9 @@ export function App() {
         throw new Error('Espera a que estén disponibles los temporizadores antes de limpiarlos.')
       }
       // Validate all document changes together before changing independent timers.
-      store.mutateDocument(candidate => {
-        for (const id of request.ids) {
-          if (id === 'board') candidate.board = createEmptyDocument().board
-          else if (id === 'map') delete candidate.map
-          else if (id === 'plan') delete candidate.plan
-          else if (id === 'elements') candidate.elements = candidate.elements.filter(element => element.isUnit)
-          else if (id === 'dotations') candidate.elements = candidate.elements.filter(element => !element.isUnit)
-          else if (id === 'notebook') candidate.notebook = []
-          else if (id === 'timeline') {
-            candidate.timeline = []
-            for (const element of candidate.elements) if (element.isUnit) {
-              element.operational.status = null; element.operational.currentEntryId = null
-            }
-          } else if (id === 'information' || id === 'operations') {
-            for (const element of candidate.elements) if (element.isUnit) {
-              element.operational = { status: null, currentEntryId: null, notes: '', tags: [] }
-            }
-          }
-        }
-        if (candidate.plan) {
-          const remaining = new Set(candidate.elements.map(element => element.id.toLowerCase()))
-          candidate.plan.pins = candidate.plan.pins.filter(pin => remaining.has(pin.elementId.toLowerCase()))
-        }
-      })
+      store.applyDocumentCommand(document => clearDocumentModules(document, request.ids))
       if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
       if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
-      if (request.ids.includes('map')) setMapFiles({ generation: documentGeneration, files: [] })
       if (request.ids.includes('coordinates')) rememberCoordinateInput('')
       if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
       // Shared data can change other windows too; suppress automatic resizing until their next content interaction.
@@ -395,7 +368,7 @@ export function App() {
         layout = { ...layout, referenceSize: { width: Math.max(bounds.width, layout.x + layout.width), height: Math.max(bounds.height, layout.y + layout.height) } }
         placed.push({ id, layout })
       }
-      store.mutateDocument(candidate => { for (const module of placed) candidate.moduleLayouts[module.id] = module.layout })
+      store.applyDocumentCommand(document => updateModuleLayouts(document, placed))
       setModules(placed.map(module => ({ ...module, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(module.layout) } })))
     } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron distribuir los módulos.') }
   }
@@ -462,17 +435,12 @@ export function App() {
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
-              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices}
-                files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
-                onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles(current => ({ generation: documentGeneration,
-                  files: [...new Map([...(current.generation === documentGeneration ? current.files : []), ...files].map(file => [file.id, file])).values()] })) }} /> :
+              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'calendar' ? <Suspense fallback={null}><CalendarModule key={moduleRevisions.calendar ?? 0} store={calendar} /></Suspense> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} radar={{ active: radarActive, onToggle: toggleRadar }} /> :
               id === 'plan' ? <Suspense fallback={null}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store} onNoticesChange={updateMapNotices}
                 selectedId={selectedId} onSelect={selectElement} onCoordinateSelect={selectCoordinate}
-                files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
-                onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }}
                 onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
                 onEditElement={elementId => {
                   const element = document.elements.find(element => element.id === elementId)
@@ -482,9 +450,7 @@ export function App() {
                   if (open.some(module => module.id === id)) { moduleActions.current[id]?.('expand'); activate(id) }
                   else { pendingEditModule.current = id; toggle(id) }
                 }} /></Suspense> :
-              id === 'map' ? <Suspense fallback={null}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store} onCoordinateSelect={selectCoordinate} onNoticesChange={updateMapNotices}
-                files={mapFiles.generation === documentGeneration ? mapFiles.files : []}
-                onFilesChange={files => { if (store.getSnapshot().documentGeneration === documentGeneration) setMapFiles({ generation: documentGeneration, files }) }} /></Suspense> :
+              id === 'map' ? <Suspense fallback={null}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store} onCoordinateSelect={selectCoordinate} onNoticesChange={updateMapNotices} /></Suspense> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
               id === 'calculator' ? <CalculatorModule generation={documentGeneration} radar={{ active: radarActive, onToggle: toggleRadar }} radarPoint={radarPoint} calendar={calendar} /> : null} />
         </MobileViewport>

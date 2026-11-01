@@ -8,6 +8,7 @@ import { useViewportInteraction } from '../../layout/ViewportContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { createElement, updateElement, updateElements, duplicateElement, deleteElement, togglePinVisibility } from './elementCommands'
+import { applyDocumentCommands } from '../../domain/document/documentCommand'
 import { ElementEditor } from './ElementEditor'
 import { ICON_CATALOG } from './iconCatalog'
 import { pinNameLines } from './pinPresentation'
@@ -113,25 +114,24 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
               if (blockedRef.current || !actionElements.length) return
               cancelHold()
               let id = ''
-              store.mutateDocument(document => {
-                for (const element of actionElements) id = duplicateElement(document, element.id).id
-              })
+              store.applyDocumentCommand(document => applyDocumentCommands(document, actionElements.map(element => document => {
+                const result = duplicateElement(document, element.id)
+                id = result.value.id
+                return result
+              })))
               addControl.current?.focus(); onSelect(id)
             }}><CopyPlus aria-hidden="true" /></Button>
             <Button aria-label={visibilityLabel} disabled={blocked || !actionElements.length} onClick={() => {
               if (blockedRef.current || !actionElements.length) return
               cancelHold()
-              store.mutateDocument(document => {
-                for (const element of actionElements) if (element.pinVisible === hidePins) togglePinVisibility(document, element.id)
-              })
+              store.applyDocumentCommand(document => applyDocumentCommands(document, actionElements.filter(element => element.pinVisible === hidePins)
+                .map(element => document => togglePinVisibility(document, element.id))))
             }}>{hidePins ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button>
             <Button aria-label="Borrar" disabled={blocked || !actionElements.length} onClick={() => {
               if (blockedRef.current || !actionElements.length) return
               cancelHold()
               const ids = actionElements.map(element => element.id)
-              store.mutateDocument(document => {
-                for (const id of ids) deleteElement(document, id)
-              })
+              store.applyDocumentCommand(document => applyDocumentCommands(document, ids.map(id => document => deleteElement(document, id))))
               setCheckedIds(checkedIds => checkedIds.filter(id => !ids.includes(id)))
               if (selectedId && ids.includes(selectedId)) onSelect(null)
               addControl.current?.focus()
@@ -154,17 +154,20 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
     {editor?.kind === 'batch' ? <ElementEditor key="batch" element={checked[0]} creating={false} isUnit={isUnit} formId={formId} batchCount={checked.length}
       onSaveBatch={(patch, keepOpen) => {
         if (blockedRef.current) return
-        if (Object.keys(patch).length) store.mutateDocument(document => updateElements(document, checked.map(element => element.id), patch))
+        if (Object.keys(patch).length) store.applyDocumentCommand(document => updateElements(document, checked.map(element => element.id), patch))
         if (!keepOpen) { focusList.current = true; setEditor(null) }
       }} /> : editor ? <ElementEditor key={editor.kind === 'create' ? 'create' : editor.id} element={edited} creating={editor.kind === 'create'} isUnit={isUnit}
       formId={formId} onSave={(input, keepOpen) => {
         if (blockedRef.current) return
         let id: string | null = null
-        store.mutateDocument(document => {
+        store.applyDocumentCommand(document => {
           if (edited) {
-            updateElement(document, edited.id, { name: input.name, information: input.information, visual: input.visual, nameFontSize: input.nameFontSize, nameHidden: input.nameHidden, nameOffset: input.nameOffset, nameColor: input.nameColor, pinAnchor: input.pinAnchor })
             id = edited.id
-          } else id = createElement(document, { ...input, position: placementPosition }).id
+            return updateElement(document, edited.id, { name: input.name, information: input.information, visual: input.visual, nameFontSize: input.nameFontSize, nameHidden: input.nameHidden, nameOffset: input.nameOffset, nameColor: input.nameColor, pinAnchor: input.pinAnchor })
+          }
+          const result = createElement(document, { ...input, position: placementPosition })
+          id = result.value.id
+          return result
         })
         onSelect(id)
         if (keepOpen) setEditor({ kind: editor.kind, id })

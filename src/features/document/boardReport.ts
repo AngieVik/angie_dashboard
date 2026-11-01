@@ -4,7 +4,7 @@ import type { BoardFrame } from '../board/boardViewport'
 import { loadBoardImage } from '../board/imageLoader'
 import { getPinBox, ICON_CATALOG } from '../elements/iconCatalog'
 import { getPinNameLayout, getRotatedPinBox, pinNameLines, PIN_NAME_COLORS } from '../elements/pinPresentation'
-import { embeddedImageFile } from '../../platform/files/embeddedImage'
+import { boardImageFile } from '../../storage/imageResources'
 import { createReportLegendEntry, createResourceLegend, reportRectIntersects } from './reportLegend'
 import type { ReportLegendEntry } from './reportLegend'
 import { createReportIssue, reportIssueKey } from './reportIssues'
@@ -282,7 +282,7 @@ export async function createBoardReport(documentSnapshot: AngieDocument, fields:
   if (options.blockedImage?.length) { report.issues = options.blockedImage; return report }
   const embedded = (options.layers ?? DEFAULT_BOARD_REPORT_LAYERS).background ? documentSnapshot.board.backgroundImage : undefined
   const [backgroundResult, iconResult, fontResult] = await Promise.allSettled([
-    embedded ? Promise.resolve().then(() => loadBoardImage(embeddedImageFile(embedded.dataUrl))) : Promise.resolve(undefined),
+    embedded ? Promise.resolve().then(() => loadBoardImage(boardImageFile(embedded))) : Promise.resolve(undefined),
     loadIcons(elements, options), document.fonts.ready,
   ])
   const background = backgroundResult.status === 'fulfilled' && backgroundResult.value?.success ? backgroundResult.value : undefined

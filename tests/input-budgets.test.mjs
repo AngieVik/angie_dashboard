@@ -63,7 +63,7 @@ test('a rejected import or edit preserves the active document and never writes t
   assert.equal(store.getSnapshot().documentGeneration, generation)
   assert.deepEqual(JSON.parse(await file.text()), candidate)
   const rejection = store.getSnapshot().fileMessage
-  assert.equal(store.mutateDocument(doc => { doc.notebook.push(note('a'.repeat(100_001))) }), false)
+  assert.equal(store.applyDocumentCommand(doc => ({ document: { ...doc, notebook: [...doc.notebook, note('a'.repeat(100_001))] }, changed: true, value: undefined })), false)
   assert.equal(store.getSnapshot().fileMessage, rejection)
   await store.flushAutosave()
   assert.equal(store.getSnapshot().document, original)

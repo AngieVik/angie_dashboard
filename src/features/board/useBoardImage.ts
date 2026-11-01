@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDocumentStore } from '../document/documentStore'
 import type { DocumentStore } from '../document/documentStore'
 import type { BoardImage } from './boardTypes'
+import { replaceBoard } from '../document/documentEdits'
 import { initialImageLayout } from './boardImageGeometry'
 import type { BoardImageLayout } from './boardImageGeometry'
 import { loadBoardImage } from './imageLoader'
-import { embeddedImageFile, readImageDataUrl } from '../../platform/files/embeddedImage'
+import { boardImageFile, registerImage } from '../../storage/imageResources'
 
 export function useBoardImage(store: DocumentStore) {
   const { document, documentGeneration } = useDocumentStore(store)
@@ -21,7 +22,7 @@ export function useBoardImage(store: DocumentStore) {
     setState(previous => previous.error ? { ...previous, error: null } : previous)
   }, [])
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; resource.current?.image.dispose(); resource.current = null } }, [])
-  const dataUrl = saved?.dataUrl
+  const dataUrl = saved ? 'resourceId' in saved ? saved.resourceId : saved.dataUrl : undefined
   useEffect(() => {
     if (resource.current?.generation === documentGeneration && resource.current.dataUrl === dataUrl) return
     const sequence = ++request.current
@@ -31,7 +32,7 @@ export function useBoardImage(store: DocumentStore) {
     setState({ generation: documentGeneration, noticeRevision: sequence, image: null, error: null, busy: Boolean(dataUrl) })
     if (!dataUrl) return
     let active = true
-    void loadBoardImage(embeddedImageFile(dataUrl)).then(result => {
+    void loadBoardImage(boardImageFile(saved!)).then(result => {
       if (!active || !mounted.current || sequence !== request.current || documentGeneration !== store.getSnapshot().documentGeneration) { if (result.success) result.dispose(); return }
       if (result.success) {
         resource.current = { generation: documentGeneration, dataUrl, image: result }
@@ -42,10 +43,14 @@ export function useBoardImage(store: DocumentStore) {
       }
     })
     return () => { active = false }
-  }, [dataUrl, documentGeneration, store])
+  }, [dataUrl, saved, documentGeneration, store])
   function clear() {
     request.current++
-    store.mutateDocument(document => { delete document.board.backgroundImage })
+    store.applyDocumentCommand(document => {
+      const board = { ...document.board }
+      delete board.backgroundImage
+      return replaceBoard(document, board)
+    })
     resource.current?.image.dispose()
     resource.current = null
     setResourceError(null)
@@ -59,9 +64,9 @@ export function useBoardImage(store: DocumentStore) {
     if (!mounted.current || sequence !== request.current || generation !== store.getSnapshot().documentGeneration) { if (result.success) result.dispose(); return }
     if (!result.success) { setState(previous => ({ ...previous, error: noticeSession.current === noticeGeneration ? result.message : null, busy: false })); return }
     try {
-      const source = await readImageDataUrl(file)
+      const source = await registerImage(file)
       if (!mounted.current || sequence !== request.current || generation !== store.getSnapshot().documentGeneration) { result.dispose(); return }
-      const accepted = store.mutateDocument(document => { document.board.backgroundImage = { dataUrl: source, layout: initialImageLayout(result.width, result.height) } })
+      const accepted = store.applyDocumentCommand(document => replaceBoard(document, { ...document.board, backgroundImage: { resourceId: source, layout: initialImageLayout(result.width, result.height) } }))
       if (!accepted) throw new Error(store.getSnapshot().fileMessage ?? 'No se pudo guardar la imagen.')
       resource.current?.image.dispose()
       resource.current = { generation, dataUrl: source, image: result }
@@ -76,7 +81,8 @@ export function useBoardImage(store: DocumentStore) {
   function updateLayout(layout: BoardImageLayout) {
     if (state.generation !== store.getSnapshot().documentGeneration || !state.image ||
       ![layout.x, layout.y, layout.width, layout.height].every(Number.isFinite) || layout.width <= 0 || layout.height <= 0) return
-    store.mutateDocument(document => { if (document.board.backgroundImage) document.board.backgroundImage.layout = layout })
+    store.applyDocumentCommand(document => replaceBoard(document, document.board.backgroundImage
+      ? { ...document.board, backgroundImage: { ...document.board.backgroundImage, layout } } : document.board))
   }
   return { layout: saved?.layout ?? null, updateLayout, noticeRevision: state.noticeRevision, image: state.generation === documentGeneration ? state.image : null,
     error: state.generation === documentGeneration ? state.error : null,

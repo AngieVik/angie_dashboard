@@ -101,7 +101,11 @@ export interface AngieDocumentV4 extends Omit<AngieDocumentV3, 'formatVersion' |
   map?: MapDocument
   plan?: OperationalPlanDocument
 }
-export type AngieDocument = AngieDocumentV4
+export interface ReferencedBoardImage { resourceId: string; layout: EmbeddedBoardImage['layout'] }
+// Local working documents may refer to originals; the portable V4 contract stays embedded.
+export type AngieDocument = Omit<AngieDocumentV4, 'board'> & {
+  board: AngieDocumentV3['board'] & { backgroundImage?: EmbeddedBoardImage | ReferencedBoardImage }
+}
 
 export interface ValidationIssue { path: string; message: string }
 export type ValidationResult<T> =

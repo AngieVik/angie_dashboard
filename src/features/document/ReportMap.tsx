@@ -8,9 +8,8 @@ import { Button } from '@/components/ui/button'
 
 import type { AssetId, MapGpxReference, MapMarker, PlanPin, PlanStroke } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
-import { readGpxAccess } from '../../storage/gpxAccessRepository'
 import type { LoadedGpx } from '../map/gpx'
-import { readGpxFile } from '../map/gpxFileAccess'
+import { useGpxFiles } from '../map/useGpxFiles'
 import { getGpxMetrics } from '../map/gpxMetrics'
 import { MAP_BACKGROUNDS, PNOA_INFORMATION, isMapBackground } from '../map/mapBackgrounds'
 import { MAX_MAP_LATITUDE, readMapView, writeMapView, readMapFrame, subscribeMapFrame } from '../map/mapNavigation'
@@ -39,10 +38,8 @@ const EMPTY_PINS: PlanPin[] = []
 const EMPTY_STROKES: PlanStroke[] = []
 const EMPTY_IMAGES = new Map<AssetId, HTMLImageElement>()
 
-export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, captureRef, kind = 'map', onNotice }: {
+export function ReportMap({ store, fields, captureRef, kind = 'map', onNotice }: {
   store: DocumentStore
-  files: LoadedGpx[]
-  onFilesChange: (files: LoadedGpx[]) => void
   fields: string[]
   captureRef: RefObject<ReportMapHandle | null>
   kind?: 'map' | 'plan'
@@ -77,7 +74,6 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
   const redrawOverlay = useRef<(() => void) | null>(null)
   const applyFraming = useRef<(() => void) | null>(null)
   const moving = useRef(false), pointers = useRef(new Set<number>()), cancelledTouch = useRef(false)
-  const liveFiles = useRef(loadedFiles), publishFiles = useRef(onFilesChange)
   const imageSelected = fields.includes('image')
   const markersSelected = imageSelected || fields.includes('coordinates')
   const gpxSelected = imageSelected && showRoutes || fields.includes('gpx')
@@ -117,19 +113,14 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
   }, [selection.gpx, availableReferences])
   const selectedMarkers = useMemo(() => markersSelected ? markers.filter(marker => markerIds.has(marker.id)) : EMPTY_MARKERS, [markers, markerIds, markersSelected])
   const selectedReferences = useMemo(() => gpxSelected ? references.filter(file => gpxIds.has(file.id)) : EMPTY_GPX, [references, gpxIds, gpxSelected])
-  const files = useMemo(() => {
-    const loaded = new Map(loadedFiles.map(file => [file.id, file]))
-    return selectedReferences.flatMap(reference => {
-      const file = loaded.get(reference.id)
-      return file?.fingerprint === reference.fingerprint ? [{ ...reference, data: file.data }] : []
-    })
-  }, [selectedReferences, loadedFiles])
+  const { files, onFilesChange, loadGpx, withGpxFiles } = useGpxFiles(store, documentGeneration, selectedReferences)
+  const liveFiles = useRef(files), publishFiles = useRef(onFilesChange)
   const drawnFiles = showRoutes ? files : EMPTY_FILES
   const cropArea = framing === 'area' ? area : undefined
   const drawing = useRef({ markers: selectedMarkers, files: drawnFiles, labels, plan: planDrawing, area: cropArea })
   const showInformation = showBackground && view.background === 'pnoa' && view.pnoaInformation
 
-  useLayoutEffect(() => { liveFiles.current = loadedFiles; publishFiles.current = onFilesChange }, [loadedFiles, onFilesChange])
+  useLayoutEffect(() => { liveFiles.current = files; publishFiles.current = onFilesChange }, [files, onFilesChange])
   useEffect(() => subscribeMapFrame(sourceNavigationKey, () => setSourceFrame(readMapFrame(sourceNavigationKey))), [sourceNavigationKey])
 
   useEffect(() => {
@@ -163,15 +154,13 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
       for (const reference of selectedReferences) {
         if (!isCurrent()) return
         if (liveFiles.current.some(file => file.id === reference.id && file.fingerprint === reference.fingerprint)) continue
-        const file = await store.readWorkspaceGpx(reference) ?? await readGpxAccess(reference.fingerprint)
-        if (!isCurrent()) return
-        if (!file) continue
         try {
-          const result = await readGpxFile(file, reference.fingerprint)
+          const data = await loadGpx(reference)
+          if (!data) continue
           if (!isCurrent()) return
           const liveReference = store.getSnapshot().document.map?.gpx.find(item => item.id === reference.id && item.fingerprint === reference.fingerprint)
           if (!liveReference) continue
-          const next = [...liveFiles.current.filter(item => item.id !== reference.id), { ...liveReference, data: result.data }]
+          const next = [...liveFiles.current.filter(item => item.id !== reference.id), { ...liveReference, data }]
           liveFiles.current = next
           publishFiles.current(next)
         } catch { /* Keep the selected reference visible as unavailable. */ }
@@ -179,7 +168,7 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
     }
     void recover()
     return () => { cancelled = true }
-  }, [selectedReferences, loadedFiles, store, documentGeneration, blocked, blockedRef])
+  }, [selectedReferences, files, store, documentGeneration, blocked, blockedRef, loadGpx])
 
   useLayoutEffect(() => {
     if (!imageSelected || !surface.current) return
@@ -349,22 +338,21 @@ export function ReportMap({ store, files: loadedFiles, onFilesChange, fields, ca
           latitude: pin.latitude.toFixed(6), longitude: pin.longitude.toFixed(6) }))
       }
       content.issues = issues
-      const readGpx = async (reference: MapGpxReference) => await store.readWorkspaceGpx(reference) ?? await readGpxAccess(reference.fingerprint)
       const map = mapRef.current
       if (map && map.getSize().x && map.getSize().y && (framing !== 'current' || sourceFrame)) {
         try {
           content.recovery = createMapReportRecovery({ documentId: currentDocument.document.id, section, map, layers: tiles.current,
-            crop: getReportMapCrop(map.getSize(), framing === 'area' ? area : undefined), fields, markers: selectedMarkers, references: selectedReferences, files,
+            crop: getReportMapCrop(map.getSize(), framing === 'area' ? area : undefined), fields, markers: selectedMarkers, references: selectedReferences,
             labels, routes: showRoutes, legend: showLegend, background: showBackground ? view.background : null, information: showInformation, plan: planDrawing,
-            readGpx, image: content.image, page })
+            withGpxFiles, image: content.image, page })
         } catch { /* Keep the captured report when its preparation cannot be retained. */ }
       }
-      if (!content.recovery) content.recovery = createMapDataRecovery(content, selectedReferences, files, readGpx, [...fields])
+      if (!content.recovery) content.recovery = createMapDataRecovery(content, selectedReferences, withGpxFiles, [...fields])
       return content
     } }
     captureRef.current = handle
     return () => { if (captureRef.current === handle) captureRef.current = null }
-  }, [store, documentGeneration, currentDocument, selectedMarkers, selectedReferences, files, drawnFiles, imageSelected, labels, view.background, showInformation, showBackground, showRoutes, showLegend, captureRef, blockedRef, isPlan, assetKey, assets, planDrawing, selectedResources, planFont, framing, area, sourceFrame, fields])
+  }, [store, documentGeneration, currentDocument, selectedMarkers, selectedReferences, files, drawnFiles, imageSelected, labels, view.background, showInformation, showBackground, showRoutes, showLegend, captureRef, blockedRef, isPlan, assetKey, assets, planDrawing, selectedResources, planFont, framing, area, sourceFrame, fields, withGpxFiles])
 
   function toggle(kind: 'markers' | 'gpx' | 'resources', id: string, checked: boolean) {
     setSelection(current => ({ ...current, [kind]: checked ? current[kind].filter(value => value !== id) : [...current[kind], id] }))

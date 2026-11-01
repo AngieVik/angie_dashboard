@@ -4,6 +4,7 @@ import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import { changeElementStatus } from '../../domain/operations/changeStatus'
+import { applyDocumentCommands } from '../../domain/document/documentCommand'
 import { setUnitNotes, setUnitNotesColor } from '../../domain/operations/unitAnnotations'
 import { Button } from '@/components/ui/button'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
@@ -29,7 +30,7 @@ export function OperationsModule({ store, selectedId }: { store: DocumentStore; 
           onClick={() => {
             if (blockedRef.current || !unit || unit.operational.status === status) return
             try {
-              store.mutateDocument(document => Object.assign(document, changeElementStatus(document, unit.id, status, new Date())))
+              store.applyDocumentCommand(document => changeElementStatus(document, unit.id, status, new Date()))
               setError(null)
             } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
           }}><OperationalStatusIcon icon={icon} /><span className="operations-state-name" aria-hidden="true">{status}</span><span className="operations-state-abbr technical-data" aria-hidden="true">{abbreviation}</span></Button>)}
@@ -72,11 +73,11 @@ function UnitNotes({ store, unitId, index, activeLabel, activeColor }: { store: 
   function apply() {
     if (blockedRef.current || !unitId || !notes) return
     try {
-      store.mutateDocument(document => {
-        setUnitNotes(document, unitId, notes)
-        setUnitNotesColor(document, unitId, draftColor)
-        Object.assign(document, changeElementStatus(document, unitId, 'Personalizada', new Date()))
-      })
+      store.applyDocumentCommand(document => applyDocumentCommands(document, [
+        document => setUnitNotes(document, unitId, notes),
+        document => setUnitNotesColor(document, unitId, draftColor),
+        document => changeElementStatus(document, unitId, 'Personalizada', new Date()),
+      ]))
       setError(null)
     } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo aplicar el estado personalizado.') }
   }

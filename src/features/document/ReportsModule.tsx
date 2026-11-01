@@ -7,7 +7,6 @@ import { REPORT_SECTIONS, defaultReportSelection } from './documentReport'
 import type { ReportSection, ReportSelection } from './documentReport'
 import type { DocumentStore } from './documentStore'
 import { WorkDirectoryDialog } from './PermissionsDialog'
-import type { LoadedGpx } from '../map/gpx'
 import type { ReportMapHandle } from './mapReport'
 import type { ReportBoardHandle } from './boardReport'
 import type { TimerRecord } from '../clock/timerTypes'
@@ -31,7 +30,7 @@ export interface ReportsNotice {
   onDirectory: () => void
 }
 
-export function ReportsModule({ store, files, onFilesChange, getCoordinatesInput, getTimerRecords, onNoticesChange }: { store: DocumentStore; files: LoadedGpx[]; onFilesChange: (files: LoadedGpx[]) => void; getCoordinatesInput: () => string; getTimerRecords: () => readonly TimerRecord[] | null; onNoticesChange: (notice: ReportsNotice | null) => void }) {
+export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onNoticesChange }: { store: DocumentStore; getCoordinatesInput: () => string; getTimerRecords: () => readonly TimerRecord[] | null; onNoticesChange: (notice: ReportsNotice | null) => void }) {
   const [selection, setSelection] = useState<ReportSelection>(defaultReportSelection)
   const [pageOptions, setPageOptions] = useState<ReportPageOptions>(() => ({ ...DEFAULT_REPORT_PAGE }))
   const [preview, setPreview] = useState<Awaited<ReturnType<DocumentStore['generateReport']>>>(null)
@@ -184,10 +183,10 @@ export function ReportsModule({ store, files, onFilesChange, getCoordinatesInput
       </fieldset>)}
     </div>
     {Boolean(selection.map?.length) && <Suspense fallback={null}>
-      <ReportMap store={store} files={files} onFilesChange={onFilesChange} fields={selection.map!} captureRef={mapCapture} onNotice={showPreparationNotice} />
+      <ReportMap store={store} fields={selection.map!} captureRef={mapCapture} onNotice={showPreparationNotice} />
     </Suspense>}
     {Boolean(selection.plan?.length) && <Suspense fallback={null}>
-      <ReportMap kind="plan" store={store} files={files} onFilesChange={onFilesChange} fields={selection.plan!} captureRef={planCapture} onNotice={showPreparationNotice} />
+      <ReportMap kind="plan" store={store} fields={selection.plan!} captureRef={planCapture} onNotice={showPreparationNotice} />
     </Suspense>}
     {selection.board?.includes('image') && <Suspense fallback={null}>
       <ReportBoard store={store} captureRef={boardCapture} onNotice={showPreparationNotice} />

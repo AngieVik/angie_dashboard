@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject } from 'ajv'
 import schema from './schema/angie-document-v4.schema.json'
-import type { AngieDocumentV4, ValidationIssue, ValidationResult } from './types'
+import type { AngieDocument, AngieDocumentV4, ValidationIssue, ValidationResult } from './types'
 import { checkDocumentBudget } from '../input/inputBudgets'
 import { isTimelineEntryDeleted, isTimelineEntryCorrected, projectUnitStatus } from '../operations/timelineProjection'
 
@@ -17,6 +17,14 @@ const ajv = new Ajv2020({
 })
 addFormats(ajv)
 const validateSchema = ajv.compile<AngieDocumentV4>(schema)
+const workingSchema = structuredClone(schema)
+const embeddedSchema = workingSchema.properties.board.properties.backgroundImage
+Object.assign(workingSchema, { $id: 'angie-working-document' })
+Object.assign(workingSchema.properties.board.properties, { backgroundImage: { oneOf: [embeddedSchema, {
+  type: 'object', additionalProperties: false, required: ['resourceId', 'layout'],
+  properties: { resourceId: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' }, layout: embeddedSchema.properties.layout },
+}] } })
+const validateWorkingSchema = ajv.compile<AngieDocument>(workingSchema)
 
 function issueFromSchema(error: ErrorObject): ValidationIssue {
   const parts = error.instancePath.split('/').slice(1).map(part => part.replace(/~1/g, '/').replace(/~0/g, '~'))
@@ -60,6 +68,14 @@ function compareUtcDates(left: string, right: string): number {
 }
 
 export function validateDocument(input: unknown): ValidationResult<AngieDocumentV4> {
+  return validate(input, false) as ValidationResult<AngieDocumentV4>
+}
+
+export function validateWorkingDocument(input: unknown): ValidationResult<AngieDocument> {
+  return validate(input, true)
+}
+
+function validate(input: unknown, working: boolean): ValidationResult<AngieDocument> {
   const budget = checkDocumentBudget(input)
   if (budget) return { success: false, errors: [budget] }
   if (input && typeof input === 'object' && !Array.isArray(input) && 'moduleLayouts' in input) {
@@ -69,14 +85,16 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
       input = { ...input, moduleLayouts: Object.fromEntries(Object.entries(layouts).filter(([id]) => Object.hasOwn(supported, id))) }
     }
   }
-  if (!validateSchema(input)) {
-    return { success: false, errors: (validateSchema.errors ?? []).map(issueFromSchema) }
+  const validator = working ? validateWorkingSchema : validateSchema
+  if (!validator(input)) {
+    return { success: false, errors: (validator.errors ?? []).map(issueFromSchema) }
   }
+  const document = input as AngieDocument
 
   const errors: ValidationIssue[] = []
   const add = (path: string, message: string) => errors.push({ path, message: `${path} ${message}` })
-  const image = input.board.backgroundImage
-  if (image) {
+  const image = document.board.backgroundImage
+  if (image && 'dataUrl' in image) {
     try {
       const base64 = image.dataUrl.slice(image.dataUrl.indexOf(',') + 1)
       const prefix = atob(base64.slice(0, 16))
@@ -94,28 +112,28 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
     if (ids.has(key)) add(path, 'debe identificar un objeto distinto; el UUID está repetido')
     ids.add(key)
   }
-  identify(input.document.id, 'document.id')
+  identify(document.document.id, 'document.id')
   const placedElements = new Set<string>()
-  input.plan?.pins.forEach((pin, index) => {
+  document.plan?.pins.forEach((pin, index) => {
     const key = pin.elementId.toLowerCase()
-    if (!input.elements.some(element => element.id.toLowerCase() === key)) add(`plan.pins[${index}].elementId`, 'debe referenciar un Elemento o una Dotación existente')
+    if (!document.elements.some(element => element.id.toLowerCase() === key)) add(`plan.pins[${index}].elementId`, 'debe referenciar un Elemento o una Dotación existente')
     if (placedElements.has(key)) add(`plan.pins[${index}].elementId`, 'no puede colocar dos veces el mismo recurso')
     placedElements.add(key)
   })
-  input.plan?.strokes.forEach((stroke, index) => identify(stroke.id, `plan.strokes[${index}].id`))
-  input.map?.markers.forEach((marker, index) => identify(marker.id, `map.markers[${index}].id`))
+  document.plan?.strokes.forEach((stroke, index) => identify(stroke.id, `plan.strokes[${index}].id`))
+  document.map?.markers.forEach((marker, index) => identify(marker.id, `map.markers[${index}].id`))
   const fingerprints = new Set<string>()
-  input.map?.gpx.forEach((file, index) => {
+  document.map?.gpx.forEach((file, index) => {
     identify(file.id, `map.gpx[${index}].id`)
     if (fingerprints.has(file.fingerprint)) add(`map.gpx[${index}].fingerprint`, 'no puede duplicar otro archivo GPX')
     fingerprints.add(file.fingerprint)
   })
-  input.board.strokes.forEach((stroke, index) => identify(stroke.id, `board.strokes[${index}].id`))
-  input.board.quickNotes.forEach((note, index) => identify(note.id, `board.quickNotes[${index}].id`))
-  if (compareUtcDates(input.document.updatedAt, input.document.createdAt) < 0) {
+  document.board.strokes.forEach((stroke, index) => identify(stroke.id, `board.strokes[${index}].id`))
+  document.board.quickNotes.forEach((note, index) => identify(note.id, `board.quickNotes[${index}].id`))
+  if (compareUtcDates(document.document.updatedAt, document.document.createdAt) < 0) {
     add('document.updatedAt', 'no puede ser anterior a createdAt')
   }
-  input.elements.forEach((element, index) => {
+  document.elements.forEach((element, index) => {
     identify(element.id, `elements[${index}].id`)
     if (!element.isUnit) return
     const tags = new Set<string>()
@@ -128,18 +146,18 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
     const path = `elements[${index}].operational.currentEntryId`
     if ((status === null) !== (currentEntryId === null)) add(path, 'y status deben ser nulos conjuntamente')
     if (currentEntryId !== null) {
-      if (projectUnitStatus(input.timeline, element.id, currentEntryId) !== status) add(path, 'debe referenciar un cambio vigente de esta dotación con el mismo estado')
-      const latest = input.timeline.findLast(entry => entry.type === 'status-change' && entry.unitId.toLowerCase() === element.id.toLowerCase())
+      if (projectUnitStatus(document.timeline, element.id, currentEntryId) !== status) add(path, 'debe referenciar un cambio vigente de esta dotación con el mismo estado')
+      const latest = document.timeline.findLast(entry => entry.type === 'status-change' && entry.unitId.toLowerCase() === element.id.toLowerCase())
       if (latest?.id.toLowerCase() !== currentEntryId.toLowerCase()) add(path, 'debe identificar la selección más reciente, sin recuperar anteriores')
     }
   })
-  input.notebook.forEach((block, index) => {
+  document.notebook.forEach((block, index) => {
     identify(block.id, `notebook[${index}].id`)
     if (block.type === 'checklist') block.items.forEach((item, itemIndex) => identify(item.id, `notebook[${index}].items[${itemIndex}].id`))
   })
-  input.timeline.forEach((entry, index) => {
+  document.timeline.forEach((entry, index) => {
     identify(entry.id, `timeline[${index}].id`)
-    const previous = input.timeline[index - 1]
+    const previous = document.timeline[index - 1]
     if (previous && compareUtcDates(entry.occurredAt, previous.occurredAt) < 0) {
       add(`timeline[${index}].occurredAt`, 'debe mantener el orden cronológico ascendente')
     }
@@ -157,13 +175,13 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
         corrected = true
       }
     })
-    if ((isTimelineEntryDeleted(entry) || isTimelineEntryCorrected(entry)) && input.elements.some(element => element.isUnit && element.operational.currentEntryId?.toLowerCase() === entry.id.toLowerCase())) {
+    if ((isTimelineEntryDeleted(entry) || isTimelineEntryCorrected(entry)) && document.elements.some(element => element.isUnit && element.operational.currentEntryId?.toLowerCase() === entry.id.toLowerCase())) {
       add(`timeline[${index}].revisions`, 'una entrada retirada no puede ser Actual')
     }
   })
-  for (const [id, layout] of Object.entries(input.moduleLayouts)) {
+  for (const [id, layout] of Object.entries(document.moduleLayouts)) {
     if (layout.x + layout.width > layout.referenceSize.width) add(`moduleLayouts.${id}.x`, 'junto con width debe quedar dentro de referenceSize.width')
     if (layout.y + layout.height > layout.referenceSize.height) add(`moduleLayouts.${id}.y`, 'junto con height debe quedar dentro de referenceSize.height')
   }
-  return errors.length ? { success: false, errors } : { success: true, document: input }
+  return errors.length ? { success: false, errors } : { success: true, document }
 }

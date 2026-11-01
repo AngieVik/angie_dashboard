@@ -1,11 +1,11 @@
-import type { AngieDocument } from '../domain/document/types'
-import type { ActiveDocumentRepository, DocumentSession } from './documentRepository'
+import type { DocumentSave } from './documentSave'
+import type { ActiveDocumentRepository, DocumentSession, LocalResourceStatus } from './documentRepository'
 import { DocumentConflictError } from './documentRepository'
 
 // One writer, with the latest cumulative document replacing queued snapshots.
 // Every caller resolves only after its changes are included in a completed write.
-export function createAutosave(repository: ActiveDocumentRepository, report: (available: boolean, error?: unknown) => void) {
-  type Job = { document: AngieDocument; session?: DocumentSession; resolve: ((saved: boolean) => void)[] }
+export function createAutosave(repository: ActiveDocumentRepository, report: (available: boolean, error?: unknown, resources?: LocalResourceStatus | void) => void) {
+  type Job = { save: DocumentSave; session?: DocumentSession; resolve: ((saved: boolean) => void)[] }
   const pending = new Map<string, Job>()
   const blocked = new Set<string>()
   let running: Promise<void> | undefined
@@ -15,7 +15,11 @@ export function createAutosave(repository: ActiveDocumentRepository, report: (av
       pending.delete(id)
       let saved = false
       if (!blocked.has(id)) {
-        try { await repository.saveActive(job.document, job.session); saved = true; report(true) }
+        try {
+          const snapshot = job.save.prepare()
+          const resources = await repository.saveActive(snapshot.document, job.session, snapshot)
+          saved = true; report(true, undefined, resources)
+        }
         catch (error) { if (error instanceof DocumentConflictError) blocked.add(id); report(false, error) }
       }
       job.resolve.forEach(resolve => resolve(saved))
@@ -27,11 +31,10 @@ export function createAutosave(repository: ActiveDocumentRepository, report: (av
     if (pending.size) await flush()
   }
   return {
-    save(document: AngieDocument, session?: DocumentSession) {
-      const copy = structuredClone(document)
-      const id = copy.document.id
+    save(save: DocumentSave, session?: DocumentSession) {
+      const id = save.documentId
       const result = new Promise<boolean>(resolve => {
-        pending.set(id, { document: copy, session: session ? structuredClone(session) : undefined, resolve: [...(pending.get(id)?.resolve ?? []), resolve] })
+        pending.set(id, { save, session, resolve: [...(pending.get(id)?.resolve ?? []), resolve] })
       })
       void flush()
       return result

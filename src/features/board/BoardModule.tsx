@@ -3,6 +3,7 @@ import { Stage, Layer, Rect, Image, Line, Circle, Group } from 'react-konva'
 import type { PointerEvent, RefObject } from 'react'
 import type { BoardStroke, Position } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
+import { replaceBoard } from '../document/documentEdits'
 import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
@@ -129,7 +130,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     const next = boardReducer({ ...interaction.current, board }, action)
     interaction.current = next
     setState(next)
-    if (next.board !== board) store.mutateDocument(document => { document.board = next.board })
+    if (next.board !== board) store.applyDocumentCommand(document => replaceBoard(document, next.board))
   }, [store])
   useEffect(() => { dispatch({ type: 'select-note', id: null }) }, [selectionReset, dispatch])
   useEffect(() => {
@@ -274,13 +275,13 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
                 if (blockedRef.current) return
                 dispatch({ type: 'select-note', id: null }); onSelect?.(element.id); onEditElement?.(element.id)
               }}
-              onMove={position => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { position })) }}
-              onNameMove={nameOffset => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { nameOffset })) }}
-              onNameColor={nameColor => { if (!blockedRef.current) store.mutateDocument(document => updateElement(document, element.id, { nameColor })) }}
+              onMove={position => { if (!blockedRef.current) store.applyDocumentCommand(document => updateElement(document, element.id, { position })) }}
+              onNameMove={nameOffset => { if (!blockedRef.current) store.applyDocumentCommand(document => updateElement(document, element.id, { nameOffset })) }}
+              onNameColor={nameColor => { if (!blockedRef.current) store.applyDocumentCommand(document => updateElement(document, element.id, { nameColor })) }}
               onScale={scale => {
                 if (blockedRef.current) return
                 const visual = { ...element.visual, scale }
-                store.mutateDocument(document => updateElement(document, element.id, { visual }))
+                store.applyDocumentCommand(document => updateElement(document, element.id, { visual }))
               }} />)}
         </div>
         <div className="board-notes" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
