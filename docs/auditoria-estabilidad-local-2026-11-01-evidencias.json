@@ -1,0 +1,442 @@
+{
+  "date": "2026-11-01",
+  "environment": {
+    "node": "v24.12.0",
+    "npm": "11.6.2",
+    "browser": "Chromium isolated; executable revision 1243",
+    "productionOrigin": "http://127.0.0.1:4197",
+    "developmentOrigin": "http://127.0.0.1:5197",
+    "realUserData": false
+  },
+  "production": {
+    "savedCrash": {
+      "pid": 29640,
+      "method": "taskkill /PID <isolated-browser> /T /F",
+      "note": "DATOS FICTICIOS: persistencia tras cierre abrupto 0123456789",
+      "sameDocument": true
+    },
+    "atomicCrash": {
+      "pid": 23416,
+      "method": "taskkill /T /F while readwrite transaction remains active",
+      "sameCommittedDocument": true
+    },
+    "memory": [
+      {
+        "name": "closed-baseline",
+        "heap": 9189636,
+        "taskDuration": 0.529988,
+        "documents": 1,
+        "nodes": 307,
+        "jsEventListeners": 451,
+        "workingSetBytes": 678957056
+      },
+      {
+        "name": "closed-round-1",
+        "heap": 17112080,
+        "taskDuration": 2.638311,
+        "documents": 2,
+        "nodes": 2323,
+        "jsEventListeners": 999,
+        "workingSetBytes": 751955968
+      },
+      {
+        "name": "closed-round-2",
+        "heap": 17437332,
+        "taskDuration": 4.141442,
+        "documents": 2,
+        "nodes": 2323,
+        "jsEventListeners": 999,
+        "workingSetBytes": 758009856
+      },
+      {
+        "name": "closed-round-3",
+        "heap": 17570648,
+        "taskDuration": 5.647544,
+        "documents": 2,
+        "nodes": 2323,
+        "jsEventListeners": 1003,
+        "workingSetBytes": 761348096
+      },
+      {
+        "name": "closed-round-4",
+        "heap": 17694212,
+        "taskDuration": 7.138783,
+        "documents": 2,
+        "nodes": 2323,
+        "jsEventListeners": 999,
+        "workingSetBytes": 763133952
+      }
+    ],
+    "moduleOpenClosePairs": 56,
+    "moduleErrors": [],
+    "unexpectedPageErrors": [],
+    "largeUi": {
+      "elapsedMs": 7897,
+      "longTasks": [
+        111,
+        2707,
+        258,
+        54,
+        55,
+        105,
+        60,
+        1912,
+        948,
+        54,
+        109,
+        62
+      ],
+      "chars": 8000001,
+      "appVisible": true
+    },
+    "renderFaultInjection": {
+      "rootChildren": 0,
+      "body": ""
+    },
+    "injectedPageErrors": [
+      "AUDIT_INJECTED_RENDER_FAILURE"
+    ],
+    "timerRecoveredRunning": true,
+    "invalidJsonShowsIncident": true,
+    "finalPerformanceBrowserArgs": [
+      "--disable-extensions"
+    ]
+  },
+  "sourceExecution": {
+    "benchmarks": {
+      "retention": [
+        {
+          "retainedDocuments": 0,
+          "records": 5,
+          "write5Ms": 14.800000071525574,
+          "listMs": 10.099999904632568
+        },
+        {
+          "retainedDocuments": 20,
+          "records": 25,
+          "write5Ms": 38.5,
+          "listMs": 11.600000023841858
+        },
+        {
+          "retainedDocuments": 80,
+          "records": 85,
+          "write5Ms": 64.5,
+          "listMs": 37.10000002384186
+        }
+      ],
+      "mutations": [
+        {
+          "chars": 1000,
+          "tenEditsSyncMs": 1.5999999046325684,
+          "writes": 2,
+          "serializedBytes": 1548
+        },
+        {
+          "chars": 1000000,
+          "tenEditsSyncMs": 58.09999990463257,
+          "writes": 2,
+          "serializedBytes": 1000548
+        },
+        {
+          "chars": 8000000,
+          "tenEditsSyncMs": 464.6999999284744,
+          "writes": 2,
+          "serializedBytes": 8000548
+        }
+      ]
+    },
+    "quotaFailureInjection": {
+      "active": true,
+      "autosaveUnavailable": true,
+      "autosaveSaving": false,
+      "note": "kept in memory"
+    },
+    "repositorySafety": {
+      "conflict": "DocumentConflictError",
+      "fallback": {
+        "sourceTitle": "safety"
+      },
+      "aborted": "injected interruption before commit",
+      "transactionRolledBack": true
+    },
+    "gpxRetention": {
+      "files": 20,
+      "retainedBytes": 20971520,
+      "resource": "sessionFiles module Map; references remain available without document ownership"
+    },
+    "gpxLimits": {
+      "malformed": [
+        "El GPX no puede contener declaraciones DTD ni entidades.",
+        "El GPX contiene un punto con coordenadas inválidas.",
+        "El archivo no es un GPX válido."
+      ],
+      "oversized": "El archivo supera el límite de 10 MB.",
+      "points": 100000,
+      "bytes": 3289417,
+      "parse100kMs": 581.7999999523163
+    },
+    "timerQueue": {
+      "edits": 50,
+      "writes": 51,
+      "flushMs": 574
+    },
+    "gpxMemoryOnlySurvivesReload": {
+      "before": true,
+      "after": false
+    },
+    "calculator": [
+      {
+        "sample": "1/0",
+        "length": 3,
+        "ms": 0.3999999761581421,
+        "result": {
+          "ok": false,
+          "error": "División por cero"
+        }
+      },
+      {
+        "sample": "99999999999999999999999999999999999999999999999999",
+        "length": 400,
+        "ms": 0,
+        "result": {
+          "ok": false,
+          "error": "Resultado fuera de rango"
+        }
+      },
+      {
+        "sample": "((((((((((((((((((((((((((((((((((((((((((((((((((",
+        "length": 401,
+        "ms": 0.30000007152557373,
+        "result": {
+          "ok": false,
+          "error": "Operación demasiado anidada"
+        }
+      },
+      {
+        "sample": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+",
+        "length": 6001,
+        "ms": 0,
+        "result": {
+          "ok": false,
+          "error": "Operación demasiado larga"
+        }
+      },
+      {
+        "sample": "NaN",
+        "length": 3,
+        "ms": 0,
+        "result": {
+          "ok": false,
+          "error": "Carácter no válido en la operación"
+        }
+      },
+      {
+        "sample": "<script>alert(1)</script>",
+        "length": 25,
+        "ms": 0,
+        "result": {
+          "ok": false,
+          "error": "Carácter no válido en la operación"
+        }
+      },
+      {
+        "sample": "1e309",
+        "length": 5,
+        "ms": 0,
+        "result": {
+          "ok": false,
+          "error": "Carácter no válido en la operación"
+        }
+      },
+      {
+        "sample": "99999999999999999999999999999999999999999*99999999",
+        "length": 83,
+        "ms": 0,
+        "result": {
+          "ok": true,
+          "value": 1e+82
+        }
+      }
+    ],
+    "coordinateWhitespace": [
+      {
+        "spaces": 8000,
+        "ms": 125.90000009536743,
+        "ok": false
+      },
+      {
+        "spaces": 16000,
+        "ms": 440.8000000715256,
+        "ok": false
+      },
+      {
+        "spaces": 32000,
+        "ms": 1723.6000000238419,
+        "ok": false
+      },
+      {
+        "spaces": 64000,
+        "timedOutAfterMs": 2000
+      }
+    ],
+    "coordinateWhitespaceProduction": {
+      "inputLength": 16003,
+      "longTasks": [
+        541
+      ],
+      "appVisible": true
+    }
+  },
+  "dependencies": {
+    "sourceFilesReachable": 187,
+    "reachablePackages": [
+      "@date-fns/tz",
+      "@radix-ui/react-alert-dialog",
+      "@radix-ui/react-checkbox",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-menubar",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-separator",
+      "@radix-ui/react-slider",
+      "ajv",
+      "ajv-formats",
+      "date-fns",
+      "dexie",
+      "leaflet",
+      "lucide-react",
+      "proj4",
+      "react",
+      "react-day-picker",
+      "react-dom",
+      "react-grid-layout",
+      "react-konva",
+      "sonner",
+      "suncalc",
+      "tzf-wasm"
+    ],
+    "declaredWithoutReachableImport": [
+      "@radix-ui/react-context-menu",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-radio-group",
+      "konva",
+      "react-resizable-panels"
+    ],
+    "ownerSizes": [
+      {
+        "file": "src/app/App.tsx",
+        "lines": 496
+      },
+      {
+        "file": "src/features/document/documentStore.ts",
+        "lines": 559
+      },
+      {
+        "file": "src/platform/files/workspaceFiles.ts",
+        "lines": 655
+      },
+      {
+        "file": "src/features/map/MapModule.tsx",
+        "lines": 758
+      }
+    ]
+  },
+  "checks": {
+    "build": "passed; includes typecheck",
+    "lint": {
+      "status": "failed",
+      "errors": [
+        {
+          "file": "src/components/ui/select/select.tsx",
+          "line": 15,
+          "rule": "react-hooks/set-state-in-effect"
+        },
+        {
+          "file": "src/layout/WindowResize.tsx",
+          "line": 7,
+          "rule": "react-refresh/only-export-components"
+        },
+        {
+          "file": "src/platform/files/workspaceFiles.ts",
+          "line": 629,
+          "rule": "preserve-caught-error"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "No installed PWA or physical Android test",
+    "No real workspace picker/permission/filesystem interruption test",
+    "No power-loss test",
+    "No attempt to fill real device storage",
+    "Memory uses forced V8 GC checkpoints; OS working set may retain allocator caches",
+    "Injected failures demonstrate fault handling, not naturally occurring errors"
+  ],
+  "exploratoryRun": {
+    "memory": [
+      {
+        "name": "closed-baseline",
+        "heap": 9252300,
+        "taskDuration": 0.609989,
+        "documents": 1,
+        "nodes": 239,
+        "jsEventListeners": 385,
+        "workingSetBytes": 817397760
+      },
+      {
+        "name": "closed-round-1",
+        "heap": 16835716,
+        "taskDuration": 3.525151,
+        "documents": 2,
+        "nodes": 2329,
+        "jsEventListeners": 1000,
+        "workingSetBytes": 924102656
+      },
+      {
+        "name": "closed-round-2",
+        "heap": 17203348,
+        "taskDuration": 5.471213,
+        "documents": 2,
+        "nodes": 2329,
+        "jsEventListeners": 1000,
+        "workingSetBytes": 933289984
+      },
+      {
+        "name": "closed-round-3",
+        "heap": 17338668,
+        "taskDuration": 7.084123,
+        "documents": 2,
+        "nodes": 2329,
+        "jsEventListeners": 1000,
+        "workingSetBytes": 937181184
+      },
+      {
+        "name": "closed-round-4",
+        "heap": 17414448,
+        "taskDuration": 8.708854,
+        "documents": 2,
+        "nodes": 2329,
+        "jsEventListeners": 1000,
+        "workingSetBytes": 938770432
+      }
+    ],
+    "largeUi": {
+      "elapsedMs": 22786,
+      "longTasks": [
+        119,
+        6333,
+        4192,
+        60,
+        366,
+        134,
+        3048,
+        4057,
+        59,
+        71,
+        165
+      ],
+      "chars": 8000001,
+      "appVisible": true
+    },
+    "limitations": "Manual Chromium launch allowed managed extensions; OS memory only browser and direct children. Superseded for final performance/memory figures."
+  }
+}
