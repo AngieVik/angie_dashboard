@@ -63,7 +63,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
   function apply(update: (document: AngieDocument) => void) {
     const snapshot = store.getSnapshot()
     if (blockedRef.current || !snapshot.ready || snapshot.replacing || snapshot.documentGeneration !== documentGeneration) return false
-    try { store.mutateDocument(update); return true }
+    try { return store.mutateDocument(update) }
     catch (failure) { toast.error(failure instanceof Error ? failure.message : 'No se pudo actualizar el plano.', { id: noticeId }); return false }
   }
   return <div className={`plan-module ${styles.base}`} data-mode={mode}>
@@ -108,6 +108,7 @@ export function PlanModule({ navigationKey, files, onFilesChange, store, selecte
           updateElement(document, id, { visual: { ...element.visual, scale } })
         })} />
       <PlanDrawing navigationKey={navigationKey} mode={mode} color={color} width={width} strokes={strokes} placeId={selected?.id ?? null}
+        onReject={message => toast.error(message, { id: noticeId })}
         onStroke={stroke => apply(document => addPlanStroke(document, stroke))} onErase={id => apply(document => removePlanStroke(document, id))}
         onPlace={(id, point) => { if (apply(document => placePlanPin(document, id, point))) { setMode('select'); onCoordinateSelect?.(point) } }} />
     </>} />

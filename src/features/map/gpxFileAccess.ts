@@ -1,5 +1,6 @@
 import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
-import { MAX_GPX_BYTES, parseGpx } from './gpx'
+import { parseGpx } from './gpx'
+import { checkFileBytes, INPUT_BUDGETS, InputBudgetError, budgetIssue } from '../../domain/input/inputBudgets'
 
 export function pickGpxFiles(multiple: boolean): Promise<GpxReadHandle[]> | null {
   const browser = window as Window & {
@@ -15,8 +16,10 @@ export function pickGpxFiles(multiple: boolean): Promise<GpxReadHandle[]> | null
 }
 
 export async function readGpxFile(file: File, expectedFingerprint?: string) {
-  if (file.size > MAX_GPX_BYTES) throw new Error('El archivo supera el límite de 10 MB.')
+  checkFileBytes(file.size, 'gpx')
+  if (file.name.length > INPUT_BUDGETS.gpxNameCharacters) throw new InputBudgetError(budgetIssue('gpx.name', INPUT_BUDGETS.gpxNameCharacters, 'caracteres'))
   const bytes = await file.arrayBuffer()
+  checkFileBytes(bytes.byteLength, 'gpx')
   const hash = await crypto.subtle.digest('SHA-256', bytes)
   const fingerprint = Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join('')
   if (expectedFingerprint && expectedFingerprint !== fingerprint) {

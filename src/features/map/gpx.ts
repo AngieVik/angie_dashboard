@@ -1,4 +1,5 @@
 import type { MapGpxReference } from '../../domain/document/types'
+import { INPUT_BUDGETS, budgetIssue, checkTextBytes, InputBudgetError } from '../../domain/input/inputBudgets'
 
 export interface GpxPoint { latitude: number; longitude: number; name?: string; elevation?: number; time?: string }
 export interface GpxData { lines: GpxPoint[][]; waypoints: GpxPoint[]; pointCount: number }
@@ -7,10 +8,10 @@ export interface LoadedGpx extends MapGpxReference {
   data: GpxData
 }
 
-export const MAX_GPX_BYTES = 10 * 1024 * 1024
-const MAX_GPX_POINTS = 150_000
+export const MAX_GPX_BYTES = INPUT_BUDGETS.gpxBytes
 
 export function parseGpx(text: string): GpxData {
+  checkTextBytes(text, 'gpx')
   if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw new Error('El GPX no puede contener declaraciones DTD ni entidades.')
   const xml = new DOMParser().parseFromString(text, 'application/xml')
   const root = xml.documentElement
@@ -23,14 +24,15 @@ export function parseGpx(text: string): GpxData {
   const children = (parent: Element, name: string) => Array.from(parent.children).filter(child => child.localName === name && child.namespaceURI === root.namespaceURI)
   let pointCount = 0
   function point(element: Element): GpxPoint {
-    if (++pointCount > MAX_GPX_POINTS) throw new Error('El GPX supera el límite de 150.000 puntos.')
+    if (++pointCount > INPUT_BUDGETS.gpxPoints) throw new InputBudgetError(budgetIssue('gpx', INPUT_BUDGETS.gpxPoints, 'puntos'))
     const lat = element.getAttribute('lat'), lon = element.getAttribute('lon')
     const latitude = Number(lat), longitude = Number(lon)
     const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/
     if (!lat || !lon || !decimal.test(lat.trim()) || !decimal.test(lon.trim()) || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
       throw new Error('El GPX contiene un punto con coordenadas inválidas.')
     }
-    const name = children(element, 'name')[0]?.textContent?.trim().slice(0, 200)
+    const name = children(element, 'name')[0]?.textContent?.trim()
+    if (name && name.length > INPUT_BUDGETS.gpxNameCharacters) throw new InputBudgetError(budgetIssue('gpx.name', INPUT_BUDGETS.gpxNameCharacters, 'caracteres'))
     const elevationText = children(element, 'ele')[0]?.textContent?.trim()
     const elevation = elevationText && decimal.test(elevationText) ? Number(elevationText) : undefined
     const time = children(element, 'time')[0]?.textContent?.trim()

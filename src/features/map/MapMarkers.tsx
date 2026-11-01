@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 
 import type { MapMarker } from '../../domain/document/types'
 import { MAX_MAP_LATITUDE } from './mapNavigation'
+import { INPUT_BUDGETS } from '../../domain/input/inputBudgets'
 import mapStyles from './map.module.css'
 import styles from './MapMarkers.module.css'
 
@@ -253,7 +254,7 @@ export function MapMarkers({ mapRef, navigationKey, markers, blocked, blockedRef
       }}>
       {markers.map((marker, index) => <li key={marker.id} className="map-marker-row" data-selected={marker.id === selectedMarker?.id}>
         {editingId === marker.id ? <Input className="map-marker-name" aria-label={`Nombre del marcador ${index + 1}`} value={marker.name}
-          placeholder="Marcador" maxLength={200} disabled={blocked} autoFocus onChange={event => onEdit(marker.id, { name: event.target.value })}
+          placeholder="Marcador" maxLength={INPUT_BUDGETS.gpxNameCharacters} disabled={blocked} autoFocus onChange={event => onEdit(marker.id, { name: event.target.value })}
           onBlur={() => setEditingId(null)} onKeyDown={event => {
             if (event.key === 'Enter' || event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); event.currentTarget.blur() }
           }} /> : <Button appearance="integrated" className="map-marker-select" aria-label={marker.name || 'Marcador'} aria-pressed={marker.id === selectedMarker?.id} disabled={blocked} onClick={() => { setEditingId(null); onSelect(marker) }}><span>{marker.name || 'Marcador'}</span></Button>}

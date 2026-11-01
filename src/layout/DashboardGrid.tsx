@@ -7,6 +7,7 @@ import { transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/co
 import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
 import { snapModulePosition, snapModuleSize } from './snapModulePosition'
 import { ModuleFrame } from './ModuleFrame'
+import { ModuleErrorBoundary } from '../app/recovery/ModuleErrorBoundary'
 import type { ModuleActions } from './ModuleFrame'
 import { MODULE_REGISTRY, moduleAutoHeightLimit, moduleCollapsedWidth, moduleUsesContentHeight } from './moduleRegistry'
 import { constrainWindowContentSize } from './windowContentSize'
@@ -17,6 +18,11 @@ import { HandleBottomRight } from './WindowResize'
 
 export interface OpenModule { id: ModuleId; layout: ModuleLayout }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
+
+// Invoke the renderer below the boundary, including failures while assembling JSX.
+function ModuleContent({ id, renderModule }: { id: ModuleId; renderModule?: (id: ModuleId) => ReactNode }) {
+  return renderModule?.(id)
+}
 
 export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onLayout, onGrow, renderModule, generation = 0, magnet = false, navigationKey, viewOrigin = { x: 0, y: 0 }, revisions = {}, contentSizeRevisions = {}, locationHighlight, onReset, onActions }: {
   modules: readonly OpenModule[]; bounds: Size; visible?: Size; layers: readonly ModuleId[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void
@@ -191,9 +197,11 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
             // A completed icon drag must not also contract or restore the window.
             if (draggedModule.current === id && event.detail !== 0) { event.preventDefault(); event.stopPropagation() }
           }}>
-          <ModuleFrame onActions={onActions} key={navigationKey} id={id} width={layout.width} navigationKey={navigationKey ? navigationKey + '.' + id : undefined} height={layout.height} generation={generation} contentSizeRevision={contentSizeRevisions[id]} locateToken={locationHighlight?.id === id ? locationHighlight.sequence : 0} active={active === id} onFront={() => onActive(id)} onPark={size => park(id, size)} onReset={onReset ? () => onReset(id) : undefined} onClose={() => onClose(id)} onFit={size => {
+          <ModuleErrorBoundary key={`${navigationKey}.${generation}`} name={MODULE_REGISTRY[id].name} onClose={() => onClose(id)}>
+          <ModuleFrame onActions={onActions} id={id} width={layout.width} navigationKey={navigationKey ? navigationKey + '.' + id : undefined} height={layout.height} generation={generation} contentSizeRevision={contentSizeRevisions[id]} locateToken={locationHighlight?.id === id ? locationHighlight.sequence : 0} active={active === id} onFront={() => onActive(id)} onPark={size => park(id, size)} onReset={onReset ? () => onReset(id) : undefined} onClose={() => onClose(id)} onFit={size => {
             if (!blockedRef.current) { const next = { ...layout, ...size }; onGrow?.(next); onLayout(id, next, 'resize') }
-          }}><Fragment key={revisions[id] ?? 0}>{renderModule?.(id)}</Fragment></ModuleFrame>
+          }}><Fragment key={revisions[id] ?? 0}><ModuleContent id={id} renderModule={renderModule} /></Fragment></ModuleFrame>
+          </ModuleErrorBoundary>
         </div>
       ))}
     </GridLayout>

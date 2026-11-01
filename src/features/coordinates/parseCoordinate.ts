@@ -1,28 +1,68 @@
 import type { Coordinate, CoordinateParseResult } from './coordinateTypes'
 import { toGeographic } from './convertCoordinate'
+import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
 
 const numeric = '(\\d+(?:[.,]\\d+)?)'
-const signed = '([+-]?\\d+(?:[.,]\\d+)?)'
-const ddPattern = new RegExp(`^${signed}\\s*(?:[, .]\\s*|\\s+)${signed}$`)
 const dmsPattern = new RegExp(`^(\\d+)\\s*°\\s*(\\d+)\\s*'\\s*${numeric}\\s*"\\s*([NS])\\s+(\\d+)\\s*°\\s*(\\d+)\\s*'\\s*${numeric}\\s*"\\s*([EW])$`)
 const dmmPattern = new RegExp(`^(\\d+)\\s*°\\s*${numeric}\\s*'\\s*([NS])\\s+(\\d+)\\s*°\\s*${numeric}\\s*'\\s*([EW])$`)
-const utmPattern = new RegExp(`^(\\d+)\\s*([A-Za-z])(?:\\s+|\\s*[, .]\\s*)${numeric}(?:\\s+|\\s*[, .]\\s*)${numeric}$`)
 const number = (text: string) => Number(text.replace(',', '.'))
 const normalizeNumber = (text: string) => text.replace(',', '.')
 
+export const MAX_COORDINATE_INPUT_LENGTH = INPUT_BUDGETS.coordinateCharacters
+export const COORDINATE_INPUT_LENGTH_ERROR = budgetIssue('Coordenadas', MAX_COORDINATE_INPUT_LENGTH, 'caracteres').message
+
+function scanSeparatedCoordinate(text: string, utm = false): string[] | null {
+  let position = 0
+  const read = (pattern: RegExp) => {
+    pattern.lastIndex = position
+    const match = pattern.exec(text)
+    if (!match) return null
+    position = pattern.lastIndex
+    return match[0]
+  }
+  const whitespace = () => {
+    while (position < text.length && /\s/.test(text[position]!)) position++
+  }
+  const separator = () => {
+    const start = position
+    whitespace()
+    if (text[position] === ',' || text[position] === '.') {
+      position++
+      whitespace()
+      return true
+    }
+    return position > start
+  }
+  const parts: string[] = []
+  if (utm) {
+    const zone = read(/\d+/y)
+    if (zone === null) return null
+    whitespace()
+    const band = read(/[A-Za-z]/y)
+    if (band === null || !separator()) return null
+    parts.push(zone, band)
+  }
+  // Consume each complete number once: never split a decimal into two ordinates
+  // or redistribute whitespace between overlapping separator alternatives.
+  const numericPattern = utm ? /\d+(?:[.,]\d+)?/y : /[+-]?\d+(?:[.,]\d+)?/y
+  const first = read(numericPattern)
+  if (first === null || !separator()) return null
+  const second = read(numericPattern)
+  if (second === null || position !== text.length) return null
+  return [...parts, first, second]
+}
+
 export function parseCoordinate(input: string): CoordinateParseResult {
+  if (input.length > MAX_COORDINATE_INPUT_LENGTH) return { ok: false, input, error: COORDINATE_INPUT_LENGTH_ERROR }
   const text = input.trim()
   let coordinate: Coordinate, normalizedInput: string
   try {
-    // Scan complete numeric tokens before matching separators. Regex backtracking
-    // must never split a lone decimal (37.12) into two ordinates (37, 12).
-    const tokens = text.match(new RegExp(signed, 'g')) ?? []
-    const dd = tokens.length === 2 ? ddPattern.exec(text) : null
-    const utm = tokens.length === 3 ? utmPattern.exec(text) : null
+    const dd = scanSeparatedCoordinate(text)
+    const utm = dd ? null : scanSeparatedCoordinate(text, true)
     const dms = dmsPattern.exec(text), dmm = dmmPattern.exec(text)
     if (dd) {
-      coordinate = { format: 'DD', latitude: number(dd[1]!), longitude: number(dd[2]!) }
-      normalizedInput = `${normalizeNumber(dd[1]!)}, ${normalizeNumber(dd[2]!)}`
+      coordinate = { format: 'DD', latitude: number(dd[0]!), longitude: number(dd[1]!) }
+      normalizedInput = `${normalizeNumber(dd[0]!)}, ${normalizeNumber(dd[1]!)}`
     } else if (dms || dmm) {
       const match = (dms ?? dmm)!
       const latitudeDegrees = number(match[1]!), latitudeMinutes = number(match[2]!)
@@ -46,8 +86,8 @@ export function parseCoordinate(input: string): CoordinateParseResult {
       normalizedInput = dms ? `${match[1]}°${match[2]}'${normalizeNumber(match[3]!)}"${match[4]} ${match[5]}°${match[6]}'${normalizeNumber(match[7]!)}"${match[8]}` :
         `${match[1]}°${normalizeNumber(match[2]!)}'${match[3]} ${match[4]}°${normalizeNumber(match[5]!)}'${match[6]}`
     } else if (utm) {
-      coordinate = { format: 'UTM', zone: number(utm[1]!), band: utm[2]!, easting: number(utm[3]!), northing: number(utm[4]!) }
-      normalizedInput = `${utm[1]}${utm[2]} ${normalizeNumber(utm[3]!)} ${normalizeNumber(utm[4]!)}`
+      coordinate = { format: 'UTM', zone: number(utm[0]!), band: utm[1]!, easting: number(utm[2]!), northing: number(utm[3]!) }
+      normalizedInput = `${utm[0]}${utm[1]} ${normalizeNumber(utm[2]!)} ${normalizeNumber(utm[3]!)}`
     } else {
       throw new Error(/^[\s\d]+[A-Za-z]/.test(text) ? 'Estructura UTM: indica huso, banda, Este y Norte.' :
         text.includes('°') ? 'No se reconocen los grados, minutos, segundos o hemisferios.' : 'No se reconoce la latitud y longitud. Usa DD, DMS, DMM o UTM.')

@@ -1,6 +1,7 @@
 import type Dexie from 'dexie'
 import { migrateDocument } from '../domain/document/migrateDocument'
 import { serializeDocument } from '../domain/document/serializeDocument'
+import { checkDocumentBudget, InputBudgetError } from '../domain/input/inputBudgets'
 import type { AngieDocument, DocumentModuleId } from '../domain/document/types'
 import { createDatabase } from './db'
 
@@ -48,6 +49,8 @@ export class DocumentRepository implements ActiveDocumentRepository {
     const loaded = await this.db.transaction('r', table, async () => {
       const [record, previous] = await Promise.all([table.get('active'), table.get('previous')])
       if (!record) return null
+      const budget = checkDocumentBudget(record.document)
+      if (budget) throw new InputBudgetError(budget)
       let selected = record
       let result = migrateDocument(record.document)
       this.recoverySource = 'active'

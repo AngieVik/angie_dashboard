@@ -7,6 +7,7 @@ import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
 import type { PlanMode } from './PlanModule'
 import styles from './PlanDrawing.module.css'
+import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
 
 function strokeLayer(map: L.Map, points: GeographicPosition[], color: string, width: number) {
   const pane = map.getPane('operational-plan-strokes') ?? map.createPane('operational-plan-strokes')
@@ -15,7 +16,7 @@ function strokeLayer(map: L.Map, points: GeographicPosition[], color: string, wi
   return L.polyline(points.map(point => L.latLng(point.latitude, point.longitude)), { pane: 'operational-plan-strokes', color, weight: width, opacity: 1, interactive: false, lineCap: 'round', lineJoin: 'round' })
 }
 
-export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeId, onStroke, onErase, onPlace }: {
+export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeId, onStroke, onErase, onPlace, onReject }: {
   navigationKey: string
   mode: PlanMode
   color: string
@@ -25,14 +26,15 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
   onStroke: (stroke: PlanStroke) => boolean
   onErase: (id: string) => boolean
   onPlace: (id: string, point: GeographicPosition) => void
+  onReject: (message: string) => void
 }) {
   const { mapRef } = useMapSurface()
   const surface = useRef<HTMLDivElement>(null)
-  const callbacks = useRef({ strokes, onStroke, onErase, onPlace })
+  const callbacks = useRef({ strokes, onStroke, onErase, onPlace, onReject })
   const { blocked, blockedRef } = useViewportInteraction()
   const { scale: zoom } = useModuleZoom()
   const active = !blocked && (mode === 'draw' || mode === 'erase' || mode === 'place' && placeId !== null)
-  useLayoutEffect(() => { callbacks.current = { strokes, onStroke, onErase, onPlace } }, [strokes, onStroke, onErase, onPlace])
+  useLayoutEffect(() => { callbacks.current = { strokes, onStroke, onErase, onPlace, onReject } }, [strokes, onStroke, onErase, onPlace, onReject])
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -79,7 +81,10 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
       const next = map!.mouseEventToContainerPoint(event)
       if (next.distanceTo(gesture.start) >= 4) gesture.moved = true
       if (mode !== 'draw' || next.distanceTo(gesture.last) < 2) return
-      if (gesture.points.length >= 50000) return
+      if (gesture.points.length >= INPUT_BUDGETS.strokePoints) {
+        callbacks.current.onReject(budgetIssue(`plan.strokes[${callbacks.current.strokes.length}].points`, INPUT_BUDGETS.strokePoints, 'puntos').message)
+        cancel(); return
+      }
       const point = coordinate(event)
       gesture.points.push(point)
       gesture.last = next
@@ -96,6 +101,7 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
       event.preventDefault(); event.stopPropagation(); append(event)
       const current = gesture
       cancel()
+      if (!current) return
       if (mode === 'draw') {
         if (current.points.length === 1) current.points.push({ ...current.points[0]! })
         callbacks.current.onStroke({ id: crypto.randomUUID(), color, width, points: current.points })

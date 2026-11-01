@@ -1,7 +1,9 @@
 import type { BoardImageResult } from './boardTypes'
+import { checkFileBytes } from '../../domain/input/inputBudgets'
 
 export async function loadBoardImage(file: File): Promise<BoardImageResult> {
-  if (file.size > 50 * 1024 * 1024) return { success: false, message: 'La imagen supera el límite de 50 MiB.' }
+  try { checkFileBytes(file.size, 'image') }
+  catch (error) { return { success: false, message: (error as Error).message } }
   if (!['image/png', 'image/jpeg'].includes(file.type)) return { success: false, message: 'Selecciona una imagen JPG o PNG.' }
   let source: ImageBitmap | undefined
   try {

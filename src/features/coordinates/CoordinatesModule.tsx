@@ -10,7 +10,7 @@ import type { RadarControl } from './RadarButton'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
-import { parseCoordinate } from './parseCoordinate'
+import { COORDINATE_INPUT_LENGTH_ERROR, MAX_COORDINATE_INPUT_LENGTH, parseCoordinate } from './parseCoordinate'
 import { convertCoordinate, toGeographic } from './convertCoordinate'
 import { createGoogleMapsLink } from './googleMapsLink'
 import type { GeographicCoordinate } from './coordinateTypes'
@@ -26,8 +26,11 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
   const automatic = radar.active
   const receivedCoordinate = automatic ? selectedCoordinate : undefined
   const baselineClipboard = useRef<(() => void) | null>(null)
-  const setInput = (input: string) => setEntry(current => ({ ...current, input }))
   const [error, setError] = useValidationNotice(null, generation)
+  const setInput = (input: string) => {
+    if (input.length > MAX_COORDINATE_INPUT_LENGTH) { setError(COORDINATE_INPUT_LENGTH_ERROR); return }
+    setEntry(current => ({ ...current, input })); setError(null)
+  }
   if (entry.generation !== generation) {
     setEntry({ selection: selectedCoordinate, input: '', generation, automatic })
     setError(null)
@@ -60,7 +63,9 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
         if (cancelled) return
         const changed = value !== previous
         previous = value
-        if (!accept || !changed || current !== revision.current || blockedRef.current || !parseCoordinate(value).ok) return
+        if (!accept || !changed || current !== revision.current || blockedRef.current) return
+        if (value.length > MAX_COORDINATE_INPUT_LENGTH) { setError(COORDINATE_INPUT_LENGTH_ERROR); return }
+        if (!parseCoordinate(value).ok) return
         revision.current++
         setEntry(entry => ({ ...entry, input: value })); setError(null)
       } catch {
@@ -76,7 +81,13 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     const clipboardChanged = () => { previous = undefined; refresh() }
     const pasted = (event: ClipboardEvent) => {
       const value = event.clipboardData?.getData('text/plain')
-      if (blockedRef.current || !value || !parseCoordinate(value).ok) return
+      if (blockedRef.current || !value) return
+      if (value.length > MAX_COORDINATE_INPUT_LENGTH) {
+        if (event.target instanceof HTMLElement && event.target.id === id + '-input') event.preventDefault()
+        setError(COORDINATE_INPUT_LENGTH_ERROR)
+        return
+      }
+      if (!parseCoordinate(value).ok) return
       if (event.target instanceof HTMLElement && event.target.id === id + '-input') event.preventDefault()
       previous = value
       revision.current++
@@ -107,15 +118,15 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     if (blockedRef.current) return
     revision.current++
     const parsed = parseCoordinate(input)
-    if (!parsed.ok) { setError('No se reconoce la latitud y longitud'); return }
-    setInput(parsed.normalizedInput); setError(null)
+    if (!parsed.ok) { setError(input.length > MAX_COORDINATE_INPUT_LENGTH ? parsed.error : 'No se reconoce la latitud y longitud'); return }
+    setInput(parsed.normalizedInput)
     const unavailable = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => convertCoordinate(parsed.coordinate, format)).find(result => !result.ok)
     if (unavailable && !unavailable.ok) toast.error(unavailable.error, { id: noticeId })
   }
   function clear() {
     if (blockedRef.current) return
     revision.current++
-    setInput(''); setError(null)
+    setInput('')
   }
   async function paste() {
     if (blockedRef.current) return
@@ -123,7 +134,7 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     try {
       const value = await navigator.clipboard.readText()
       if (blockedRef.current || current !== revision.current) return
-      setInput(value); setError(null)
+      setInput(value)
     } catch {
       if (!blockedRef.current && current === revision.current) toast.error('No se pudo pegar. Pega las coordenadas manualmente.', { id: noticeId })
     }
@@ -144,11 +155,12 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     <form onSubmit={event => { event.preventDefault(); convert() }}>
       <InputGroup>
         <Input id={id + '-input'} aria-label="Coordenadas" className="technical-data" value={input} disabled={blocked}
+          inputBudget={{ limit: MAX_COORDINATE_INPUT_LENGTH, path: 'Coordenadas', onReject: setError }}
           aria-invalid={Boolean(error)} spellCheck={false} autoComplete="off"
           onChange={event => {
             if (blockedRef.current) return
             revision.current++
-            setInput(event.target.value); setError(null)
+            setInput(event.target.value)
           }} />
         <Button appearance="integrated" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked} onClick={convert}><Check aria-hidden="true" /></Button>
         <RadarButton active={automatic} onToggle={toggleAutomatic} disabled={blocked} />

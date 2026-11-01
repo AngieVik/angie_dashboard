@@ -1,4 +1,7 @@
+import { checkFileBytes, INPUT_BUDGETS, InputBudgetError, budgetIssue } from '../../domain/input/inputBudgets'
+
 export function readImageDataUrl(file: File): Promise<string> {
+  checkFileBytes(file.size, 'image')
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('No se pudo leer la imagen.'))
@@ -9,6 +12,9 @@ export function readImageDataUrl(file: File): Promise<string> {
 }
 export function embeddedImageFile(dataUrl: string): File {
   const separator = dataUrl.indexOf(',')
+  const encoded = dataUrl.length - separator - 1
+  const bytesLength = encoded / 4 * 3 - (dataUrl.endsWith('==') ? 2 : dataUrl.endsWith('=') ? 1 : 0)
+  if (bytesLength > INPUT_BUDGETS.imageBytes) throw new InputBudgetError(budgetIssue('image', INPUT_BUDGETS.imageBytes / (1024 * 1024), 'MiB'))
   const type = dataUrl.slice(5, dataUrl.indexOf(';'))
   const binary = atob(dataUrl.slice(separator + 1))
   const bytes = Uint8Array.from(binary, character => character.charCodeAt(0))

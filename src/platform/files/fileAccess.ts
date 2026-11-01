@@ -2,6 +2,8 @@ import { migrateDocument } from '../../domain/document/migrateDocument'
 import { validateEmbeddedImage } from './embeddedImage'
 import type { AngieDocument } from '../../domain/document/types'
 import type { WorkspaceFiles } from './workspaceFiles'
+import { readJsonText } from './readInputFile'
+import { InputBudgetError } from '../../domain/input/inputBudgets'
 
 export interface SaveFileHandle {
   getFile?(): Promise<DocumentFile>
@@ -29,7 +31,7 @@ export type LoadOutcome =
   | { status: 'loaded'; document: AngieDocument; migrated: boolean }
   | { status: 'error'; message: string }
 
-export type DocumentFile = Pick<File, 'text'>
+export type DocumentFile = Pick<File, 'size' | 'text'>
 
 export function suggestFilename(title: string, now = new Date()): string {
   // Include both ASCII and C1 control characters. Do not mutate the title.
@@ -51,11 +53,12 @@ function errorMessage(error: unknown): string {
 
 export async function loadVisibleDocument(file: DocumentFile): Promise<LoadOutcome> {
   try {
-    const result = migrateDocument(JSON.parse(await file.text()))
+    const result = migrateDocument(JSON.parse(await readJsonText(file)))
     if (!result.success) return { status: 'error', message: result.errors.map(error => error.message).join('\n') }
     if (result.document.board.backgroundImage) await validateEmbeddedImage(result.document.board.backgroundImage.dataUrl)
     return { status: 'loaded', document: result.document, migrated: result.migrated }
   } catch (error) {
+    if (error instanceof InputBudgetError) return { status: 'error', message: error.message }
     return { status: 'error', message: `No se pudo leer el JSON: ${errorMessage(error)}` }
   }
 }

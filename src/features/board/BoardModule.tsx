@@ -7,6 +7,7 @@ import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
 import { boardReducer, createBoardState } from './boardReducer'
+import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
 import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition, writeBoardFrame } from './boardViewport'
 import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { transformBoardImage } from './boardImageGeometry'
@@ -121,6 +122,10 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   }, [store])
   const dispatch = useCallback((action: BoardAction) => {
     const board = store.getSnapshot().document.board
+    if (action.type === 'point' && (interaction.current.draft?.points.length ?? 0) >= INPUT_BUDGETS.strokePoints) {
+      toast.error(budgetIssue(`board.strokes[${board.strokes.length}].points`, INPUT_BUDGETS.strokePoints, 'puntos').message)
+      action = { type: 'cancel' }
+    }
     const next = boardReducer({ ...interaction.current, board }, action)
     interaction.current = next
     setState(next)

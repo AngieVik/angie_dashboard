@@ -1,5 +1,6 @@
 import type { AngieDocument, GeographicPosition, PlanStroke } from '../../domain/document/types'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
+import { INPUT_BUDGETS, budgetIssue, InputBudgetError } from '../../domain/input/inputBudgets'
 
 function position(point: GeographicPosition): GeographicPosition {
   if (![point.latitude, point.longitude].every(Number.isFinite) || Math.abs(point.latitude) > MAX_MAP_LATITUDE || Math.abs(point.longitude) > 180) {
@@ -28,7 +29,8 @@ export function togglePlanPin(document: AngieDocument, elementId: string) {
 }
 
 export function addPlanStroke(document: AngieDocument, stroke: PlanStroke) {
-  if (!/^#[0-9A-F]{6}$/.test(stroke.color) || !Number.isFinite(stroke.width) || stroke.width < 1 || stroke.width > 40 || stroke.points.length < 2 || stroke.points.length > 50000) {
+  if (stroke.points.length > INPUT_BUDGETS.strokePoints) throw new InputBudgetError(budgetIssue(`plan.strokes[${document.plan?.strokes.length ?? 0}].points`, INPUT_BUDGETS.strokePoints, 'puntos'))
+  if (!/^#[0-9A-F]{6}$/.test(stroke.color) || !Number.isFinite(stroke.width) || stroke.width < 1 || stroke.width > 40 || stroke.points.length < 2) {
     throw new Error('El trazo no tiene un color, grosor o número de puntos válido.')
   }
   const points = stroke.points.map(position)

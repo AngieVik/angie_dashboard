@@ -34,6 +34,10 @@ El binario geográfico WASM se sirve desde el mismo origen y se incluye en la pr
 
 ## Conexión de los módulos
 
+`app/recovery/ErrorBoundary.tsx` contiene los fallos de renderizado y ciclo de vida. `GlobalErrorBoundary` protege `App` desde `main.tsx` y permite reintentar la interfaz o descargar el documento en memoria, sin esperar al autoguardado ni reiniciar el store. `DashboardGrid` protege cada ventana y su contenido con `ModuleErrorBoundary`; el reintento vuelve a montar solo esa ventana, y cambiar de documento renueva su barrera. La copia de emergencia conserva el formato portable; si los datos estuvieran dañados, conserva el JSON disponible para rescate manual. No incorpora GPX externos ni los almacenes independientes de agenda y temporizadores.
+
+Los errores de acciones asíncronas o eventos que lleguen a `unhandledrejection` o `error` se comunican mediante un aviso persistente con acceso a la copia de emergencia, sin desmontar la interfaz. Los diagnósticos del navegador permanecen activos; las cancelaciones `AbortError` no generan ese aviso. Los fallos ya gestionados siguen comunicándose en su propietario y en los avisos existentes.
+
 - Los identificadores portables están en `domain/document/types.ts`; `layout/layoutTypes.ts` los reutiliza. Nombres, iconos, tamaños iniciales, modos y límites se registran en `layout/moduleRegistry.ts`.
 - `App` ensambla las instancias dentro de `DashboardGrid` y `ModuleFrame`. Mapa y Plano operativo se cargan mediante `lazy` y `Suspense`.
 - `ModuleZoomContext` comunica zoom y medición al contenido. `ModuleSizeContext` permite solicitar espacio sin duplicar la gestión de la ventana.
@@ -56,6 +60,7 @@ El binario geográfico WASM se sirve desde el mismo origen y se incluye en la pr
 | Accesos a recursos | Los repositorios de acceso a carpetas y GPX recuerdan permisos y referencias locales; un permiso recordado no garantiza acceso disponible al reabrir.                                                                               |
 
 - El contrato actual es V4. `migrateDocument.ts` reconoce V1 → V2 → V3 → V4 y valida cada contrato; `serializeDocument.ts` valida antes de producir JSON.
+- `domain/input/inputBudgets.ts` es la política compartida de admisión: coordenadas, textos, bytes, colecciones y puntos, con cotas agregadas y un formato común de rechazo. Se aplica antes de validar/migrar, al editar y al serializar; los esquemas históricos conservan su contrato. `platform/files/readInputFile.ts` comprueba `File.size` antes de leer JSON en apertura, carpeta y copias, y comprueba los bytes UTF-8 del texto leído. Los controles Input/Textarea acotan también los borradores y rechazan pegados completos; Mapa acota los puntos GPX cargados entre archivos. Un rechazo mantiene el documento activo y los originales.
 - `documentGeneration` permite descartar resultados de un documento anterior. Al modificar un proceso asíncrono, sigue su generación y el destino de la escritura.
 - Cambios en memoria, guardado en dispositivo, guardado en carpeta, recursos pendientes y descarga iniciada son estados distintos.
 - Los mecanismos existentes de lectura de documentos antiguos no autorizan ejecutar migraciones nuevas ni alterar documentos reales.

@@ -3,6 +3,7 @@ import addFormats from 'ajv-formats'
 import type { ErrorObject } from 'ajv'
 import schema from './schema/angie-document-v4.schema.json'
 import type { AngieDocumentV4, ValidationIssue, ValidationResult } from './types'
+import { checkDocumentBudget } from '../input/inputBudgets'
 import { isTimelineEntryDeleted, isTimelineEntryCorrected, projectUnitStatus } from '../operations/timelineProjection'
 
 const ajv = new Ajv2020({
@@ -59,6 +60,8 @@ function compareUtcDates(left: string, right: string): number {
 }
 
 export function validateDocument(input: unknown): ValidationResult<AngieDocumentV4> {
+  const budget = checkDocumentBudget(input)
+  if (budget) return { success: false, errors: [budget] }
   if (input && typeof input === 'object' && !Array.isArray(input) && 'moduleLayouts' in input) {
     const layouts = input.moduleLayouts
     if (layouts && typeof layouts === 'object' && !Array.isArray(layouts)) {
@@ -81,7 +84,7 @@ export function validateDocument(input: unknown): ValidationResult<AngieDocument
       const valid = png ? [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => prefix.charCodeAt(index) === byte)
         : prefix.charCodeAt(0) === 255 && prefix.charCodeAt(1) === 216 && prefix.charCodeAt(2) === 255
       const byteLength = base64.length / 4 * 3 - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
-      if (!valid || base64.length % 4 !== 0 || byteLength > 50 * 1024 * 1024) add('board.backgroundImage.dataUrl', 'debe contener una imagen PNG o JPEG válida de hasta 50 MiB')
+      if (!valid || base64.length % 4 !== 0 || byteLength <= 0) add('board.backgroundImage.dataUrl', 'debe contener una imagen PNG o JPEG válida')
     } catch { add('board.backgroundImage.dataUrl', 'no contiene una imagen base64 válida') }
   }
   const ids = new Set<string>()

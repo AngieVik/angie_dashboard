@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
 import { serializeDocument } from '../../domain/document/serializeDocument'
+import { checkDocumentBudget, InputBudgetError } from '../../domain/input/inputBudgets'
 import type { AngieDocument, DocumentModuleId, MapGpxReference } from '../../domain/document/types'
 import { createBrowserFilePlatform, loadVisibleDocument, suggestFilename } from '../../platform/files/fileAccess'
 import type { DocumentFile, FileAccessContext, SaveFileHandle } from '../../platform/files/fileAccess'
@@ -162,22 +163,30 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         recoverySeenAt: recent ? presence.seenAt : null, autosaveUnavailable: false, fileMessage: null,
         recoveredPrevious: repository.recoverySource === 'previous' })
       if (recoveryCandidate && age < 60 * 1000) await replace({ ...recoveryCandidate, fileDirty: true })
-    } catch {
+    } catch (error) {
       if (generation === state.documentGeneration && !state.active && !state.fileBusy) update({ ready: true, autosaveUnavailable: true,
-        fileMessage: 'No se pudo leer la recuperación de este dispositivo. Reintenta o abre un archivo desde su carpeta.' })
+        fileMessage: error instanceof InputBudgetError ? error.message : 'No se pudo leer la recuperación de este dispositivo. Reintenta o abre un archivo desde su carpeta.' })
     }
   }
   function mutateDocument(mutate: (document: AngieDocument) => void) {
-    if (!state.active || state.replacing || state.fileBusy) return
+    if (!state.active || state.replacing || state.fileBusy) return false
     const candidate = structuredClone(state.document)
     mutate(candidate)
     candidate.document = { ...candidate.document, id: state.document.document.id, createdAt: state.document.document.createdAt, updatedAt: state.document.document.updatedAt }
-    if (serializeDocument(candidate) === serializeDocument(state.document)) return
+    const budget = checkDocumentBudget(candidate)
+    if (budget) { update({ fileMessage: budget.message }); return false }
+    try {
+      if (serializeDocument(candidate) === serializeDocument(state.document)) return true
+    } catch (error) {
+      if (!(error instanceof InputBudgetError)) throw error
+      update({ fileMessage: error.message }); return false
+    }
     candidate.document.updatedAt = new Date(Math.max(Date.parse(now()), Date.parse(candidate.document.updatedAt))).toISOString()
     serializeDocument(candidate)
     revision++; localRevision++
     update({ document: candidate, fileDirty: true, ...(folderPaused || workLocally ? {} : { workspaceStatus: 'pending' as const }) })
     void persist()
+    return true
   }
   function activate(candidate: Replacement, protectedLocally: boolean, result?: WorkspaceSaveResult) {
     revision++; localRevision++
@@ -201,6 +210,8 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     return !state.autosaveUnavailable || state.workspaceStatus === 'saved'
   }
   async function replace(candidate: Replacement, result?: WorkspaceSaveResult, carriesCurrent = false, adopt = false) {
+    try { serializeDocument(candidate.document) }
+    catch (error) { update({ fileMessage: message(error), fileBusy: false }); return false }
     update({ fileBusy: true, replacing: true, fileMessage: null })
     try {
       if (!carriesCurrent && !await protectCurrent()) {
@@ -256,6 +267,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       }
       const candidate = source ? structuredClone(source.document) : createEmptyDocument(name)
       if (source) candidate.document = { id: crypto.randomUUID(), title: name, createdAt: now(), updatedAt: now() }
+      serializeDocument(candidate)
       const result = workLocally ? { status: 'unconfigured' as const } : await initialContext.workspace?.create?.(candidate, source?.document, source?.resourceFolder, source?.resourceAccessId, source?.resourceVersion, localRecovery) ?? { status: 'unconfigured' as const }
       if (result.status === 'error' && !localRecovery) { update({ fileMessage: result.message, workspacePermissionRequired: result.permissionRequired ?? false }); return false }
       if (result.status === 'saved' && result.resourcesPending && !localRecovery) {
@@ -319,6 +331,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         const candidate = structuredClone(state.document)
         candidate.document.title = name
         candidate.document.updatedAt = new Date(Math.max(Date.parse(now()), Date.parse(candidate.document.updatedAt))).toISOString()
+        serializeDocument(candidate)
         const result = workLocally ? { status: 'unconfigured' as const } : await initialContext.workspace?.rename?.(state.document, name, candidate.document.updatedAt) ?? { status: 'unconfigured' as const }
         if (result.status === 'error') {
           if (result.path) update({ workspacePath: result.path, workspaceStatus: 'error', workspaceMessage: result.message })

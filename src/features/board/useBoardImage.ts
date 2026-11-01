@@ -61,7 +61,8 @@ export function useBoardImage(store: DocumentStore) {
     try {
       const source = await readImageDataUrl(file)
       if (!mounted.current || sequence !== request.current || generation !== store.getSnapshot().documentGeneration) { result.dispose(); return }
-      store.mutateDocument(document => { document.board.backgroundImage = { dataUrl: source, layout: initialImageLayout(result.width, result.height) } })
+      const accepted = store.mutateDocument(document => { document.board.backgroundImage = { dataUrl: source, layout: initialImageLayout(result.width, result.height) } })
+      if (!accepted) throw new Error(store.getSnapshot().fileMessage ?? 'No se pudo guardar la imagen.')
       resource.current?.image.dispose()
       resource.current = { generation, dataUrl: source, image: result }
       setResourceError(null)

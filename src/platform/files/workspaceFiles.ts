@@ -8,11 +8,13 @@ import type { SaveFileHandle } from './fileAccess'
 import { workspaceNameError } from './workspaceNames'
 import type { LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
 import { directoryErrorMessage } from '../pwaPermissions'
+import { readJsonText } from './readInputFile'
+import { checkDocumentBudget, checkFileBytes, InputBudgetError } from '../../domain/input/inputBudgets'
 
 export interface WorkspaceFile extends SaveFileHandle {
   readonly kind: 'file'
   readonly name: string
-  getFile(): Promise<{ text(): Promise<string>; arrayBuffer?(): Promise<ArrayBuffer>; size?: number; lastModified?: number }>
+  getFile(): Promise<{ text(): Promise<string>; arrayBuffer?(): Promise<ArrayBuffer>; size: number; lastModified?: number }>
   createWritable(): Promise<{
     write(data: string | ArrayBuffer): Promise<void>
     close(): Promise<void>
@@ -56,9 +58,11 @@ function gpxFilename(reference: MapGpxReference) {
 }
 
 async function gpxBytes(file: Awaited<ReturnType<WorkspaceFile['getFile']>>, reference: MapGpxReference) {
-  if (!file.arrayBuffer || (file.size !== undefined && file.size > 10 * 1024 * 1024)) throw new Error('No se pudo leer el archivo GPX dentro del límite de 10 MB.')
+  checkFileBytes(file.size, 'gpx')
+  if (!file.arrayBuffer) throw new Error('No se pudo leer el archivo GPX.')
   const bytes = await file.arrayBuffer()
-  if (bytes.byteLength > 10 * 1024 * 1024 || bytes.byteLength !== reference.size) throw new Error('El tamaño no coincide con el GPX guardado.')
+  checkFileBytes(bytes.byteLength, 'gpx')
+  if (bytes.byteLength !== reference.size) throw new Error('El tamaño no coincide con el GPX guardado.')
   const hash = await crypto.subtle.digest('SHA-256', bytes)
   const fingerprint = Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join('')
   if (fingerprint !== reference.fingerprint) throw new Error('El contenido no coincide con el GPX guardado. Se conserva sin sobrescribir.')
@@ -83,12 +87,19 @@ export function workspaceFolderName(document: AngieDocument): string {
 
 async function readDashboard(folder: WorkspaceDirectory): Promise<{ text: string; document: AngieDocument } | null> {
   let text: string
-  try { text = await (await (await folder.getFileHandle('dashboard.json')).getFile()).text() }
+  try { text = await readJsonText(await (await folder.getFileHandle('dashboard.json')).getFile()) }
   catch (error) { if (isMissing(error)) return null; throw error }
   try {
-    const result = migrateDocument(JSON.parse(text))
+    const result = parseWorkspaceDocument(text)
     return result.success ? { text, document: result.document } : null
-  } catch { return null }
+  } catch (error) { if (error instanceof InputBudgetError) throw error; return null }
+}
+
+function parseWorkspaceDocument(text: string) {
+  const input: unknown = JSON.parse(text)
+  const budget = checkDocumentBudget(input)
+  if (budget) throw new InputBudgetError(budget)
+  return migrateDocument(input)
 }
 
 async function writeText(folder: WorkspaceDirectory, name: string, text: string) {
@@ -122,10 +133,10 @@ export function createWorkspaceFiles(
 
   async function transferState(folder: WorkspaceDirectory): Promise<{ source: string; id: string; ready: boolean } | null> {
     try {
-      const value: unknown = JSON.parse(await (await (await folder.getFileHandle('.angie-transfer.json')).getFile()).text())
+      const value: unknown = JSON.parse(await readJsonText(await (await folder.getFileHandle('.angie-transfer.json')).getFile()))
       if (value && typeof value === 'object' && 'source' in value && typeof value.source === 'string' &&
         'id' in value && typeof value.id === 'string' && 'ready' in value && typeof value.ready === 'boolean') return { source: value.source, id: value.id, ready: value.ready }
-    } catch { /* Ordinary folders have no transfer journal. */ }
+    } catch (error) { if (error instanceof InputBudgetError) throw error; /* Ordinary folders have no transfer journal. */ }
     return null
   }
 
@@ -141,7 +152,7 @@ export function createWorkspaceFiles(
         if (saved?.document.document.id === document.document.id) return folder
         if (!saved) {
           try {
-            const text = await (await (await folder.getFileHandle('dashboard.json')).getFile()).text()
+            const text = await readJsonText(await (await folder.getFileHandle('dashboard.json')).getFile())
             if (created.has(key) && text === '') return folder
             throw new Error('El dashboard de destino no es válido. Se conserva sin sobrescribir.')
           } catch (error) {
@@ -204,6 +215,8 @@ export function createWorkspaceFiles(
 
   async function fileBytes(file: WorkspaceFile) {
     const snapshot = await file.getFile()
+    if (file.name.endsWith('.json')) checkFileBytes(snapshot.size, 'json')
+    if (file.name.endsWith('.gpx')) checkFileBytes(snapshot.size, 'gpx')
     return snapshot.arrayBuffer ? snapshot.arrayBuffer() : new TextEncoder().encode(await snapshot.text()).buffer as ArrayBuffer
   }
   async function digest(bytes: ArrayBuffer) {
@@ -222,7 +235,7 @@ export function createWorkspaceFiles(
   async function readVersion(folder: WorkspaceDirectory, verifyResources = false) {
     const saved = await readDashboard(folder)
     if (!saved) return null
-    const manifest: unknown = JSON.parse(await (await (await folder.getFileHandle(versionManifestName)).getFile()).text())
+    const manifest: unknown = JSON.parse(await readJsonText(await (await folder.getFileHandle(versionManifestName)).getFile()))
     if (!manifest || typeof manifest !== 'object' || !('documentId' in manifest) || manifest.documentId !== saved.document.document.id ||
       !('ready' in manifest) || manifest.ready !== true || !('files' in manifest) || !Array.isArray(manifest.files) ||
       !manifest.files.every(file => typeof file === 'string')) throw new Error('La copia de seguridad está incompleta.')
@@ -266,6 +279,7 @@ export function createWorkspaceFiles(
   }
 
   async function create(document: AngieDocument, source?: AngieDocument, sourceFolder?: string, sourceAccessId?: string, sourceVersion?: string, localRecovery = false): Promise<WorkspaceSaveResult> {
+    serializeDocument(document)
     const selected = await rootDirectory()
     if (!selected) return { status: 'unconfigured' }
     if (sourceAccessId && sourceAccessId !== selected.accessId) throw new Error('La carpeta de trabajo cambió. Vuelve a seleccionar la recuperación en la ubicación correspondiente.')
@@ -302,13 +316,13 @@ export function createWorkspaceFiles(
             if (!['gpx', 'recursos', 'informes', 'copias'].includes(name) || !(await entry.entries().next()).done) throw new Error('Contenido ajeno a la creación.')
           } else {
             if (name !== 'dashboard.json') throw new Error('Archivo ajeno a la creación.')
-            const contents = await (await entry.getFile()).text()
+            const contents = await readJsonText(await entry.getFile())
             if (contents !== '' && contents !== serializeDocument(document)) throw new Error('El archivo cambió.')
           }
         }
         for (const [name, entry] of entries) {
           if (entry.kind === 'file') {
-            const contents = await (await entry.getFile()).text()
+            const contents = await readJsonText(await entry.getFile())
             if (contents !== '' && contents !== serializeDocument(document)) throw new Error('El archivo cambió.')
           }
           await folder.removeEntry(name)
@@ -412,13 +426,13 @@ export function createWorkspaceFiles(
           if (file.kind === 'file' ? !backupPattern.test(filename) : !backupFolderPattern.test(filename)) continue
           try {
             const saved = file.kind === 'directory' ? await readVersion(file) : null
-            const parsed = file.kind === 'file' ? migrateDocument(JSON.parse(await (await file.getFile()).text())) : null
+            const parsed = file.kind === 'file' ? parseWorkspaceDocument(await readJsonText(await file.getFile())) : null
             const document = saved?.document ?? (parsed?.success ? parsed.document : null)
             if (document && (!current || document.document.id === current.document.document.id)) result.push({
               key: `workspace:${encodeURIComponent(name)}:${encodeURIComponent(filename)}`, title: document.document.title,
               documentId: document.document.id, savedAt: document.document.updatedAt, source: 'folder',
             })
-          } catch { /* Keep unreadable copies and continue listing the valid ones. */ }
+          } catch (error) { if (error instanceof InputBudgetError) throw error; /* Keep unreadable copies and continue listing the valid ones. */ }
         }
       } catch (error) { if (!isMissing(error)) throw error }
     }
@@ -437,7 +451,7 @@ export function createWorkspaceFiles(
     const container = filename === 'dashboard.json' ? folder : version
       ? await (await folder.getDirectoryHandle('copias')).getDirectoryHandle(filename) : await folder.getDirectoryHandle('copias')
     const saved = version ? await readVersion(container, true) : null
-    const result = version ? null : migrateDocument(JSON.parse(await (await (await container.getFileHandle(filename)).getFile()).text()))
+    const result = version ? null : parseWorkspaceDocument(await readJsonText(await (await container.getFileHandle(filename)).getFile()))
     const document = saved?.document ?? (result?.success ? result.document : null)
     return document ? { document, session: { openModules: [] }, savedAt: document.document.updatedAt, resourceFolder: name,
       resourceAccessId: selected.accessId, resourceVersion: version ? filename : undefined } : null
@@ -498,7 +512,7 @@ export function createWorkspaceFiles(
       if (!match) continue
       try {
         const saved = entry.kind === 'directory' ? await readVersion(entry) : null
-        const result = entry.kind === 'file' ? migrateDocument(JSON.parse(await (await entry.getFile()).text())) : null
+        const result = entry.kind === 'file' ? parseWorkspaceDocument(await readJsonText(await entry.getFile())) : null
         const document = saved?.document ?? (result?.success ? result.document : null)
         if (document?.document.id === previous.document.document.id) owned.push({ name, time: Number(match[1]), directory: entry.kind === 'directory' })
       } catch { /* Unrecognized copies belong to the user and are never pruned. */ }
@@ -523,7 +537,7 @@ export function createWorkspaceFiles(
     } catch (error) {
       try {
         const current = await copies.getDirectoryHandle(name)
-        const manifest: unknown = JSON.parse(await (await (await current.getFileHandle(versionManifestName)).getFile()).text())
+        const manifest: unknown = JSON.parse(await readJsonText(await (await current.getFileHandle(versionManifestName)).getFile()))
         if (await current.isSameEntry?.(version) && manifest && typeof manifest === 'object' &&
           'documentId' in manifest && manifest.documentId === previous.document.document.id && 'ready' in manifest && manifest.ready === false) {
           await copies.removeEntry(name, { recursive: true })
@@ -561,7 +575,7 @@ export function createWorkspaceFiles(
       // An existing invalid or foreign JSON must never be silently replaced.
       if (!previous) {
         try {
-          const existing = await (await (await folder.getFileHandle('dashboard.json')).getFile()).text()
+          const existing = await readJsonText(await (await folder.getFileHandle('dashboard.json')).getFile())
           if (!created.has(key) || existing !== '') throw new Error('El dashboard.json de destino no es válido. Se conserva sin sobrescribir.')
         }
         catch (error) { if (!isMissing(error)) throw error }

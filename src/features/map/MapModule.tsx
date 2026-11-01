@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Slider } from '@/components/ui/slider'
 import { toast } from '@/components/ui/sonner'
 import { copyText } from '../../platform/clipboard'
+import { checkGpxPointTotal, InputBudgetError } from '../../domain/input/inputBudgets'
 import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { convertCoordinate, toGeographic } from '../coordinates/convertCoordinate'
 import type { CoordinateFormat, GeographicCoordinate } from '../coordinates/coordinateTypes'
@@ -133,10 +134,11 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
   function mutateMap(update: (map: MapDocument) => void): boolean {
     if (blockedRef.current || store.getSnapshot().documentGeneration !== documentGeneration) return false
     try {
-      store.mutateDocument(document => {
+      const accepted = store.mutateDocument(document => {
         document.map ??= { markers: [], gpx: [] }
         update(document.map)
       })
+      if (!accepted) { setError(store.getSnapshot().fileMessage); return false }
       setError(null)
       return true
     } catch (failure) {
@@ -244,6 +246,7 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         if (targetId && !target) continue
         const { fingerprint, data } = await readGpxFile(file, target?.fingerprint)
         if (!isCurrent()) return
+        checkGpxPointTotal([...currentFiles.current, ...added, { fingerprint, data }])
         rememberGpxFile(fingerprint, file)
         const reference = targetId ? saved.find(item => item.id === targetId) : saved.find(item => item.fingerprint === fingerprint)
         if (choice.handle) (await rememberGpxAccess(fingerprint, choice.handle) ? rememberedAccess : failedAccess).push(fingerprint)
@@ -319,13 +322,17 @@ export function MapModule({ navigationKey, files: loadedFiles, onFilesChange, st
         try {
           const { data } = await readGpxFile(file, reference.fingerprint)
           if (!isCurrent()) return
+          checkGpxPointTotal([...currentFiles.current, { fingerprint: reference.fingerprint, data }])
           const liveReference = store.getSnapshot().document.map?.gpx.find(item => item.id === reference.id && item.fingerprint === reference.fingerprint)
           if (!liveReference) continue
           // Recovery never edits the document or replaces its saved adjustments.
           const next = [...currentFiles.current.filter(item => item.id !== reference.id), { ...liveReference, data }]
           currentFiles.current = next
           publishFiles.current(next)
-        } catch { /* The named pending reference remains available for reselection. */ }
+        } catch (failure) {
+          if (failure instanceof InputBudgetError) setImportErrors(current => [...new Set([...current, failure.message])])
+          // The named pending reference remains available for reselection.
+        }
       }
     }
     void recover()

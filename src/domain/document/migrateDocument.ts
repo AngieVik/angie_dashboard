@@ -1,4 +1,5 @@
 import { validateDocument } from './validateDocument'
+import { checkDocumentBudget } from '../input/inputBudgets'
 import { validateDocumentV1 } from './validateDocumentV1'
 import { validateDocumentV2 } from './validateDocumentV2'
 import { validateDocumentV3 } from './validateDocumentV3'
@@ -66,6 +67,8 @@ function isEnvelope(input: unknown): input is { format: unknown; formatVersion?:
 }
 
 export function migrateDocument(input: unknown): MigrationResult<AngieDocumentV4> {
+  const budget = checkDocumentBudget(input)
+  if (budget) return { success: false, code: 'invalid-document', errors: [budget] }
   if (!isEnvelope(input) || input.format !== 'angie-dashboard') {
     return reject('invalid-format', 'format', 'no identifica un documento Angie Dashboard')
   }
