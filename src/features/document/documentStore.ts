@@ -18,20 +18,18 @@ import { registerGpx, releaseGpxOriginals } from '../../storage/gpxResources'
 import { createAutosave } from '../../storage/autosave'
 import { DocumentSave } from '../../storage/documentSave'
 import type { PreparedDocumentSave } from '../../storage/documentSave'
-import { createWorkspaceAutosave } from '../../storage/workspaceAutosave'
 import { createBrowserWorkspaceFiles } from '../../platform/files/workspaceFiles'
 import type { WorkspaceSaveResult } from '../../platform/files/workspaceFiles'
 import { filterWorkspaceName, workspaceNameError } from '../../platform/files/workspaceNames'
-import { createDocumentReport } from './documentReport'
-import type { ReportSelection } from './documentReport'
+import type { createDocumentReport } from './documentReport'
+import type { ReportSelection } from './reportSections'
 import type { MapReportContent } from './mapReport'
 import type { BoardReportContent, BoardReportRequest } from './boardReport'
 import type { TimerRecord } from '../clock/timerTypes'
 import { createReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue, ReportResourceAction } from './reportIssues'
-import { DEFAULT_REPORT_PAGE, paginateReport } from './reportPagination'
-import type { ReportPageOptions } from './reportPagination'
-import { prepareReportTypography } from './reportTypography'
+import { DEFAULT_REPORT_PAGE } from './reportPageOptions'
+import type { ReportPageOptions } from './reportPageOptions'
 
 export interface DocumentSnapshot {
   document: AngieDocument
@@ -85,7 +83,6 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
   let documentSave: DocumentSave | undefined
   let initialization: Promise<void> | undefined
   let recoveryCandidate: LocalDocument | null = null
-  let folderPaused = false, lastQueuedWorkspace: number | null = null
   let workLocally = false
   let presenceWrite = Promise.resolve()
   let pendingRead: { controller: AbortController; generation: number; revision: number } | null = null
@@ -112,12 +109,6 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       localStorageMessage: available ? null : quota ? 'No hay espacio disponible. Los guardados anteriores se conservan. Gestiona los documentos del dispositivo desde Recuperar UIBoard y reintenta.' : null,
       ...(resources?.documentId === state.document.document.id ? { localGpxFingerprints: resources.gpxFingerprints } : {}) })
   })
-  const workspaceAutosave = initialContext.workspace ? createWorkspaceAutosave({ save: (document, prepared) => {
-    if (workLocally) return Promise.resolve<WorkspaceSaveResult>({ status: 'unconfigured' })
-    if (folderPaused || state.storageConflict) return Promise.resolve<WorkspaceSaveResult>({ status: 'error',
-      message: state.workspaceMessage ?? 'El guardado en carpeta está pausado. Resuelve el aviso y pulsa Reintentar.', permissionRequired: state.workspacePermissionRequired })
-    return initialContext.workspace!.save(document, prepared)
-  } }) : undefined
   function currentSave() { return documentSave ??= new DocumentSave(state.document) }
 
   function rememberPresence() {
@@ -128,49 +119,36 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
   }
   function applyWorkspaceResult(result: WorkspaceSaveResult, savedRevision: number) {
     if (result.status === 'saved') {
-      if (result.resourcesPending) folderPaused = true
       update({ workspaceStatus: result.resourcesPending ? 'error' : savedRevision === revision ? 'saved' : 'pending', workspacePath: result.path,
         workspaceSavedAt: result.savedAt, workspaceMessage: result.message ?? null, workspacePermissionRequired: false,
         fileDirty: Boolean(result.resourcesPending) || savedRevision !== revision, fileSavedAt: result.savedAt })
     } else if (result.status === 'error') {
-      folderPaused = true; lastQueuedWorkspace = null
       update({ workspaceStatus: 'error', workspaceMessage: result.message, workspacePermissionRequired: result.permissionRequired ?? false })
     } else update({ workspaceStatus: workLocally ? 'pending' : 'unconfigured', workspacePath: null, workspaceSavedAt: null,
-      workspaceMessage: workLocally ? 'Guardado en carpeta pausado durante esta apertura. Puedes elegir o autorizar la carpeta cuando quieras.' : null,
-      workspacePermissionRequired: workLocally })
+      workspaceMessage: null, workspacePermissionRequired: false })
   }
-  function queueWorkspace(force = false): Promise<WorkspaceSaveResult> {
-    if (!state.active || !workspaceAutosave) return Promise.resolve({ status: 'unconfigured' })
-    if (workLocally && !force) {
-      applyWorkspaceResult({ status: 'unconfigured' }, revision)
-      return Promise.resolve({ status: 'unconfigured' })
-    }
-    if (state.storageConflict) return Promise.resolve({ status: 'error', message: 'Hay cambios en otra pestaña. Utiliza Guardar como para conservar los tuyos.' })
-    if (folderPaused && !force) return Promise.resolve({ status: 'error', message: state.workspaceMessage ?? 'Guardado en carpeta pendiente.' })
-    if (force) folderPaused = false
-    const captured = revision
-    if (!force && captured === lastQueuedWorkspace) return Promise.resolve({ status: 'unconfigured' })
-    lastQueuedWorkspace = captured
-    const generation = state.documentGeneration
-    update({ workspaceStatus: 'saving' })
-    return workspaceAutosave.schedule(currentSave()).then(result => {
-      if (generation === state.documentGeneration) applyWorkspaceResult(result, captured)
-      return result
-    })
-  }
-  async function saveWorkspaceNow() {
+  // Only explicit file actions call this; edits and lifecycle events save locally.
+  async function saveWorkspaceNow(): Promise<WorkspaceSaveResult> {
     workLocally = false
     if (!state.active) return { status: 'unconfigured' as const }
-    const result = queueWorkspace(true)
-    await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+    const captured = revision, generation = state.documentGeneration
+    let result: WorkspaceSaveResult
+    if (state.storageConflict) result = { status: 'error', message: 'Hay cambios en otra pestaña. Utiliza Guardar como para conservar los tuyos.' }
+    else if (!initialContext.workspace) result = { status: 'unconfigured' }
+    else {
+      update({ workspaceStatus: 'saving' })
+      try {
+        const prepared = currentSave().prepare()
+        result = await initialContext.workspace.save(prepared.document, prepared)
+      } catch (error) { result = { status: 'error', message: message(error) } }
+    }
+    if (generation === state.documentGeneration) applyWorkspaceResult(result, captured)
     return result
   }
   async function persist(whileReplacing = false) {
     if (!state.active || (state.replacing && !whileReplacing) || state.storageConflict) return false
     const captured = localRevision, generation = state.documentGeneration
     update({ autosaveSaving: true })
-    // Folder timing must not depend on the speed or availability of IndexedDB.
-    void queueWorkspace()
     const saved = await autosave.save(currentSave(), session())
     if (generation === state.documentGeneration) {
       if (saved) localSavedRevision = Math.max(localSavedRevision, captured)
@@ -218,7 +196,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     }
     revision++; localRevision++
     documentSave = new DocumentSave(candidate, text)
-    update({ document: candidate, fileDirty: true, ...(folderPaused || workLocally ? {} : { workspaceStatus: 'pending' as const }) })
+    update({ document: candidate, fileDirty: true, ...(state.workspaceStatus === 'saved' ? { workspaceStatus: 'pending' as const } : {}) })
     void persist()
     return true
   }
@@ -227,7 +205,6 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     documentSave = prepared ? DocumentSave.fromPrepared(prepared) : new DocumentSave(candidate.document)
     localSavedRevision = protectedLocally ? localRevision : -1
     recoveryCandidate = null
-    folderPaused = false; lastQueuedWorkspace = null
     update({ active: true, document: candidate.document, openModules: candidate.session.openModules,
       documentGeneration: state.documentGeneration + 1, fileBusy: false, replacing: false, replacementBlocked: false,
       recoveryPending: false, recoveryTitle: null, recoverySeenAt: null, fileMessage: null, fileDirty: true,
@@ -236,12 +213,11 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       workspaceStatus: 'unconfigured', workspacePath: null, workspaceSavedAt: null, workspaceMessage: null, workspacePermissionRequired: false })
     autosave.resume()
     if (result) applyWorkspaceResult(result, revision)
-    else void queueWorkspace()
     void rememberPresence()
   }
   async function protectCurrent() {
     if (!state.active) return true
-    await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+    await autosave.flush()
     if (state.storageConflict) return false
     return localSavedRevision === localRevision || state.workspaceStatus === 'saved'
   }
@@ -306,7 +282,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     update({ fileBusy: true, replacing: true, fileMessage: null })
     try {
       const carriesCurrent = source?.document === state.document
-      if (carriesCurrent) await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+      if (carriesCurrent) await autosave.flush()
       if (!carriesCurrent && !await protectCurrent()) { update({ replacementBlocked: true }); return false }
       let name: string
       try { name = await uniqueName(title) }
@@ -369,7 +345,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     initialize() { initialization ??= recover(); return initialization },
     isWorkingLocally: () => workLocally,
     continueLocally() {
-      workLocally = true; folderPaused = false; lastQueuedWorkspace = null
+      workLocally = true
       if (state.active) applyWorkspaceResult({ status: 'unconfigured' }, revision)
     },
     applyDocumentCommand,
@@ -379,7 +355,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       update({ fileBusy: true, replacing: true, fileMessage: null })
       try {
         const name = await uniqueName(title, state.document.document.id)
-        await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+        await autosave.flush()
         if (state.storageConflict) throw new DocumentConflictError()
         // Flush the current title before the directory transfer.
         if (!workLocally) {
@@ -400,11 +376,9 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
         }
         revision++; localRevision++
         documentSave = new DocumentSave(candidate, text)
-        lastQueuedWorkspace = null; folderPaused = false
         update({ document: candidate, fileDirty: true, fileMessage: result.status === 'saved' ? result.message ?? null : null })
         if (result.status === 'saved') {
-          lastQueuedWorkspace = revision
-          applyWorkspaceResult(result, lastQueuedWorkspace)
+          applyWorkspaceResult(result, revision)
         }
         await persist(true)
         return true
@@ -488,6 +462,8 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       const boardOptions = boardRequest ? { page, frame: boardRequest.frame ? { ...boardRequest.frame } : undefined, resourceIds: [...boardRequest.resourceIds], layers: { ...boardRequest.layers },
         blockedImage: boardRequest.blockedImage ? structuredClone(boardRequest.blockedImage) : undefined, iconPixels: boardRequest.iconPixels ? new Map(boardRequest.iconPixels) : undefined, fontFamily: boardRequest.fontFamily, frameMissing: boardRequest.frameMissing }
         : fields?.board?.includes('image') ? { page, blockedImage: [createReportIssue('board', 'La representación no está disponible.')] } : undefined
+      const { createDocumentReport, paginateReport, prepareReportTypography } = await import('./reportEngine')
+      if (!state.active || state.replacing || state.documentGeneration !== generation) return null
       const fontStyles = await prepareReportTypography()
       if (!state.active || state.replacing || state.documentGeneration !== generation) return null
       let boardReport: BoardReportContent | undefined
@@ -556,7 +532,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
     },
     cancelReplacement() { update({ replacementBlocked: false, fileMessage: null }) },
     async refreshRecoverable() {
-      await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+      await autosave.flush()
       initialContext.workspace?.invalidateRecoveryCatalog?.()
       return null
     },
@@ -603,7 +579,7 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       cancelDocumentRead()
       update({ fileBusy: true, fileMessage: null })
       try {
-        await Promise.all([autosave.flush(), workspaceAutosave?.flush()])
+        await autosave.flush()
         const presence = await repository.readPresence?.()
         let latest: RecoverableDocument | undefined
         if (repository.listRecoveryPage) {
@@ -652,15 +628,14 @@ export function createDocumentStore(repository: ActiveDocumentRepository, initia
       }
       return null
     },
-    saveWorkspaceNow,
-    async flushWorkspaceSave() { await Promise.all([autosave.flush(), workspaceAutosave?.flush()]) },
-    connectWorkspaceAutosave() {
-      const flush = () => { void Promise.all([autosave.flush(), workspaceAutosave?.flush()]) }
+    async flushLocalSave() { await autosave.flush() },
+    connectLocalAutosave() {
+      const flush = () => { void autosave.flush() }
       const presence = () => { void rememberPresence() }
       const visibility = () => { presence(); if (document.visibilityState === 'hidden') flush() }
       const pagehide = () => { presence(); flush() }
       const beforeUnload = (event: BeforeUnloadEvent) => {
-        if (state.active && (state.autosaveSaving || state.autosaveUnavailable || state.fileDirty || state.workspaceStatus === 'pending' || state.workspaceStatus === 'saving' || state.workspaceStatus === 'error')) {
+        if (state.active && (state.autosaveSaving || state.autosaveUnavailable || state.storageConflict || state.workspaceStatus === 'saving')) {
           flush(); event.preventDefault(); event.returnValue = ''
         }
       }

@@ -296,7 +296,6 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       setImportErrors(errors)
       if (errors.length) toast.error('No se pudieron cargar algunos archivos GPX.', { id: noticeId })
       setBusy(false); request.current.reading = false
-      if (added.length) void store.saveWorkspaceNow()
     } finally {
       if (isCurrent()) { request.current.reading = false; request.current.controller = undefined; setBusy(false) }
       const live = new Set(store.getSnapshot().document.map?.gpx.map(reference => reference.fingerprint) ?? [])

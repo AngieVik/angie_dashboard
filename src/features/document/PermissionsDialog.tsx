@@ -17,12 +17,11 @@ const labels: Record<PermissionStatus, string> = {
 
 interface DialogProps { onClose: () => void; onCloseFocus: () => void }
 export interface DirectoryActions {
-  onDirectoryAuthorized: () => Promise<unknown>
   onContinueLocally?: () => void
   onDownload?: () => Promise<void>
 }
 
-export function StoragePermissionsPanel({ onDirectoryAuthorized, onContinueLocally, onDownload }: DirectoryActions) {
+export function StoragePermissionsPanel({ onContinueLocally, onDownload }: DirectoryActions) {
   const [storage, setStorage] = useState<PermissionSnapshot>({ status: 'pending' })
   const [capacity, setCapacity] = useState<StorageCapacity>()
   const [loading, setLoading] = useState(true)
@@ -58,17 +57,17 @@ export function StoragePermissionsPanel({ onDirectoryAuthorized, onContinueLocal
       <StorageUsage capacity={capacity} />
       <Button disabled={busy} onClick={() => { void readStorageCapacity().then(value => { if (!dismissed.current) setCapacity(value) }) }}>Actualizar espacio</Button>
     </section>
-    <WorkDirectorySection onDirectoryAuthorized={onDirectoryAuthorized} onStorageChange={setStorage} onDownload={onDownload} onContinueLocally={onContinueLocally} />
+    <WorkDirectorySection onStorageChange={setStorage} onDownload={onDownload} onContinueLocally={onContinueLocally} />
   </div>
 }
 
-export function WorkDirectoryDialog({ onClose, onCloseFocus, onDirectoryAuthorized, onContinueLocally, onDownload }: DialogProps & DirectoryActions) {
+export function WorkDirectoryDialog({ onClose, onCloseFocus, onContinueLocally, onDownload }: DialogProps & DirectoryActions) {
   return (
     <AlertDialog open onOpenChange={open => { if (!open) onClose() }}>
       <FileDialogContent title="Carpeta de trabajo" icon={FolderCog} onClose={onClose} width={360} height={180}
         onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus() }}>
         <div className="permissions-list">
-          <WorkDirectorySection showHeading={false} onDirectoryAuthorized={onDirectoryAuthorized} onDownload={onDownload}
+          <WorkDirectorySection showHeading={false} onDownload={onDownload}
             onContinueLocally={() => { onContinueLocally?.(); onClose() }} />
         </div>
       </FileDialogContent>
@@ -76,7 +75,7 @@ export function WorkDirectoryDialog({ onClose, onCloseFocus, onDirectoryAuthoriz
   )
 }
 
-function WorkDirectorySection({ onDirectoryAuthorized, onContinueLocally, onDownload, onStorageChange, showHeading = true }: DirectoryActions & { onStorageChange?: (permission: PermissionSnapshot) => void; showHeading?: boolean }) {
+function WorkDirectorySection({ onContinueLocally, onDownload, onStorageChange, showHeading = true }: DirectoryActions & { onStorageChange?: (permission: PermissionSnapshot) => void; showHeading?: boolean }) {
   const [directory, setDirectory] = useState<WorkDirectoryPermission>({ handle: null, status: 'pending' })
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -103,10 +102,6 @@ function WorkDirectorySection({ onDirectoryAuthorized, onContinueLocally, onDown
       const next = await operation
       if (!dismissed.current && next.status !== 'granted' && next.message) toast.error(next.message, { id: 'directory-permission' })
       if (!dismissed.current) setDirectory(next)
-      if (!dismissed.current && next.prepared && next.status === 'granted') {
-        // Folder writes have their own status; they must never trap this panel.
-        void onDirectoryAuthorized().catch(() => {})
-      }
     }
     finally { requesting.current = false; if (!dismissed.current) setBusy(false) }
   }

@@ -12,8 +12,8 @@ import { ReportResourceError } from './reportIssues'
 import type { ReportIssue, ReportRecovery } from './reportIssues'
 import type { ReportMapProjection } from './reportMapProjection'
 import { renderReportRaster } from './reportImages'
-import { DEFAULT_REPORT_PAGE } from './reportPagination'
-import type { ReportPageOptions } from './reportPagination'
+import { DEFAULT_REPORT_PAGE } from './reportPageOptions'
+import type { ReportPageOptions } from './reportPageOptions'
 
 export interface MapReportContent {
   documentId: string

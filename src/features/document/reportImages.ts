@@ -1,5 +1,5 @@
-import { REPORT_PAGE_MARGIN_MM, reportPageDimensions } from './reportPagination'
-import type { ReportPageOptions } from './reportPagination'
+import { REPORT_PAGE_MARGIN_MM, reportPageDimensions } from './reportPageOptions'
+import type { ReportPageOptions } from './reportPageOptions'
 
 class ReportRasterLimitError extends Error {}
 

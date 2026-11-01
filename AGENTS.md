@@ -5,7 +5,7 @@
 - [ARQUITECTURA.md](ARQUITECTURA.md)
 - [DISEÑO.md](DISEÑO.md)
 - Los parámetros y comportamientos de la app se definen en su código propietario. Consérvalos salvo que la petición autorice explícitamente cambiarlos.
-- Lógica de dominio: Los temporizadores mantienen almacenamiento independiente. La PWA es local-first para Windows y Android; conserva su funcionamiento sin conexión, la compatibilidad de los documentos y la persistencia de datos.
+- Lógica de dominio (Arquitectura híbrida): El App Shell (JS/CSS/iconos SVG), estado, temporizadores y checklists persisten en local (local-first) mediante el almacenamiento del navegador para resistir caídas de red. Los mapas (Leaflet) y teselas visuales son dependencias estrictamente online y no deben precachearse ni forzarse para uso offline.
 - No reconstruyas decisiones ausentes como si estuvieran confirmadas, ni confirmes decisiones puntuales; pregunta.
 - Gestión de datos: Asume integraciones mediante Google Sheets (prohibido proponer o importar utilidades para Excel).
 

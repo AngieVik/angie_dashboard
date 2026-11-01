@@ -9,13 +9,11 @@ import { repositionModules } from '../layout/repositionModules'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import type { ViewArrangement } from '../features/view/ViewMenu'
 import type { CleanupRequest } from '../features/view/CleanupMenu'
-import { BoardModule } from '../features/board/BoardModule'
 import { ElementsModule } from '../features/elements/ElementsModule'
 import { DotationsModule } from '../features/elements/DotationsModule'
 import { InformationModule } from '../features/information/InformationModule'
 import { OperationsModule } from '../features/operations/OperationsModule'
 import { TimelineModule } from '../features/timeline/TimelineModule'
-import { ReportsModule } from '../features/document/ReportsModule'
 import type { ReportsNotice } from '../features/document/ReportsModule'
 import { ClockModule } from '../features/clock/ClockModule'
 import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
@@ -38,6 +36,8 @@ import { readNavigation, writeNavigation } from '../layout/navigationStorage'
 import type { Position } from '../domain/document/types'
 import { clearDocumentModules, updateModuleLayouts } from '../features/document/documentEdits'
 
+const BoardModule = lazy(() => import('../features/board/BoardModule').then(module => ({ default: module.BoardModule })))
+const ReportsModule = lazy(() => import('../features/document/ReportsModule').then(module => ({ default: module.ReportsModule })))
 const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
 const PlanModule = lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule })))
 const CalendarModule = lazy(() => import('../features/calendar/CalendarModule').then(module => ({ default: module.CalendarModule })))
@@ -103,7 +103,7 @@ export function App() {
   }, [store, documentGeneration])
   const boardImage = useBoardImage(store)
   const boardImageInput = useRef<HTMLInputElement>(null)
-  useEffect(() => { void store.initialize(); return store.connectWorkspaceAutosave() }, [store])
+  useEffect(() => { void store.initialize(); return store.connectLocalAutosave() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const modulesTrigger = useRef<HTMLButtonElement>(null)
   const [boardCenter, setBoardCenter] = useState<{ generation: number; center: Position } | null>(null)
@@ -416,7 +416,7 @@ export function App() {
         <div data-slot="app-workspace-content" className={styles.content} inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
-            renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
+            renderModule={id => id === 'board' ? <Suspense fallback={null}><BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
               onEditElement={elementId => {
                 const element = document.elements.find(element => element.id === elementId)
@@ -425,7 +425,7 @@ export function App() {
                 selectElement(elementId); setEditRequest({ id: elementId, generation: documentGeneration })
                 if (open.some(module => module.id === id)) { moduleActions.current[id]?.('expand'); activate(id) }
                 else { pendingEditModule.current = id; toggle(id) }
-              }} /> :
+              }} /></Suspense> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
                 editRequest={editRequest?.generation === documentGeneration && editRequest.id === selectedId ? editRequest : undefined}
                 placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
@@ -435,7 +435,7 @@ export function App() {
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
-              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /> :
+              id === 'reports' ? <Suspense fallback={null}><ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /></Suspense> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'calendar' ? <Suspense fallback={null}><CalendarModule key={moduleRevisions.calendar ?? 0} store={calendar} /></Suspense> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} radar={{ active: radarActive, onToggle: toggleRadar }} /> :

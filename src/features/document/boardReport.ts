@@ -10,7 +10,7 @@ import type { ReportLegendEntry } from './reportLegend'
 import { createReportIssue, reportIssueKey } from './reportIssues'
 import type { ReportIssue, ReportRecovery } from './reportIssues'
 import { freezeReportImage, loadReportImage, renderReportRaster } from './reportImages'
-import type { ReportPageOptions } from './reportPagination'
+import type { ReportPageOptions } from './reportPageOptions'
 import { prepareReportTypography } from './reportTypography'
 
 export interface BoardReportContent {

@@ -3,21 +3,20 @@ import { Select } from '@/components/ui/select'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
-import { REPORT_SECTIONS, defaultReportSelection } from './documentReport'
-import type { ReportSection, ReportSelection } from './documentReport'
+import { REPORT_SECTIONS, defaultReportSelection } from './reportSections'
+import type { ReportSection, ReportSelection } from './reportSections'
 import type { DocumentStore } from './documentStore'
-import { WorkDirectoryDialog } from './PermissionsDialog'
 import type { ReportMapHandle } from './mapReport'
 import type { ReportBoardHandle } from './boardReport'
 import type { TimerRecord } from '../clock/timerTypes'
 import type { ReportGraphicSection, ReportIssue, ReportResourceAction } from './reportIssues'
-import { DEFAULT_REPORT_PAGE } from './reportPagination'
-import type { ReportPageOptions } from './reportPagination'
+import { DEFAULT_REPORT_PAGE } from './reportPageOptions'
+import type { ReportPageOptions } from './reportPageOptions'
 import styles from './reports.module.css'
-import { prepareReportTypography, waitForReportFonts } from './reportTypography'
 
 const ReportMap = lazy(() => import('./ReportMap').then(module => ({ default: module.ReportMap })))
 const ReportBoard = lazy(() => import('./ReportBoard').then(module => ({ default: module.ReportBoard })))
+const WorkDirectoryDialog = lazy(() => import('./PermissionsDialog').then(module => ({ default: module.WorkDirectoryDialog })))
 
 export interface ReportsNotice {
   issues: ReportIssue[]
@@ -95,6 +94,8 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
     const doc = node.contentDocument
     if (!doc) return
     try {
+      const { waitForReportFonts } = await import('./reportEngine')
+      if (frame.current !== node || node.contentDocument !== doc) return
       await waitForReportFonts(doc)
       if (frame.current !== node || node.contentDocument !== doc) return
       previewDocument.current = doc
@@ -116,6 +117,8 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
     generationRequest.current = true
     setGenerating(true)
     try {
+      const { prepareReportTypography } = await import('./reportEngine')
+      if (!isCurrent()) return
       await prepareReportTypography()
       const current = store.getSnapshot()
       if (!current.active || current.replacing || current.documentGeneration !== generation) return
@@ -206,7 +209,7 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
         }}>Descargar informe</Button></>}
     </div>
     {preview && <iframe key={preview.report.filename} ref={frame} title="Vista previa del informe" sandbox="allow-same-origin allow-modals" srcDoc={preview.report.html} onLoad={event => { void loadPreview(event.currentTarget) }} />}
-    {directoryOpen && <WorkDirectoryDialog onClose={() => setDirectoryOpen(false)} onCloseFocus={() => saveButton.current?.focus()}
-      onContinueLocally={() => store.continueLocally()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} />}
+    {directoryOpen && <Suspense fallback={null}><WorkDirectoryDialog onClose={() => setDirectoryOpen(false)} onCloseFocus={() => saveButton.current?.focus()}
+      onContinueLocally={() => store.continueLocally()} /></Suspense>}
   </div>
 }

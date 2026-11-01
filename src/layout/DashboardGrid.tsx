@@ -14,7 +14,7 @@ import { constrainWindowContentSize } from './windowContentSize'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
 import { readNavigation, writeNavigation } from './navigationStorage'
 import { useViewportInteraction } from './ViewportContext'
-import { HandleBottomRight } from './WindowResize'
+import { HandleBottomRight } from './HandleBottomRight'
 
 export interface OpenModule { id: ModuleId; layout: ModuleLayout }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })

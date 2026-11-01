@@ -8,15 +8,13 @@ import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
 import { AlertDialog, AlertDialogCancel, AlertDialogForm, AlertDialogFooter } from '@/components/ui/alert-dialog'
 import { FileDialogContent } from './FileDialog'
-import { RecoveryDialog } from './RecoveryDialog'
 import { getDocumentStore, useDocumentStore } from './documentStore'
 import type { DocumentStore, DocumentSnapshot } from './documentStore'
 import type { ReportsNotice } from './ReportsModule'
 import type { MapNotice } from '../map/MapModule'
-import { REPORT_SECTIONS } from './documentReport'
+import { REPORT_SECTIONS } from './reportSections'
 import { formatReportIssue, reportIssueKey } from './reportIssues'
 import { formatTimelineDate, formatTimelineTime } from '../timeline/timelineCommands'
-import { WorkDirectoryDialog } from './PermissionsDialog'
 import type { SettingsSection } from '../settings/SettingsDialog'
 import { filterWorkspaceName, workspaceNameError } from '../../platform/files/workspaceNames'
 import './permissions.css'
@@ -24,12 +22,14 @@ import styles from './FileMenu.module.css'
 import controlStyles from '@/layout/controlButton.module.css'
 
 const SettingsDialog = lazy(() => import('../settings/SettingsDialog').then(module => ({ default: module.SettingsDialog })))
+const RecoveryDialog = lazy(() => import('./RecoveryDialog').then(module => ({ default: module.RecoveryDialog })))
+const WorkDirectoryDialog = lazy(() => import('./PermissionsDialog').then(module => ({ default: module.WorkDirectoryDialog })))
 
 function saveLabels(snapshot: DocumentSnapshot) {
   const local = snapshot.autosaveSaving ? 'Guardando en este dispositivo…' : snapshot.autosaveUnavailable ? 'Recuperación del dispositivo no disponible' :
     snapshot.document.map?.gpx.some(reference => !snapshot.localGpxFingerprints.includes(reference.fingerprint)) ? 'Dispositivo: GPX pendientes de protección local' :
     snapshot.localSavedAt ? 'Dispositivo: guardado ' + formatTimelineTime(snapshot.localSavedAt) : 'Dispositivo: pendiente de guardar'
-  const folder = snapshot.workspaceStatus === 'unconfigured' ? 'Carpeta: sin configurar' : snapshot.workspaceStatus === 'saving' ? 'Guardando en carpeta…' :
+  const folder = snapshot.workspaceStatus === 'saving' ? 'Guardando en carpeta…' :
     snapshot.workspaceStatus === 'saved' ? 'Carpeta: guardado' + (snapshot.workspaceSavedAt ? ' ' + formatTimelineTime(snapshot.workspaceSavedAt) : '') : 'Carpeta: pendiente de guardar'
   return { local, folder }
 }
@@ -71,7 +71,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
   }
   async function transition(action: () => Promise<unknown>, onPending?: () => void) {
     setDialogError(null)
-    await store.flushWorkspaceSave()
+    await store.flushLocalSave()
     const current = store.getSnapshot()
     if (current.active && ((!store.isWorkingLocally() && current.workspaceStatus !== 'saved') || current.autosaveUnavailable)) {
       onPending?.()
@@ -145,7 +145,7 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
         </MenubarGroup>
       </MenubarContent>
     </MenubarMenu>
-    {configuration && <Suspense fallback={null}><SettingsDialog initialSection={configuration} onClose={closeConfiguration} onCloseFocus={() => { if (naming) nameInput.current?.focus(); else trigger.current?.focus() }} onContinueLocally={() => store.continueLocally()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} onDownload={active ? () => store.downloadJson() : undefined} /></Suspense>}
+    {configuration && <Suspense fallback={null}><SettingsDialog initialSection={configuration} onClose={closeConfiguration} onCloseFocus={() => { if (naming) nameInput.current?.focus(); else trigger.current?.focus() }} onContinueLocally={() => store.continueLocally()} onDownload={active ? () => store.downloadJson() : undefined} /></Suspense>}
     <AlertDialog open={Boolean(naming)} onOpenChange={open => { if (!open && !fileBusy && !namingBusy) setNaming(null) }}>
       <FileDialogContent fitToContent title={naming === 'rename' ? 'Cambiar nombre' : naming === 'saveAs' ? 'Guardar como' : 'Nuevo UIBoard'} icon={naming === 'saveAs' ? ClipboardPlus : ClipboardPen} onClose={() => { if (!store.getSnapshot().fileBusy && !namingSubmission.current) setNaming(null) }}
         onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}>
@@ -182,9 +182,9 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
         </AlertDialogFooter>
       </FileDialogContent>
     </AlertDialog>
-    {recovering && <RecoveryDialog store={store} busy={recoveryBusy} error={dialogError} onRefresh={() => { void showRecovery() }} onClose={closeRecovery}
+    {recovering && <Suspense fallback={null}><RecoveryDialog store={store} busy={recoveryBusy} error={dialogError} onRefresh={() => { void showRecovery() }} onClose={closeRecovery}
       onOpen={copy => { closeRecovery(); void transition(() => store.restoreDocument(copy.key, copy)) }}
-      onRecent={() => { closeRecovery(); void transition(() => store.openRecentDocument()) }} />}
+      onRecent={() => { closeRecovery(); void transition(() => store.openRecentDocument()) }} /></Suspense>}
     <input ref={input} type="file" accept=".json,application/json" aria-label="Abrir archivo JSON" hidden onChange={event => {
       const file = event.target.files?.[0]; event.target.value = ''
       if (file) void transition(() => store.loadDocument(file))
@@ -234,7 +234,7 @@ export function DocumentNotices({ store = getDocumentStore(), reports = null, ma
             <p>{workspaceMessage ?? 'Selecciona una carpeta de trabajo para guardar.'}</p>
             {snapshot.workspacePath && <p>{snapshot.workspacePath}</p>}
             <div className={styles.noticeActions}>
-              <Button disabled={snapshot.fileBusy || snapshot.workspaceStatus === 'saving'} onClick={() => { void store.saveWorkspaceNow() }}><FolderSync aria-hidden="true" />Reintentar</Button>
+              <Button disabled={snapshot.fileBusy || snapshot.workspaceStatus === 'saving'} onClick={() => { void store.saveDocument() }}><FolderSync aria-hidden="true" />Reintentar</Button>
               <Button disabled={snapshot.fileBusy} onClick={() => { setOpen(false); setPermissions(true) }}><FolderCog aria-hidden="true" />Carpeta de trabajo</Button>
             </div>
           </section>}
@@ -310,7 +310,7 @@ export function DocumentNotices({ store = getDocumentStore(), reports = null, ma
         </PopoverContent>
       </Popover>
     </div>
-    {permissions && <WorkDirectoryDialog onClose={() => setPermissions(false)} onCloseFocus={() => trigger.current?.focus()} onContinueLocally={() => store.continueLocally()} onDirectoryAuthorized={() => store.saveWorkspaceNow()} onDownload={snapshot.active ? () => store.downloadJson() : undefined} />}
+    {permissions && <Suspense fallback={null}><WorkDirectoryDialog onClose={() => setPermissions(false)} onCloseFocus={() => trigger.current?.focus()} onContinueLocally={() => store.continueLocally()} onDownload={snapshot.active ? () => store.downloadJson() : undefined} /></Suspense>}
     <AlertDialog open={snapshot.replacementBlocked} onOpenChange={open => { if (!open) store.cancelReplacement() }}>
       <FileDialogContent title="No se pudo guardar el trabajo actual" icon={ClipboardCheck} onClose={() => store.cancelReplacement()}>
         <p>El trabajo permanece abierto. Reintenta el guardado o descarga una copia antes de continuar.</p>

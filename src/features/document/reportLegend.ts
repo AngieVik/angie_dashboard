@@ -2,7 +2,7 @@ import type { AssetId, DocumentElement } from '../../domain/document/types'
 import { getPinBox } from '../elements/iconCatalog'
 import { getRotatedPinBox } from '../elements/pinPresentation'
 import type { ReportMapCrop } from './reportMapFraming'
-import type { ReportPageOptions } from './reportPagination'
+import type { ReportPageOptions } from './reportPageOptions'
 
 export interface ReportLegendEntry { label: string; image: string }
 

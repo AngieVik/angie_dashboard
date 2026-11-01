@@ -689,7 +689,7 @@ export function createWorkspaceFiles(
           return action()
         })
       } catch (error) {
-        if (controller.signal.aborted) throw new Error('Otra ventana está utilizando la carpeta. Cierra esa ventana o termina su operación y pulsa Reintentar.')
+        if (controller.signal.aborted) throw new Error('Otra ventana está utilizando la carpeta. Cierra esa ventana o termina su operación y pulsa Reintentar.', { cause: error })
         throw error
       } finally { clearTimeout(timeout) }
     })

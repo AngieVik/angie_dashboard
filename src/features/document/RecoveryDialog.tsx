@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowBigLeft, ArrowBigRight, CalendarDays, ClipboardClock, FolderArchive, FolderBookmark, FolderSync, FolderTree, ScanSquare, Trash, createLucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { AlertDialog } from '@/components/ui/alert-dialog'
@@ -43,9 +43,6 @@ export function RecoveryDialog({ store, busy, error, onRefresh, onClose, onOpen,
   const [range, setRange] = useState<DateRange>()
   const [history, setHistory] = useState<RecoveryCursor[]>([])
   const [search, setSearch] = useState('')
-  const [result, setResult] = useState<RecoveryPage>({ entries: [] })
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [storage, setStorage] = useState<LibraryStorage>()
   const [refresh, setRefresh] = useState(0)
   const [removal, setRemoval] = useState<{ entry: CatalogEntry; request: RetainedRemoval }>()
@@ -53,17 +50,23 @@ export function RecoveryDialog({ store, busy, error, onRefresh, onClose, onOpen,
   const from = range?.from ? format(range.from, 'yyyy-MM-dd') : undefined
   const to = range?.to ? format(range.to, 'yyyy-MM-dd') : from
   const cursor = history.at(-1)
-  const source = view === 'folder' || view === 'total' ? 'folder' : view === 'device' ? 'device' : 'all'
+  const source: 'folder' | 'device' | 'all' = view === 'folder' || view === 'total' ? 'folder' : view === 'device' ? 'device' : 'all'
+  const query = useMemo(() => ({ store, source, busy, refresh,
+    options: { cursor, limit: PAGE_SIZE, search, fromDay: from, toDay: to },
+  }), [store, cursor, source, search, from, to, refresh, busy])
+  const [page, setPage] = useState<{ query: typeof query; result: RecoveryPage; error: string | null }>()
+  const loading = page?.query !== query
+  const result = page?.result ?? { entries: [] }
+  const loadError = loading ? null : page?.error ?? null
+  function setLoadError(error: string | null) { setPage(current => current ? { ...current, error } : current) }
   useEffect(() => {
-    if (busy) return
+    if (query.busy) return
     let current = true
-    setLoading(true); setLoadError(null)
-    void store.listRecoveryPage({ cursor, limit: PAGE_SIZE, search, fromDay: from, toDay: to }, source)
-      .then(value => { if (current) { setResult(value); setLoadError(value.warning ?? null) } })
-      .catch(error => { if (current) setLoadError(error instanceof Error ? error.message : 'No se pudo leer el catálogo.') })
-      .finally(() => { if (current) setLoading(false) })
+    void query.store.listRecoveryPage(query.options, query.source)
+      .then(result => { if (current) setPage({ query, result, error: result.warning ?? null }) })
+      .catch(error => { if (current) setPage({ query, result: { entries: [] }, error: error instanceof Error ? error.message : 'No se pudo leer el catálogo.' }) })
     return () => { current = false }
-  }, [store, cursor, source, search, from, to, refresh, busy])
+  }, [query])
   useEffect(() => {
     let current = true
     void Promise.resolve(store.measureStorage()).then(value => { if (current) setStorage(value) })

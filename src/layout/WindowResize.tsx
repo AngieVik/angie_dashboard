@@ -1,13 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { createLucideIcon } from 'lucide-react'
 import { useViewportInteraction } from './ViewportContext'
+import { HandleBottomRight } from './HandleBottomRight'
 import styles from './windowResize.module.css'
-
-// Lucide handle-bottom-right (ISC): https://github.com/lucide-icons/lucide/blob/main/icons/handle-bottom-right.svg
-export const HandleBottomRight = createLucideIcon('HandleBottomRight', [
-  ['path', { d: 'M21 8 8 21', key: 'diagonal' }],
-  ['path', { d: 'm21 15-6 6', key: 'corner' }],
-])
 
 export function WindowResize({ label }: { label: string }) {
   const { blocked, blockedRef } = useViewportInteraction()

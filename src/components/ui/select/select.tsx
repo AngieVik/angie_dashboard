@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ComponentProps, CSSProperties } from 'react'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu'
 import styles from './select.module.css'
@@ -12,7 +12,8 @@ export function Select({ value, onValueChange, options, className = '', disabled
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [font, setFont] = useState<CSSProperties>()
-  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
+  // Reset before committing the disabled trigger, including its closed menu.
+  if (disabled && open) setOpen(false)
   return <DropdownMenu open={open && !disabled} onOpenChange={next => {
     if (next && trigger.current) {
       const computed = getComputedStyle(trigger.current)

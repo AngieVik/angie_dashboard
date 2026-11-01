@@ -20,7 +20,7 @@ import styles from './settings.module.css'
 
 export type SettingsSection = 'location' | 'storage'
 const placeKinds: Record<string, string> = { city: 'Ciudad', town: 'Localidad', village: 'Localidad', hamlet: 'Núcleo de población', municipality: 'Municipio', province: 'Provincia', state: 'Región', country: 'País', suburb: 'Barrio' }
-export function SettingsDialog({ initialSection = 'location', onClose, onCloseFocus, onDirectoryAuthorized, onContinueLocally, onDownload, store = getSettingsStore() }: DirectoryActions & {
+export function SettingsDialog({ initialSection = 'location', onClose, onCloseFocus, onContinueLocally, onDownload, store = getSettingsStore() }: DirectoryActions & {
   initialSection?: SettingsSection; onClose: () => void; onCloseFocus: () => void; store?: SettingsStore
 }) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
@@ -43,7 +43,7 @@ export function SettingsDialog({ initialSection = 'location', onClose, onCloseFo
           {snapshot.error && <Button disabled={snapshot.loading || snapshot.saving} onClick={() => { void store.reload() }}><RefreshCw aria-hidden="true" />Recargar configuración</Button>}
         </section>
         <section className={styles.panel} hidden={section !== 'storage'} aria-label="Almacenamiento y permisos">
-          <StoragePermissionsPanel onDirectoryAuthorized={onDirectoryAuthorized} onDownload={onDownload}
+          <StoragePermissionsPanel onDownload={onDownload}
             onContinueLocally={onContinueLocally ? () => { onContinueLocally(); close() } : undefined} />
           <div className={styles.actions}><Button disabled={snapshot.saving} onClick={close}>Cerrar</Button></div>
         </section>
