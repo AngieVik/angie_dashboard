@@ -1,4 +1,5 @@
 export const REPORT_SECTIONS = {
+  metadata: { title: 'Fechas', fields: { createdAt: 'Documento creado', updatedAt: 'Última edición', generatedAt: 'Informe generado' } },
   elements: { title: 'Elementos', fields: { name: 'Nombre', information: 'Información' } },
   dotations: { title: 'Dotaciones', fields: { name: 'Nombre', information: 'Información', tags: 'Etiquetas' } },
   information: { title: 'Información', fields: { name: 'Dotación', information: 'Información', status: 'Estado actual', notes: 'Notas', tags: 'Etiquetas' } },

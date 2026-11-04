@@ -17,11 +17,11 @@ import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { PlanDrawing } from './PlanDrawing'
 import { PlanPins } from './PlanPins'
 import { PlanStrokeControls } from './PlanStrokeControls'
+import type { PlanMode } from './planTypes'
 import { updateElement } from '../elements/elementCommands'
 import { addPlanStroke, clearPlanStrokes, placePlanPin, removePlanPin, removePlanStroke, togglePlanPin } from './planCommands'
 import styles from './plan.module.css'
 
-export type PlanMode = 'navigate' | 'select' | 'draw' | 'erase' | 'place'
 const EMPTY_PINS: PlanPin[] = []
 const EMPTY_STROKES: PlanStroke[] = []
 const MODES = [

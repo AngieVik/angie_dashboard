@@ -8,7 +8,7 @@ import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, pinNameLines, PI
 import { clampAssetScale } from '../elements/elementCommands'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
-import type { PlanMode } from './PlanModule'
+import type { PlanMode } from './planTypes'
 
 export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focusRequest, onSelect, onEdit, onMove, onNameMove, onScale }: {
   navigationKey: string

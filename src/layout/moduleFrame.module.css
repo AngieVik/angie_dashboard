@@ -11,6 +11,7 @@
     scrollbar-color: var(--color-field-border) var(--color-module);
   }
   :where(.base) :global(.module-auto-resize) { position: absolute; right: 24px; bottom: 0; }
+  :where(.base) :global(.module-controls)[data-auto-resize-supported="false"] { padding-right: 27px; }
   :where(.base) :global(.module-controls)[data-zoom-hidden="true"] [data-slot="zoom-control"] { visibility: hidden; }
   :where(.base) :global(.module-scaled-content) {
     container-type: inline-size;
@@ -39,9 +40,6 @@
   }
   .base {
     container-type: inline-size;
-    --font-size-body: clamp(13px, calc(10px + 1cqi), 16px);
-    --font-size-title: clamp(15px, calc(12px + 1cqi), 18px);
-    --font-size-technical: clamp(12px, calc(9px + 1cqi), 16px);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -76,7 +74,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     margin: 0 5px;
-    font-size: 13px;
+    font-size: var(--module-header-font-size);
     font-weight: 500;
     letter-spacing: 0.025em;
   }

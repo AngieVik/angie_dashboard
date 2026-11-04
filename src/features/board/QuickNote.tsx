@@ -91,33 +91,6 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
     cancel()
   }
   const box = preview ?? note
-  const fitText = useCallback(() => {
-    const node = textarea.current
-    if (!node || !node.clientWidth || !node.clientHeight) return
-    // Measure the actual wrapped text, including manual line breaks and padding.
-    let low = .5, high = Math.max(32, node.clientHeight)
-    const apply = (size: number) => { node.style.fontSize = size + 'px' }
-    apply(high)
-    if (node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth) return
-    while (high - low > .1) {
-      const middle = (low + high) / 2
-      apply(middle)
-      if (node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth) low = middle
-      else high = middle
-    }
-    apply(low)
-  }, [])
-  useLayoutEffect(fitText, [fitText, text, box.width, box.height])
-  useLayoutEffect(() => {
-    const node = textarea.current
-    if (!node) return
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fitText)
-    observer?.observe(node)
-    let active = true
-    void document.fonts?.ready.then(() => { if (active) fitText() })
-    document.fonts?.addEventListener('loadingdone', fitText)
-    return () => { active = false; observer?.disconnect(); document.fonts?.removeEventListener('loadingdone', fitText) }
-  }, [fitText])
   // readOnly keeps drafts/focus intact when two fingers temporarily own navigation.
   const readOnly = !enabled || blocked
   return <div ref={root} tabIndex={-1} className={`quick-note ${styles.base}`} data-note-id={note.id} data-selected={selected}

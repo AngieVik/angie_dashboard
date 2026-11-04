@@ -1,6 +1,5 @@
 @layer components {
   .base {
-    --font-interface: var(--font-clock);
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -20,9 +19,10 @@
   :where(.base) :global(.clock-reference) > span { container: clock-reference-label / inline-size; display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-width: 0; margin: 0; padding: calc(2px * var(--module-zoom, 1)) 0; overflow: hidden; text-overflow: ellipsis; line-height: 1; text-align: center; }
   :where(.base) :global(.clock-reference) :global(.clock-season-active) { color: var(--color-accent-yellow); }
   :where(.base) :global(.clock-face) { container-type: size; display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-width: 0; min-height: 0; padding: 0; font-family: inherit; font-variant-numeric: tabular-nums; }
-  :where(.base) :global(.clock-esp) { display: flex; flex: none; justify-content: center; gap: 0; width: 100%; min-width: 0; padding: 0; line-height: 1; text-align: center; font-size: min(26cqi, 100cqb); font-weight: 600; letter-spacing: 0; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
+  :where(.base) :global(.clock-esp) { display: flex; flex: none; justify-content: center; gap: 0; width: 100%; min-width: 0; padding: 0; line-height: 1; text-align: center; font-family: var(--font-clock); font-size: min(26cqi, 100cqb); font-weight: 600; letter-spacing: 0; text-shadow: 0 0 8px rgb(242 242 240 / 15%); }
   :where(.base) :global(.clock-zulu) { container: clock-zulu / inline-size; display: flex; flex: 2.5 1 0; min-width: 0; min-height: 0; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 0 2px; margin: 0; padding: 0; overflow: hidden; color: var(--color-text-secondary); font-size: calc(16px * var(--module-zoom, 1)); line-height: 1; }
-  :where(.base) :global(.clock-zulu-label), :where(.base) :global(.clock-zulu) output { font-size: inherit; font-family: inherit; white-space: nowrap; }
+  :where(.base) :global(.clock-zulu-label) { font-size: var(--font-size-technical); font-family: inherit; white-space: nowrap; }
+  :where(.base) :global(.clock-zulu) output { font-size: inherit; font-family: var(--font-clock); white-space: nowrap; }
   :where(.base) :global(.clock-add-controls) { display: flex; flex: 0 0 var(--control-height); align-items: stretch; gap: 0; min-width: 0; min-height: var(--control-height); margin: 0; padding: 0; }
   :where(.base) :global(.clock-label-short) { display: none; }
   @container clock-reference-label (max-width: 5.5em) {

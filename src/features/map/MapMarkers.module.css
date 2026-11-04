@@ -8,8 +8,8 @@
 }
 
 @layer overrides {
-  :where(.base) :global(.map-marker-select) { flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); padding: 0 6px; color: var(--color-text); text-align: left; justify-content: flex-start; }
-  :where(.base) :global(.map-marker-name) { flex: 1; width: 0; padding: 0 6px; border: 0; border-radius: 0; background: transparent; user-select: text; }
+  :where(.base) :global(.map-marker-select) { flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); color: var(--color-text); text-align: left; justify-content: flex-start; }
+  :where(.base) :global(.map-marker-name) { flex: 1; width: 0; border: 0; border-radius: 0; background: transparent; user-select: text; }
 }
 
 /* Preserve the list scrollbar priority over shared window rules. */

@@ -1,5 +1,5 @@
 import Dexie from 'dexie'
-import { migrateDocument } from '../domain/document/migrateDocument'
+import { DocumentCompatibilityRequired, loadDocumentCompatibility, readPortableDocument } from '../domain/document/documentCompatibility'
 import { serializeWorkingDocument as serializeDocument } from '../domain/document/serializeWorkingDocument'
 import { validateWorkingDocument } from '../domain/document/validateDocument'
 import { imageResource, registerImage, workingDocument } from './imageResources'
@@ -66,7 +66,7 @@ export class DocumentRepository implements ActiveDocumentRepository {
   private async readDocument(input: unknown) {
     const image = (input as AngieDocument | null)?.board?.backgroundImage
     const referenced = image && typeof image === 'object' && 'resourceId' in image
-    const result = referenced ? validateWorkingDocument(input) : migrateDocument(input)
+    const result = referenced ? validateWorkingDocument(input) : readPortableDocument(input)
     if (!result.success) return result
     if (referenced) {
       const resource = await this.db.table<ImageResource, string>('imageResources').get(image.resourceId)
@@ -99,8 +99,16 @@ export class DocumentRepository implements ActiveDocumentRepository {
     }
     return [...protectedGpx]
   }
-  private transaction<T>(mode: 'r' | 'rw', action: () => Promise<T>): Promise<T> {
-    return this.db.transaction(mode, ['documents', 'documentCatalog', 'imageResources', 'gpxResources'], action)
+  private async transaction<T>(mode: 'r' | 'rw', action: () => Promise<T>): Promise<T> {
+    const run = () => this.db.transaction(mode, ['documents', 'documentCatalog', 'imageResources', 'gpxResources'], action)
+    try { return await run() }
+    catch (error) {
+      if (!(error instanceof DocumentCompatibilityRequired)) throw error
+      // The first transaction has aborted, including any record/catalog deletion.
+      // Reload records and recheck revisions in a fresh atomic transaction.
+      await loadDocumentCompatibility()
+      return run()
+    }
   }
 
   private async putRecord(record: LocalRecord) {
@@ -135,7 +143,10 @@ export class DocumentRepository implements ActiveDocumentRepository {
       let selected = record
       let result
       try { result = await this.readDocument(record.document) }
-      catch { result = { success: false as const, errors: [{ path: 'board.backgroundImage', message: 'No se pudo leer el original de la imagen.' }] } }
+      catch (error) {
+        if (error instanceof DocumentCompatibilityRequired) throw error
+        result = { success: false as const, errors: [{ path: 'board.backgroundImage', message: 'No se pudo leer el original de la imagen.' }] }
+      }
       this.recoverySource = 'active'
       if (!result.success && previous) {
         const fallback = await this.readDocument(previous.document)

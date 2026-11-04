@@ -5,13 +5,14 @@ import type { LucideIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
-import { moduleAutoHeightLimit, moduleCollapsedWidth, moduleUsesContentHeight, MODULE_ICONS, MODULE_REGISTRY } from './moduleRegistry'
+import { moduleAutoHeightLimit, moduleCollapsedWidth, moduleCompactsInPlace, moduleExpandedMinimumSize, moduleSupportsAutoResize, MODULE_ICONS, MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, Size } from './layoutTypes'
 import { ModuleSizeContext } from './ModuleSizeContext'
 import { ModuleZoomContext } from './ModuleZoomContext'
 import { ZoomControl } from './ZoomControl'
 import { useViewportInteraction } from './ViewportContext'
 import { readNavigation, writeNavigation } from './navigationStorage'
+import { measureModuleBaseSize } from './windowContentSize'
 import styles from './moduleFrame.module.css'
 import controlStyles from './controlButton.module.css'
 
@@ -21,38 +22,38 @@ function scrollKey(element: HTMLElement, root: HTMLElement) {
 }
 
 export type ModuleAction = 'front' | 'collapse' | 'contract' | 'expand' | 'fit' | 'reset-zoom' | 'clear-close' | 'reset' | 'close'
-export type ModuleActions = (action: ModuleAction) => void
+export type ModuleActions = (action: ModuleAction) => Size | undefined
 
 interface ScrollAxis { element: HTMLElement; offset: number; ratio: number; maximum: number }
 
-export function ModuleFrame({ id, title, icon, active, onClose, onFit, children, generation = 0, contentSizeRevision = 0, locateToken = 0, height, width, navigationKey, onFront, onPark, onReset, onActions }: {
+export function ModuleFrame({ id, title, icon, active, onClose, onFit, children, generation = 0, contentSizeRevision = 0, locateToken = 0, height, width, navigationKey, resetSizeOnMount = false, onFront, onPark, onReset, onActions }: {
   id?: ModuleId; title?: string; icon?: LucideIcon; active: boolean; onClose: () => void; onFit?: (size: Size) => void; children?: ReactNode
-  generation?: number; contentSizeRevision?: number; locateToken?: number; height?: number; width?: number; navigationKey?: string
+  generation?: number; contentSizeRevision?: number; locateToken?: number; height?: number; width?: number; navigationKey?: string; resetSizeOnMount?: boolean
   onFront?: () => void; onPark?: (size: Size) => void; onReset?: () => void
   onActions?: (id: ModuleId, actions: ModuleActions | null) => void
 }) {
   const name = title ?? (id ? MODULE_REGISTRY[id].name : ''), Icon = icon ?? (id ? MODULE_ICONS[id] : FileText)
   const sizeMode = id ? MODULE_REGISTRY[id].sizeMode : 'specific'
-  const contentHeight = moduleUsesContentHeight(id)
+  const supportsAutoResize = moduleSupportsAutoResize(id)
   const elementList = id === 'elements' || id === 'dotations'
-  const automaticHeight = sizeMode === 'feed' || (sizeMode === 'editable' && id !== 'clock')
-  const observesContentSize = contentHeight || automaticHeight || sizeMode === 'standard'
+  const automaticHeight = !!id && supportsAutoResize && MODULE_REGISTRY[id].baseHeight === 'content'
   const [initialNavigation] = useState(() => readNavigation(navigationKey))
-  const [autoResize, setAutoResize] = useState(initialNavigation.autoResize !== false)
-  const currentAutoResize = useRef(initialNavigation.autoResize !== false)
+  const [autoResize, setAutoResize] = useState(supportsAutoResize && initialNavigation.autoResize !== false)
+  const currentAutoResize = useRef(supportsAutoResize && initialNavigation.autoResize !== false)
   const [scale, setScale] = useState(initialNavigation.scale)
-  const [collapse, setCollapse] = useState<{ height: number; generation: number } | null>(null)
+  const [collapsedGeneration, setCollapsedGeneration] = useState<number | null>(null)
   const [iconCollapsed, setIconCollapsed] = useState(false)
   const lastToggle = useRef(-Infinity)
   const [, setActionError] = useValidationNotice(null, generation)
   const [zoomHidden, setZoomHidden] = useState(false)
   const fitContentRef = useRef<(() => Size) | null>(null)
-  const restoredSize = useRef(initialNavigation.restoreSize)
+  const dialogExpandedSize = useRef<Size | undefined>(undefined)
+  const initialSizePending = useRef(resetSizeOnMount)
   const restoringSize = useRef(false)
   const preserveManualSize = useRef(false)
   const savedScrolls = useRef(initialNavigation.scrolls ?? {})
   const previousScale = useRef(scale)
-  const collapsed = height === undefined ? iconCollapsed || collapse?.generation === generation : height <= 29
+  const collapsed = height === undefined ? iconCollapsed || collapsedGeneration === generation : height <= 29
   const collapseLabel = (collapsed ? 'Expandir ' : 'Colapsar ') + name
   const content = useRef<HTMLDivElement>(null), frame = useRef<HTMLElement>(null)
   const { blocked, blockedRef, moduleNavigationRef } = useViewportInteraction()
@@ -62,10 +63,10 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
   const iconPointer = useRef<{ id: number; x: number; y: number } | null>(null)
   const iconDragged = useRef(false)
   const persist = useCallback(() => {
-    writeNavigation(navigationKey, { ...readNavigation(navigationKey), scale: currentScale.current, offsetX: 0, offsetY: 0, restoreSize: restoredSize.current, scrolls: savedScrolls.current, autoResize: currentAutoResize.current })
+    writeNavigation(navigationKey, { ...readNavigation(navigationKey), scale: currentScale.current, offsetX: 0, offsetY: 0, scrolls: savedScrolls.current, autoResize: currentAutoResize.current })
   }, [navigationKey])
   function toggleAutoResize() {
-    if (blockedRef.current || !onFit) return
+    if (!supportsAutoResize || blockedRef.current || !onFit) return
     const next = !currentAutoResize.current
     currentAutoResize.current = next
     if (next) {
@@ -75,31 +76,29 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     setAutoResize(next); persist()
   }
   function expandedSize() {
-    const saved = readNavigation(navigationKey).restoreSize ?? restoredSize.current
-    return saved && saved.width > 29 && saved.height > 29 ? saved : { width: id ? MODULE_REGISTRY[id].initial[0] : 360, height: id ? MODULE_REGISTRY[id].initial[1] : 180 }
+    return id ? measureModuleBaseSize(frame.current, id) : dialogExpandedSize.current ?? { width: 360, height: 180 }
   }
-  function rememberSize() {
+  function rememberDialogSize() {
     const section = frame.current
-    if (!section || collapsed || section.offsetWidth <= 29 || section.offsetHeight <= 29) return
-    restoredSize.current = { width: section.offsetWidth, height: section.offsetHeight }
+    if (id || !section || collapsed || section.offsetWidth <= 29 || section.offsetHeight <= 29) return
+    dialogExpandedSize.current = { width: section.offsetWidth, height: section.offsetHeight }
   }
   function restore() {
     restoringSize.current = true
     preserveManualSize.current = true
-    const saved = expandedSize()
-    const restored = contentHeight ? { ...saved, width: moduleCollapsedWidth(id) } : saved
-    restoredSize.current = restored
-    setCollapse(null); setIconCollapsed(false)
-    onFit?.(restored)
+    const size = expandedSize()
+    setCollapsedGeneration(null); setIconCollapsed(false)
+    onFit?.(size)
     persist()
+    return size
   }
   function compact(icon: boolean, park = false) {
     const section = frame.current
     if (blockedRef.current || !section || !onFit) return
-    rememberSize(); persist()
-    setCollapse({ height: section.offsetHeight, generation }); setIconCollapsed(icon)
+    rememberDialogSize()
+    setCollapsedGeneration(generation); setIconCollapsed(icon)
     const size = icon ? { width: 27, height: 27 } : { width: moduleCollapsedWidth(id), height: 27 }
-    if (park && onPark && !contentHeight) onPark(size)
+    if (park && onPark && !moduleCompactsInPlace(id)) onPark(size)
     else onFit(size)
   }
   function allowToggle() {
@@ -130,10 +129,10 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
       const body = node.firstElementChild as HTMLElement | null
       const measured = fitContentRef.current?.() ?? { width: body?.scrollWidth ?? 0, height: body?.scrollHeight ?? 0 }
       const header = section.querySelector<HTMLElement>('.module-header')!
-      const size = { width: Math.max(27, Math.ceil(Math.max(measured.width, header.scrollWidth) + 2)),
-        height: Math.max(30, Math.ceil(measured.height + header.offsetHeight + (controls?.offsetHeight ?? 25) + 2)) }
-      setCollapse(null); setIconCollapsed(false)
-      restoredSize.current = size
+      const minimum = moduleExpandedMinimumSize(id)
+      const size = { width: Math.max(minimum.width, Math.ceil(Math.max(measured.width, header.scrollWidth) + 2)),
+        height: Math.max(minimum.height, Math.ceil(measured.height + header.offsetHeight + (controls?.offsetHeight ?? 25) + 2)) }
+      setCollapsedGeneration(null); setIconCollapsed(false)
       onFit(size); persist()
     } finally {
       delete section.dataset.fitting; node.hidden = hidden
@@ -146,13 +145,19 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     catch (error) { setActionError(error instanceof Error ? error.message : 'No se pudo limpiar el módulo.') }
   }
   useLayoutEffect(() => {
-    // Keep the last expanded size; compact dimensions must never replace it.
+    // Dialogs have no module definition and retain their own expanded size in memory.
     const section = frame.current
     const currentWidth = width ?? section?.offsetWidth ?? 0, currentHeight = height ?? section?.offsetHeight ?? 0
-    if (currentWidth <= 29 || currentHeight <= 29) return
-    restoredSize.current = { width: currentWidth, height: currentHeight }
-    persist()
-  }, [width, height, persist])
+    if (id || currentWidth <= 29 || currentHeight <= 29) return
+    dialogExpandedSize.current = { width: currentWidth, height: currentHeight }
+  }, [id, width, height])
+  useLayoutEffect(() => {
+    if (!initialSizePending.current || !id || !frame.current || blockedRef.current || !onFit) return
+    initialSizePending.current = false
+    restoringSize.current = true
+    preserveManualSize.current = true
+    onFit(measureModuleBaseSize(frame.current, id))
+  }, [id, blockedRef, onFit])
   const changeScale = useCallback((requested: number) => {
     if (!Number.isFinite(requested)) return
     const next = Math.min(2, Math.max(.25, requested))
@@ -210,20 +215,18 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
   useEffect(() => { if (blocked) drag.current = null }, [blocked])
   useEffect(() => {
     const container = frame.current?.parentElement
-    if (!container || !observesContentSize) return
+    if (!container || !supportsAutoResize) return
     const preserve = (event: globalThis.PointerEvent) => {
       if (event.button === 0 && !blockedRef.current && event.target instanceof Element && event.target.closest('.react-resizable-handle')) {
         preserveManualSize.current = true
-        if (contentHeight) {
-          currentAutoResize.current = false
-          setAutoResize(false)
-          persist()
-        }
+        currentAutoResize.current = false
+        setAutoResize(false)
+        persist()
       }
     }
     container.addEventListener('pointerdown', preserve, true)
     return () => container.removeEventListener('pointerdown', preserve, true)
-  }, [observesContentSize, contentHeight, blockedRef, persist])
+  }, [supportsAutoResize, blockedRef, persist])
   useLayoutEffect(() => {
     const controls = frame.current?.querySelector<HTMLElement>('.module-controls')
     const zoom = controls?.querySelector<HTMLElement>('[data-slot="zoom-control"]')
@@ -238,7 +241,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     const observer = new ResizeObserver(measure)
     observer.observe(controls); observer.observe(zoom)
     return () => observer.disconnect()
-  }, [collapsed, generation])
+  }, [collapsed, generation, supportsAutoResize])
   // The dashboard menu uses the current frame actions without moving local controls.
   useLayoutEffect(() => {
     if (!id) return
@@ -248,7 +251,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
         case 'front': onFront?.(); break
         case 'collapse': compact(false, true); break
         case 'contract': compact(true, true); break
-        case 'expand': if (collapsed) restore(); break
+        case 'expand': if (collapsed) return restore(); break
         case 'fit': fitContent(); break
         case 'reset-zoom': changeScale(1); break
         case 'clear-close': reset(true); break
@@ -262,7 +265,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     dragged.current = false
     if (blockedRef.current || event.button !== 0 || !event.isPrimary) return
     const target = event.target
-    if (!(target instanceof Element) || target.closest('input,textarea,select,[data-slot="select"],[role="checkbox"],[role="slider"],[role="radio"],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
+    if (!(target instanceof Element) || target.closest('input,textarea,select,[data-slot="select"],[role="checkbox"],[role="slider"],[role="radio"],[role="separator"][aria-valuenow],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
     let horizontal: ScrollAxis | undefined, vertical: ScrollAxis | undefined
     for (let element: Element | null = target; element && event.currentTarget.contains(element); element = element.parentElement) {
       if (!(element instanceof HTMLElement)) continue
@@ -284,38 +287,36 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     if (start.horizontal) { const axis = start.horizontal; axis.element.scrollLeft = Math.max(0, Math.min(axis.maximum, axis.offset - dx / axis.ratio)) }
     if (start.vertical) { const axis = start.vertical; axis.element.scrollTop = Math.max(0, Math.min(axis.maximum, axis.offset - dy / axis.ratio)) }
   }
-  const requestSpace = useCallback((minimum: Size, { fitHeight = false } = {}) => {
+  const requestSpace = useCallback((minimum: Size) => {
     const section = frame.current
-    if (!currentAutoResize.current || (!contentHeight && id === 'operations') || blockedRef.current || collapsed || !section || !onFit || section.closest('.resizing')) return
-    if (observesContentSize && preserveManualSize.current) return
+    if (!supportsAutoResize || !currentAutoResize.current || blockedRef.current || collapsed || !section || !onFit || section.closest('.resizing')) return
+    if (preserveManualSize.current) return
     // RGL synchronizes the restored box after the module props have changed.
     if (width !== undefined && Math.abs(section.offsetWidth - width) > 1) return
     const chrome = 29 + (section.querySelector<HTMLElement>('.module-controls')?.offsetHeight || 25)
-    const nextWidth = contentHeight || automaticHeight && !elementList && id !== 'information' ? section.offsetWidth : Math.max(27, Math.ceil(Math.max(section.offsetWidth, minimum.width + 2)))
-    const requestedHeight = Math.max(30, Math.ceil(fitHeight || contentHeight || automaticHeight ? minimum.height + chrome : Math.max(section.offsetHeight, minimum.height + chrome)))
-    const height = Math.min(moduleAutoHeightLimit(id), requestedHeight)
+    const expandedMinimum = moduleExpandedMinimumSize(id)
+    const nextWidth = Math.max(expandedMinimum.width, section.offsetWidth)
+    const requestedHeight = Math.max(30, Math.ceil(minimum.height + chrome))
+    const height = Math.max(expandedMinimum.height, Math.min(moduleAutoHeightLimit(id), requestedHeight))
     if (nextWidth !== section.offsetWidth || height !== section.offsetHeight) onFit({ width: nextWidth, height })
-  }, [id, contentHeight, elementList, automaticHeight, observesContentSize, width, blockedRef, collapsed, onFit])
+  }, [id, supportsAutoResize, width, blockedRef, collapsed, onFit])
   const measuredSpace = useRef(requestSpace)
   // Keep the observer stable when the parent's resize callback changes.
   useLayoutEffect(() => { measuredSpace.current = requestSpace }, [requestSpace])
   useLayoutEffect(() => {
     const node = content.current?.firstElementChild as HTMLElement | null
-    if (!autoResize || !observesContentSize || collapsed || blocked || !node) return
+    if (!supportsAutoResize || !autoResize || collapsed || blocked || !node) return
     const restoring = restoringSize.current
     restoringSize.current = false
     let preserveRestoredSize = restoring
-    let previousSize: Size | undefined
-    const intrinsicSize = () => {
+    let previousHeight: number | undefined
+    const intrinsicHeight = () => {
       const measuring = node.getAttribute('data-measuring')
       const clock = node.querySelector<HTMLElement>('.clock-module'), clockSizing = clock?.getAttribute('data-sizing')
-      const scrollbarWidth = id === 'information' && content.current ? content.current.offsetWidth - content.current.clientWidth : 0
       node.setAttribute('data-measuring', 'true')
       clock?.setAttribute('data-sizing', 'true')
       try {
-        const height = node.scrollHeight
-        if (!contentHeight && (elementList || id === 'information')) node.setAttribute('data-measuring', 'minimum-width')
-        return { width: elementList || id === 'information' ? node.scrollWidth + scrollbarWidth : 0, height }
+        return node.scrollHeight
       }
       finally {
         if (measuring === null) node.removeAttribute('data-measuring')
@@ -327,18 +328,18 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     const measure = () => {
       const section = frame.current, expectedWidth = section?.parentElement?.dataset.width
       if (!section || section.closest('.resizing') || (expectedWidth && Math.abs(section.offsetWidth - Number(expectedWidth)) > 1)) return
-      const size = intrinsicSize()
-      if (preserveRestoredSize) { previousSize = size; preserveRestoredSize = false; return }
-      if (preserveManualSize.current) { previousSize = size; return }
-      if (size.height === previousSize?.height && size.width === previousSize?.width) return
-      previousSize = size
-      if (size.height) measuredSpace.current({ width: elementList || id === 'information' ? size.width : automaticHeight ? 0 : node.scrollWidth, height: size.height }, { fitHeight: true })
+      const height = intrinsicHeight()
+      if (preserveRestoredSize) { previousHeight = height; preserveRestoredSize = false; return }
+      if (preserveManualSize.current) { previousHeight = height; return }
+      if (height === previousHeight) return
+      previousHeight = height
+      if (height) measuredSpace.current({ width: 0, height })
     }
-    // Restoring must keep the saved box until its content actually changes.
+    // Keep the measured basic size until the content actually changes.
     measure()
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
     observer?.observe(node)
-    if (contentHeight) for (const child of Array.from(node.firstElementChild?.children ?? [])) observer?.observe(child)
+    for (const child of Array.from(node.firstElementChild?.children ?? [])) observer?.observe(child)
     for (const child of node.querySelectorAll('.timeline-entries ol,.timeline-add')) observer?.observe(child)
     const mutations = new MutationObserver(records => {
       if (records.some(record => record.type !== 'attributes' || record.attributeName !== 'style')) preserveManualSize.current = false
@@ -346,48 +347,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     })
     mutations.observe(node, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style', 'hidden', 'data-expanded', 'src'] })
     return () => { observer?.disconnect(); mutations.disconnect() }
-  }, [autoResize, id, contentHeight, elementList, automaticHeight, observesContentSize, collapsed, blocked, contentSizeRevision])
-  useLayoutEffect(() => {
-    if (!autoResize || observesContentSize) return
-    const restoring = restoringSize.current
-    restoringSize.current = false
-    const node = content.current?.firstElementChild as HTMLElement | null
-    if (!node || collapsed || id === 'board' || id === 'timeline' || id === 'operations' || id === 'map') return
-    function measure() {
-      node!.setAttribute('data-measuring', 'true')
-      const size = { width: node!.scrollWidth, height: node!.scrollHeight }
-      node!.removeAttribute('data-measuring')
-      return size
-    }
-    const countItems = () => node!.querySelectorAll('.element-row,.notebook-block,.timer-row,.timeline-entries li,[data-item-id]').length
-    let count = countItems()
-    const textValues = new WeakMap<HTMLTextAreaElement, string>()
-    for (const textarea of node.querySelectorAll('textarea')) textValues.set(textarea, textarea.value)
-    // Expanding restores the saved box; do not fit content still laid out at its compact width.
-    if (!restoring) {
-      const size = measure()
-      if (size.height || size.width) measuredSpace.current(size)
-    }
-    // Content changes resize the window; textarea reflows from zoom or width do not.
-    const observer = new MutationObserver(records => {
-      const next = countItems()
-      let editedNote = false
-      for (const record of records) {
-        if (record.type !== 'attributes' || !(record.target instanceof HTMLTextAreaElement)) continue
-        // A newly selected unit mounts a different field; this is not a text edit.
-        if (node!.contains(record.target) && textValues.has(record.target) && textValues.get(record.target) !== record.target.value) editedNote = true
-        textValues.set(record.target, record.target.value)
-      }
-      if (next === count && !editedNote) return
-      const removed = next < count
-      count = next
-      if (id === 'clock') return // Reloj measures timer additions/removals itself.
-      const size = measure()
-      if (size.height || size.width) measuredSpace.current(size, { fitHeight: removed || editedNote })
-    })
-    observer.observe(node, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] })
-    return () => observer.disconnect()
-  }, [autoResize, collapsed, id, observesContentSize])
+  }, [supportsAutoResize, autoResize, id, collapsed, blocked, contentSizeRevision])
   return <section ref={frame} data-slot="module-frame" className={`${styles.base} module-frame`} data-active={active} data-auto-height={autoResize && automaticHeight && !elementList} data-scroll-side={sizeMode === 'feed' ? (id === 'information' || id === 'timeline' ? 'right' : 'left') : sizeMode === 'editable' ? 'right' : undefined} data-collapsed={collapsed} data-icon-only={width === undefined ? iconCollapsed : width <= 29 && collapsed} role="region" aria-label={name}>
     <header data-slot="module-header" className="module-header">
       <Button data-control="module-icon" className={`${controlStyles.base} module-icon`} aria-label={'Recoger o restaurar ' + name} aria-pressed={active} aria-expanded={!(width === undefined ? iconCollapsed : width <= 29 && collapsed)} disabled={blocked || !onFit}
@@ -423,9 +383,9 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
         <ModuleZoomContext value={{ scale, navigationKey, fitContentRef }}><ModuleSizeContext value={requestSpace}>{children}</ModuleSizeContext></ModuleZoomContext>
       </div>
     </div>
-    <div data-slot="module-controls" className="module-controls" hidden={collapsed} data-zoom-hidden={zoomHidden}>
-      <ZoomControl key={generation} variant="module" scale={scale} onChange={value => { if (!blockedRef.current) changeScale(value) }} label={'Zoom de ' + name} disabled={blocked || zoomHidden} side="right" />
-      <Button data-control="module-auto-resize" className={`${controlStyles.base} module-auto-resize`} aria-label="Redimensionado automático" aria-pressed={autoResize} disabled={blocked || !onFit} onClick={toggleAutoResize}>{autoResize ? <ScanSquare aria-hidden="true" /> : <Scan aria-hidden="true" />}</Button>
+    <div data-slot="module-controls" className="module-controls" hidden={collapsed} data-zoom-hidden={zoomHidden} data-auto-resize-supported={supportsAutoResize}>
+      <ZoomControl key={generation} scale={scale} onChange={value => { if (!blockedRef.current) changeScale(value) }} label={'Zoom de ' + name} disabled={blocked || zoomHidden} side="right" />
+      {supportsAutoResize && <Button data-control="module-auto-resize" className={`${controlStyles.base} module-auto-resize`} aria-label="Redimensionado automático" aria-pressed={autoResize} disabled={blocked || !onFit} onClick={toggleAutoResize}>{autoResize ? <ScanSquare aria-hidden="true" /> : <Scan aria-hidden="true" />}</Button>}
     </div>
     {locateToken > 0 && <div key={locateToken} data-slot="module-locator" className="module-locator" aria-hidden="true" />}
   </section>

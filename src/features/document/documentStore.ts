@@ -8,7 +8,8 @@ import { workingDocument, portableDocument, registerImage } from '../../storage/
 import { checkDocumentBudget, InputBudgetError } from '../../domain/input/inputBudgets'
 import type { AngieDocument, DocumentModuleId, MapGpxReference } from '../../domain/document/types'
 import { createBrowserFilePlatform, loadVisibleDocument, suggestFilename } from '../../platform/files/fileAccess'
-import type { DocumentFile, FileAccessContext, SaveFileHandle } from '../../platform/files/fileAccess'
+import type { FileAccessContext } from '../../platform/files/fileAccess'
+import type { DocumentFile, SaveFileHandle } from '../../platform/files/fileHandleTypes'
 import type { VisibleDocumentPreparation } from '../../platform/files/documentWorkerProtocol'
 import { DocumentRepository, DocumentConflictError, normalizeSession } from '../../storage/documentRepository'
 import type { ActiveDocumentRepository, DocumentSession, LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
@@ -18,7 +19,7 @@ import { registerGpx, releaseGpxOriginals } from '../../storage/gpxResources'
 import { createAutosave } from '../../storage/autosave'
 import { DocumentSave } from '../../storage/documentSave'
 import type { PreparedDocumentSave } from '../../storage/documentSave'
-import { createBrowserWorkspaceFiles } from '../../platform/files/workspaceFiles'
+import { createLazyBrowserWorkspaceFiles } from '../../platform/files/lazyWorkspaceFiles'
 import type { WorkspaceSaveResult } from '../../platform/files/workspaceFiles'
 import { filterWorkspaceName, workspaceNameError } from '../../platform/files/workspaceNames'
 import type { createDocumentReport } from './documentReport'
@@ -652,7 +653,7 @@ function cancelled(error: unknown) { return typeof error === 'object' && error !
 export type DocumentStore = ReturnType<typeof createDocumentStore>
 let browserStore: DocumentStore | undefined
 export function getDocumentStore(): DocumentStore {
-  browserStore ??= createDocumentStore(new DocumentRepository(), { platform: createBrowserFilePlatform(), workspace: createBrowserWorkspaceFiles() })
+  browserStore ??= createDocumentStore(new DocumentRepository(), { platform: createBrowserFilePlatform(), workspace: createLazyBrowserWorkspaceFiles() })
   return browserStore
 }
 export function useDocumentStore(store: DocumentStore = getDocumentStore()) { return useSyncExternalStore(store.subscribe, store.getSnapshot) }

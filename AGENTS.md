@@ -23,7 +23,7 @@
 - Limpieza: Al sustituir una implementación dentro del alcance, retira sus restos cuando ya no tengan consumidores.
 - Superficie visual: Una tarea funcional conserva la apariencia actual; una petición visual puede evolucionarla según la dirección acordada.
 - Interfaz y UX: Usa etiquetas breves y directas. Incorpora ayudas o textos explicativos a la interfaz cuando se soliciten. Haz recomendaciones de incorporación si es necesario.
-- Documentación y estado: Actualiza las instrucciones en su lugar cuando formen parte de la tarea. Mantén los planes ordinarios en el chat; crea documentos de trabajo si se piden y elimina tus temporales al terminar. Conserva las copias de seguridad y recuperaciones de UIBoards.
+- Documentación y estado: Actualiza las instrucciones en su lugar cuando formen parte de la tarea. Mantén los planes ordinarios en el chat; crea documentos de trabajo si se piden y elimina tus temporales al terminar. Conserva las copias de seguridad.
 - Mantenimiento documental: Si una modificación autorizada cambia propietarios o recorridos, actualiza `ARQUITECTURA.md`; si cambia una decisión visual, actualiza `DISEÑO.md`. Actualiza este `AGENTS.md` solo cuando cambie una regla de trabajo general.
 
 ## Pruebas y depuración

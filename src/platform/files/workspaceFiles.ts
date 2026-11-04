@@ -8,7 +8,7 @@ import type { AngieDocument, MapGpxReference } from '../../domain/document/types
 import { readGpxAccess } from '../../storage/gpxAccessRepository'
 import { readWorkDirectoryConfiguration, readWorkspaceBaseline, rememberWorkspaceBaseline } from '../../storage/workDirectoryAccessRepository'
 import type { WorkDirectoryHandle } from '../../storage/workDirectoryAccessRepository'
-import type { SaveFileHandle } from './fileAccess'
+import type { SaveFileHandle } from './fileHandleTypes'
 import { workspaceNameError } from './workspaceNames'
 import type { LocalDocument, RecoverableDocument } from '../../storage/documentRepository'
 import { directoryErrorMessage } from '../pwaPermissions'
@@ -122,7 +122,7 @@ async function writeText(folder: WorkspaceDirectory, name: string, text: string)
 export function createWorkspaceFiles(
   getRoot: () => Promise<WorkspaceRoot | null>,
   now: () => Date = () => new Date(),
-): WorkspaceFiles {
+): Required<WorkspaceFiles> {
   const locations = new Map<string, WorkspaceDirectory>()
   const expectedContents = new Map<string, string>()
   const created = new Set<string>()
@@ -716,7 +716,7 @@ export function createWorkspaceFiles(
   }
 }
 
-export function createBrowserWorkspaceFiles(): WorkspaceFiles {
+export function createBrowserWorkspaceFiles(): Required<WorkspaceFiles> {
   return createWorkspaceFiles(async () => {
     const selected = await readWorkDirectoryConfiguration()
     if (!selected) return null

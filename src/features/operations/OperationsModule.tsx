@@ -91,7 +91,7 @@ function UnitNotes({ store, unitId, index, activeLabel, activeColor }: { store: 
         }} />
       </label>
       <Button appearance="integrated" variant="text" className="operations-activate" aria-label={notes ? 'Aplicar ' + notes : 'Estado personalizado ' + index + ' no disponible'} aria-pressed={active} hidden={editing} disabled={blocked || !unitId || !notes} onClick={apply}><span className="operations-custom-name" aria-hidden="true">{notes}</span></Button>
-      <Textarea ref={notesRef} className={styles.annotation} rows={1} wrap="off" aria-label={'Nombre del estado personalizado ' + index} hidden={!editing} value={draftNotes} disabled={blocked} onKeyDown={event => {
+      <Textarea ref={notesRef} className={styles.annotation} rows={1} aria-label={'Nombre del estado personalizado ' + index} hidden={!editing} value={draftNotes} disabled={blocked} onKeyDown={event => {
         if (blockedRef.current) return
         if (event.key === 'Escape' || event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault(); finish(event.key === 'Enter')

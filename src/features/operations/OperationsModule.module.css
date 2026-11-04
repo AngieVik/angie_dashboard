@@ -57,15 +57,9 @@
   :where(.base) .annotation {
     flex: 1;
     width: 0;
-    height: calc(var(--field-height) - 2px);
-    min-height: calc(var(--field-height) - 2px);
+    height: var(--field-height);
     margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background-color: transparent;
     overflow: auto;
-    white-space: pre;
   }
 
   .base [hidden] { display: none; }

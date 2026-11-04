@@ -136,24 +136,12 @@ function drawNote(context: CanvasRenderingContext2D, note: QuickNote, measure: H
   if (!value) { context.restore(); return }
   const textarea = document.createElement('textarea')
   Object.assign(textarea.style, { display: 'block', boxSizing: 'border-box', width: Math.max(1, note.width - 2) + 'px', height: Math.max(1, note.height - 2) + 'px',
-    margin: '0', padding: '6px 26px 4px 5px', border: '0', borderRadius: '0', resize: 'none', fontFamily, lineHeight: '1.25',
+    margin: '0', padding: '6px 26px 4px 5px', border: '0', borderRadius: '0', resize: 'none', fontFamily, fontSize: 'var(--field-font-size-base)', lineHeight: '1.25',
     whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', overflow: 'auto' })
   textarea.value = value; textarea.readOnly = true
   textarea.setAttribute('aria-hidden', 'true'); textarea.tabIndex = -1
   measure.append(textarea)
-  // Use the same wrapped-text fit as QuickNote, without editing the live note.
-  let low = .5, high = Math.max(32, textarea.clientHeight)
-  textarea.style.fontSize = high + 'px'
-  if (textarea.scrollHeight > textarea.clientHeight || textarea.scrollWidth > textarea.clientWidth) {
-    while (high - low > .1) {
-      const middle = (low + high) / 2
-      textarea.style.fontSize = middle + 'px'
-      if (textarea.scrollHeight <= textarea.clientHeight && textarea.scrollWidth <= textarea.clientWidth) low = middle
-      else high = middle
-    }
-    textarea.style.fontSize = low + 'px'
-  }
-  const fontSize = Number.parseFloat(textarea.style.fontSize)
+  const fontSize = Number.parseFloat(getComputedStyle(textarea).fontSize)
   const mirror = document.createElement('div')
   Object.assign(mirror.style, { width: Math.max(1, textarea.clientWidth - 31) + 'px', margin: '0', padding: '0', border: '0',
     fontFamily, fontSize: fontSize + 'px', lineHeight: '1.25', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' })

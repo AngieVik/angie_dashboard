@@ -16,7 +16,7 @@ export function SheetOverlay({ className = '', ...props }: ComponentProps<typeof
   return <Primitive.Overlay data-slot="sheet-overlay" className={`${dialogStyles.overlay} ${styles.overlay} ${className}`.trim()} {...props} />
 }
 
-export function SheetContent({ className = '', children, side = 'right', showCloseButton = true, container, ref, ...props }: ComponentProps<typeof Primitive.Content> & {
+export function SheetContent({ className = '', children, side = 'right', showCloseButton = true, container, forceMount, ref, ...props }: ComponentProps<typeof Primitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'; showCloseButton?: boolean; container?: ComponentProps<typeof Primitive.Portal>['container']
 }) {
   const inheritedContainer = useContext(OverlayPortalContext)
@@ -26,9 +26,9 @@ export function SheetContent({ className = '', children, side = 'right', showClo
     if (typeof ref === 'function') return ref(node)
     if (ref) ref.current = node
   }, [ref])
-  return <Primitive.Portal container={container === undefined ? inheritedContainer ?? undefined : container}>
+  return <Primitive.Portal forceMount={forceMount} container={container === undefined ? inheritedContainer ?? undefined : container}>
     <SheetOverlay />
-    <Primitive.Content data-slot="sheet-content" data-side={side} ref={attach} className={`${styles.content} ${className}`.trim()} {...props}>
+    <Primitive.Content forceMount={forceMount} data-slot="sheet-content" data-side={side} ref={attach} className={`${styles.content} ${className}`.trim()} {...props}>
       <OverlayPortalContext value={portalContainer}>{children}</OverlayPortalContext>
       {showCloseButton && <Primitive.Close asChild><Button className={styles.close} aria-label="Cerrar panel"><X aria-hidden="true" /></Button></Primitive.Close>}
     </Primitive.Content>

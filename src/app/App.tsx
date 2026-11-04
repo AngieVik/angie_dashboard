@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toast, Toaster } from '@/components/ui/sonner'
 import { AppHeader } from './AppHeader'
 import styles from './app.module.css'
@@ -9,18 +9,9 @@ import { repositionModules } from '../layout/repositionModules'
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
 import type { ViewArrangement } from '../features/view/ViewMenu'
 import type { CleanupRequest } from '../features/view/CleanupMenu'
-import { ElementsModule } from '../features/elements/ElementsModule'
-import { DotationsModule } from '../features/elements/DotationsModule'
-import { InformationModule } from '../features/information/InformationModule'
-import { OperationsModule } from '../features/operations/OperationsModule'
-import { TimelineModule } from '../features/timeline/TimelineModule'
 import type { ReportsNotice } from '../features/document/ReportsModule'
-import { ClockModule } from '../features/clock/ClockModule'
-import { CoordinatesModule } from '../features/coordinates/CoordinatesModule'
 import type { GeographicCoordinate } from '../features/coordinates/coordinateTypes'
 import type { MapNotice } from '../features/map/MapModule'
-import { CalculatorModule } from '../features/calculator/CalculatorModule'
-import { NotebookModule } from '../features/notebook/NotebookModule'
 import { getTimerStore } from '../features/clock/timerStore'
 import { getCalendarStore } from '../features/calendar/calendarStore'
 import { useBoardImage } from '../features/board/useBoardImage'
@@ -29,7 +20,7 @@ import type { OpenModule } from '../layout/DashboardGrid'
 import { MobileViewport } from '../layout/MobileViewport'
 import { findModulePlacement } from '../layout/findModulePlacement'
 import { adaptModuleLayout, getWorkspaceBounds } from '../layout/adaptiveLayout'
-import { MODULE_REGISTRY } from '../layout/moduleRegistry'
+import { moduleBaseSize, moduleCollapsedWidth, MODULE_REGISTRY } from '../layout/moduleRegistry'
 import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
 import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import { readNavigation, writeNavigation } from '../layout/navigationStorage'
@@ -37,6 +28,15 @@ import type { Position } from '../domain/document/types'
 import { clearDocumentModules, updateModuleLayouts } from '../features/document/documentEdits'
 
 const BoardModule = lazy(() => import('../features/board/BoardModule').then(module => ({ default: module.BoardModule })))
+const ElementsModule = lazy(() => import('../features/elements/ElementsModule').then(module => ({ default: module.ElementsModule })))
+const DotationsModule = lazy(() => import('../features/elements/DotationsModule').then(module => ({ default: module.DotationsModule })))
+const InformationModule = lazy(() => import('../features/information/InformationModule').then(module => ({ default: module.InformationModule })))
+const OperationsModule = lazy(() => import('../features/operations/OperationsModule').then(module => ({ default: module.OperationsModule })))
+const TimelineModule = lazy(() => import('../features/timeline/TimelineModule').then(module => ({ default: module.TimelineModule })))
+const ClockModule = lazy(() => import('../features/clock/ClockModule').then(module => ({ default: module.ClockModule })))
+const CoordinatesModule = lazy(() => import('../features/coordinates/CoordinatesModule').then(module => ({ default: module.CoordinatesModule })))
+const CalculatorModule = lazy(() => import('../features/calculator/CalculatorModule').then(module => ({ default: module.CalculatorModule })))
+const NotebookModule = lazy(() => import('../features/notebook/NotebookModule').then(module => ({ default: module.NotebookModule })))
 const ReportsModule = lazy(() => import('../features/document/ReportsModule').then(module => ({ default: module.ReportsModule })))
 const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
 const PlanModule = lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule })))
@@ -135,7 +135,6 @@ export function App() {
   useEffect(() => {
     if (ready && modulesGeneration === documentGeneration) store.setOpenModules(modules.map(module => module.id))
   }, [ready, modulesGeneration, documentGeneration, modules, store])
-  const closedModules = useRef<Partial<Record<ModuleId, PresentedModule>>>({})
   const [magnet, setMagnet] = useState(false)
   const [moduleRevisions, setModuleRevisions] = useState<Partial<Record<ModuleId, number>>>({})
   const [sizePreservation, setSizePreservation] = useState<{ generation: number; revisions: Partial<Record<ModuleId, number>> }>({ generation: documentGeneration, revisions: {} })
@@ -222,7 +221,7 @@ export function App() {
     return () => observer.disconnect()
   }, [modules, document.moduleLayouts, documentGeneration, extent])
   // Visibility is recovered with the local session; the portable JSON contains geometry.
-  const open = useMemo(() => modules.map(module => ({ id: module.id,
+  const open = useMemo(() => modules.map(module => ({ id: module.id, resetSizeOnMount: module.resetSizeOnMount,
     layout: presentedLayout(module, layoutSource(module, document.moduleLayouts[module.id], bounds, documentGeneration), bounds, documentGeneration),
   })), [modules, document.moduleLayouts, bounds, documentGeneration])
   const previousExtent = extent.generation === documentGeneration ? extent.size : reconstructWorkspaceExtent(requiredBounds, document.moduleLayouts)
@@ -284,13 +283,11 @@ export function App() {
       width: Math.ceil(Math.max(bounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)), height: Math.ceil(Math.max(bounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)),
     } }
     store.applyDocumentCommand(document => updateModuleLayouts(document, [{ id, layout: saved }]))
-    setModules(previous => previous.map(module => module.id === id ? { ...module, layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
+    setModules(previous => previous.map(module => module.id === id ? { ...module, layout, resetSizeOnMount: false, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
   }
   function close(id: ModuleId) {
     if (locationHighlight?.id === id) setLocationHighlight(null)
     if (id === 'elements' || id === 'dotations') { setEditRequest(null); pendingEditModule.current = null }
-    const shown = open.find(module => module.id === id)
-    if (shown) closedModules.current[id] = { ...shown, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(document.moduleLayouts[id] ?? shown.layout) } }
     if (id === 'board') setBoardCenter(null)
     modulesTrigger.current?.focus()
     setModules(previous => previous.filter(module => module.id !== id))
@@ -335,38 +332,43 @@ export function App() {
     try {
       setModulesError(null)
       const collapsed = mode !== 'columns'
-      // Use the frame's restore action so mounted content keeps its saved size.
-      if (!collapsed) for (const module of open) if (module.layout.height <= 29) moduleActions.current[module.id]?.('expand')
       const placed: OpenModule[] = []
       const origin = { x: Math.max(0, Math.ceil(-viewport.state.offsetX / viewport.state.scale)), y: Math.max(0, Math.ceil(-viewport.state.offsetY / viewport.state.scale)) }
-      const standardWidth = 200, collapsedHeight = 27
+      const collapsedHeight = 27
       const gap = 8, count = Math.min(columns, open.length)
       const expanded = open.map(module => {
-        const navigation = readNavigation(document.document.id + '.' + module.id)
-        const size = module.layout.height <= 29 ? navigation.restoreSize ?? { width: MODULE_REGISTRY[module.id].initial[0], height: MODULE_REGISTRY[module.id].initial[1] } : module.layout
-        return { ...module, layout: { ...module.layout, width: size.width, height: size.height } }
+        const expanding = !collapsed && module.layout.height <= 29
+        const size = expanding ? moduleActions.current[module.id]?.('expand') ?? moduleBaseSize(module.id) : module.layout
+        return { ...module, resetSizeOnMount: expanding || module.resetSizeOnMount, layout: { ...module.layout, width: size.width, height: size.height } }
       })
       const widths = Array.from({ length: count }, (_, column) => Math.max(...expanded.filter((_module, index) => index % count === column).map(module => module.layout.width)))
       const tops = Array<number>(count).fill(origin.y)
-      const perRow = Math.max(1, Math.floor(visibleBounds.width / standardWidth))
-      const perColumn = Math.max(1, Math.floor(visibleBounds.height / collapsedHeight))
+      let collapsedX = origin.x, collapsedY = origin.y, collapsedColumnWidth = 0
       for (const [index, module] of expanded.entries()) {
-        const { id } = module
         let layout = { ...module.layout }
-        const key = document.document.id + '.' + id
-        const navigation = readNavigation(key)
         if (collapsed) {
-          writeNavigation(key, { ...navigation, restoreSize: { width: layout.width, height: layout.height } })
-          layout = { ...layout, width: standardWidth, height: collapsedHeight,
-            x: origin.x + (mode === 'collapsed-rows' ? index % perRow : Math.floor(index / perColumn)) * standardWidth,
-            y: origin.y + (mode === 'collapsed-rows' ? Math.floor(index / perRow) : index % perColumn) * collapsedHeight }
+          const width = moduleCollapsedWidth(module.id)
+          if (mode === 'collapsed-rows') {
+            if (collapsedX > origin.x && collapsedX + width > origin.x + visibleBounds.width) {
+              collapsedX = origin.x; collapsedY += collapsedHeight
+            }
+            layout = { ...layout, width, height: collapsedHeight, x: collapsedX, y: collapsedY }
+            collapsedX += width
+          } else {
+            if (collapsedY > origin.y && collapsedY + collapsedHeight > origin.y + visibleBounds.height) {
+              collapsedX += collapsedColumnWidth; collapsedY = origin.y; collapsedColumnWidth = 0
+            }
+            layout = { ...layout, width, height: collapsedHeight, x: collapsedX, y: collapsedY }
+            collapsedY += collapsedHeight
+            collapsedColumnWidth = Math.max(collapsedColumnWidth, width)
+          }
         } else {
           const column = index % count
           layout = { ...layout, x: origin.x + widths.slice(0, column).reduce((sum, width) => sum + width + gap, 0), y: tops[column]! }
           tops[column] = tops[column]! + layout.height + gap
         }
         layout = { ...layout, referenceSize: { width: Math.max(bounds.width, layout.x + layout.width), height: Math.max(bounds.height, layout.y + layout.height) } }
-        placed.push({ id, layout })
+        placed.push({ ...module, layout })
       }
       store.applyDocumentCommand(document => updateModuleLayouts(document, placed))
       setModules(placed.map(module => ({ ...module, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(module.layout) } })))
@@ -376,10 +378,9 @@ export function App() {
     if (open.some(module => module.id === id)) { activate(id); return }
     const nextBounds = getWorkspaceBounds(visibleBounds, [...modules.map(module => module.id), id])
     const placement = findModulePlacement({ id, saved: document.moduleLayouts[id] }, open.map(module => module.layout), nextBounds)
-    const cached = closedModules.current[id]
-    const source = JSON.stringify(document.moduleLayouts[id] ?? (cached?.presentation?.generation === documentGeneration ? cached.layout : placement.layout))
-    const layout = cached?.presentation?.generation === documentGeneration && cached.presentation.source === source && cached.presentation.size.width === bounds.width && cached.presentation.size.height === bounds.height ? cached.layout : placement.layout
-    setModules(previous => [...previous, { id, layout, presentation: { size: bounds, generation: documentGeneration, source } }])
+    const source = JSON.stringify(document.moduleLayouts[id] ?? placement.layout)
+    const layout = { ...placement.layout, ...moduleBaseSize(id) }
+    setModules(previous => [...previous, { id, layout, resetSizeOnMount: true, presentation: { size: bounds, generation: documentGeneration, source } }])
     activate(id)
   }
   return (
@@ -416,7 +417,7 @@ export function App() {
         <div data-slot="app-workspace-content" className={styles.content} inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
-            renderModule={id => id === 'board' ? <Suspense fallback={null}><BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
+            renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
               onEditElement={elementId => {
                 const element = document.elements.find(element => element.id === elementId)
@@ -425,7 +426,7 @@ export function App() {
                 selectElement(elementId); setEditRequest({ id: elementId, generation: documentGeneration })
                 if (open.some(module => module.id === id)) { moduleActions.current[id]?.('expand'); activate(id) }
                 else { pendingEditModule.current = id; toggle(id) }
-              }} /></Suspense> :
+              }} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
                 editRequest={editRequest?.generation === documentGeneration && editRequest.id === selectedId ? editRequest : undefined}
                 placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
@@ -435,11 +436,11 @@ export function App() {
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
-              id === 'reports' ? <Suspense fallback={null}><ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /></Suspense> :
+              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
-              id === 'calendar' ? <Suspense fallback={null}><CalendarModule key={moduleRevisions.calendar ?? 0} store={calendar} /></Suspense> :
+              id === 'calendar' ? <CalendarModule key={moduleRevisions.calendar ?? 0} store={calendar} /> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} radar={{ active: radarActive, onToggle: toggleRadar }} /> :
-              id === 'plan' ? <Suspense fallback={null}><PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store} onNoticesChange={updateMapNotices}
+              id === 'plan' ? <PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store} onNoticesChange={updateMapNotices}
                 selectedId={selectedId} onSelect={selectElement} onCoordinateSelect={selectCoordinate}
                 onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
                 onEditElement={elementId => {
@@ -449,8 +450,8 @@ export function App() {
                   selectElement(elementId); setEditRequest({ id: elementId, generation: documentGeneration })
                   if (open.some(module => module.id === id)) { moduleActions.current[id]?.('expand'); activate(id) }
                   else { pendingEditModule.current = id; toggle(id) }
-                }} /></Suspense> :
-              id === 'map' ? <Suspense fallback={null}><MapModule key={documentGeneration} navigationKey={document.document.id} store={store} onCoordinateSelect={selectCoordinate} onNoticesChange={updateMapNotices} /></Suspense> :
+                }} /> :
+              id === 'map' ? <MapModule key={documentGeneration} navigationKey={document.document.id} store={store} onCoordinateSelect={selectCoordinate} onNoticesChange={updateMapNotices} /> :
               id === 'notebook' ? <NotebookModule key={documentGeneration} store={store} /> :
               id === 'calculator' ? <CalculatorModule generation={documentGeneration} radar={{ active: radarActive, onToggle: toggleRadar }} radarPoint={radarPoint} calendar={calendar} /> : null} />
         </MobileViewport>

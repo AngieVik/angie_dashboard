@@ -1,7 +1,11 @@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select } from '@/components/ui/select'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { Download, ListFilter, Printer, RefreshCw, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { ReportSelectionResize } from './ReportSelectionResize'
 import { toast } from '@/components/ui/sonner'
 import { REPORT_SECTIONS, defaultReportSelection } from './reportSections'
 import type { ReportSection, ReportSelection } from './reportSections'
@@ -13,6 +17,7 @@ import type { ReportGraphicSection, ReportIssue, ReportResourceAction } from './
 import { DEFAULT_REPORT_PAGE } from './reportPageOptions'
 import type { ReportPageOptions } from './reportPageOptions'
 import styles from './reports.module.css'
+import toolbarStyles from '@/layout/moduleToolbar.module.css'
 
 const ReportMap = lazy(() => import('./ReportMap').then(module => ({ default: module.ReportMap })))
 const ReportBoard = lazy(() => import('./ReportBoard').then(module => ({ default: module.ReportBoard })))
@@ -30,9 +35,17 @@ export interface ReportsNotice {
 }
 
 export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onNoticesChange }: { store: DocumentStore; getCoordinatesInput: () => string; getTimerRecords: () => readonly TimerRecord[] | null; onNoticesChange: (notice: ReportsNotice | null) => void }) {
-  const [selection, setSelection] = useState<ReportSelection>(defaultReportSelection)
+  const [fields, setFields] = useState<ReportSelection>(() => Object.fromEntries(Object.entries(REPORT_SECTIONS).map(([id, section]) => [id, Object.keys(section.fields)])))
+  const [enabledSections, setEnabledSections] = useState(() => Object.entries(defaultReportSelection()).filter(([, fields]) => fields.length).map(([id]) => id as ReportSection))
+  const selection = useMemo<ReportSelection>(() => Object.fromEntries(Object.keys(REPORT_SECTIONS).map(id => [id, enabledSections.includes(id as ReportSection) ? fields[id as ReportSection] : []])), [fields, enabledSections])
   const [pageOptions, setPageOptions] = useState<ReportPageOptions>(() => ({ ...DEFAULT_REPORT_PAGE }))
   const [preview, setPreview] = useState<Awaited<ReturnType<DocumentStore['generateReport']>>>(null)
+  const [previewSettings, setPreviewSettings] = useState<{ selection: ReportSelection; pageOptions: ReportPageOptions } | null>(null)
+  const [selectionOpen, setSelectionOpen] = useState(true)
+  const [selectionWidth, setSelectionWidth] = useState(42)
+  const workspace = useRef<HTMLDivElement>(null)
+  const [sheetContainer, setSheetContainer] = useState<HTMLDivElement | null>(null)
+  const [previewScale, setPreviewScale] = useState<'fit' | 'actual'>('fit')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [preparationNotices, setPreparationNotices] = useState<Partial<Record<ReportGraphicSection, string>>>({})
   const [saving, setSaving] = useState(false)
@@ -43,6 +56,8 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
   const saveRequest = useRef(false)
   const generationRequest = useRef(false)
   const saveButton = useRef<HTMLButtonElement>(null)
+  const selectionButton = useRef<HTMLButtonElement>(null)
+  const selectionPanel = useRef<HTMLDivElement>(null)
   const mounted = useRef(false)
   const [generation] = useState(() => store.getSnapshot().documentGeneration)
   const noticeId = 'report-' + generation
@@ -78,16 +93,18 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
       wrapper = doc.createElement('div'); wrapper.className = 'report-preview'
       main.before(wrapper); wrapper.append(main)
     }
-    const scale = Math.min(1, Math.max(1, doc.documentElement.clientWidth - 16) / page.offsetWidth)
-    wrapper.style.setProperty('--preview-width', page.offsetWidth + 'px')
+    const width = page.offsetWidth + 32
+    const scale = previewScale === 'actual' ? 1 : Math.min(1, Math.max(1, doc.documentElement.clientWidth) / width)
+    wrapper.style.setProperty('--preview-width', width + 'px')
     wrapper.style.setProperty('--preview-scale', String(scale))
     wrapper.style.setProperty('--preview-height', main.scrollHeight * scale + 'px')
-  }, [])
+  }, [previewScale])
   useEffect(() => {
     const node = frame.current
     if (!node) return
     const observer = new ResizeObserver(fitPreview)
     observer.observe(node)
+    fitPreview()
     return () => observer.disconnect()
   }, [preview?.report.filename, fitPreview])
   async function loadPreview(node: HTMLIFrameElement) {
@@ -108,11 +125,12 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
     }
   }
   const any = Object.values(selection).some(fields => fields && fields.length)
+  const previewCurrent = Boolean(preview && previewSettings?.selection === selection && previewSettings.pageOptions === pageOptions)
   function toggleField(section: ReportSection, field: string, checked: boolean) {
-    setSelection(current => ({ ...current, [section]: checked ? [...(current[section] ?? []), field] : (current[section] ?? []).filter(value => value !== field) }))
+    setFields(current => ({ ...current, [section]: checked ? [...(current[section] ?? []), field] : (current[section] ?? []).filter(value => value !== field) }))
   }
-  async function generate() {
-    if (generationRequest.current || saveRequest.current) return
+  const generate = useCallback(async () => {
+    if (!any || !isCurrent() || generationRequest.current || saveRequest.current) return
     const generation = store.getSnapshot().documentGeneration
     generationRequest.current = true
     setGenerating(true)
@@ -130,14 +148,24 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
       const generated = await store.generateReport(selection, mapReport, planReport, boardRequest, coordinateInput, timerRecords, pageOptions)
       if (!generated || !isCurrent()) return
       setPreviewReady(false); setPreview(generated); setSaveError(null); setDirectoryNeeded(false)
+      setPreviewSettings({ selection, pageOptions })
       if (generated.report.issues.some(issue => !issue.omitted)) toast.error('Informe incompleto: recursos no disponibles.', { id: noticeId })
     } catch (error) {
       if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo generar el informe.', { id: noticeId })
     }
     finally { generationRequest.current = false; setGenerating(false) }
-  }
+  }, [any, store, isCurrent, selection, pageOptions, getCoordinatesInput, getTimerRecords, noticeId])
+  // Selection changes refresh an existing report; document edits and framing remain explicit.
+  useEffect(() => {
+    if (!preview || previewCurrent || !any) return
+    const timer = setTimeout(() => { void generate() }, 200)
+    return () => clearTimeout(timer)
+  }, [preview, previewCurrent, any, generate])
+  useEffect(() => {
+    if (selectionOpen) selectionPanel.current?.focus()
+  }, [selectionOpen, sheetContainer])
   const resolveResource = useCallback(async (issue: ReportIssue, action: ReportResourceAction) => {
-    if (!preview || !isCurrent() || generationRequest.current || saveRequest.current) return
+    if (!preview || !previewCurrent || !isCurrent() || generationRequest.current || saveRequest.current) return
     generationRequest.current = true; setGenerating(true)
     try {
       const result = await preview.resolveResource(issue, action)
@@ -145,9 +173,9 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
       setPreviewReady(false); setPreview(result); setSaveError(null); setDirectoryNeeded(false)
     } catch (error) { if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo resolver el recurso.', { id: noticeId }) }
     finally { generationRequest.current = false; setGenerating(false) }
-  }, [preview, isCurrent, noticeId])
+  }, [preview, previewCurrent, isCurrent, noticeId])
   const save = useCallback(async () => {
-    if (!preview || !isCurrent() || saveRequest.current || generationRequest.current) return
+    if (!preview || !previewCurrent || !isCurrent() || saveRequest.current || generationRequest.current) return
     saveRequest.current = true
     setSaving(true)
     try {
@@ -161,54 +189,87 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
       if (isCurrent()) { setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el informe.'); toast.error('No se pudo guardar el informe.', { id: noticeId }) }
     }
     finally { saveRequest.current = false; setSaving(false) }
-  }, [preview, store, isCurrent, noticeId])
+  }, [preview, previewCurrent, store, isCurrent, noticeId])
   useEffect(() => {
-    const issues = preview?.report.issues.filter(issue => !issue.omitted) ?? []
-    const preparation = preview ? [] : (Object.entries(preparationNotices) as [ReportGraphicSection, string][]).map(([section, message]) => ({ section, message }))
+    const issues = previewCurrent ? preview?.report.issues.filter(issue => !issue.omitted) ?? [] : []
+    const preparation = previewCurrent ? [] : (Object.entries(preparationNotices) as [ReportGraphicSection, string][]).filter(([section]) => selection[section]?.length).map(([section, message]) => ({ section, message }))
     onNoticesChange(issues.length || preparation.length || saveError ? {
       issues, preparation, saveError, directoryNeeded, busy: generating || saving, onResolve: resolveResource, onSave: save, onDirectory: openDirectory,
     } : null)
-  }, [preview, preparationNotices, saveError, directoryNeeded, generating, saving, resolveResource, save, openDirectory, onNoticesChange])
+  }, [preview, previewCurrent, selection, preparationNotices, saveError, directoryNeeded, generating, saving, resolveResource, save, openDirectory, onNoticesChange])
   useEffect(() => () => onNoticesChange(null), [onNoticesChange])
-  return <div className={`reports-module ${styles.base}`} data-minimum-scroll-content>
-    <div className="reports-page-toolbar" role="group" aria-label="Formato del informe">
-      <span>A4</span><label>Orientación<Select aria-label="Orientación del informe" value={pageOptions.orientation} disabled={generating || saving} onValueChange={orientation => {
-        if (orientation === 'portrait' || orientation === 'landscape') setPageOptions(current => ({ ...current, orientation }))
-      }} options={[{ value: 'portrait', label: 'Vertical' }, { value: 'landscape', label: 'Horizontal' }]} /></label>
-      <label>Calidad<Select aria-label="Calidad del informe" value={pageOptions.quality} disabled={generating || saving} onValueChange={quality => {
-        if (quality === 'normal' || quality === 'high') setPageOptions(current => ({ ...current, quality }))
-      }} options={[{ value: 'normal', label: 'Normal · 150 ppp' }, { value: 'high', label: 'Alta · 300 ppp' }]} /></label>
+  return <div className={`reports-module ${styles.base}`} data-minimum-scroll-content style={{ '--report-selection-width': selectionWidth + 'cqi' } as CSSProperties}>
+    <header className={`${toolbarStyles.base} ${styles.toolbar}`} aria-label="Acciones del informe">
+      <Button ref={selectionButton} aria-label="Contenido del informe" title="Contenido del informe" aria-expanded={selectionOpen} aria-controls={`report-selection-${generation}`} onClick={() => setSelectionOpen(open => !open)}><ListFilter aria-hidden="true" /></Button>
+      <Button disabled={!any || saving || generating} aria-label="Actualizar informe" title="Actualizar informe" aria-busy={generating} onClick={() => { void generate() }}><RefreshCw aria-hidden="true" /></Button>
+      <Button ref={saveButton} disabled={!previewCurrent || saving || generating} aria-label="Guardar informe" title="Guardar informe" aria-busy={saving} onClick={() => { void save() }}><Save aria-hidden="true" /></Button>
+      <Button disabled={!previewCurrent || !previewReady || saving || generating} aria-label="Imprimir / PDF" title="Imprimir / PDF" onClick={() => {
+        try {
+          const target = frame.current?.contentWindow
+          if (!target) throw new Error('Vista previa no disponible.')
+          target.print()
+        } catch { toast.error('No se pudo abrir la impresión.', { id: noticeId }) }
+      }}><Printer aria-hidden="true" /></Button>
+      <Button disabled={!previewCurrent || saving || generating} aria-label="Descargar informe" title="Descargar informe" onClick={() => {
+        if (!preview) return
+        try { store.downloadReport(preview.report) }
+        catch { toast.error('No se pudo descargar el informe.', { id: noticeId }) }
+      }}><Download aria-hidden="true" /></Button>
+      <Select aria-label="Tamaño de la vista previa" value={previewScale} onValueChange={value => {
+        if (value === 'fit' || value === 'actual') setPreviewScale(value)
+      }} options={[{ value: 'fit', label: 'Ajustar al ancho' }, { value: 'actual', label: 'Tamaño real' }]} />
+    </header>
+    <div ref={workspace} className={styles.workspace} data-selection-open={selectionOpen}>
+      <div ref={setSheetContainer} className={styles.selectionSlot} />
+      {sheetContainer && <Sheet open={selectionOpen} onOpenChange={open => {
+        setSelectionOpen(open)
+        if (!open && selectionOpen) selectionButton.current?.focus()
+      }} modal={false}>
+        <SheetContent ref={selectionPanel} id={`report-selection-${generation}`} container={sheetContainer} side="left" forceMount showCloseButton={false} className={styles.selectionSheet}
+          inert={!selectionOpen} aria-hidden={!selectionOpen || undefined} aria-describedby={undefined}
+          onOpenAutoFocus={event => event.preventDefault()} onCloseAutoFocus={event => event.preventDefault()}
+          onInteractOutside={event => event.preventDefault()}>
+          <SheetBody className={styles.selectionBody}>
+            <SheetHeader><SheetTitle>Contenido del informe</SheetTitle></SheetHeader>
+            <fieldset className="reports-page-toolbar" disabled={generating || saving}>
+              <legend>Formato · A4</legend>
+              <label>Orientación<Select aria-label="Orientación del informe" value={pageOptions.orientation} disabled={generating || saving} onValueChange={orientation => {
+                if (orientation === 'portrait' || orientation === 'landscape') setPageOptions(current => ({ ...current, orientation }))
+              }} options={[{ value: 'portrait', label: 'Vertical' }, { value: 'landscape', label: 'Horizontal' }]} /></label>
+              <label>Calidad<Select aria-label="Calidad del informe" value={pageOptions.quality} disabled={generating || saving} onValueChange={quality => {
+                if (quality === 'normal' || quality === 'high') setPageOptions(current => ({ ...current, quality }))
+              }} options={[{ value: 'normal', label: 'Normal · 150 ppp' }, { value: 'high', label: 'Alta · 300 ppp' }]} /></label>
+            </fieldset>
+            <div className="reports-sections">
+              {(Object.entries(REPORT_SECTIONS) as [ReportSection, typeof REPORT_SECTIONS[ReportSection]][]).map(([id, section]) => <fieldset key={id} disabled={generating || saving}>
+                <legend><label><Checkbox disabled={generating || saving} checked={enabledSections.includes(id)} aria-controls={`report-fields-${generation}-${id}`} onCheckedChange={checked => setEnabledSections(current => checked ? [...current, id] : current.filter(value => value !== id))} />{section.title}</label></legend>
+                {enabledSections.includes(id) && <div id={`report-fields-${generation}-${id}`}>
+                  <div className={styles.fields}>
+                    {Object.entries(section.fields).map(([field, label]) => <label key={field}><Checkbox disabled={generating || saving} checked={fields[id]?.includes(field) ?? false} onCheckedChange={nextChecked => toggleField(id, field, nextChecked)} />{label}</label>)}
+                  </div>
+                  <fieldset className={styles.framing} disabled={generating || saving}>
+                    {id === 'map' && Boolean(selection.map?.length) && <Suspense fallback={null}>
+                      <ReportMap store={store} fields={selection.map!} captureRef={mapCapture} onNotice={showPreparationNotice} />
+                    </Suspense>}
+                    {id === 'plan' && Boolean(selection.plan?.length) && <Suspense fallback={null}>
+                      <ReportMap kind="plan" store={store} fields={selection.plan!} captureRef={planCapture} onNotice={showPreparationNotice} />
+                    </Suspense>}
+                    {id === 'board' && selection.board?.includes('image') && <Suspense fallback={null}>
+                      <ReportBoard store={store} captureRef={boardCapture} onNotice={showPreparationNotice} />
+                    </Suspense>}
+                  </fieldset>
+                </div>}
+              </fieldset>)}
+            </div>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>}
+      <ReportSelectionResize value={selectionWidth} onChange={setSelectionWidth} container={workspace} controls={`report-selection-${generation}`} disabled={!selectionOpen || generating || saving} className={styles.resizeHandle} />
+      <section className={styles.preview} aria-label="Vista previa del informe" aria-busy={generating}>
+        {preview && <iframe key={preview.report.filename} ref={frame} title="Vista previa del informe" hidden={!previewCurrent} sandbox="allow-same-origin allow-modals" srcDoc={preview.report.html} onLoad={event => { void loadPreview(event.currentTarget) }} />}
+        {!previewCurrent && <p className={styles.empty} role="status">{generating ? 'Actualizando informe…' : !any ? 'Selecciona el contenido del informe.' : preview ? 'Actualiza el informe para ver la selección.' : 'Vista previa'}</p>}
+      </section>
     </div>
-    <div className="reports-sections">
-      {(Object.entries(REPORT_SECTIONS) as [ReportSection, typeof REPORT_SECTIONS[ReportSection]][]).map(([id, section]) => <fieldset key={id} disabled={generating}>
-        <legend><label><Checkbox disabled={generating} checked={Boolean(selection[id]?.length)} onCheckedChange={nextChecked => setSelection(current => ({ ...current, [id]: nextChecked ? Object.keys(section.fields) : [] }))} />{section.title}</label></legend>
-        {Object.entries(section.fields).map(([field, label]) => <label key={field}><Checkbox disabled={generating} checked={selection[id]?.includes(field) ?? false} onCheckedChange={nextChecked => toggleField(id, field, nextChecked)} />{label}</label>)}
-      </fieldset>)}
-    </div>
-    {Boolean(selection.map?.length) && <Suspense fallback={null}>
-      <ReportMap store={store} fields={selection.map!} captureRef={mapCapture} onNotice={showPreparationNotice} />
-    </Suspense>}
-    {Boolean(selection.plan?.length) && <Suspense fallback={null}>
-      <ReportMap kind="plan" store={store} fields={selection.plan!} captureRef={planCapture} onNotice={showPreparationNotice} />
-    </Suspense>}
-    {selection.board?.includes('image') && <Suspense fallback={null}>
-      <ReportBoard store={store} captureRef={boardCapture} onNotice={showPreparationNotice} />
-    </Suspense>}
-    <div className="reports-actions"><Button disabled={!any || saving || generating} onClick={() => { void generate() }}>{generating ? 'Generando…' : preview ? 'Actualizar informe' : 'Generar vista previa'}</Button>
-      {preview && <><Button ref={saveButton} disabled={saving || generating} onClick={() => { void save() }}>{saving ? 'Guardando…' : 'Guardar informe'}</Button>
-        <Button disabled={!previewReady || generating} onClick={() => {
-          try {
-            const target = frame.current?.contentWindow
-            if (!target) throw new Error('Vista previa no disponible.')
-            target.print()
-          } catch { toast.error('No se pudo abrir la impresión.', { id: noticeId }) }
-        }}>Imprimir / PDF</Button>
-        <Button disabled={generating} onClick={() => {
-          try { store.downloadReport(preview.report) }
-          catch { toast.error('No se pudo descargar el informe.', { id: noticeId }) }
-        }}>Descargar informe</Button></>}
-    </div>
-    {preview && <iframe key={preview.report.filename} ref={frame} title="Vista previa del informe" sandbox="allow-same-origin allow-modals" srcDoc={preview.report.html} onLoad={event => { void loadPreview(event.currentTarget) }} />}
     {directoryOpen && <Suspense fallback={null}><WorkDirectoryDialog onClose={() => setDirectoryOpen(false)} onCloseFocus={() => saveButton.current?.focus()}
       onContinueLocally={() => store.continueLocally()} /></Suspense>}
   </div>

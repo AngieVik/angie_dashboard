@@ -8,7 +8,7 @@
     padding: 0;
   }
 
-  .radarActions { display: flex; flex: none; align-items: center; gap: 3px; margin-left: auto; }
+  .radarActions { display: flex; flex: none; align-items: center; gap: var(--control-gap); margin-left: auto; }
   .solarTools { display: contents; }
   .arithmetic { display: flex; flex: 1; flex-direction: column; min-height: 0; }
   :where(.base) :global(.calculator-keypad) { container-type: size; display: grid; flex: 1; min-height: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); gap: 0; }
@@ -17,7 +17,7 @@
 
 @layer overrides {
   .arithmetic [data-slot="input"] { flex: 0 0 var(--field-height); width: 100%; text-align: right; }
-  .base :global(.calculator-keypad) [data-slot="button"] { height: 100%; min-height: 0; min-width: 0; --control-font-size: calc(24px * var(--module-zoom, 1)); padding: 1px 4px; font-variant-numeric: tabular-nums; overflow: hidden; }
+  .base :global(.calculator-keypad) [data-slot="button"] { height: 100%; min-height: 0; min-width: 0; --control-font-size: calc(24px * var(--module-zoom, 1)); padding: 1px var(--space-1); font-variant-numeric: tabular-nums; overflow: hidden; }
 
   :global(.module-frame)[data-fitting] .base :global(.calculator-keypad) { flex: none; container-type: normal; grid-template-rows: repeat(6, var(--control-height)); }
   :global(.module-scaled-content)[data-measuring="minimum-width"] .base :global(.calculator-keypad) { container-type: normal; grid-template-columns: repeat(4, minmax(min-content, 1fr)); }

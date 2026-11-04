@@ -1,7 +1,7 @@
 .permissions-list { display: flex; flex-direction: column; gap: 8px; }
 .permission-section { min-width: 0; }
 .permission-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
-.permission-heading h3 { margin: 0; font-size: inherit; }
+.permission-heading h3 { margin: 0; font-size: var(--font-size-title); }
 .permission-heading [role="status"] { color: var(--color-text-secondary); }
 .permission-section p { margin: 6px 0; overflow-wrap: anywhere; }
 .permission-actions { display: flex; flex-wrap: wrap; gap: 8px; }

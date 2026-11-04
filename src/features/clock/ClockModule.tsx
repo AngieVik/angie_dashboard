@@ -33,8 +33,7 @@ export function ClockModule({ store }: { store: TimerStore }) {
     node.dataset.sizing = 'true'
     try {
       const height = node.scrollHeight
-      if (collect) requestSpace({ width: 0, height }, { fitHeight: true })
-      else if (height > availableHeight) requestSpace({ width: 0, height })
+      if (collect || height > availableHeight) requestSpace({ width: 0, height })
     } finally { delete node.dataset.sizing }
   }, [timers.length, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])

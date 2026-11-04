@@ -147,11 +147,16 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
   const content = table('elements', resources(false)) + table('dotations', resources(true)) + table('information', operational) + table('operations', operational)
     + table('timeline', timeline) + table('notebook', notebook) + mapContent + planContent + boardContent + table('coordinates', coordinates) + timerContent
   const title = document.document.title || 'Sin nombre'
+  const dates = { createdAt: document.document.createdAt, updatedAt: document.document.updatedAt, generatedAt: generatedAt.toISOString() }
+  const metadata = Object.entries(REPORT_SECTIONS.metadata.fields)
+    .filter(([field]) => selected('metadata', field))
+    .map(([field, label]) => `${escape(label)}: ${escape(formatTimelineDate(dates[field as keyof typeof dates]))}`)
+    .join('<br>')
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"><title>Informe · ${escape(title)}</title>
 <style>${fontStyles}
 ${reportStyles}
 ${reportPageStyles(page)}</style></head><body><main>
-<header><p>Angie Dashboard · Informe</p><h1>${escape(title)}</h1><p>Documento creado: ${escape(formatTimelineDate(document.document.createdAt))}<br>Última edición: ${escape(formatTimelineDate(document.document.updatedAt))}<br>Informe generado: ${escape(formatTimelineDate(generatedAt.toISOString()))}</p></header>
+<header><p>Angie Dashboard · Informe</p><h1>${escape(title)}</h1>${metadata ? `<p>${metadata}</p>` : ''}</header>
 ${issues.length ? `<p class="report-unavailable">${issues.some(issue => !issue.omitted) ? 'Informe incompleto: recursos no disponibles.' : 'Informe con recursos omitidos.'}</p>` : ''}${content}</main></body></html>`
   return { filename: `informe_${generatedAt.toISOString().replace(/[:.]/g, '-')}_${crypto.randomUUID()}.html`, html, issues }
 }

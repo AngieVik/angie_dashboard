@@ -30,7 +30,7 @@
     margin: 0;
     padding: calc(2px * var(--module-zoom, 1)) calc(3px * var(--module-zoom, 1));
   }
-  :where(.base) :global(.timer-value) { display: block; min-width: 0; width: 100%; margin: 0; overflow: hidden; font-family: inherit; font-weight: 600; font-size: var(--timer-font-size); line-height: 1; white-space: nowrap; }
+  :where(.base) :global(.timer-value) { display: block; min-width: 0; width: 100%; margin: 0; overflow: hidden; font-family: var(--font-clock); font-weight: 600; font-size: var(--timer-font-size); line-height: 1; white-space: nowrap; }
   :where(.base) :global(.timer-controls) { display: flex; flex: none; align-items: center; gap: var(--timer-control-gap); margin: 0; }
   .base[data-alert="true"] { border-color: #fff; border-bottom-color: transparent; outline: 1px solid #fff; animation: timer-alarm var(--alarm-cycle) steps(1, end) infinite; cursor: pointer; }
   @keyframes timer-alarm {

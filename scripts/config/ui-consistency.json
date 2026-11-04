@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "id": "module-content-typography",
+      "name": "Contenido de módulos: tipografía común",
+      "target": "modules",
+      "properties": ["font-family", "font-size"],
+      "reason": "La interfaz comparte fuente y tokens de contenido de ModuleFrame; las especializaciones documentadas se comprueban mediante excepciones concretas.",
+      "sources": ["DISEÑO.md", "src/layout/moduleFrame.module.css", "src/styles/tokens.css"]
+    },
+    {
+      "id": "element-lists",
+      "name": "Elementos y Dotaciones: base compartida",
+      "target": "modules",
+      "members": ["elements", "dotations"],
+      "properties": ["font-family", "font-size", "padding", "padding-inline", "padding-block", "min-width", "min-height", "initialWidth", "initialHeight", "registryMinWidth", "registryMinHeight"],
+      "reason": "DotationsModule delega en ElementsModule y ElementsContent; se comparan las bases de esa misma composición.",
+      "sources": ["src/features/elements/DotationsModule.tsx", "src/features/elements/ElementsModule.tsx", "src/layout/moduleRegistry.ts"]
+    },
+    {
+      "id": "file-dialog-shell",
+      "name": "Diálogos de Archivo: base compartida",
+      "target": "fileDialog",
+      "properties": ["font-family", "font-size", "font-weight", "line-height", "padding", "padding-inline", "padding-block", "padding-top", "padding-right", "padding-bottom", "padding-left"],
+      "reason": "Comparten FileDialogContent. Los anchos y altos iniciales y fitToContent corresponden a formularios distintos y se conservan en el inventario sin exigir igualdad.",
+      "sources": ["src/features/document/FileDialog.tsx", "src/features/document/fileDialog.module.css", "DISEÑO.md"]
+    },
+    {
+      "id": "alert-dialog-shell",
+      "name": "Confirmaciones: base AlertDialog",
+      "target": "alertDialog",
+      "properties": ["font-family", "font-size", "font-weight", "line-height", "padding", "width", "min-width", "max-width", "height", "min-height", "max-height"],
+      "reason": "Estas superficies reutilizan AlertDialogContent y su misma base CSS. La altura que resulte del contenido no se mide estáticamente.",
+      "sources": ["src/components/ui/alert-dialog/alert-dialog.tsx", "src/components/ui/alert-dialog/alert-dialog.module.css"]
+    },
+    {
+      "id": "sheet-shell",
+      "name": "Paneles Sheet: tipografía y espacio comunes",
+      "target": "sheet",
+      "properties": ["font-family", "font-size", "padding"],
+      "reason": "SheetContent comparte tipografía y padding; sus medidas dependen del lado del panel y no se comparan como dimensiones equivalentes.",
+      "sources": ["src/components/ui/sheet/sheet.tsx", "src/components/ui/sheet/sheet.module.css"]
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "clock-content-font",
+      "group": "module-content-typography",
+      "moduleId": "clock",
+      "property": "font-family",
+      "expected": "\"Rajdhani\", sans-serif",
+      "reason": "DISEÑO.md establece Rajdhani para el contenido del Reloj y temporizadores. Las cabeceras y avisos conservan la fuente común y no están incluidos en esta excepción.",
+      "sources": ["DISEÑO.md", "src/features/clock/clock.module.css"]
+    }
+  ]
+}

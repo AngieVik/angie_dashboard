@@ -30,8 +30,10 @@ th { overflow-wrap: anywhere; word-break: normal; }
 .report-composition-content .report-map-image { margin: 0 auto; max-height: none; }
 
 @media screen {
-  .report-preview { position: relative; overflow: hidden; height: var(--preview-height); }
-  .report-preview main.report-pages { position: absolute; top: 0; left: 0; width: var(--preview-width); transform: scale(var(--preview-scale)); transform-origin: top left; }
+  .report-preview { position: relative; width: calc(var(--preview-width) * var(--preview-scale)); min-width: 100%; height: var(--preview-height); }
+  .report-preview main.report-pages { display: flow-root; position: absolute; top: 0; left: 0; width: var(--preview-width); padding: 16px; transform: scale(var(--preview-scale)); transform-origin: top left; }
+  .report-preview .report-page { margin: 0 auto 16px; }
+  .report-preview .report-page:last-child { margin-bottom: 0; }
 }
 
 @media print {

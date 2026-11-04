@@ -1,11 +1,11 @@
 import { validateDocument } from './validateDocument'
-import { checkDocumentBudget } from '../input/inputBudgets'
+import { CURRENT_DOCUMENT_VERSION as currentVersion, isDocumentEnvelope as isEnvelope, rejectDocumentMigration as reject, validateCurrentDocument } from './validateCurrentDocument'
 import { validateDocumentV1 } from './validateDocumentV1'
 import { validateDocumentV2 } from './validateDocumentV2'
 import { validateDocumentV3 } from './validateDocumentV3'
 import type { AngieDocumentV1 } from './v1Types'
 import type { AngieDocumentV2, OperationalStatus as LegacyStatus } from './v2Types'
-import type { AngieDocumentV3, AngieDocumentV4, OperationalStatus, MigrationFailureCode, MigrationResult, ValidationResult } from './types'
+import type { AngieDocumentV3, AngieDocumentV4, OperationalStatus, MigrationResult, ValidationResult } from './types'
 
 interface DocumentMigration {
   targetVersion: number
@@ -55,30 +55,10 @@ const recognizedMigrations: ReadonlyMap<number, DocumentMigration> = new Map<num
   [2, { targetVersion: 3, validateSource: validateDocumentV2, migrate: convertV2 }],
   [3, { targetVersion: 4, validateSource: validateDocumentV3, migrate: input => ({ ...input as AngieDocumentV3, formatVersion: 4 }) }],
 ])
-const currentVersion = 4
-
-function reject(code: MigrationFailureCode, path: string, message: string): MigrationResult<never> {
-  return { success: false, code, errors: [{ path, message: `${path} ${message}` }] }
-}
-
-function isEnvelope(input: unknown): input is { format: unknown; formatVersion?: unknown } {
-  return typeof input === 'object' && input !== null && !Array.isArray(input)
-    && Object.hasOwn(input, 'format') && 'format' in input
-}
-
 export function migrateDocument(input: unknown): MigrationResult<AngieDocumentV4> {
-  const budget = checkDocumentBudget(input)
-  if (budget) return { success: false, code: 'invalid-document', errors: [budget] }
-  if (!isEnvelope(input) || input.format !== 'angie-dashboard') {
-    return reject('invalid-format', 'format', 'no identifica un documento Angie Dashboard')
-  }
-  if (!Number.isInteger(input.formatVersion)) {
-    return reject('invalid-version', 'formatVersion', 'debe ser un entero que identifique una versión')
-  }
-  let version = input.formatVersion as number
-  if (version > currentVersion) {
-    return reject('future-version', 'formatVersion', 'pertenece a una versión futura no reconocida')
-  }
+  const current = validateCurrentDocument(input)
+  if (current !== null) return current
+  let version = (input as { formatVersion: number }).formatVersion
 
   let candidate: unknown = input
   let migrated = false

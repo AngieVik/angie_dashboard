@@ -7,9 +7,9 @@
     overflow: hidden;
   }
   .base :global(.elements-configure-actions) { flex-direction: column; align-items: stretch; }
-  :where(.base) :global(.elements-primary-actions) { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--control-gap); min-width: max-content; }
+  :where(.base) :global(.elements-primary-actions) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--control-gap); min-width: 0; }
   :where(.base) :is(:global(.elements-selection-actions), :global(.elements-selection-controls)) { display: flex; flex: 0 0 auto; align-items: center; gap: var(--control-gap); }
-  :where(.base) :global(.elements-selection-controls) { justify-content: space-between; }
+  :where(.base) :global(.elements-selection-controls) { flex-wrap: wrap; justify-content: space-between; }
   :where(.base) :global(.elements-selection-controls) label { display: flex; align-items: center; gap: var(--control-gap); white-space: nowrap; }
   :where(.base) :global(.element-row)[data-checked="true"] { border-color: var(--color-selection-border); }
   :where(.base) :global(.element-batch-summary) { margin: 0 0 var(--section-gap); color: var(--color-text-secondary); }
@@ -50,7 +50,7 @@
 }
 
 @layer overrides {
-  :where(.base) :global(.element-row-checkbox) { margin: 4px; }
+  :where(.base) :global(.element-row):has(> :global(.element-row-checkbox)) { column-gap: var(--control-gap); }
   :where(.base) :global(.element-row) :global(.element-select) { display: flex; flex: 1; align-self: stretch; align-items: center; justify-content: flex-start; gap: 0; min-width: 0; height: auto; min-height: 0; padding: 0; border: 0; line-height: normal; text-align: left; user-select: none; -webkit-touch-callout: none; }
   :where(.base) :global(.element-row) :global(.element-select):not(:hover:enabled, :active:enabled) { background: transparent; box-shadow: none; }
   :where(.base) :global(.element-row)[data-unit="true"] :global(.element-select) { gap: var(--section-gap); }
@@ -62,7 +62,7 @@
   :where(.base) :global(.element-editor) [data-slot="select"] { flex: 1; }
   :where(.base) :global(.element-adjustment-row) > span { flex: 0 0 5ch; color: var(--color-text-secondary); }
   :where(.base) :global(.element-value-control) [data-slot="input"],
-  :where(.base) :global(.element-editor) :global(.element-emoji-control) { flex: 0 0 auto; width: calc(4ch + 2 * var(--control-gap)); padding-inline: var(--control-gap); appearance: textfield; text-align: center; font-variant-numeric: tabular-nums; }
+  :where(.base) :global(.element-editor) :global(.element-emoji-control) { flex: 0 0 auto; width: calc(4ch + 2 * var(--control-gap)); appearance: textfield; text-align: center; font-variant-numeric: tabular-nums; }
   :where(.base) :global(.element-value-control) input::-webkit-inner-spin-button,
   :where(.base) :global(.element-value-control) input::-webkit-outer-spin-button { appearance: none; margin: 0; }
   :where(.base) :global(.element-transform-controls) [data-slot="button"][aria-pressed="true"]:not(:hover:enabled) { border-color: var(--color-selection-border); background: var(--color-selected); }

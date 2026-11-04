@@ -37,12 +37,12 @@
   :where(.base) :global(.map-zoom) { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; top: 8px; left: 8px; z-index: 1000; }
   :where(.gpxPanel) :global(.map-files) { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0 2px; }
   :where(.gpxPanel) :global(.map-files) li { display: flex; flex: none; align-items: center; gap: 1px; min-width: 0; padding: 0; }
-  :where(.pkPopover) :global(.map-pk-heading) { display: flex; align-items: center; gap: 6px; font-size: var(--control-font-size); }
+  :where(.pkPopover) :global(.map-pk-heading) { display: flex; align-items: center; gap: var(--space-2); font-size: var(--control-font-size); }
   :where(.pkPopover) :global(.map-pk-heading) output { margin-left: auto; font-family: var(--font-interface); }
   :where(.pkPopover) :global(.map-pk-steps) { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-family: var(--font-interface); font-size: var(--font-size-technical); }
   :where(.base) :global(.map-track-info) { display: flex; flex-wrap: wrap; align-items: baseline; flex: none; min-width: 0; gap: 2px 12px; padding: 3px 5px; border-top: 1px solid var(--color-border); font-size: var(--control-font-size); }
   :where(.base) :global(.map-track-info) dl { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; }
-  :where(.base) :global(.map-track-info) dl > div { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+  :where(.base) :global(.map-track-info) dl > div { display: flex; align-items: baseline; gap: var(--space-1); min-width: 0; }
   :where(.base) :global(.map-track-info) dt { color: var(--color-text-secondary); }
   :where(.base) :global(.map-track-info) dd { margin: 0; font-family: var(--font-interface); overflow-wrap: anywhere; }
   :where(.base) :global(.map-track-info) dd a { color: inherit; }
@@ -54,7 +54,7 @@
 @layer overrides {
   .panelTool { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
   .panelTool[aria-pressed="true"] { background: var(--color-selected); color: var(--color-text); }
-  :where(.gpxPanel) :global(.map-file-name) { display: block; box-sizing: border-box; flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  :where(.gpxPanel) :global(.map-file-name) { display: block; box-sizing: border-box; flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
   :where(.gpxPanel) :global(.map-file-name)[data-visible="false"] { color: var(--color-text-secondary); }
   :where(.gpxPanel) :global(.map-file-name)[aria-pressed="true"] { border-color: var(--color-selection-border); background: var(--color-selected); }
   :where(.base) :global(.map-coordinate-field) { flex: 1; align-items: center; }
@@ -62,7 +62,7 @@
   :where(.base) :is(:global(.map-panel-toggles), :global(.map-zoom)) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
   :where(.base) :global(.map-panel-toggles) [data-slot="button"] { flex-shrink: 1; min-width: 0; }
   :where(.base) :global(.map-panel-toggles) [data-slot="button"][aria-pressed="true"] { background: var(--color-selected); color: var(--color-text); }
-  :where(.base) :global(.map-search-results) [data-slot="button"] { display: flex; flex-direction: column; align-items: stretch; gap: 2px; box-sizing: border-box; width: 100%; min-width: 0; height: auto; padding: 4px 6px; line-height: normal; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  :where(.base) :global(.map-search-results) [data-slot="button"] { display: flex; flex-direction: column; align-items: stretch; gap: 2px; box-sizing: border-box; width: 100%; min-width: 0; height: auto; padding: var(--space-1) var(--space-2); line-height: normal; text-align: left; white-space: normal; overflow-wrap: anywhere; }
   :where(.base) :global(.map-zoom) [data-slot="button"]:not(:hover:enabled, :active:enabled) { background: var(--color-module); }
 }
 

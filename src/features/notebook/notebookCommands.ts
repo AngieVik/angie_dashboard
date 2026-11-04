@@ -26,10 +26,6 @@ export function editNotebookNote(document: AngieDocument, id: string, text: stri
   if (block.type !== 'note') throw new Error('El bloque no es una nota.')
   return block.text === text ? commandResult(document, document) : replaceBlock(document, { ...block, text })
 }
-export function editNotebookTitle(document: AngieDocument, id: string, title: string) {
-  const block = findBlock(document, id)
-  return block.title === title ? commandResult(document, document) : replaceBlock(document, { ...block, title })
-}
 export function deleteNotebookBlock(document: AngieDocument, id: string) {
   findBlock(document, id)
   return commandResult(document, { ...document, notebook: document.notebook.filter(block => block.id !== id) })

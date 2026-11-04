@@ -5,7 +5,7 @@ import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
-import type { PlanMode } from './PlanModule'
+import type { PlanMode } from './planTypes'
 import styles from './PlanDrawing.module.css'
 import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
 

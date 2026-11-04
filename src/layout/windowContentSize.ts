@@ -1,5 +1,44 @@
 import type { ModuleSizeMode } from './moduleRegistry'
-import type { Size } from './layoutTypes'
+import { moduleAutoHeightLimit, moduleBaseSize, MODULE_REGISTRY } from './moduleRegistry'
+import type { ModuleId, Size } from './layoutTypes'
+
+export function measureModuleBaseSize(frame: HTMLElement | null, id: ModuleId): Size {
+  const size = moduleBaseSize(id)
+  if (!frame || MODULE_REGISTRY[id].baseHeight === 'fixed') return size
+  const content = frame.querySelector<HTMLElement>('.module-content')
+  const body = frame.querySelector<HTMLElement>('.module-scaled-content')
+  const controls = frame.querySelector<HTMLElement>('.module-controls')
+  if (!content || !body) return size
+  const width = frame.style.width, height = frame.style.height
+  const collapsed = frame.getAttribute('data-collapsed'), iconOnly = frame.getAttribute('data-icon-only')
+  const measuring = body.getAttribute('data-measuring')
+  const clock = body.querySelector<HTMLElement>('.clock-module'), clockSizing = clock?.getAttribute('data-sizing')
+  const contentHidden = content.hidden, controlsHidden = controls?.hidden
+  const scrolls = [frame, ...frame.querySelectorAll<HTMLElement>('*')]
+    .filter(node => node.scrollTop || node.scrollLeft)
+    .map(node => ({ node, top: node.scrollTop, left: node.scrollLeft }))
+  try {
+    frame.style.width = size.width + 'px'; frame.style.height = 'auto'
+    frame.setAttribute('data-collapsed', 'false'); frame.setAttribute('data-icon-only', 'false')
+    content.hidden = false
+    if (controls) controls.hidden = false
+    body.setAttribute('data-measuring', 'true')
+    clock?.setAttribute('data-sizing', 'true')
+    const style = getComputedStyle(frame)
+    const chrome = (frame.querySelector<HTMLElement>('.module-header')?.offsetHeight ?? 27)
+      + (controls?.offsetHeight ?? 25) + (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0)
+    return { width: size.width, height: Math.min(moduleAutoHeightLimit(id), Math.max(size.height, Math.ceil(body.scrollHeight + chrome))) }
+  } finally {
+    frame.style.width = width; frame.style.height = height
+    if (collapsed === null) frame.removeAttribute('data-collapsed'); else frame.setAttribute('data-collapsed', collapsed)
+    if (iconOnly === null) frame.removeAttribute('data-icon-only'); else frame.setAttribute('data-icon-only', iconOnly)
+    if (measuring === null) body.removeAttribute('data-measuring'); else body.setAttribute('data-measuring', measuring)
+    if (clockSizing == null) clock?.removeAttribute('data-sizing'); else clock?.setAttribute('data-sizing', clockSizing)
+    content.hidden = contentHidden
+    if (controls) controls.hidden = controlsHidden ?? false
+    for (const { node, top, left } of scrolls) { node.scrollTop = top; node.scrollLeft = left }
+  }
+}
 
 export function constrainWindowContentSize(frame: HTMLElement | null | undefined, size: Size, sizeMode: ModuleSizeMode = 'standard', minimumHeightLimit = Infinity): Size {
   if (!frame) return size

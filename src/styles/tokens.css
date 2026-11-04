@@ -35,15 +35,16 @@
   /* Shared base measures; module zoom derives effective values below. */
   --space-1: 4px;
   --space-2: 6px;
-  --radius-1: 2px;
   --radius-2: 3px;
   --duration-fast: 110ms;
   --control-height-base: 25px;
+  --button-padding-base: 2px;
+  --field-padding-base: 2px;
   --icon-size-base: 15px;
-  --checkbox-size-base: 16px;
+  --checkbox-size-base: 15px;
   --control-font-size-base: 13px;
   --field-font-size-base: 13px;
-  --font-size-body-base: 14px;
+  --font-size-body-base: 13px;
   --font-size-title-base: 16px;
   --font-size-technical-base: 13px;
 
@@ -80,7 +81,7 @@
   /* Semantic measures and default typography. */
   --control-gap: var(--space-1);
   --section-gap: var(--space-2);
-  --radius-field: var(--radius-1);
+  --radius-field: var(--radius-2);
   --radius-control: var(--radius-2);
   --transition-control: var(--duration-fast);
   --control-font-size: var(--control-font-size-base);
@@ -89,10 +90,12 @@
   --checkbox-size: var(--checkbox-size-base);
   --field-font-size: var(--field-font-size-base);
   --field-height: var(--control-height);
+  --module-header-font-size: 13px;
+  --notice-font-size: 13px;
   --font-interface-default: "Roboto Condensed", sans-serif;
   --font-interface: var(--font-interface-default);
   --font-clock: "Rajdhani", sans-serif;
-  --font-size-body: clamp(13px, calc(12px + 0.25vw), 16px);
-  --font-size-title: clamp(15px, calc(14px + 0.25vw), 18px);
-  --font-size-technical: clamp(12px, calc(11px + 0.25vw), 16px);
+  --font-size-body: var(--font-size-body-base);
+  --font-size-title: var(--font-size-title-base);
+  --font-size-technical: var(--font-size-technical-base);
 }

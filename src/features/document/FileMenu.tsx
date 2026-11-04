@@ -1,26 +1,24 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { CircleAlert, ClipboardPen, ClipboardList, ClipboardCheck, ClipboardPlus, ClipboardX, ClipboardClock, FileBracesCorner, FolderSync, FolderCog, Settings } from 'lucide-react'
+import { CircleAlert, ClipboardPen, ClipboardList, ClipboardCheck, ClipboardPlus, ClipboardX, ClipboardClock, FileBracesCorner, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from '@/components/ui/sonner'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarTrigger } from '@/components/ui/menubar'
-import { AlertDialog, AlertDialogCancel, AlertDialogForm, AlertDialogFooter } from '@/components/ui/alert-dialog'
-import { FileDialogContent } from './FileDialog'
 import { getDocumentStore, useDocumentStore } from './documentStore'
 import type { DocumentStore, DocumentSnapshot } from './documentStore'
+import type { Naming } from './FileMenuDialogs'
 import type { ReportsNotice } from './ReportsModule'
 import type { MapNotice } from '../map/MapModule'
-import { REPORT_SECTIONS } from './reportSections'
-import { formatReportIssue, reportIssueKey } from './reportIssues'
-import { formatTimelineDate, formatTimelineTime } from '../timeline/timelineCommands'
+import { formatTimelineTime } from '../timeline/timelineCommands'
 import type { SettingsSection } from '../settings/SettingsDialog'
-import { filterWorkspaceName, workspaceNameError } from '../../platform/files/workspaceNames'
-import './permissions.css'
+import { workspaceNameError } from '../../platform/files/workspaceNames'
 import styles from './FileMenu.module.css'
 import controlStyles from '@/layout/controlButton.module.css'
 
+const FileMenuDialogs = lazy(() => import('./FileMenuDialogs').then(module => ({ default: module.FileMenuDialogs })))
+const ReplacementBlockedDialog = lazy(() => import('./FileMenuDialogs').then(module => ({ default: module.ReplacementBlockedDialog })))
+const DocumentNoticeDetails = lazy(() => import('./DocumentNoticeDetails').then(module => ({ default: module.DocumentNoticeDetails })))
 const SettingsDialog = lazy(() => import('../settings/SettingsDialog').then(module => ({ default: module.SettingsDialog })))
 const RecoveryDialog = lazy(() => import('./RecoveryDialog').then(module => ({ default: module.RecoveryDialog })))
 const WorkDirectoryDialog = lazy(() => import('./PermissionsDialog').then(module => ({ default: module.WorkDirectoryDialog })))
@@ -33,8 +31,6 @@ function saveLabels(snapshot: DocumentSnapshot) {
     snapshot.workspaceStatus === 'saved' ? 'Carpeta: guardado' + (snapshot.workspaceSavedAt ? ' ' + formatTimelineTime(snapshot.workspaceSavedAt) : '') : 'Carpeta: pendiente de guardar'
   return { local, folder }
 }
-type Naming = 'new' | 'rename' | 'saveAs'
-
 export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore }) {
   const snapshot = useDocumentStore(store)
   const { active, ready, fileBusy, document } = snapshot
@@ -146,42 +142,18 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
       </MenubarContent>
     </MenubarMenu>
     {configuration && <Suspense fallback={null}><SettingsDialog initialSection={configuration} onClose={closeConfiguration} onCloseFocus={() => { if (naming) nameInput.current?.focus(); else trigger.current?.focus() }} onContinueLocally={() => store.continueLocally()} onDownload={active ? () => store.downloadJson() : undefined} /></Suspense>}
-    <AlertDialog open={Boolean(naming)} onOpenChange={open => { if (!open && !fileBusy && !namingBusy) setNaming(null) }}>
-      <FileDialogContent fitToContent title={naming === 'rename' ? 'Cambiar nombre' : naming === 'saveAs' ? 'Guardar como' : 'Nuevo UIBoard'} icon={naming === 'saveAs' ? ClipboardPlus : ClipboardPen} onClose={() => { if (!store.getSnapshot().fileBusy && !namingSubmission.current) setNaming(null) }}
-        onOpenAutoFocus={event => { event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select() }}>
-        <AlertDialogForm onSubmit={event => { event.preventDefault(); void acceptName() }}>
-          <Input ref={nameInput} aria-label="Nombre" placeholder="Nombre" aria-invalid={Boolean(nameError)} maxLength={100} value={name} disabled={fileBusy || namingBusy}
-            onChange={event => { setName(filterWorkspaceName(event.target.value)); setDialogError(null) }} />
-
-          {dialogError && <Button disabled={fileBusy} onClick={() => setConfiguration('storage')}>Carpeta de trabajo</Button>}
-          <AlertDialogFooter>
-            <Button type="submit" disabled={fileBusy || namingBusy}>{fileBusy || namingBusy ? 'Preparando…' : 'Aceptar'}</Button>
-            <AlertDialogCancel asChild><Button disabled={fileBusy || namingBusy}>Cancelar</Button></AlertDialogCancel></AlertDialogFooter>
-        </AlertDialogForm>
-      </FileDialogContent>
-    </AlertDialog>
-    <AlertDialog open={Boolean(pending)} onOpenChange={open => { if (!open && !fileBusy) setPending(null) }}>
-      <FileDialogContent title="Cambios sin guardar" icon={ClipboardCheck} onClose={() => { if (!store.getSnapshot().fileBusy) setPending(null) }}>
-
-        <AlertDialogFooter>
-          <Button disabled={fileBusy} onClick={() => { void store.saveDocument().then(async saved => {
-            if (saved && pending) { const action = pending; setPending(null); await action() }
-            else { setDialogError(store.getSnapshot().workspaceMessage ?? store.getSnapshot().fileMessage); if (store.getSnapshot().workspacePermissionRequired) setConfiguration('storage') }
-          }) }}>Guardar y continuar</Button>
-          <Button disabled={fileBusy || (snapshot.autosaveUnavailable && snapshot.workspaceStatus !== 'saved')} onClick={() => { if (pending) { const action = pending; setPending(null); void action() } }}>Continuar sin guardar</Button>
-          <AlertDialogCancel asChild><Button disabled={fileBusy}>Cancelar</Button></AlertDialogCancel>
-        </AlertDialogFooter>
-      </FileDialogContent>
-    </AlertDialog>
-    <AlertDialog open={closing} onOpenChange={setClosing}>
-      <FileDialogContent title="Cerrar UIBoard" icon={ClipboardX} onClose={() => setClosing(false)} fitToContent>
-        <p>¿Cerrar «{document.document.title || 'Sin nombre'}»?</p>
-        <AlertDialogFooter>
-          <Button disabled={fileBusy} onClick={() => { setClosing(false); void transition(() => store.closeDocument(true)) }}>Cerrar</Button>
-          <AlertDialogCancel asChild><Button disabled={fileBusy}>Cancelar</Button></AlertDialogCancel>
-        </AlertDialogFooter>
-      </FileDialogContent>
-    </AlertDialog>
+    {(naming || pending || closing) && <Suspense fallback={null}><FileMenuDialogs snapshot={snapshot} nameInput={nameInput}
+      naming={naming ? { mode: naming, value: name, busy: namingBusy, nameError, hasError: Boolean(dialogError),
+        onChange: value => { setName(value); setDialogError(null) }, onSubmit: () => { void acceptName() },
+        onClose: () => { if (!store.getSnapshot().fileBusy && !namingSubmission.current) setNaming(null) }, onDirectory: () => setConfiguration('storage') } : null}
+      pending={pending ? { onClose: () => { if (!store.getSnapshot().fileBusy) setPending(null) },
+        onSave: () => { void store.saveDocument().then(async saved => {
+          if (saved && pending) { const action = pending; setPending(null); await action() }
+          else { setDialogError(store.getSnapshot().workspaceMessage ?? store.getSnapshot().fileMessage); if (store.getSnapshot().workspacePermissionRequired) setConfiguration('storage') }
+        }) }, onContinue: () => { const action = pending; setPending(null); void action() } } : null}
+      closing={closing ? { title: document.document.title, onClose: () => setClosing(false),
+        onConfirm: () => { setClosing(false); void transition(() => store.closeDocument(true)) } } : null}
+      onCloseFocus={() => trigger.current?.focus()} /></Suspense>}
     {recovering && <Suspense fallback={null}><RecoveryDialog store={store} busy={recoveryBusy} error={dialogError} onRefresh={() => { void showRecovery() }} onClose={closeRecovery}
       onOpen={copy => { closeRecovery(); void transition(() => store.restoreDocument(copy.key, copy)) }}
       onRecent={() => { closeRecovery(); void transition(() => store.openRecentDocument()) }} /></Suspense>}
@@ -192,7 +164,15 @@ export function FileMenu({ store = getDocumentStore() }: { store?: DocumentStore
   </>
 }
 
-export function DocumentNotices({ store = getDocumentStore(), reports = null, maps = {}, board = null, clock = null }: { store?: DocumentStore; reports?: ReportsNotice | null; maps?: Partial<Record<'map' | 'plan', MapNotice>>; board?: { message: string; busy: boolean; onChoose: () => void } | null; clock?: { storage: 'conflict' | 'unavailable' | null; audio: string | null; onRetry: () => void; onActivate: () => void } | null }) {
+export interface DocumentNoticesProps {
+  store?: DocumentStore
+  reports?: ReportsNotice | null
+  maps?: Partial<Record<'map' | 'plan', MapNotice>>
+  board?: { message: string; busy: boolean; onChoose: () => void } | null
+  clock?: { storage: 'conflict' | 'unavailable' | null; audio: string | null; onRetry: () => void; onActivate: () => void } | null
+}
+
+export function DocumentNotices({ store = getDocumentStore(), reports = null, maps = {}, board = null, clock = null }: DocumentNoticesProps) {
   const snapshot = useDocumentStore(store)
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -228,94 +208,16 @@ export function DocumentNotices({ store = getDocumentStore(), reports = null, ma
           aria-label={hasIssues ? 'Incidencias pendientes' : 'Recuperación disponible'}>
           {hasIssues ? <CircleAlert aria-hidden="true" /> : <ClipboardClock aria-hidden="true" />}
         </Button></PopoverTrigger>
-        <PopoverContent align="end" aria-label="Incidencias pendientes" className={styles.noticePanel}>
-          {workspaceProblem && <section>
-            <h3>Guardado en carpeta pendiente</h3>
-            <p>{workspaceMessage ?? 'Selecciona una carpeta de trabajo para guardar.'}</p>
-            {snapshot.workspacePath && <p>{snapshot.workspacePath}</p>}
-            <div className={styles.noticeActions}>
-              <Button disabled={snapshot.fileBusy || snapshot.workspaceStatus === 'saving'} onClick={() => { void store.saveDocument() }}><FolderSync aria-hidden="true" />Reintentar</Button>
-              <Button disabled={snapshot.fileBusy} onClick={() => { setOpen(false); setPermissions(true) }}><FolderCog aria-hidden="true" />Carpeta de trabajo</Button>
-            </div>
-          </section>}
-          {localProblem && <section>
-            <h3>{snapshot.storageConflict ? 'Cambios en otra pestaña' : 'Recuperación del dispositivo no disponible'}</h3>
-            {snapshot.localStorageMessage && <p>{snapshot.localStorageMessage}</p>}
-            <p>{!snapshot.active ? fileMessage ?? 'No se pudo leer la recuperación de este dispositivo.' : snapshot.storageConflict ? 'Abre una recuperación en rama para conservar tus cambios.' : snapshot.workspaceStatus === 'saved' ? 'El trabajo está guardado en carpeta.' : 'Los cambios de esta sesión aún no tienen protección confirmada.'}</p>
-            <div className={styles.noticeActions}>
-              {snapshot.storageConflict ? <Button disabled={snapshot.fileBusy || branching} onClick={() => {
-                if (branchRequest.current) return
-                branchRequest.current = true; setBranching(true)
-                void store.recoverCurrent().finally(() => { branchRequest.current = false; setBranching(false) })
-              }}>Abrir recuperación en rama</Button> : <Button disabled={snapshot.fileBusy || snapshot.autosaveSaving} onClick={() => { void store.retryAutosave() }}>Reintentar recuperación local</Button>}
-            </div>
-          </section>}
-          {pendingGpx.length > 0 && <section>
-            <h3>GPX sin protección local</h3>
-            <p>{pendingGpx.map(reference => reference.name).join(', ')}. Su copia local todavía no está confirmada.</p>
-            <div className={styles.noticeActions}><Button disabled={snapshot.fileBusy || snapshot.autosaveSaving} onClick={() => { void store.retryAutosave() }}>Reintentar protección local</Button></div>
-          </section>}
-          {fileProblem && <section><h3>Archivo</h3><p>{fileMessage}</p></section>}
-          {snapshot.active && issueKey && <div className={styles.noticeActions}><Button disabled={snapshot.fileBusy} onClick={() => { void store.downloadJson() }}><FileBracesCorner aria-hidden="true" />Descargar JSON</Button></div>}
-          {clock && <section>
-            <h3>Reloj</h3>
-            {clock.audio && <section>
-              <p>{clock.audio}</p>
-              {clock.audio === 'Sonido bloqueado' && <div className={styles.noticeActions}><Button onClick={clock.onActivate}>Activar sonido</Button></div>}
-            </section>}
-            {clock.storage && <section>
-              <p>{clock.storage === 'conflict' ? 'Otra pestaña ha cambiado los temporizadores. Recargar sustituirá los cambios locales pendientes.' : 'Autoguardado no disponible'}</p>
-              <div className={styles.noticeActions}><Button onClick={clock.onRetry}>{clock.storage === 'conflict' ? 'Recargar temporizadores' : 'Reintentar'}</Button></div>
-            </section>}
-          </section>}
-          {board && <section>
-            <h3>Pizarra · Imagen de fondo</h3><p>{board.message}</p>
-            <div className={styles.noticeActions}><Button disabled={board.busy || snapshot.replacing} onClick={() => { board.onChoose() }}>Elegir imagen de fondo</Button></div>
-          </section>}
-          {mapEntries.map(([source, notice]) => <section key={source}>
-            <h3>{source === 'map' ? 'Mapa' : 'Plano operativo'}</h3>
-            {notice.cartography.map(message => <p key={message}>{message}</p>)}
-            {notice.access.length > 0 && <p>Acceso al GPX original no recordado: {notice.access.join(', ')}.</p>}
-            {notice.errors.map((message, index) => <p key={index}>{message}</p>)}
-            {notice.errors.length > 0 && <div className={styles.noticeActions}><Button disabled={notice.busy || snapshot.replacing} onClick={() => { notice.onChoose() }}>Seleccionar GPX</Button></div>}
-            {notice.missing.map(file => <section key={file.id}>
-              <p>GPX pendiente: {file.name}</p>
-              <div className={styles.noticeActions}><Button disabled={notice.busy || snapshot.replacing} onClick={() => { notice.onChoose(file.id) }}>Seleccionar GPX</Button></div>
-            </section>)}
-            {(notice.missing.length > 0 || notice.access.length > 0) && <div className={styles.noticeActions}><Button disabled={notice.busy || snapshot.replacing} onClick={() => { setOpen(false); notice.onOpenGpx() }}>Ver GPX</Button></div>}
-          </section>)}
-          {reports && <section>
-            <h3>Informes</h3>
-            {reports.preparation.map(({ section, message }) => <p key={section}>{REPORT_SECTIONS[section].title} · {message}</p>)}
-            {reports.issues.map(issue => <section key={reportIssueKey(issue)} role="group" aria-label={REPORT_SECTIONS[issue.section].title + ': ' + issue.label}>
-              <p>{REPORT_SECTIONS[issue.section].title} · {formatReportIssue(issue)}</p>
-              <div className={styles.noticeActions}>
-                <Button disabled={reports.busy || snapshot.replacing} onClick={() => { void reports.onResolve(issue, 'retry') }}>Reintentar</Button>
-                <Button disabled={reports.busy || snapshot.replacing} onClick={() => { void reports.onResolve(issue, 'omit') }}>Omitir</Button>
-              </div>
-            </section>)}
-            {reports.saveError && <section>
-              <h3>Informe pendiente de guardar</h3><p>{reports.saveError}</p>
-              <div className={styles.noticeActions}>
-                <Button disabled={reports.busy || snapshot.replacing} onClick={() => { void reports.onSave() }}>Reintentar guardado</Button>
-                {reports.directoryNeeded && <Button disabled={reports.busy || snapshot.replacing} onClick={() => { setOpen(false); reports.onDirectory() }}>Carpeta de trabajo</Button>}
-              </div>
-            </section>}
-          </section>}
-          {snapshot.recoveryPending && <section>
-            <h3>Sesión disponible</h3><p>{snapshot.recoveryTitle || 'UIBoard sin nombre'}</p>
-            {snapshot.recoverySeenAt && <p>{formatTimelineDate(snapshot.recoverySeenAt)}</p>}
-            <div className={styles.noticeActions}><Button disabled={snapshot.fileBusy} onClick={() => { void store.confirmRecovery(true) }}>Continuar</Button></div>
-          </section>}
-        </PopoverContent>
+        {open && hasNotices && <Suspense fallback={null}><DocumentNoticeDetails store={store} snapshot={snapshot} reports={reports} maps={maps} board={board} clock={clock}
+          status={{ workspaceMessage, workspaceProblem, localProblem, fileProblem, issueKey, pendingGpx }} branching={branching}
+          onBranch={() => {
+            if (branchRequest.current) return
+            branchRequest.current = true; setBranching(true)
+            void store.recoverCurrent().finally(() => { branchRequest.current = false; setBranching(false) })
+          }} onClose={() => setOpen(false)} onPermissions={() => { setOpen(false); setPermissions(true) }} /></Suspense>}
       </Popover>
     </div>
     {permissions && <Suspense fallback={null}><WorkDirectoryDialog onClose={() => setPermissions(false)} onCloseFocus={() => trigger.current?.focus()} onContinueLocally={() => store.continueLocally()} onDownload={snapshot.active ? () => store.downloadJson() : undefined} /></Suspense>}
-    <AlertDialog open={snapshot.replacementBlocked} onOpenChange={open => { if (!open) store.cancelReplacement() }}>
-      <FileDialogContent title="No se pudo guardar el trabajo actual" icon={ClipboardCheck} onClose={() => store.cancelReplacement()}>
-        <p>El trabajo permanece abierto. Reintenta el guardado o descarga una copia antes de continuar.</p>
-        <AlertDialogFooter><Button onClick={() => { void store.retryAutosave() }}>Reintentar</Button><Button onClick={() => { void store.downloadJson() }}><FileBracesCorner aria-hidden="true" />Descargar JSON</Button><AlertDialogCancel asChild><Button onClick={() => store.cancelReplacement()}>Cancelar</Button></AlertDialogCancel></AlertDialogFooter>
-      </FileDialogContent>
-    </AlertDialog>
+    {snapshot.replacementBlocked && <Suspense fallback={null}><ReplacementBlockedDialog store={store} onCloseFocus={() => trigger.current?.focus()} /></Suspense>}
   </>
 }

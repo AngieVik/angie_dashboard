@@ -1,5 +1,5 @@
 import type Dexie from 'dexie'
-import { migrateDocument } from '../domain/document/migrateDocument'
+import { DocumentCompatibilityRequired, readPortableDocument } from '../domain/document/documentCompatibility'
 import { validateWorkingDocument } from '../domain/document/validateDocument'
 import type { AngieDocument } from '../domain/document/types'
 import type { LocalRecord } from './documentCatalog'
@@ -28,9 +28,12 @@ function references(record: LocalRecord): AngieDocument | null {
   try {
     const current = validateWorkingDocument(record.document)
     if (current.success) return current.document
-    const legacy = migrateDocument(record.document)
+    const legacy = readPortableDocument(record.document)
     return legacy.success ? legacy.document : null
-  } catch { return null }
+  } catch (error) {
+    if (error instanceof DocumentCompatibilityRequired) throw error
+    return null
+  }
 }
 
 // The catalog is a browsing index, not proof that every retained reference was

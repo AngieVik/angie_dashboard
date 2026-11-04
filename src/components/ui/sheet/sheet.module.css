@@ -8,7 +8,7 @@
   .content[data-state="closed"] { animation: leave var(--duration-fast) ease-in; }
   .overlay[data-state="open"] { animation: fade-in var(--duration-fast) ease-out; }
   .overlay[data-state="closed"] { animation: fade-out var(--duration-fast) ease-in; }
-  .header { display: flex; flex: none; flex-direction: column; gap: 4px; padding-inline-end: 26px; }
+  .header { display: flex; flex: none; flex-direction: column; gap: var(--space-1); padding-inline-end: 26px; }
   .title { margin: 0; font-size: var(--font-size-title); font-weight: 600; overflow-wrap: anywhere; }
   .description { margin: 0; color: var(--color-text-secondary); line-height: 1.4; overflow-wrap: anywhere; }
   .body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
@@ -20,3 +20,7 @@
   @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .content, .overlay { animation: none; } }
 }
+
+/* Keep Sheet scrollbars visible over the module frame's unlayered scrollbar reset. */
+:global(.app-shell) .body[data-slot="sheet-body"] { scrollbar-width: thin; scrollbar-color: var(--color-field-border) var(--color-module); scrollbar-gutter: stable; }
+:global(.app-shell) .body[data-slot="sheet-body"]::-webkit-scrollbar { display: block; width: 8px; height: 8px; }

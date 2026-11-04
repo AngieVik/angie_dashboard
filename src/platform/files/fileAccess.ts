@@ -1,20 +1,10 @@
 import type { AngieDocument } from '../../domain/document/types'
 import type { WorkspaceFiles } from './workspaceFiles'
+import type { DocumentFile, SaveFileHandle } from './fileHandleTypes'
 import { InputBudgetError } from '../../domain/input/inputBudgets'
 import { analyzeDocument } from './documentWorkerClient'
 import type { DocumentReadOptions } from './documentWorkerClient'
 import type { VisibleDocumentPreparation } from './documentWorkerProtocol'
-
-export interface SaveFileHandle {
-  getFile?(): Promise<DocumentFile>
-  queryPermission(options: { mode: 'readwrite' }): Promise<PermissionState>
-  requestPermission?(options: { mode: 'readwrite' }): Promise<PermissionState>
-  createWritable(): Promise<{
-    write(text: string): Promise<void>
-    close(): Promise<void>
-    abort(): Promise<void>
-  }>
-}
 
 export interface FilePlatform {
   pickOpen?: () => Promise<{ file: DocumentFile; handle: SaveFileHandle }>
@@ -31,8 +21,6 @@ export type LoadOutcome =
   | { status: 'loaded'; document: AngieDocument; migrated: boolean; visible: VisibleDocumentPreparation }
   | { status: 'cancelled' }
   | { status: 'error'; message: string }
-
-export type DocumentFile = Pick<File, 'size' | 'text'>
 
 export function suggestFilename(title: string, now = new Date()): string {
   // Include both ASCII and C1 control characters. Do not mutate the title.

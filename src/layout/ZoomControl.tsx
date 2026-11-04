@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { GitCommitHorizontal, GitCommitVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import styles from './zoomControl.module.css'
 import controlStyles from './controlButton.module.css'
 import labelStyles from './controlValueLabel.module.css'
 
-export function ZoomControl({ scale, onChange, label, disabled = false, side = 'bottom', variant = 'default' }: {
-  scale: number; onChange: (scale: number) => void; label: string; disabled?: boolean; side?: 'bottom' | 'right'; variant?: 'default' | 'header' | 'module'
+export function ZoomControl({ scale, onChange, label, disabled = false, side = 'bottom' }: {
+  scale: number; onChange: (scale: number) => void; label: string; disabled?: boolean; side?: 'bottom' | 'right'
 }) {
   const percent = Math.round(scale * 100)
   const [draft, setDraft] = useState<string | null>(null)
@@ -52,7 +53,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
     replaceInput.current = true
   }
   const percentage = <>
-    <input ref={input} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={25} max={200} step={1}
+    <Input ref={input} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={25} max={200} step={1}
       disabled={disabled} value={draft ?? percent}
       onFocus={() => { replaceInput.current = true }} onPointerDown={() => { replaceInput.current = true }}
       onChange={event => { replaceInput.current = false; setDraft(event.target.value) }} onBlur={commit}
@@ -61,7 +62,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
         if (event.key === 'Escape') { event.preventDefault(); setDraft(null); replaceInput.current = true }
       }} /><span aria-hidden="true">%</span>
   </>
-  return <div data-slot="zoom-control" data-variant={variant} className={`${styles.base} technical-data`}>
+  return <div data-slot="zoom-control" className={`${styles.base} technical-data`}>
     {side !== 'right' && percentage}
     <Popover open={open && !disabled} onOpenChange={setOpen}>
       <PopoverTrigger asChild><Button ref={trigger} className={controlStyles.base} disabled={disabled}

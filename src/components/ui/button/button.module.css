@@ -5,7 +5,6 @@
     justify-content: center;
     flex-shrink: 0;
     gap: var(--control-gap);
-    padding: 5px 10px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-control);
     background: var(--surface-button);
@@ -46,7 +45,7 @@
   .text {
     height: var(--control-height);
     min-height: var(--control-height);
-    padding: 1px 9px;
+    padding: calc(var(--button-padding-base) * var(--module-zoom, 1));
     line-height: 18px;
   }
 

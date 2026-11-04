@@ -1,16 +1,11 @@
-import type { AngieDocument, OperationalStatus, TimelineEntry, TimelineRevision } from '../../domain/document/types'
+import type { AngieDocument, TimelineEntry, TimelineRevision } from '../../domain/document/types'
 import { commandResult } from '../../domain/document/documentCommand'
 import { appendTimelineEntry } from '../../domain/operations/timelineEntries'
-import { getCurrentEntryId, getTimelineEntryLabel, isCurrentTimelineEntry, isTimelineEntryDeleted } from '../../domain/operations/timelineProjection'
+import { getCurrentEntryId, getTimelineEntryLabel, isTimelineEntryDeleted } from '../../domain/operations/timelineProjection'
 
 export function addManualTimelineEntry(document: AngieDocument, text: string, now: Date) {
   const entry: TimelineEntry = { id: crypto.randomUUID(), type: 'manual', occurredAt: now.toISOString(), text, revisions: [] }
   return commandResult(document, { ...document, timeline: appendTimelineEntry(document.timeline, entry) }, entry)
-}
-function manualEntry(document: AngieDocument, id: string) {
-  const entry = document.timeline.find(entry => entry.id === id)
-  if (entry?.type !== 'manual' || isTimelineEntryDeleted(entry)) throw new Error('Solo pueden editarse o eliminarse entradas manuales vigentes.')
-  return entry
 }
 export function reviseTimelineText(document: AngieDocument, id: string, text: string, now: string) {
   const entry = availableEntry(document, id)
@@ -21,14 +16,6 @@ function availableEntry(document: AngieDocument, id: string) {
   const entry = document.timeline.find(entry => entry.id.toLowerCase() === id.toLowerCase())
   if (!entry || isTimelineEntryDeleted(entry)) throw new Error('La entrada ya no está disponible.')
   return entry
-}
-export function editManualTimelineEntry(document: AngieDocument, id: string, text: string, now = new Date()) {
-  manualEntry(document, id)
-  return reviseTimelineText(document, id, text, now.toISOString())
-}
-export function deleteManualTimelineEntry(document: AngieDocument, id: string, now = new Date()) {
-  manualEntry(document, id)
-  return deleteTimelineEntry(document, id, now.toISOString())
 }
 function appendRevision(document: AngieDocument, entry: TimelineEntry, revision: TimelineRevision): AngieDocument {
   return { ...document, timeline: document.timeline.map(item => item === entry ? { ...entry, revisions: [...entry.revisions, revision] } : item) }
@@ -44,17 +31,6 @@ export function deleteTimelineEntry(document: AngieDocument, id: string, now = n
     next = clearCurrentStatus(next, entry.unitId)
   }
   return commandResult(document, next)
-}
-export type CurrentStatusGuard = { currentEntryId: string; status: OperationalStatus; revisionCount: number }
-export function correctCurrentStatusEntry(document: AngieDocument, id: string, expected: CurrentStatusGuard, now: string) {
-  const entry = availableEntry(document, id)
-  if (entry.type !== 'status-change' || !isCurrentTimelineEntry(document, entry)
-    || expected.currentEntryId.toLowerCase() !== entry.id.toLowerCase()
-    || expected.status !== entry.nextStatus || expected.revisionCount !== entry.revisions.length) {
-    throw new Error('La entrada cambió o dejó de ser Actual. Vuelve a abrir el editor antes de corregirla.')
-  }
-  const next = appendRevision(document, entry, { id: crypto.randomUUID(), kind: 'correction', recordedAt: now })
-  return commandResult(document, clearCurrentStatus(next, entry.unitId))
 }
 const spanishTime = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
 const spanishDate = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })

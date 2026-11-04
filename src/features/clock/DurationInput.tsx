@@ -61,7 +61,7 @@ export function DurationInput({ value, disabled, onChange, onBlur }: {
     return () => node.removeEventListener('beforeinput', beforeInput)
   }, [value, commit])
   return <Input ref={input} aria-label="Duración inicial"
-    className={`${styles.base} technical-data timer-duration`} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
+    className={`${styles.base} technical-data`} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
     disabled={disabled} value={value} onBlur={onBlur}
     onKeyDown={event => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return

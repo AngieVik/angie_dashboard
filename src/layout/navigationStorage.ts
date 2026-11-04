@@ -1,7 +1,6 @@
-import type { Size, ViewportState } from './layoutTypes'
+import type { ViewportState } from './layoutTypes'
 
 export interface NavigationState extends ViewportState {
-  restoreSize?: Size
   autoResize?: boolean
   scrolls?: Record<string, { left: number; top: number }>
 }
@@ -12,7 +11,6 @@ export function readNavigation(key?: string): NavigationState {
     const saved = JSON.parse(localStorage.getItem('angie.navigation.' + key) ?? 'null')
     if (!saved || ![saved.scale, saved.offsetX, saved.offsetY].every(Number.isFinite)) return empty()
     return { scale: Math.min(2, Math.max(.25, saved.scale)), offsetX: Math.min(0, saved.offsetX), offsetY: Math.min(0, saved.offsetY),
-      restoreSize: saved.restoreSize && [saved.restoreSize.width, saved.restoreSize.height].every((n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 0) ? saved.restoreSize : undefined,
       autoResize: saved.autoResize !== false,
       scrolls: saved.scrolls && typeof saved.scrolls === 'object' ? Object.fromEntries(Object.entries(saved.scrolls).filter((entry): entry is [string, {left: number; top: number}] => {
         const value = entry[1] as {left?: unknown; top?: unknown} | null

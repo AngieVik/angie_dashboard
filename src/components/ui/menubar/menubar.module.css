@@ -5,9 +5,10 @@
     flex: none;
     align-items: center;
     justify-content: center;
+    gap: var(--control-gap);
     height: var(--control-height);
     min-height: var(--control-height);
-    padding: 1px 9px;
+    padding: calc(var(--button-padding-base) * var(--module-zoom, 1));
     border: 1px solid transparent;
     border-radius: var(--radius-control);
     font-family: var(--font-interface-default);

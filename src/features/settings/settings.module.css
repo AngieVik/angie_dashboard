@@ -1,11 +1,11 @@
 @layer components {
   .dialog [data-slot="file-dialog-body"] { height: 100%; min-height: 0; }
-  .base { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; }
+  .base { display: flex; flex-direction: column; gap: var(--section-gap); height: 100%; min-height: 0; }
   .sections { display: flex; flex: none; flex-wrap: wrap; gap: var(--control-gap); }
   .sections button[aria-pressed="true"] { border-color: var(--color-selection-border); background: var(--color-selected); }
   .panel { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
   .panel[hidden] { display: none; }
-  .location, .form { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .location, .form { display: flex; flex-direction: column; gap: var(--section-gap); min-width: 0; }
   .search { display: flex; flex: none; gap: var(--control-gap); }
   .search input { width: 0; }
   .form label { display: flex; flex-direction: column; gap: 3px; min-width: 0; color: var(--color-text-secondary); }

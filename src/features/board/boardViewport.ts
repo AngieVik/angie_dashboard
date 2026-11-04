@@ -62,11 +62,6 @@ export function getBoardBounds(size: Size, board: Board, elements: DocumentEleme
   return { left: 0, top: 0,
     right: Math.max(size.width, content?.right ?? 0, hasImage ? 1000 : 0), bottom: Math.max(size.height, content?.bottom ?? 0, hasImage ? 1000 : 0) }
 }
-export function initialBoardView(size: Size, board: Board, elements: DocumentElement[]): BoardViewportState {
-  const bounds = contentBounds(board, elements)
-  return { scale: 1, offsetX: bounds ? Math.min(0, size.width / 2 - (bounds.left + bounds.right) / 2) : 0,
-    offsetY: bounds ? Math.min(0, size.height / 2 - (bounds.top + bounds.bottom) / 2) : 0 }
-}
 export function toBoardPosition(point: Position, rect: { left: number; top: number; width: number; height: number }, view: BoardViewportState, size: Size): Position | null {
   if (rect.width <= 0 || rect.height <= 0 || size.width <= 0 || size.height <= 0 || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null
   if (point.x < rect.left || point.y < rect.top || point.x > rect.left + rect.width || point.y > rect.top + rect.height) return null

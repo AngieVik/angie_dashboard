@@ -73,7 +73,7 @@ export function AppHeader({ scale, documentGeneration, fileMenu, reportNotices, 
       <Button className={controlStyles.base} aria-label="Imán de módulos" aria-pressed={magnet.active} onClick={magnet.onToggle}><Magnet aria-hidden="true" /></Button>
       <RadarButton {...radar} activationColor="yellow" />
       <Button className={controlStyles.base} aria-label="Volver al origen" onClick={onOrigin}><LocateFixed size={19} aria-hidden="true" /></Button>
-      <ZoomControl variant="header" key={documentGeneration} label="Zoom actual" scale={scale} onChange={onZoom} />
+      <ZoomControl key={documentGeneration} label="Zoom actual" scale={scale} onChange={onZoom} />
     </div>
   </header>
 }

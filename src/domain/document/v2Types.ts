@@ -66,8 +66,3 @@ export interface ValidationIssue { path: string; message: string }
 export type ValidationResult<T> =
   | { success: true; document: T }
   | { success: false; errors: ValidationIssue[] }
-
-export type MigrationFailureCode = 'invalid-format' | 'invalid-version' | 'unsupported-old-version' | 'future-version' | 'invalid-document'
-export type MigrationResult<T> =
-  | { success: true; document: T; migrated: boolean }
-  | { success: false; code: MigrationFailureCode; errors: ValidationIssue[] }
