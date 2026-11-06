@@ -12,6 +12,7 @@ export function createTimer(kind: TimerKind, durationSeconds = 0): TimerRecord {
   const base = { id: crypto.randomUUID(), note: '', status: 'idle' as const, elapsedMs: 0, startedAt: null, alertActive: false }
   return kind === 'tzero' ? { ...base, kind } : { ...base, kind, durationSeconds }
 }
+// `now` must use the same clock domain as startedAt (TimerClock owns conversion).
 function elapsed(timer: TimerRecord, now: number) {
   return timer.elapsedMs + (timer.status === 'running' && timer.startedAt !== null ? Math.max(0, now - timer.startedAt) : 0)
 }

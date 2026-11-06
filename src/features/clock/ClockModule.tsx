@@ -14,7 +14,7 @@ import styles from './clock.module.css'
 // Implementation parameter; the V1 exposes no frequency setting.
 export const ALARM_FLASH_HZ = 2
 export function ClockModule({ store }: { store: TimerStore }) {
-  const { timers, now, ready, storageConflict, recoveryGeneration } = useSyncExternalStore(store.subscribe, store.getSnapshot)
+  const { timers, now, timerNow, ready, storageConflict, recoveryGeneration } = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const alarm = useSyncExternalStore(store.alarm.subscribe, store.alarm.getSnapshot)
   const { settings } = useSettings()
   const timeZone = settings.location?.timeZone ?? DEFAULT_TIME_ZONE
@@ -54,6 +54,6 @@ export function ClockModule({ store }: { store: TimerStore }) {
       </div>
     </div>
     <div className="timer-list">{timers.map((timer, position) => <TimerRow key={`${recoveryGeneration}:${timer.id}`} timer={timer}
-      index={timers.slice(0, position + 1).filter(previous => previous.kind === timer.kind).length} now={now} store={store} disabled={storageConflict} />)}</div>
+      index={timers.slice(0, position + 1).filter(previous => previous.kind === timer.kind).length} now={timerNow} store={store} disabled={storageConflict} />)}</div>
   </div>
 }

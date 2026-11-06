@@ -2,6 +2,8 @@
 // no document contents, console output or unbounded history.
 type WorkMetric = 'document.edit' | 'document.budget' | 'document.capture' | 'document.validate' | 'document.stringify'
   | 'operations.timeline-index' | 'gpx.selection' | 'gpx.selection-batch'
+  | 'gpx.fit-envelope' | 'gpx.fit-leaflet' | 'gpx.profile-read' | 'gpx.profile-paths'
+  | 'gpx.profile-selected' | 'gpx.profile-nearest'
 
 export function startWorkMetric(name: WorkMetric) {
   const start = import.meta.env.DEV ? performance.now() : 0
@@ -13,7 +15,7 @@ export function startWorkMetric(name: WorkMetric) {
   }
 }
 
-export function measureWork<T>(name: WorkMetric, work: () => T): T {
+export function measureWork<T>(name: WorkMetric, work: () => T, detail?: Record<string, number | boolean>): T {
   const finish = startWorkMetric(name)
-  try { return work() } finally { finish() }
+  try { return work() } finally { finish(detail) }
 }

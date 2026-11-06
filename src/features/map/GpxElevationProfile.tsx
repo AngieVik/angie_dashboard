@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
+import { measureWork } from '../../platform/workMetrics'
 import type { LoadedGpx } from './gpx'
 import type { GpxLocation } from './gpxMetrics'
 import { getGpxProfile, nearestProfileSample } from './gpxProfile'
 import type { GpxProfileSample } from './gpxProfile'
+import { buildGpxProfilePaths } from './gpxProfilePaths'
 import styles from './GpxElevationProfile.module.css'
 
 const meters = (value: number | undefined) => value === undefined ? 'Sin datos' : value.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' m'
@@ -40,7 +42,7 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
   onSelect: (sample: GpxProfileSample) => void
 }) {
   const { scale } = useModuleZoom()
-  const profile = useMemo(() => getGpxProfile(file.data), [file.data])
+  const profile = useMemo(() => measureWork('gpx.profile-read', () => getGpxProfile(file.data), { points: file.data.pointCount }), [file.data])
   const chart = useRef<SVGSVGElement>(null)
   const tap = useRef<{ id: number; x: number; y: number } | null>(null)
   const [size, setSize] = useState({ width: 600, height: 150 })
@@ -61,33 +63,16 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
   const low = minimum === maximum ? minimum - 1 : minimum, high = minimum === maximum ? maximum + 1 : maximum
   const x = (distance: number) => left + (profile.totalMeters ? distance / profile.totalMeters : .5) * width
   const y = (elevation: number) => bottom - (elevation - low) / (high - low) * height
-  const selectedIndex = useMemo(() => {
+  const selectedIndex = useMemo(() => measureWork('gpx.profile-selected', () => {
     if (selected?.distanceMeters === undefined) return -1
     const exact = profile.samples.findIndex(sample => sample.point === selected.point)
     return exact >= 0 ? exact : nearestProfileSample(profile, selected.distanceMeters, selected.point.elevation)
-  }, [profile, selected])
+  }, { samples: profile.samples.length, hasSelection: selected?.distanceMeters !== undefined }), [profile, selected])
   const sample = selectedIndex >= 0 ? profile.samples[selectedIndex] : undefined
-  const paths = useMemo(() => {
-    const px = (distance: number) => (left + (profile.totalMeters ? distance / profile.totalMeters : .5) * width).toFixed(1)
-    const py = (elevation: number) => (bottom - (elevation - low) / (high - low) * height).toFixed(1)
-    const trace: string[] = []
-    for (const segment of profile.segments) {
-      let drawing = false, previous = ''
-      for (const item of segment) {
-        if (item.point.elevation === undefined) { drawing = false; continue }
-        const coordinate = px(item.distanceMeters) + ' ' + py(item.point.elevation)
-        if (!drawing) trace.push('M' + coordinate + 'l0 .01')
-        else if (coordinate !== previous) trace.push('L' + coordinate)
-        previous = coordinate; drawing = true
-      }
-    }
-    const gaps = profile.gaps.map(gap => {
-      const start = Number(px(gap.from)), end = Number(px(gap.to))
-      return `M${start} ${top}h${Math.max(1, end - start)}v${height}H${start}Z`
-    }).join('')
-    const cuts = profile.cuts.map(distance => `M${px(distance)} ${top}V${bottom}`).join('')
-    return { trace: trace.join(''), gaps, cuts }
-  }, [profile, left, top, bottom, width, height, low, high])
+  const paths = useMemo(() => measureWork('gpx.profile-paths', () =>
+    buildGpxProfilePaths(profile, { left, top, bottom, width, height, low, high }),
+  { samples: profile.samples.length, segments: profile.segments.length, gaps: profile.gaps.length, cuts: profile.cuts.length, width, height }),
+  [profile, left, top, bottom, width, height, low, high])
   const patternId = useId()
   const valueText = sample ? `PK ${kilometers(sample.distanceMeters)} · Altitud GPX ${meters(sample.point.elevation)} · Segmento ${sample.segmentIndex + 1}` : 'Sin posición seleccionada'
   const xTicks = profile.totalMeters > 0 ? [0, profile.totalMeters / 2, profile.totalMeters] : [0]
@@ -138,7 +123,8 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
         if (positionX < left || positionX > right || positionY < top || positionY > bottom) return
         const distance = (positionX - left) / width * profile.totalMeters
         const elevation = high - (positionY - top) / height * (high - low)
-        onSelect(profile.samples[nearestProfileSample(profile, distance, elevation)]!)
+        const index = measureWork('gpx.profile-nearest', () => nearestProfileSample(profile, distance, elevation), { samples: profile.samples.length })
+        onSelect(profile.samples[index]!)
       }}>
       <defs><pattern id={patternId} width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 6L6 0" className="map-profile-hatching" /></pattern></defs>
       <path d={paths.gaps} fill={`url(#${patternId})`} />

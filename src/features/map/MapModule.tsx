@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Slider } from '@/components/ui/slider'
 import { toast } from '@/components/ui/sonner'
 import { copyText } from '../../platform/clipboard'
+import { measureWork } from '../../platform/workMetrics'
 import { checkGpxPointTotal, InputBudgetError } from '../../domain/input/inputBudgets'
 import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { convertCoordinate, toGeographic } from '../coordinates/convertCoordinate'
@@ -59,8 +60,10 @@ const kilometers = (meters: number) => (meters / 1000).toLocaleString('es-ES', {
 
 function fitGpxFiles(map: L.Map | null, files: readonly LoadedGpx[]) {
   if (!map) return
-  const bounds = geographicEnvelope(files.map(file => file.data.bounds).filter((bound): bound is GeographicBounds => bound !== undefined), map.getCenter().lng)
-  if (bounds) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16, animate: false })
+  const bounds = measureWork('gpx.fit-envelope', () =>
+    geographicEnvelope(files.map(file => file.data.bounds).filter((bound): bound is GeographicBounds => bound !== undefined), map.getCenter().lng),
+  { files: files.length })
+  if (bounds) measureWork('gpx.fit-leaflet', () => map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16, animate: false }), { files: files.length })
 }
 
 function gpxDisplayPoint(map: L.Map, point: GeographicCoordinate, file: LoadedGpx | undefined, displayLongitude?: number): L.LatLngTuple {

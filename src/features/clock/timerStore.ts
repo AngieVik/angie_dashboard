@@ -3,12 +3,18 @@ import { AlarmController } from './alarmController'
 import { TimerConflictError, TimerRepository } from './timerRepository'
 import type { InternalTimerRepository } from './timerRepository'
 import type { TimerKind, TimerRecord } from './timerTypes'
+import { TimerClock } from './timerClock'
+import type { TimerInstant } from './timerClock'
 
 type TimerAction = (timers: TimerRecord[], now: number) => TimerRecord[]
 type TimerMutationResult = 'saved' | 'conflict' | 'unavailable' | 'not-ready'
 
 export function createTimerStore(repository: InternalTimerRepository, alarm: AlarmController) {
-  let state = { timers: [] as TimerRecord[], now: Date.now(), ready: false, storageUnavailable: false, storageConflict: false, recoveryGeneration: 0 }
+  const clock = new TimerClock(), initial = clock.read()
+  let state = { timers: [] as TimerRecord[], now: initial.civil, timerNow: initial.monotonic, ready: false, storageUnavailable: false, storageConflict: false, recoveryGeneration: 0 }
+  let civilOffset = initial.civil - initial.monotonic
+  let observedOffset = civilOffset
+  let clockNeedsSave = false, resumePending = false
   let initialization: Promise<void> | undefined
   let recoveryNeeded = true
   let dirty = false
@@ -35,10 +41,27 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
     invalidated = true
     for (const id of sounding) silence(id)
   }
-  function replace(timers: TimerRecord[], now = Date.now()) {
-    update({ timers, now })
+  function readTime() {
+    const now = clock.read(), offset = now.civil - now.monotonic
+    if (!resumePending) clock.observeCivilAdjustment(offset - observedOffset)
+    observedOffset = offset
+    // Repair civil recovery anchors under the existing lock after an observed
+    // adjustment. This never changes the duration of an active execution.
+    if (Math.abs(offset - civilOffset) >= 1000) { clockNeedsSave = true; civilOffset = offset }
+    return now
+  }
+  function replace(timers: TimerRecord[], now: TimerInstant = readTime()) {
+    clock.retain(timers, now)
+    update({ timers, now: now.civil, timerNow: now.monotonic })
     // Stopping is always safe; starting requires a confirmed repository state.
     for (const id of sounding) if (!timers.some(timer => timer.id === id && timer.alertActive)) silence(id)
+  }
+  function resumeIfNeeded(now: TimerInstant) {
+    if (!resumePending) return
+    resumePending = false
+    const timers = clock.resume(state.timers, now)
+    if (timers.some((timer, index) => timer !== state.timers[index])) clockNeedsSave = true
+    replace(timers, now)
   }
   function syncAlarms(generation: number, retrySound = false) {
     if (!connected || generation !== connectionGeneration || invalidated || dirty || recoveryNeeded || state.storageConflict || state.storageUnavailable) return
@@ -62,7 +85,12 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
     try { channel?.postMessage('changed') } catch { /* Focus and pre-alarm reads also reconcile changes. */ }
   }
   async function save(generation: number, retrySound = false) {
-    await repository.saveTimers(state.timers)
+    const now = readTime()
+    resumeIfNeeded(now)
+    const runtime = state.timers, stored = clock.serialize(runtime, now)
+    clockNeedsSave = false
+    await repository.saveTimers(stored)
+    clock.committed(runtime, stored)
     dirty = false
     invalidated = false
     update({ storageUnavailable: false, storageConflict: false })
@@ -71,17 +99,20 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   }
   async function recover(generation: number, discard = false, retrySound = false) {
     const recovered = await repository.loadTimers()
+    const now = readTime()
+    resumeIfNeeded(now)
+    const restored = clock.restore(recovered, now, discard)
     // Only an initial failed read may merge newly created memory-only timers.
     // Normal refreshes replace exactly, so remote removals cannot be resurrected.
     const merge = recoveryNeeded && dirty && !discard
     const ids = new Set(state.timers.map(timer => timer.id))
-    const combined = merge ? [...recovered.filter(timer => !ids.has(timer.id)), ...state.timers] : recovered
-    const now = Date.now(), settled = combined.map(timer => settleTimer(timer, now))
+    const combined = merge ? [...restored.filter(timer => !ids.has(timer.id)), ...state.timers] : restored
+    const settled = combined.map(timer => settleTimer(timer, now.monotonic))
     recoveryNeeded = false
     if (discard) silenced.clear()
     replace(settled, now)
     update({ ready: true, storageConflict: false, recoveryGeneration: state.recoveryGeneration + (discard ? 1 : 0) })
-    dirty = merge || settled.some((timer, index) => timer !== combined[index])
+    dirty = merge || clockNeedsSave || settled.some((timer, index) => timer !== combined[index])
     if (dirty) await save(generation, retrySound)
     else {
       invalidated = false
@@ -92,6 +123,7 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   function refresh() {
     if (refreshing) { refreshAgain = true; return refreshing }
     refreshing = enqueue(async () => {
+      resumeIfNeeded(readTime())
       if (state.storageConflict || dirty) return
       const generation = connectionGeneration
       try { await repository.withLock(() => recover(generation)) }
@@ -107,14 +139,15 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   async function mutate(action: TimerAction): Promise<TimerMutationResult> {
     if (!state.ready) return 'not-ready'
     if (state.storageConflict) return 'conflict'
-    const requestedAt = Date.now()
+    const requestedAt = readTime().monotonic
     let result: TimerMutationResult = 'unavailable'
     await enqueue(async () => {
       const generation = connectionGeneration
       let applied = false
       const apply = () => {
-        const now = Date.now()
-        replace(action(state.timers, requestedAt).map(timer => settleTimer(timer, now)), now)
+        const now = readTime()
+        resumeIfNeeded(now)
+        replace(action(state.timers, requestedAt).map(timer => settleTimer(timer, now.monotonic)), now)
         dirty = true
         applied = true
       }
@@ -127,7 +160,9 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
           // read the latest list before applying each command without losing input.
           if (!dirty && !recoveryNeeded) {
             const recovered = await repository.loadTimers()
-            replace(recovered)
+            const now = readTime()
+            resumeIfNeeded(now)
+            replace(clock.restore(recovered, now), now)
           }
           apply()
           if (!recoveryNeeded) {
@@ -149,12 +184,12 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
     return mutate((timers, now) => timers.map(timer => timer.id === id ? action(settleTimer(timer, now), now) : timer))
   }
   function tick() {
-    const now = Date.now()
-    update({ now })
+    const now = readTime()
+    update({ now: now.civil, timerNow: now.monotonic })
     if (!state.ready || state.storageConflict || state.storageUnavailable || recoveryNeeded || dirty || invalidated) return
     // Validate even without a channel message: another tab may have committed
     // before its notification arrived, or while this tab was suspended.
-    if (state.timers.some(timer => timer.alertActive || settleTimer(timer, now) !== timer)) void refresh()
+    if (clockNeedsSave || resumePending || state.timers.some(timer => timer.alertActive || settleTimer(timer, now.monotonic) !== timer)) void refresh()
   }
   function refreshAfterInvalidation() {
     invalidate()
@@ -167,6 +202,7 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   return {
     alarm,
     getSnapshot: () => state,
+    getReportRecords: () => state.ready ? clock.serialize(state.timers, readTime()) : null,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     initialize() { initialization ??= refresh(); return initialization },
     connect() {
@@ -178,19 +214,35 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
       catch { /* Repository validation remains mandatory without notifications. */ }
       channel = connection
       if (connection) connection.onmessage = event => { if (event.data === 'changed') refreshAfterInvalidation() }
+      const suspend = () => { clock.suspend(state.timers, readTime()) }
+      const freeze = () => { suspend(); clock.freeze() }
+      const resume = () => { resumePending = true; refreshAfterInvalidation() }
+      const visibility = () => {
+        if (document.hidden) { suspend(); refreshAfterInvalidation() }
+        else resume()
+      }
+      if (document.hidden) suspend()
+      else resume()
       const interval = window.setInterval(tick, 250)
-      window.addEventListener('pageshow', refreshAfterInvalidation)
+      window.addEventListener('pagehide', suspend)
+      window.addEventListener('pageshow', resume)
       window.addEventListener('focus', refreshAfterInvalidation)
-      document.addEventListener('visibilitychange', refreshAfterInvalidation)
+      document.addEventListener('visibilitychange', visibility)
+      document.addEventListener('freeze', freeze)
+      document.addEventListener('resume', resume)
       if (state.ready) void refresh()
       return () => {
         connected = false
         connectionGeneration++
         invalidate()
         window.clearInterval(interval)
-        window.removeEventListener('pageshow', refreshAfterInvalidation)
+        suspend()
+        window.removeEventListener('pagehide', suspend)
+        window.removeEventListener('pageshow', resume)
         window.removeEventListener('focus', refreshAfterInvalidation)
-        document.removeEventListener('visibilitychange', refreshAfterInvalidation)
+        document.removeEventListener('visibilitychange', visibility)
+        document.removeEventListener('freeze', freeze)
+        document.removeEventListener('resume', resume)
         connection?.close()
         if (channel === connection) channel = undefined
         alarm.stop()

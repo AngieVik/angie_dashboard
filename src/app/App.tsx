@@ -208,8 +208,7 @@ export function App() {
       previous.point?.latitude === point?.latitude && previous.point?.longitude === point?.longitude ? previous : { ...previous, point })
   }, [store, documentGeneration])
   const getTimerRecords = useCallback(() => {
-    const snapshot = timers.getSnapshot()
-    return snapshot.ready ? snapshot.timers : null
+    return timers.getReportRecords()
   }, [timers])
   const selectElement = (id: string | null) => {
     setEditRequest(null); setSelection({ generation: documentGeneration, id })

@@ -5,6 +5,8 @@ interface TimerBase {
   note: string
   status: TimerStatus
   elapsedMs: number
+  // Civil milliseconds in repository/report records; local monotonic milliseconds
+  // in the store. TimerClock owns conversion at those boundaries.
   startedAt: number | null
   alertActive: boolean
 }

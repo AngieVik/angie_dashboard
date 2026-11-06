@@ -102,15 +102,9 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
   }
   const generate = useCallback(async () => {
     if (!any || !isCurrent() || generationRequest.current || saveRequest.current) return
-    const generation = store.getSnapshot().documentGeneration
     generationRequest.current = true
     setGenerating(true)
     try {
-      const { prepareReportTypography } = await import('./reportEngine')
-      if (!isCurrent()) return
-      await prepareReportTypography()
-      const current = store.getSnapshot()
-      if (!current.active || current.replacing || current.documentGeneration !== generation) return
       const timerRecords = selection.timers?.length ? getTimerRecords() : undefined
       const generated = await store.generateReport(selection, timerRecords, pageOptions)
       if (!generated || !isCurrent()) return
