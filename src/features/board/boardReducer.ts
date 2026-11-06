@@ -36,10 +36,11 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case 'resize-note': return state.mode === 'select' && [action.size.width, action.size.height].every(Number.isFinite) ? { ...state, board: { ...board,
       quickNotes: board.quickNotes.map(note => note.id === action.id ? resizeQuickNote(note, action.size) : note),
     } } : state
-    case 'edit-note': return state.mode === 'select' ? { ...state, board: { ...board,
+    // Blur/unmount can confirm text after the user has switched tools.
+    case 'edit-note': return { ...state, board: { ...board,
       quickNotes: board.quickNotes.map(note => note.id === action.id ? { ...note,
         ...(action.title === undefined ? {} : { title: action.title }), ...(action.text === undefined ? {} : { text: action.text }) } : note),
-    } } : state
+    } }
     case 'delete-note': return state.mode === 'select' ? { ...state, selectedNoteId: state.selectedNoteId === action.id ? null : state.selectedNoteId,
       board: { ...board, quickNotes: board.quickNotes.filter(note => note.id !== action.id) },
     } : state

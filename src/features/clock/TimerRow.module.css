@@ -28,7 +28,7 @@
     align-items: center;
     gap: var(--timer-control-gap);
     margin: 0;
-    padding: calc(2px * var(--module-zoom, 1)) calc(3px * var(--module-zoom, 1));
+    padding: calc(var(--field-padding-base) * var(--module-zoom, 1));
   }
   :where(.base) :global(.timer-value) { display: block; min-width: 0; width: 100%; margin: 0; overflow: hidden; font-family: var(--font-clock); font-weight: 600; font-size: var(--timer-font-size); line-height: 1; white-space: nowrap; }
   :where(.base) :global(.timer-controls) { display: flex; flex: none; align-items: center; gap: var(--timer-control-gap); margin: 0; }

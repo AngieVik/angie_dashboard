@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="280 170 1230 655" fill="none" role="img" aria-labelledby="carpa-title carpa-desc">
+  <title id="carpa-title">Carpa sanitaria</title>
+  <desc id="carpa-desc">Carpa sanitaria amarilla con techo a dos aguas, estructura negra, paño frontal cerrado y acceso con lona enrollada. En el interior se ven la lona del fondo, su costura vertical y el borde inferior en perspectiva. Fondo y suelo del acceso transparentes.</desc>
+
+  <g id="lona" fill="#F6CF2D">
+    <path id="panel-frontal" d="M313 374H764V777L313 764Z"/>
+    <path id="panel-lateral" d="M1228 369H1466V737L1228 795Z"/>
+    <path id="panel-interior" d="M770 377H1218V725L770 711Z"/>
+  </g>
+
+  <g id="bordes-inferiores" stroke="#101010" stroke-linejoin="round">
+    <path id="borde-frontal" stroke-width="12" d="M313 764L764 777"/>
+    <path id="borde-lateral" stroke-width="12" d="M1228 795L1466 737"/>
+    <path id="borde-interior" stroke-width="4" d="M770 711L1218 725"/>
+    <path id="costura-interior" stroke-width="3.5" d="M1005 414V718.4"/>
+  </g>
+
+  <g id="estructura" fill="#101010">
+    <path id="pilar-izquierdo" d="M304 373H320V775H304Z"/>
+    <path id="pilar-central" d="M754 372H774V786H754Z"/>
+    <path id="pilar-derecho" d="M1214 367H1234V801H1214Z"/>
+    <path id="pilar-trasero" d="M1459 368H1473V742L1459 746Z"/>
+    <rect id="pie-izquierdo" x="291" y="768" width="46" height="12" rx="2"/>
+    <rect id="pie-central" x="742" y="783" width="48" height="11" rx="2"/>
+    <rect id="pie-derecho" x="1200" y="797" width="51" height="11" rx="2"/>
+    <rect id="pie-trasero" x="1457" y="738" width="34" height="12" rx="2"/>
+    <path id="arriostramientos" d="M320 415L349 380H361L320 433ZM711 380H724L755 415V432ZM774 433L793 413H805L774 455ZM1188 418L1214 438V454L1176 418ZM1234 395L1249 375H1260L1234 412ZM1440 380H1450L1464 401V414Z"/>
+  </g>
+
+  <g id="cubierta" fill="#F6CF2D" stroke="#101010" stroke-linejoin="round">
+    <path id="techo" stroke-width="14" d="M307 343L481 216L1361 192L1469 343L1228 337Z"/>
+    <path id="arista-testero" fill="none" stroke-width="12" stroke-linecap="round" d="M1361 192L1228 337"/>
+    <path id="alero" stroke-width="10" d="M307 343L1228 337L1469 343V369L1228 375L307 378Z"/>
+    <path id="esquina-alero" fill="none" stroke-width="10" d="M1228 337V375"/>
+  </g>
+
+  <g id="acceso">
+    <path id="lona-enrollada" fill="#F6CF2D" stroke="#101010" stroke-width="6" stroke-linejoin="round" d="M797 378H1184Q1198 378 1198 396Q1198 418 1184 418L797 413Q779 413 779 396Q779 378 797 378Z"/>
+    <ellipse id="extremo-rollo" cx="1187" cy="397" rx="10" ry="18" fill="#F6CF2D" stroke="#101010" stroke-width="5"/>
+    <path id="espiral-rollo" stroke="#101010" stroke-width="3" stroke-linecap="round" d="M1185 390C1192 384 1196 406 1186 406C1181 406 1182 398 1186 398"/>
+    <path id="correas" fill="#101010" d="M871 377H884C877 390 876 403 884 417L873 418C865 406 863 392 871 377ZM1083 377H1096C1089 391 1088 404 1096 417L1085 418C1077 406 1075 392 1083 377Z"/>
+  </g>
+
+  <g id="detalles-lona" fill="#101010">
+    <path id="tension-techo" d="M398 313C437 306 477 281 514 252C484 282 440 307 398 313ZM1081 307C1133 302 1180 276 1219 246C1187 279 1133 306 1081 307Z"/>
+    <path id="tension-panel-izquierdo" d="M334 730C360 691 374 658 382 631C379 671 361 708 334 730ZM357 729C373 715 385 698 394 680C388 702 374 720 357 729Z"/>
+    <path id="tension-panel-central" d="M664 740C697 720 716 695 728 670C720 699 701 726 664 740ZM687 741C708 729 723 714 732 702C726 720 710 737 687 741Z"/>
+    <path id="tension-panel-lateral" d="M1390 720C1416 695 1437 662 1452 633C1443 673 1424 701 1390 720ZM1411 722C1428 708 1442 690 1453 675C1449 696 1432 714 1411 722Z"/>
+  </g>
+</svg>

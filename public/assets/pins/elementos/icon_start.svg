@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="350 30 850 970" fill="none" role="img" aria-labelledby="salida-title salida-desc">
+  <title id="salida-title">Bandera de salida</title>
+  <desc id="salida-desc">Bandera verde ondulada con dos trazos negros de pliegue y mástil inclinado con remate circular. El mástil es blanco opaco y el exterior es transparente.</desc>
+  <path id="mastil" fill="#FFFFFF" stroke="#101010" stroke-width="15" stroke-linejoin="round" d="M394 121L530 960C532 974 543 980 554 976C565 973 571 964 568 952L430 121Z"/>
+  <path id="tela" fill="#299B58" stroke="#101010" stroke-width="15" stroke-linejoin="round" d="M435 151C530 94 615 92 704 114C800 137 888 204 967 204C1047 205 1108 164 1167 139C1129 249 1127 351 1167 472C1103 484 1044 550 963 550C853 550 755 477 655 477C598 472 548 502 499 533Z"/>
+  <g id="pliegues" fill="#101010">
+    <path id="pliegue-superior" d="M468 195C544 151 626 137 702 163C621 145 549 172 470 214Z"/>
+    <path id="pliegue-central" d="M695 431C759 376 815 360 876 360C952 360 1009 341 1071 294C1017 348 959 373 886 375C816 376 760 389 695 431Z"/>
+  </g>
+  <circle id="remate-mastil" cx="409" cy="89" r="34.5" fill="#FFFFFF" stroke="#101010" stroke-width="15"/>
+</svg>

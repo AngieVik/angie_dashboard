@@ -1,14 +1,17 @@
 import { Checkbox } from '@/components/ui/checkbox'
-import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { useContext, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Position } from '../../domain/document/types'
 import { Button } from '@/components/ui/button'
 
 import { ArrowLeft, Check, CopyPlus, Eye, EyeOff, Plus, Save, Trash, Wrench, X } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
+import { ModuleSizeContext } from '../../layout/ModuleSizeContext'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { createElement, updateElement, updateElements, duplicateElement, deleteElement, togglePinVisibility } from './elementCommands'
 import { applyDocumentCommands } from '../../domain/document/documentCommand'
+import type { DocumentCommand } from '../../domain/document/documentCommand'
+import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { ElementEditor } from './ElementEditor'
 import { ICON_CATALOG } from './iconCatalog'
 import { pinNameLines } from './pinPresentation'
@@ -24,7 +27,16 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const formId = useId()
+  const [, setError] = useValidationNotice()
   const [editor, setEditor] = useState<{ kind: 'create' | 'edit' | 'batch'; id: string | null } | null>(null)
+  const requestSpace = useContext(ModuleSizeContext)
+  const editorWasOpen = useRef(false)
+  const editorOpen = Boolean(editor)
+  useLayoutEffect(() => {
+    const opening = editorOpen && !editorWasOpen.current
+    editorWasOpen.current = editorOpen
+    if (opening) requestSpace('minimum')
+  }, [editorOpen, requestSpace])
   const [selectionMode, setSelectionMode] = useState(false)
   const [checkedIds, setCheckedIds] = useState<string[]>([])
   const [handledEdit, setHandledEdit] = useState<typeof editRequest>(undefined)
@@ -90,6 +102,13 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
     lastCardTap.current = null
     onSelect(id); setEditor({ kind: 'edit', id })
   }
+  function mutate(command: DocumentCommand) {
+    if (blockedRef.current) return false
+    try {
+      if (!store.applyDocumentCommand(command)) { setError(store.getSnapshot().fileMessage ?? 'No se pudo modificar el elemento.'); return false }
+      setError(null); return true
+    } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo modificar el elemento.'); return false }
+  }
   return <div data-slot="elements-module" className={`${styles.base} elements-module`} onPointerDownCapture={event => {
     activePointers.current.add(event.pointerId)
     if (activePointers.current.size > 1) cancelHold()
@@ -114,24 +133,24 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
               if (blockedRef.current || !actionElements.length) return
               cancelHold()
               let id = ''
-              store.applyDocumentCommand(document => applyDocumentCommands(document, actionElements.map(element => document => {
+              if (!mutate(document => applyDocumentCommands(document, actionElements.map(element => document => {
                 const result = duplicateElement(document, element.id)
                 id = result.value.id
                 return result
-              })))
+              })))) return
               addControl.current?.focus(); onSelect(id)
             }}><CopyPlus aria-hidden="true" /></Button>
             <Button aria-label={visibilityLabel} disabled={blocked || !actionElements.length} onClick={() => {
               if (blockedRef.current || !actionElements.length) return
               cancelHold()
-              store.applyDocumentCommand(document => applyDocumentCommands(document, actionElements.filter(element => element.pinVisible === hidePins)
+              mutate(document => applyDocumentCommands(document, actionElements.filter(element => element.pinVisible === hidePins)
                 .map(element => document => togglePinVisibility(document, element.id))))
             }}>{hidePins ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button>
             <Button aria-label="Borrar" disabled={blocked || !actionElements.length} onClick={() => {
               if (blockedRef.current || !actionElements.length) return
               cancelHold()
               const ids = actionElements.map(element => element.id)
-              store.applyDocumentCommand(document => applyDocumentCommands(document, ids.map(id => document => deleteElement(document, id))))
+              if (!mutate(document => applyDocumentCommands(document, ids.map(id => document => deleteElement(document, id))))) return
               setCheckedIds(checkedIds => checkedIds.filter(id => !ids.includes(id)))
               if (selectedId && ids.includes(selectedId)) onSelect(null)
               addControl.current?.focus()
@@ -152,15 +171,17 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
       </div>}
     </div>
     {editor?.kind === 'batch' ? <ElementEditor key="batch" element={checked[0]} creating={false} isUnit={isUnit} formId={formId} batchCount={checked.length}
+      onSizeChange={patch => mutate(document => updateElements(document, checked.map(element => element.id), patch))}
       onSaveBatch={(patch, keepOpen) => {
-        if (blockedRef.current) return
-        if (Object.keys(patch).length) store.applyDocumentCommand(document => updateElements(document, checked.map(element => element.id), patch))
+        if (blockedRef.current) return false
+        if (Object.keys(patch).length && !mutate(document => updateElements(document, checked.map(element => element.id), patch))) return false
         if (!keepOpen) { focusList.current = true; setEditor(null) }
+        return true
       }} /> : editor ? <ElementEditor key={editor.kind === 'create' ? 'create' : editor.id} element={edited} creating={editor.kind === 'create'} isUnit={isUnit}
-      formId={formId} onSave={(input, keepOpen) => {
-        if (blockedRef.current) return
+      formId={formId} onSizeChange={edited ? patch => mutate(document => updateElements(document, [edited.id], patch)) : undefined} onSave={(input, keepOpen) => {
+        if (blockedRef.current) return false
         let id: string | null = null
-        store.applyDocumentCommand(document => {
+        if (!mutate(document => {
           if (edited) {
             id = edited.id
             return updateElement(document, edited.id, { name: input.name, information: input.information, visual: input.visual, nameFontSize: input.nameFontSize, nameHidden: input.nameHidden, nameOffset: input.nameOffset, nameColor: input.nameColor, pinAnchor: input.pinAnchor })
@@ -168,10 +189,11 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
           const result = createElement(document, { ...input, position: placementPosition })
           id = result.value.id
           return result
-        })
+        })) return false
         onSelect(id)
         if (keepOpen) setEditor({ kind: editor.kind, id })
         else { focusList.current = true; setEditor(null) }
+        return true
       }} /> : <>
       <div className="elements-list" onPointerDown={event => {
         dragged.current = false

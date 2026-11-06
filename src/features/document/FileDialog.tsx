@@ -123,7 +123,7 @@ function FileDialogFrame({ title, icon, onClose, bounds, initial, fitToContent, 
   const dragged = useRef(false)
   const iconTap = useRef<{ pointerId: number; icon: HTMLButtonElement } | null>(null)
   const state = { scale: 1, offsetX: 0, offsetY: 0 }
-  const { blocked, blockedRef, moduleNavigationRef, handlers } = useViewportGestures(state, bounds, bounds, () => {}, element)
+  const { blocked, blockedRef, moduleNavigationsRef, handlers } = useViewportGestures(state, bounds, bounds, () => {}, element)
   const contentMinimum: LayoutConstraint = { name: 'window-content-minimum', constrainSize: (_item, w, h) => {
     if (blockedRef.current || shown.height <= 29) return { w, h }
     const size = constrainWindowContentSize(element.current?.querySelector<HTMLElement>('.module-frame'), { width: w, height: h })
@@ -149,7 +149,7 @@ function FileDialogFrame({ title, icon, onClose, bounds, initial, fitToContent, 
   }
   return <div ref={element} data-slot="file-dialog-workspace" data-grid-surface="file-dialog" className={`${styles.workspace} ${viewportStyles.workspace} logical-workspace`}
     style={{ left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height }} {...handlers}>
-    <ViewportContext value={{ blocked, blockedRef, moduleNavigationRef }}>
+    <ViewportContext value={{ blocked, blockedRef, moduleNavigationsRef }}>
       <GridLayout width={bounds.width} style={{ height: bounds.height }} autoSize={false}
         layout={[{ i: 'file', x: shown.x, y: shown.y, w: shown.width, h: shown.height, minW: 27, minH: 27, maxW: bounds.width - shown.x, maxH: bounds.height - shown.y }]}
         gridConfig={{ cols: bounds.width, rowHeight: 1, maxRows: bounds.height, margin: [0, 0], containerPadding: [0, 0] }}

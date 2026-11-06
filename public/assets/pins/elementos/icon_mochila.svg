@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="160 40 990 1140" fill="none" role="img" aria-labelledby="equipo-title equipo-desc">
+  <title id="equipo-title">Equipo sanitario</title>
+  <desc id="equipo-desc">Mochila roja de intervención sin cruz, con dos cintas negras, hebilla sencilla y bolsillo frontal con cremallera. El exterior, el hueco del asa y los espacios entre los tirantes son transparentes.</desc>
+  <g id="tirantes" fill="#D9333A" stroke="#101010" stroke-width="16" stroke-linejoin="round">
+    <path id="tirante-izquierdo" d="M263 775C237 834 205 907 191 957C170 1020 197 1062 261 1071C223 1043 219 1014 234 973L263 881Z"/>
+    <use id="tirante-derecho" href="#tirante-izquierdo" transform="translate(1312 0) scale(-1 1)"/>
+  </g>
+  <path id="asa" fill="#D9333A" stroke="#101010" stroke-width="18" stroke-linejoin="round" d="M500 204C516 107 554 66 623 66H686C748 66 790 110 806 204H747C733 145 726 118 684 118H622C587 118 574 151 559 204Z"/>
+  <path id="lateral" fill="#D9333A" stroke="#101010" stroke-width="18" stroke-linejoin="round" d="M824 206H851C945 206 1025 282 1028 352L1051 1075C1053 1117 1018 1140 984 1151C969 1157 950 1157 930 1157H824Z"/>
+  <path id="cuerpo" fill="#D9333A" stroke="#101010" stroke-width="18" stroke-linejoin="round" d="M422 206H825C903 206 970 270 973 351L985 1086C986 1126 963 1157 921 1157H344C295 1157 262 1123 262 1077L284 353C284 272 343 206 422 206Z"/>
+  <g id="cintas-frontales" fill="#101010">
+    <path id="cinta-izquierda" d="M451 215H488V657H451Z"/>
+    <path id="cinta-derecha" d="M807 215H844V661H807Z"/>
+    <path id="cinta-transversal" d="M488 403H807V442H488Z"/>
+  </g>
+  <g id="hebilla" stroke="#101010" stroke-linejoin="round">
+    <path id="cuerpo-hebilla" fill="#D9333A" stroke-width="12" d="M608 394H630C637 394 639 400 643 400C649 406 653 403 657 399C660 395 663 394 667 394H690C698 394 701 398 701 406V439C701 447 698 451 690 451H667C660 451 659 445 655 444C649 439 646 443 643 446C640 450 636 451 631 451H608C600 451 597 448 597 440V406C597 398 600 394 608 394Z"/>
+    <path id="extremos-hebilla" stroke-width="12" stroke-linecap="round" d="M608 405V440M690 405V440"/>
+  </g>
+  <g id="bolsillo-frontal">
+    <path id="bolsillo" fill="#D9333A" stroke="#101010" stroke-width="8" d="M364 739H888C926 739 956 770 956 803V1048C956 1087 925 1118 889 1118H363C326 1118 297 1090 297 1049V804C297 767 326 739 364 739Z"/>
+    <path id="cremallera" stroke="#101010" stroke-width="16" d="M298 803H956"/>
+    <path id="anilla-cremallera" stroke="#101010" stroke-width="5" stroke-linejoin="round" d="M319 801C319 784 337 785 340 796L344 803C347 813 333 814 326 808Z"/>
+    <rect id="tirador-cremallera" x="328" y="809" width="21" height="69" rx="10" fill="#101010"/>
+  </g>
+</svg>

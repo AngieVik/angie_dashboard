@@ -6,7 +6,7 @@ import type { ValidationIssue } from '../document/types'
 // The 2026-11-01 audit measured ten store edits at ~58 ms for 1M characters
 // versus ~465 ms for 8M, before the UI's additional multi-second work.
 // Preserve the existing 50 MiB image, 10 MiB GPX and 50k plan-stroke contracts.
-// 80 MiB JSON leaves room for the 66.7 MiB base64 image plus document content.
+// JSON has a byte preflight; the data contract also bounds all text and collections.
 // These are capacity ceilings, not a latency guarantee on Android.
 export const INPUT_BUDGETS = Object.freeze({
   coordinateCharacters: 1024,
@@ -24,6 +24,10 @@ export const INPUT_BUDGETS = Object.freeze({
   gpxBytes: 10 * 1024 * 1024,
   totalGpxBytes: 50 * 1024 * 1024,
   imageBytes: 50 * 1024 * 1024,
+  // Pre-decode admission: at most 64 MiB for one 8-bit RGBA surface.
+  // Decoder buffers, metadata and the resized bitmap can require more memory.
+  imageDimension: 8192,
+  imagePixels: 16_777_216,
   jsonBytes: 80 * 1024 * 1024,
   objects: 50_000,
   properties: 100_000,
@@ -43,6 +47,15 @@ export function checkFileBytes(size: number, kind: InputFileKind): void {
   const limit = INPUT_BUDGETS[`${kind}Bytes`]
   if (!Number.isSafeInteger(size) || size < 0) throw new InputBudgetError({ path: kind, message: `${kind}: no se pudo comprobar el tamaño. Se conserva el contenido anterior.` })
   if (size > limit) throw new InputBudgetError(budgetIssue(kind, limit / (1024 * 1024), 'MiB'))
+}
+
+export function checkImageDimensions(width: number, height: number): void {
+  if (![width, height].every(value => Number.isSafeInteger(value) && value > 0)) {
+    throw new InputBudgetError({ path: 'image', message: 'No se pudieron comprobar las dimensiones de la imagen. Se conserva el fondo anterior.' })
+  }
+  if (width > INPUT_BUDGETS.imageDimension || height > INPUT_BUDGETS.imageDimension || width * height > INPUT_BUDGETS.imagePixels) {
+    throw new InputBudgetError({ path: 'image', message: `La imagen supera el límite de ${INPUT_BUDGETS.imageDimension} píxeles por lado o ${INPUT_BUDGETS.imagePixels} píxeles totales. Se conserva el fondo anterior.` })
+  }
 }
 
 export function checkGpxPointTotal(files: readonly { fingerprint: string; data: { pointCount: number } }[]): void {
@@ -79,13 +92,6 @@ export function checkDocumentBudget(input: unknown): ValidationIssue | null {
   function visit(value: unknown, path: string, depth: number, point = false): ValidationIssue | null {
     if (depth > INPUT_BUDGETS.depth) return budgetIssue(path, INPUT_BUDGETS.depth, 'niveles de profundidad')
     if (typeof value === 'string') {
-      if (path === 'board.backgroundImage.dataUrl') {
-        const comma = value.indexOf(',')
-        const length = value.length - comma - 1
-        const bytes = length / 4 * 3 - (value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0)
-        if (bytes > INPUT_BUDGETS.imageBytes) return budgetIssue('image', INPUT_BUDGETS.imageBytes / (1024 * 1024), 'MiB')
-        return null // Signature and base64 syntax belong to the document validator.
-      }
       const limit = /^map\.(?:markers|gpx)\[\d+\]\.name$/.test(path) ? INPUT_BUDGETS.gpxNameCharacters : INPUT_BUDGETS.textCharacters
       if (value.length > limit) return budgetIssue(path, limit, 'caracteres')
       text += value.length

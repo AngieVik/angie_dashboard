@@ -17,7 +17,6 @@
   }
 
   .base:disabled { opacity: .5; }
-  .base[aria-invalid="true"] { border-color: var(--color-accent-red); }
   .base:focus-visible { outline: none; }
   .base::placeholder { color: var(--color-text-secondary); opacity: 1; }
   .base[hidden], .base[type="hidden"] { display: none; }

@@ -1,15 +1,14 @@
 @layer components {
-  .base { display: flex; flex: 1; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; padding: 4px 2px; overflow: auto; }
-  .location { display: flex; flex: none; flex-direction: column; gap: 2px; overflow-wrap: anywhere; font-size: var(--font-size-technical); color: var(--color-text-secondary); }
-  .source { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
-  .source strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); font-weight: 650; }
+  .base { display: flex; flex: 1; flex-direction: column; gap: var(--section-gap); min-height: 0; min-width: 0; padding: var(--control-gap) calc(var(--field-padding-base) * var(--module-zoom, 1)); overflow: auto; }
+  .location { display: flex; flex: none; flex-direction: column; gap: var(--control-gap); overflow-wrap: anywhere; font-size: var(--font-size-technical); color: var(--color-text-secondary); }
+  .source { display: flex; align-items: baseline; gap: var(--control-gap); min-width: 0; }
+  .source strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); font-size: var(--font-size-title); font-weight: 650; }
   .source em { flex: none; white-space: nowrap; }
   .zone { min-width: 0; }
   .zone time, .offset { white-space: nowrap; font-variant-numeric: tabular-nums; }
   .times { width: 100%; border-collapse: collapse; font-size: var(--font-size-technical); }
   .times th { font-weight: 400; text-align: left; }
-  .times :is(th, td) { padding: 4px 2px; border-bottom: 1px solid var(--color-border); }
-  .times :is(th, td):first-child { padding-inline: 0; }
+  .times :is(th, td) { padding: calc(var(--field-padding-base) * var(--module-zoom, 1)); border-bottom: 1px solid var(--color-border); }
   .times :is(th, td):not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
   .times thead { color: var(--color-text-secondary); }
   .status { margin: 0; font-variant-numeric: tabular-nums; }

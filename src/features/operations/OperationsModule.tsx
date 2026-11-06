@@ -4,6 +4,7 @@ import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import { changeElementStatus } from '../../domain/operations/changeStatus'
+import { getTimelineIndex } from '../../domain/operations/operationIndexes'
 import { applyDocumentCommands } from '../../domain/document/documentCommand'
 import { setUnitNotes, setUnitNotesColor } from '../../domain/operations/unitAnnotations'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { OperationalStatusIcon } from './OperationalStatusIcon'
 
-import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import styles from './OperationsModule.module.css'
 import buttonStyles from '@/components/ui/button/button.module.css'
 
@@ -21,7 +22,7 @@ export function OperationsModule({ store, selectedId }: { store: DocumentStore; 
   const [, setError] = useValidationNotice(null, 0, 3000)
   const selected = document.elements.find(element => element.id === selectedId)
   const unit = selected?.isUnit ? selected : null
-  const currentEntry = document.timeline.find(entry => entry.id.toLowerCase() === unit?.operational.currentEntryId?.toLowerCase())
+  const currentEntry = getTimelineIndex(document.timeline).byId.get(unit?.operational.currentEntryId?.toLowerCase() ?? '')
   const custom = unit?.operational.status === 'Personalizada' && currentEntry?.type === 'status-change' ? currentEntry : undefined
   return <div data-slot="operations-module" className={`${styles.base} operations-module`}>
     <div className="operations-cards">
@@ -30,7 +31,9 @@ export function OperationsModule({ store, selectedId }: { store: DocumentStore; 
           onClick={() => {
             if (blockedRef.current || !unit || unit.operational.status === status) return
             try {
-              store.applyDocumentCommand(document => changeElementStatus(document, unit.id, status, new Date()))
+              if (!store.applyDocumentCommand(document => changeElementStatus(document, unit.id, status, new Date()))) {
+                setError(store.getSnapshot().fileMessage ?? 'No se pudo cambiar el estado.'); return
+              }
               setError(null)
             } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo cambiar el estado.') }
           }}><OperationalStatusIcon icon={icon} /><span className="operations-state-name" aria-hidden="true">{status}</span><span className="operations-state-abbr technical-data" aria-hidden="true">{abbreviation}</span></Button>)}
@@ -46,12 +49,13 @@ function UnitNotes({ store, unitId, index, activeLabel, activeColor }: { store: 
   const [notes, setNotes] = useState('')
   const [draftNotes, setDraftNotes] = useState('')
   const [draftColor, setDraftColor] = useState('#d63a3a')
-  const notesRef = useRef<HTMLTextAreaElement>(null)
+  const notesRef = useRef<HTMLInputElement>(null)
   const editControl = useRef<HTMLButtonElement>(null)
   const acceptControl = useRef<HTMLButtonElement>(null)
   const cancelControl = useRef<HTMLButtonElement>(null)
   const [editing, setEditing] = useState(false)
   const [, setError] = useValidationNotice(null, 0, 3000)
+  const disabled = blocked || !unitId || !notes
   const active = Boolean(notes && activeLabel === notes && activeColor === draftColor)
   useLayoutEffect(() => { if (editing) notesRef.current?.focus() }, [editing, notesRef])
   useEffect(() => {
@@ -73,15 +77,16 @@ function UnitNotes({ store, unitId, index, activeLabel, activeColor }: { store: 
   function apply() {
     if (blockedRef.current || !unitId || !notes) return
     try {
-      store.applyDocumentCommand(document => applyDocumentCommands(document, [
+      const accepted = store.applyDocumentCommand(document => applyDocumentCommands(document, [
         document => setUnitNotes(document, unitId, notes),
         document => setUnitNotesColor(document, unitId, draftColor),
         document => changeElementStatus(document, unitId, 'Personalizada', new Date()),
       ]))
+      if (!accepted) { setError(store.getSnapshot().fileMessage ?? 'No se pudo aplicar el estado personalizado.'); return }
       setError(null)
     } catch (error) { setError(error instanceof Error ? error.message : 'No se pudo aplicar el estado personalizado.') }
   }
-  return <div className={`operations-notes ${!editing && (blocked || !notes) ? buttonStyles.disabled : ''}`} data-active={active} data-disabled={blocked || !notes}>
+  return <div className={`operations-notes ${disabled && !editing ? buttonStyles.disabled : ''}`} data-active={active} data-disabled={disabled} data-editing={editing}>
     <div className="operations-custom-row">
       <label className="operations-note-color">
         <OperationalStatusIcon color={draftColor} />
@@ -90,15 +95,25 @@ function UnitNotes({ store, unitId, index, activeLabel, activeColor }: { store: 
           setDraftColor(event.target.value); setError(null)
         }} />
       </label>
-      <Button appearance="integrated" variant="text" className="operations-activate" aria-label={notes ? 'Aplicar ' + notes : 'Estado personalizado ' + index + ' no disponible'} aria-pressed={active} hidden={editing} disabled={blocked || !unitId || !notes} onClick={apply}><span className="operations-custom-name" aria-hidden="true">{notes}</span></Button>
-      <Textarea ref={notesRef} className={styles.annotation} rows={1} aria-label={'Nombre del estado personalizado ' + index} hidden={!editing} value={draftNotes} disabled={blocked} onKeyDown={event => {
+      <Button appearance="integrated" variant="text" className="operations-activate" aria-label={notes ? 'Aplicar ' + notes : 'Estado personalizado ' + index + ' no disponible'} aria-pressed={active} hidden={editing} disabled={disabled} onClick={apply}><span className="operations-custom-name" aria-hidden="true">{notes}</span></Button>
+      <Input ref={notesRef} className={styles.annotation} aria-label={'Nombre del estado personalizado ' + index} hidden={!editing} value={draftNotes} disabled={blocked} onKeyDown={event => {
         if (blockedRef.current) return
-        if (event.key === 'Escape' || event.key === 'Enter' && !event.shiftKey) {
+        if (!event.nativeEvent.isComposing && (event.key === 'Escape' || event.key === 'Enter')) {
           event.preventDefault(); finish(event.key === 'Enter')
         }
       }} onChange={event => {
         if (blockedRef.current) return
-        setDraftNotes(event.target.value); setError(null)
+        setDraftNotes(event.target.value.replace(/[\r\n\u2028\u2029]+/g, ' ')); setError(null)
+      }} onPaste={event => {
+        if (blockedRef.current) return
+        const pasted = event.clipboardData.getData('text/plain')
+        if (!/[\r\n\u2028\u2029]/.test(pasted)) return
+        event.preventDefault()
+        const field = event.currentTarget
+        const start = field.selectionStart ?? draftNotes.length, end = field.selectionEnd ?? start
+        const singleLine = pasted.replace(/[\r\n\u2028\u2029]+/g, ' ')
+        setDraftNotes(draftNotes.slice(0, start) + singleLine + draftNotes.slice(end)); setError(null)
+        requestAnimationFrame(() => field.setSelectionRange(start + singleLine.length, start + singleLine.length))
       }} />
       {editing ? <>
         <Button ref={acceptControl} className="operations-edit" aria-label={'Aceptar estado personalizado ' + index} disabled={blocked} onClick={() => finish(true)}><Check aria-hidden="true" /></Button>

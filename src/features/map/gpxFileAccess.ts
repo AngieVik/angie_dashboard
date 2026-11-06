@@ -1,8 +1,12 @@
-import type { GpxReadHandle } from '../../storage/gpxAccessRepository'
 import { analyzeGpx } from './gpxWorkerClient'
 import type { GpxReadOptions } from './gpxWorkerClient'
 import { checkFileBytes, INPUT_BUDGETS, InputBudgetError, budgetIssue } from '../../domain/input/inputBudgets'
 import { retainGpx } from '../../storage/gpxResources'
+
+export interface GpxReadHandle {
+  readonly name: string
+  getFile(): Promise<File>
+}
 
 export function pickGpxFiles(multiple: boolean): Promise<GpxReadHandle[]> | null {
   const browser = window as Window & {

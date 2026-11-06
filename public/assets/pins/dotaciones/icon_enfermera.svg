@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="210 80 900 1070" fill="none" role="img" aria-labelledby="enfermera-title enfermera-desc">
+  <title id="enfermera-title">Enfermera</title>
+  <desc id="enfermera-desc">Busto de enfermera con piel naranja, casaca blanca de cuello en V, gorro blanco y jeringa blanca. Contorno negro y fondo exterior transparente.</desc>
+  <path id="casaca" fill="#FFFFFF" stroke="#101010" stroke-width="20" stroke-linejoin="round" d="M495 760C445 777 389 791 350 814C276 858 244 932 242 1017C238 1044 255 1062 305 1079C464 1131 1015 1131 1035 1050C1053 1026 1029 934 1000 890C968 823 877 789 791 760Z"/>
+  <path id="cuello" fill="#EF8321" stroke="#101010" stroke-width="19" stroke-linejoin="round" d="M544 647V691C543 727 526 746 495 760L645 952L791 760C754 743 744 723 744 693V646Z"/>
+  <path id="cabeza" fill="#EF8321" stroke="#101010" stroke-width="20" stroke-linejoin="round" d="M449 434C432 389 438 355 462 334C579 269 708 267 827 334C846 359 848 400 839 434C860 423 875 441 868 475C861 516 840 555 811 541C800 587 780 623 746 650C708 681 678 693 645 693C612 693 576 676 543 650C507 618 486 579 477 541C456 553 430 530 421 496C405 457 416 422 449 434Z"/>
+  <g id="gorro" stroke="#101010" stroke-linejoin="round">
+    <path id="cuerpo-gorro" fill="#FFFFFF" stroke-width="20" d="M407 164C552 94 744 94 890 164L827 334C708 267 579 269 462 334Z"/>
+    <path id="banda-gorro" stroke-width="15" d="M434 238C560 182 732 182 861 238"/>
+  </g>
+  <g id="jeringa" transform="translate(913 924) rotate(36)" stroke="#101010" stroke-linejoin="round">
+    <path id="aguja" stroke-width="12" stroke-linecap="round" d="M0-168V-272"/>
+    <rect id="cono" x="-23" y="-168" width="46" height="46" rx="18" fill="#FFFFFF" stroke-width="12"/>
+    <path id="embolo" fill="#FFFFFF" stroke-width="12" d="M-18 103H18V167H45Q53 167 53 175V188Q53 196 45 196H-45Q-53 196-53 188V175Q-53 167-45 167H-18Z"/>
+    <path id="cilindro" fill="#FFFFFF" stroke-width="13" d="M-22-128H22C39-128 48-117 48-102V103Q48 112 39 112H-39Q-48 112-48 103V-102C-48-117-39-128-22-128Z"/>
+    <path id="graduacion" stroke-width="10" stroke-linecap="round" d="M8-45H31M8 5H31"/>
+  </g>
+</svg>

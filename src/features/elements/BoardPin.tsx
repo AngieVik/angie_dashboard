@@ -7,7 +7,7 @@ import styles from './BoardPin.module.css'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { clampAssetScale, clampPinPosition } from './elementCommands'
 import { getPinBox, ICON_CATALOG } from './iconCatalog'
-import { getPinNameLayout, PIN_NAME_COLORS, pinNameLines, pinNameStyle, pinTransform } from './pinPresentation'
+import { getPinNameLayout, getScaledPinNameOffset, PIN_NAME_COLORS, pinNameLines, pinNameStyle, pinTransform } from './pinPresentation'
 import { boardDelta } from '../board/boardViewport'
 import type { BoardViewportState } from '../board/boardViewport'
 import type { Size } from '../../layout/layoutTypes'
@@ -42,7 +42,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
   const visual = { ...element.visual, scale: preview?.scale ?? element.visual.scale }
   const position = preview?.position ?? clampPinPosition(element.position, visual)
   const box = getPinBox(visual)
-  const nameElement = { ...element, visual, nameOffset: preview?.nameOffset ?? element.nameOffset }
+  const nameElement = { ...element, visual, nameOffset: preview?.nameOffset ?? getScaledPinNameOffset(element, visual.scale) }
   const nameOffset = getPinNameLayout(nameElement).offset
   function start(event: PointerEvent<HTMLButtonElement>, kind: 'move' | 'resize' | 'name') {
     if (!enabled || blockedRef.current || event.button !== 0 || !element.position) return
@@ -50,9 +50,9 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
     event.currentTarget.setPointerCapture?.(event.pointerId)
     suppressClick.current = false
     gesture.current = { kind, pointerId: event.pointerId, x: event.clientX, y: event.clientY, origin: position,
-      nameOffset, scale: element.visual.scale, ready: kind === 'resize', moved: false, next: null }
+      nameOffset, scale: element.visual.scale, ready: kind === 'resize' || event.pointerType === 'mouse', moved: false, next: null }
     clearTimeout(timer.current)
-    if (kind !== 'resize') timer.current = setTimeout(() => { if (gesture.current && !blockedRef.current) gesture.current.ready = true }, 250)
+    if (kind !== 'resize' && event.pointerType !== 'mouse') timer.current = setTimeout(() => { if (gesture.current && !blockedRef.current) gesture.current.ready = true }, 250)
   }
   function move(event: PointerEvent<HTMLButtonElement>) {
     const current = gesture.current, rect = surface.current?.getBoundingClientRect()

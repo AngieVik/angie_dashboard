@@ -1,15 +1,13 @@
 import { checkFileBytes, InputBudgetError } from '../../domain/input/inputBudgets'
-import type { SizedTextFile } from './readInputFile'
+import type { DocumentFile } from './fileHandleTypes'
 import type { DocumentOperation, DocumentWorkerResponse } from './documentWorkerProtocol'
 
 export interface DocumentReadOptions {
   documentGeneration: number
   signal?: AbortSignal
-  prepareVisible?: boolean
-  retainText?: boolean
 }
 
-export async function analyzeDocument(source: SizedTextFile | string, options: DocumentReadOptions = { documentGeneration: 0 }) {
+export async function analyzeDocument(source: DocumentFile | string, options: DocumentReadOptions = { documentGeneration: 0 }) {
   const { signal } = options
   const abortError = () => new DOMException('Apertura cancelada.', 'AbortError')
   if (signal?.aborted) throw abortError()
@@ -43,7 +41,7 @@ export async function analyzeDocument(source: SizedTextFile | string, options: D
       worker.onerror = event => { event.preventDefault(); finish(new Error('No se pudo analizar el JSON en segundo plano.')) }
       worker.onmessageerror = () => finish(new Error('No se pudo recibir el JSON analizado.'))
       const send = (value: Blob | string) => {
-        if (!settled) worker!.postMessage({ ...identity, source: value, prepareVisible: options.prepareVisible, retainText: options.retainText })
+        if (!settled) worker!.postMessage({ ...identity, source: value })
       }
       if (typeof source === 'string' || source instanceof Blob) send(source)
       else void source.text().then(send).catch(error => finish(error instanceof Error ? error : new Error('No se pudo leer el JSON.')))

@@ -18,13 +18,9 @@
       .map-zoom,
       .notebook-toolbar,
       .elements-configure-actions,
-      .notebook-item-actions,
       .timeline-entry-actions,
-      .permission-actions,
       .reports-actions,
       .reports-page-toolbar,
-      .reports-map-toolbar,
-      .reports-map-area,
       .board-tool-cursor,
       .board-image-editor,
       .board-pin-resize,
@@ -36,8 +32,7 @@
     ),
     :is([data-slot="app-shell"], [data-slot="file-dialog-content"], [data-slot="alert-dialog-content"]) :is(
       [data-slot="module-header"],
-      [data-slot="alert"],
-      .reports-resource-actions
+      [data-slot="alert"]
     ) [data-slot="button"] { display: none !important; }
 
     :is([data-slot="app-shell"], [data-slot="file-dialog-content"], [data-slot="alert-dialog-content"]),

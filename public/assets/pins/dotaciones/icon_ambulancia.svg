@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 15 470 235" fill="currentColor" color="#E3B52F" role="img" aria-labelledby="ambulancia-06-title ambulancia-06-desc">
+  <title id="ambulancia-06-title">Ambulancia · línea baja y puertas</title>
+  <desc id="ambulancia-06-desc">Furgón sanitario amarillo con contorno negro, ventanilla limpia, línea negra baja y separaciones independientes de las puertas. Sin cruz ni retrovisor.</desc>
+  <defs>
+    <path id="ambulancia-06-body" d="M28 197L31 111Q33 65 43 48Q48 37 65 37H293Q314 37 332 55L394 120Q425 124 447 139Q462 149 464 170L466 193Q467 203 455 207H428A39 39 0 0 0 350 207H145A39 39 0 0 0 67 207H39Q28 207 28 197Z"/>
+    <clipPath id="ambulancia-06-body-clip"><use href="#ambulancia-06-body"/></clipPath>
+  </defs>
+  <use href="#ambulancia-06-body" stroke="#101010" stroke-width="4" stroke-linejoin="round"/>
+  <path fill="none" stroke="#101010" stroke-width="6" clip-path="url(#ambulancia-06-body-clip)" d="M30 175H465"/>
+  <path fill="none" stroke="#101010" stroke-width="3" stroke-linecap="round" d="M175 50V166M289 50V166M371 132L365 166"/>
+  <g fill="#101010">
+    <path d="M301 67H314Q325 67 334 78L371 118Q374 122 368 121L320 114Q304 110 303 99Z"/>
+    <rect x="260" y="132" width="17" height="4" rx="2"/>
+    <rect x="303" y="132" width="16" height="4" rx="2"/>
+    <rect x="34" y="125" width="8" height="36" rx="2"/>
+    <path d="M431 143L455 155L458 167L440 162Z"/>
+  </g>
+  <g stroke="#101010" stroke-width="3" stroke-linejoin="round">
+    <rect x="254" y="22" width="65" height="10" rx="3"/>
+    <rect x="55" y="26" width="23" height="8" rx="3"/>
+  </g>
+  <g stroke="#101010" stroke-width="5">
+    <circle cx="106" cy="207" r="30"/>
+    <circle cx="389" cy="207" r="30"/>
+  </g>
+  <g fill="#101010">
+    <circle cx="106" cy="207" r="10"/>
+    <circle cx="389" cy="207" r="10"/>
+  </g>
+</svg>

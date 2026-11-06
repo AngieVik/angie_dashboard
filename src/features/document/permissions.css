@@ -4,4 +4,3 @@
 .permission-heading h3 { margin: 0; font-size: var(--font-size-title); }
 .permission-heading [role="status"] { color: var(--color-text-secondary); }
 .permission-section p { margin: 6px 0; overflow-wrap: anywhere; }
-.permission-actions { display: flex; flex-wrap: wrap; gap: 8px; }

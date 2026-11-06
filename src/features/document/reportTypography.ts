@@ -38,6 +38,9 @@ async function embedReportFonts(): Promise<string> {
 export function prepareReportTypography(): Promise<string> {
   preparation ??= Promise.all([embedReportFonts(), waitForReportFonts(document)])
     .then(([styles]) => styles)
-    .catch(() => '')
+    .catch(() => {
+      preparation = undefined
+      return ''
+    })
   return preparation
 }

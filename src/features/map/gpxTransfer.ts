@@ -11,6 +11,7 @@ export interface PackedGpx {
   distances: Float64Array<ArrayBuffer>
   metadata: [number, string | undefined, string | undefined][]
   bounds?: GpxData['bounds']
+  displayLongitudes?: Float64Array<ArrayBuffer>
   gaps: Float64Array<ArrayBuffer>
   cuts: Float64Array<ArrayBuffer>
   summary: Pick<GpxProfile, 'totalMeters' | 'minimum' | 'maximum' | 'ascent' | 'descent' | 'missingPoints'>
@@ -37,17 +38,18 @@ export function packGpx(data: GpxData): PackedGpx {
   const gaps = new Float64Array(profile.gaps.length * 3)
   profile.gaps.forEach((gap, i) => { gaps[i * 3] = gap.from; gaps[i * 3 + 1] = gap.to; gaps[i * 3 + 2] = gap.segmentIndex })
   const { totalMeters, minimum, maximum, ascent, descent, missingPoints } = profile
-  return { points, offsets, distances, metadata, bounds: data.bounds, gaps, cuts: new Float64Array(profile.cuts),
+  return { points, offsets, distances, metadata, bounds: data.bounds, displayLongitudes: data.displayLongitudes, gaps, cuts: new Float64Array(profile.cuts),
     summary: { totalMeters, missingPoints, ...(minimum === undefined ? {} : { minimum }), ...(maximum === undefined ? {} : { maximum }),
       ...(ascent === undefined ? {} : { ascent }), ...(descent === undefined ? {} : { descent }) } }
 }
 
 export function gpxTransferables(packed: PackedGpx): ArrayBuffer[] {
-  return [packed.points.buffer, packed.offsets.buffer, packed.distances.buffer, packed.gaps.buffer, packed.cuts.buffer]
+  return [packed.points.buffer, packed.offsets.buffer, packed.distances.buffer, packed.gaps.buffer, packed.cuts.buffer,
+    ...(packed.displayLongitudes ? [packed.displayLongitudes.buffer] : [])]
 }
 
 export async function unpackGpx(packed: PackedGpx, signal?: AbortSignal): Promise<GpxData> {
-  const data: GpxData = { lines: [], waypoints: [], pointCount: packed.points.length / 3, ...(packed.bounds ? { bounds: packed.bounds } : {}) }
+  const data: GpxData = { lines: [], waypoints: [], pointCount: packed.points.length / 3, bounds: packed.bounds, displayLongitudes: packed.displayLongitudes }
   const metrics = { distances: [] as number[][], totalMeters: packed.summary.totalMeters }
   const profile: GpxProfile = { ...packed.summary, segments: [], samples: [], gaps: [], cuts: [] }
   let index = 0, meta = 0, work = 0
@@ -70,7 +72,7 @@ export async function unpackGpx(packed: PackedGpx, signal?: AbortSignal): Promis
         line.push(point)
         const distanceMeters = packed.distances[index]!
         distances.push(distanceMeters)
-        const sample = { point, distanceMeters, segmentIndex: lineIndex }
+        const sample = { point, distanceMeters, segmentIndex: lineIndex, displayLongitude: data.displayLongitudes?.[index] }
         samples.push(sample); profile.samples.push(sample)
       }
       if (++work % 512 === 0) await yieldGpx(signal)

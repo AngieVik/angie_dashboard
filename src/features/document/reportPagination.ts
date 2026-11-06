@@ -1,5 +1,3 @@
-import { createReportIssue, formatReportIssue, reportIssueKey } from './reportIssues'
-import type { ReportIssue } from './reportIssues'
 import { waitForReportFonts } from './reportTypography'
 import { REPORT_PAGE_MARGIN_MM, reportPageDimensions } from './reportPageOptions'
 import type { ReportPageOptions } from './reportPageOptions'
@@ -10,7 +8,7 @@ export function reportPageStyles(options: ReportPageOptions) {
 @page{size:A4 ${options.orientation === 'landscape' ? 'landscape' : 'portrait'};margin:0}`
 }
 
-export async function paginateReport<T extends { html: string; issues: ReportIssue[] }>(report: T, options: ReportPageOptions): Promise<T> {
+export async function paginateReport<T extends { html: string }>(report: T, options: ReportPageOptions): Promise<T> {
   const frame = document.createElement('iframe'), { width, height } = reportPageDimensions(options)
   let loadTimer: ReturnType<typeof setTimeout> | undefined
   frame.setAttribute('sandbox', 'allow-same-origin')
@@ -26,28 +24,6 @@ export async function paginateReport<T extends { html: string; issues: ReportIss
     const doc = frame.contentDocument, main = doc?.querySelector('main')
     if (!doc || !main) throw new Error('No se pudo preparar la paginación.')
     await waitForReportFonts(doc)
-    const issues = [...report.issues], images = Array.from(doc.images)
-    const decoded = await Promise.allSettled(images.map(image => image.decode()))
-    let imageUnavailable = false
-    images.forEach((image, index) => {
-      if (decoded[index]?.status === 'fulfilled' && image.naturalWidth && image.naturalHeight) return
-      const section = image.closest<HTMLElement>('section[data-report-section]')?.dataset.reportSection
-      if (section !== 'map' && section !== 'plan' && section !== 'board') return
-      const legend = image.closest('.report-legend'), target = legend ?? image.closest('figure')
-      if (!target) return
-      const issue = createReportIssue(section, 'No se pudo decodificar la imagen.', legend
-        ? { kind: 'legend', resourceId: 'legend', label: 'Leyenda' }
-        : { kind: 'representation', resourceId: 'image', label: 'Imagen' })
-      if (!issues.some(item => reportIssueKey(item) === reportIssueKey(issue))) issues.push(issue)
-      const notice = doc.createElement('p')
-      notice.className = 'report-unavailable'; notice.textContent = formatReportIssue(issue)
-      target.replaceWith(notice); imageUnavailable = true
-    })
-    if (imageUnavailable) {
-      const notice = main.querySelector<HTMLElement>(':scope > .report-unavailable') ?? doc.createElement('p')
-      notice.className = 'report-unavailable'; notice.textContent = 'Informe incompleto: recursos no disponibles.'
-      if (!notice.parentElement) main.querySelector('header')?.after(notice)
-    }
     const columns = new Map<HTMLTableElement, number[]>()
     for (const table of main.querySelectorAll('table')) {
       const cells = Array.from(table.tHead?.rows[0]?.cells ?? [])
@@ -58,9 +34,9 @@ export async function paginateReport<T extends { html: string; issues: ReportIss
     main.replaceChildren(); main.className = 'report-pages'
     let current: HTMLElement | null = null, sectionTitle: HTMLElement | null = null
     let pending: HTMLElement[] = []
-    function page(graphic = false) {
+    function page() {
       const sheet = doc!.createElement('div'), content = doc!.createElement('div')
-      sheet.className = 'report-page' + (graphic ? ' report-page-graphic' : '')
+      sheet.className = 'report-page'
       content.className = 'report-page-content'; sheet.append(content); main!.append(sheet)
       return content
     }
@@ -150,44 +126,19 @@ export async function paginateReport<T extends { html: string; issues: ReportIss
         }
       }
     }
-    function composition(source: HTMLElement, heading: HTMLElement) {
-      current = null
-      const content = page(true)
-      content.append(heading.cloneNode(true))
-      const box = doc!.createElement('div'), inner = doc!.createElement('div')
-      box.className = 'report-composition-box'; inner.className = 'report-composition-content'
-      inner.style.width = content.clientWidth + 'px'
-      const figure = source.cloneNode(true) as HTMLElement, image = figure.querySelector<HTMLImageElement>('.report-map-image')
-      const original = source.querySelector<HTMLImageElement>('.report-map-image')
-      if (!image || !original?.naturalWidth || !original.naturalHeight) throw new Error('La composición gráfica no está disponible.')
-      const available = content.clientHeight
-      image.style.width = content.clientWidth + 'px'; image.style.height = content.clientWidth * original.naturalHeight / original.naturalWidth + 'px'
-      inner.append(figure); box.append(inner); content.append(box)
-      const top = box.getBoundingClientRect().top - content.getBoundingClientRect().top
-      const extra = inner.getBoundingClientRect().height - image.getBoundingClientRect().height
-      const maxImageHeight = Math.max(1, available - top - extra - 1)
-      const imageWidth = Math.min(content.clientWidth, maxImageHeight * original.naturalWidth / original.naturalHeight)
-      image.style.width = imageWidth + 'px'; image.style.height = imageWidth * original.naturalHeight / original.naturalWidth + 'px'
-      const total = inner.getBoundingClientRect().height, scale = Math.min(1, Math.max(1, available - top - 1) / Math.max(1, total))
-      inner.style.left = (content.clientWidth - content.clientWidth * scale) / 2 + 'px'; inner.style.transform = `scale(${scale})`
-      box.style.height = total * scale + 'px'
-      pending = []
-    }
     for (const source of sources) {
       if (source.tagName !== 'SECTION') { sectionTitle = null; block(source); continue }
       const children = Array.from(source.children) as HTMLElement[]
       const heading = children.find(child => child.tagName === 'H2')
       if (!heading) { block(source); continue }
       sectionTitle = heading
-      const figure = children.find(child => child.tagName === 'FIGURE' && child.querySelector('.report-map-image'))
-      if (figure) composition(figure, heading)
-      const remaining = children.filter(child => child !== heading && child !== figure)
+      const remaining = children.filter(child => child !== heading)
       if (remaining.length) {
         pending = [heading]
         for (const node of remaining) { if (node.tagName === 'TABLE') table(node as HTMLTableElement); else block(node) }
       }
     }
     for (const content of main.querySelectorAll('.report-page-content')) if (!content.children.length) content.parentElement?.remove()
-    return { ...report, issues, html: '<!doctype html>\n' + doc.documentElement.outerHTML }
+    return { ...report, html: '<!doctype html>\n' + doc.documentElement.outerHTML }
   } finally { clearTimeout(loadTimer); frame.onload = null; frame.onerror = null; frame.remove() }
 }

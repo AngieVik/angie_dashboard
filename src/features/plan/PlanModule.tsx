@@ -21,6 +21,7 @@ import type { PlanMode } from './planTypes'
 import { updateElement } from '../elements/elementCommands'
 import { addPlanStroke, clearPlanStrokes, placePlanPin, removePlanPin, removePlanStroke, togglePlanPin } from './planCommands'
 import styles from './plan.module.css'
+import toolbarStyles from '@/layout/moduleToolbar.module.css'
 
 const EMPTY_PINS: PlanPin[] = []
 const EMPTY_STROKES: PlanStroke[] = []
@@ -61,11 +62,15 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
   function apply(update: DocumentCommand) {
     const snapshot = store.getSnapshot()
     if (blockedRef.current || !snapshot.ready || snapshot.replacing || snapshot.documentGeneration !== documentGeneration) return false
-    try { return store.applyDocumentCommand(update) }
+    try {
+      const accepted = store.applyDocumentCommand(update)
+      if (!accepted) toast.error(store.getSnapshot().fileMessage ?? 'No se pudo actualizar el plano.', { id: noticeId })
+      return accepted
+    }
     catch (failure) { toast.error(failure instanceof Error ? failure.message : 'No se pudo actualizar el plano.', { id: noticeId }); return false }
   }
   return <div className={`plan-module ${styles.base}`} data-mode={mode}>
-    <div className="plan-toolbar" role="toolbar" aria-label="Herramientas del Plano operativo">
+    <div className={`plan-toolbar ${toolbarStyles.base}`} role="toolbar" aria-label="Herramientas del Plano operativo">
       <div className="plan-tools" role="group" aria-label="Modo del plano">
         {MODES.map(({ mode: tool, label, icon: Icon }) => <Button key={tool} aria-label={label} aria-pressed={mode === tool} disabled={blocked}
           onClick={() => { if (!blockedRef.current) setMode(tool) }}><Icon aria-hidden="true" /></Button>)}

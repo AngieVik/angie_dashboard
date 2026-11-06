@@ -1,77 +1,91 @@
-import type { AngieDocument } from '../../domain/document/types'
-import type { WorkspaceFiles } from './workspaceFiles'
+import type { UIBoardData } from '../../domain/document/types'
 import type { DocumentFile, SaveFileHandle } from './fileHandleTypes'
-import { InputBudgetError } from '../../domain/input/inputBudgets'
 import { analyzeDocument } from './documentWorkerClient'
 import type { DocumentReadOptions } from './documentWorkerClient'
-import type { VisibleDocumentPreparation } from './documentWorkerProtocol'
+import { checkFileBytes } from '../../domain/input/inputBudgets'
 
 export interface FilePlatform {
   pickOpen?: () => Promise<{ file: DocumentFile; handle: SaveFileHandle }>
+  pickSave?: (filename: string, mimeType?: string) => Promise<SaveFileHandle>
   download(text: string, filename: string, mimeType?: string): void
 }
 
-export interface FileAccessContext {
-  platform: FilePlatform
-  now?: () => Date
-  workspace?: WorkspaceFiles
-}
-
 export type LoadOutcome =
-  | { status: 'loaded'; document: AngieDocument; migrated: boolean; visible: VisibleDocumentPreparation }
+  | { status: 'loaded'; data: UIBoardData; fingerprint: string }
   | { status: 'cancelled' }
   | { status: 'error'; message: string }
 
-export function suggestFilename(title: string, now = new Date()): string {
-  // Include both ASCII and C1 control characters. Do not mutate the title.
+export function suggestFilename(title: string): string {
   let base = [...title].filter(character => {
     const code = character.charCodeAt(0)
     return code > 31 && !(code >= 127 && code <= 159) && !'<>:"/\\|?*'.includes(character)
-  }).join('').replace(/[ .]+$/, '')
-  base = base.replace(/\.json$/i, '').replace(/[ .]+$/, '')
-  if (!base || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(base)) {
-    const pad = (value: number) => String(value).padStart(2, '0')
-    base = `drp_${String(now.getFullYear()).padStart(4, '0')}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`
-  }
-  return `${base}.json`
+  }).join('').replace(/[ .]+$/, '').replace(/(?:\.uiboard)?\.json$/i, '').replace(/[ .]+$/, '')
+  if (!base || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(base)) base = 'UIBoard'
+  return `${base}.uiboard.json`
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Error desconocido'
+export function isFileCancellation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
 }
 
-export async function loadVisibleDocument(file: DocumentFile, options: DocumentReadOptions = { documentGeneration: 0 }): Promise<LoadOutcome> {
+export async function textFingerprint(text: string): Promise<string> {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function writeTextFile(handle: SaveFileHandle, text: string, expectedFingerprint?: string | null): Promise<string> {
+  const stream = await handle.createWritable({ mode: 'exclusive' })
   try {
-    const { result, visible } = await analyzeDocument(file, { ...options, prepareVisible: true })
-    if (!result.success) return { status: 'error', message: result.errors.map(error => error.message).join('\n') }
-    if (!visible) throw new Error('No se recibió el documento preparado.')
-    return { status: 'loaded', document: result.document, migrated: result.migrated, visible }
+    if (expectedFingerprint) {
+      const current = await handle.getFile?.()
+      if (current) checkFileBytes(current.size, 'json')
+      if (!current || await textFingerprint(await current.text()) !== expectedFingerprint) {
+        throw new Error('El archivo ha cambiado fuera de Angie. Ábrelo de nuevo o guarda con otro nombre.')
+      }
+    }
+    const fingerprint = await textFingerprint(text)
+    await stream.write(text)
+    await stream.close()
+    return fingerprint
   } catch (error) {
-    if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) return { status: 'cancelled' }
-    if (error instanceof InputBudgetError) return { status: 'error', message: error.message }
-    return { status: 'error', message: `No se pudo leer el JSON: ${errorMessage(error)}` }
+    try { await stream.abort() } catch { /* Preserve the original write error. */ }
+    throw error
+  }
+}
+
+export async function loadVisibleDocument(file: DocumentFile, options: DocumentReadOptions): Promise<LoadOutcome> {
+  try {
+    const response = await analyzeDocument(file, options)
+    if (!response.result.success) return { status: 'error', message: response.result.errors.map(error => error.message).join('\n') }
+    return { status: 'loaded', data: response.result.document, fingerprint: response.fingerprint }
+  } catch (error) {
+    if (options.signal?.aborted || isFileCancellation(error)) return { status: 'cancelled' }
+    return { status: 'error', message: error instanceof Error ? error.message : 'No se pudo abrir el UIBoard.' }
   }
 }
 
 export function createBrowserFilePlatform(): FilePlatform {
   const browser = window as Window & {
     showOpenFilePicker?: (options: { multiple: false; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<(SaveFileHandle & { getFile(): Promise<File> })[]>
+    showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<SaveFileHandle>
   }
   return {
     pickOpen: browser.showOpenFilePicker ? async () => {
-      const [handle] = await browser.showOpenFilePicker!({ multiple: false, types: [{ description: 'Documento Angie Dashboard JSON', accept: { 'application/json': ['.json'] } }] })
+      const [handle] = await browser.showOpenFilePicker!({ multiple: false, types: [{ description: 'UIBoard', accept: { 'application/json': ['.json'] } }] })
       if (!handle) throw new DOMException('Cancelado', 'AbortError')
       return { file: await handle.getFile(), handle }
     } : undefined,
+    pickSave: browser.showSaveFilePicker ? (filename, mimeType = 'application/json') => browser.showSaveFilePicker!({
+      suggestedName: filename,
+      types: [{ description: mimeType === 'text/html' ? 'Informe HTML' : 'UIBoard', accept: { [mimeType]: [mimeType === 'text/html' ? '.html' : '.json'] } }],
+    }) : undefined,
     download(text, filename, mimeType = 'application/json') {
       const url = URL.createObjectURL(new Blob([text], { type: mimeType }))
       const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
+      anchor.href = url; anchor.download = filename
       document.body.append(anchor)
       try { anchor.click() } finally {
         anchor.remove()
-        // Give the browser time to start consuming the Blob URL.
         window.setTimeout(() => URL.revokeObjectURL(url), 1000)
       }
     },

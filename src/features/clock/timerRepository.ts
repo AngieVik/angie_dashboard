@@ -4,6 +4,7 @@ import type { TimerRecord } from './timerTypes'
 import { MAX_TIMER_SECONDS } from './timerEngine'
 
 export interface InternalTimerRepository {
+  withLock<T>(operation: () => Promise<T>): Promise<T>
   loadTimers(): Promise<TimerRecord[]>
   saveTimers(timers: TimerRecord[]): Promise<void>
 }
@@ -25,6 +26,13 @@ export function createTimerDatabase(name = 'angie-dashboard-timers', options?: D
 export class TimerRepository implements InternalTimerRepository {
   private expectedRevision: number | null = null
   constructor(private readonly db: Dexie = createTimerDatabase()) {}
+  // The store holds this short lock across read, commit and audio initiation.
+  // Do not fall back to uncoordinated execution: a revision check alone cannot
+  // protect the interval between committing a timer and starting its alarm.
+  withLock<T>(operation: () => Promise<T>): Promise<T> {
+    if (typeof navigator === 'undefined' || !navigator.locks) return Promise.reject(new Error('Coordinación de temporizadores no disponible'))
+    return navigator.locks.request(`${this.db.name}:execution`, operation)
+  }
   async loadTimers(): Promise<TimerRecord[]> {
     if (!this.db.isOpen()) await this.db.open()
     const record = await this.db.table<LocalTimerRecord, string>('timers').get('active')

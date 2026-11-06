@@ -1,15 +1,10 @@
 import type { TimelineEntry } from '../document/types'
+import { compareUtcDates, latestDocumentTime } from '../document/documentTime'
 
-// Imported UTC instants may have a fraction finer than Date's milliseconds.
-function compareInstants(left: string, right: string) {
-  const secondsLeft = left.slice(0, 19), secondsRight = right.slice(0, 19)
-  if (secondsLeft !== secondsRight) return secondsLeft < secondsRight ? -1 : 1
-  const fractionLeft = left[19] === '.' ? left.slice(20, -1) : ''
-  const fractionRight = right[19] === '.' ? right.slice(20, -1) : ''
-  const length = Math.max(fractionLeft.length, fractionRight.length)
-  const a = fractionLeft.padEnd(length, '0'), b = fractionRight.padEnd(length, '0')
-  return a === b ? 0 : a < b ? -1 : 1
+export function nextTimelineEntryTime(entries: readonly TimelineEntry[], now: Date): string {
+  const current = now.toISOString()
+  return latestDocumentTime(entries.at(-1)?.occurredAt ?? current, current)
 }
 export function appendTimelineEntry(entries: TimelineEntry[], entry: TimelineEntry) {
-  return [...entries, entry].sort((a, b) => compareInstants(a.occurredAt, b.occurredAt))
+  return [...entries, entry].sort((a, b) => compareUtcDates(a.occurredAt, b.occurredAt))
 }

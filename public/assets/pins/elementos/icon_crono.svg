@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="260 0 503 574" fill="none" role="img" aria-labelledby="crono-title crono-desc">
+  <title id="crono-title">Cronómetro</title>
+  <desc id="crono-desc">Cronómetro digital gris con tres pulsadores, aros concéntricos y lectura fija 00:00.00. Los números están dibujados con segmentos vectoriales. Esfera opaca y exterior transparente.</desc>
+  <defs>
+    <g id="pulsador-lateral" stroke="#101010" stroke-linejoin="round">
+      <path id="vastago-lateral" fill="#595F5B" stroke-width="6" d="M322 149L349 125L374 145L339 174Z"/>
+      <path id="boton-lateral" fill="#757A7D" stroke-width="6" d="M291 119L331 85Q339 79 346 87L365 108Q370 114 364 119L319 158Q314 163 309 157L291 137Q284 129 291 119Z"/>
+      <path id="bisel-lateral" fill="#B5BBBB" stroke="none" d="M294 121L333 87Q338 83 343 88L347 92L298 134L294 129Q291 125 294 121Z"/>
+      <path id="arista-lateral" stroke-width="3.5" d="M294 131L348 92"/>
+    </g>
+    <g id="cero-digital" fill="#101010" stroke="#FFFFFF" stroke-width="0.7" stroke-linejoin="round">
+      <path id="segmento-superior" d="M9 0H33L39 5L33 10H9L3 5Z"/>
+      <path id="segmento-superior-izquierdo" d="M0 8L4 4L10 10V34L5 40L0 35Z"/>
+      <path id="segmento-superior-derecho" d="M42 8L38 4L32 10V34L37 40L42 35Z"/>
+      <path id="segmento-inferior-izquierdo" d="M5 44L10 49V74L4 80L0 76V50Z"/>
+      <path id="segmento-inferior-derecho" d="M37 44L32 49V74L38 80L42 76V50Z"/>
+      <path id="segmento-inferior" d="M9 74H33L39 79L33 84H9L3 79Z"/>
+    </g>
+  </defs>
+
+  <g id="pulsadores">
+    <path id="vastago-superior" fill="#595F5B" stroke="#101010" stroke-width="6" d="M478 69H545V101H478Z"/>
+    <path id="corona" fill="#757A7D" stroke="#101010" stroke-width="7" stroke-linejoin="round" d="M462 27C462 18 469 10 479 10H545Q558 10 561 25V66Q561 73 554 73H469Q462 73 462 66Z"/>
+    <path id="bisel-corona" fill="#B5BBBB" d="M465 21Q469 13 479 13H545Q553 13 557 21Z"/>
+    <path id="estrias-corona" stroke="#101010" stroke-width="3" d="M465 23H558M471 24V69M482 24V69M493 24V69M505 24V69M519 24V69M532 24V69M543 24V69M553 24V69"/>
+    <use href="#pulsador-lateral"/>
+    <use href="#pulsador-lateral" transform="translate(1024 0) scale(-1 1)"/>
+  </g>
+
+  <g id="carcasa" stroke="#101010">
+    <ellipse id="cuerpo" cx="511.5" cy="328.5" rx="237.5" ry="232.5" fill="#B5BBBB" stroke-width="7"/>
+    <ellipse id="aro-exterior" cx="511.5" cy="328.5" rx="210" ry="205" fill="#B5BBBB" stroke-width="3.5"/>
+    <ellipse id="bisel-interior" cx="511.5" cy="328.5" rx="194" ry="189" fill="#696F6F" stroke-width="3.5"/>
+    <ellipse id="esfera" cx="511.5" cy="328.5" rx="177" ry="172" fill="#E9EDEE" stroke-width="3.5"/>
+  </g>
+
+  <g id="lectura-digital">
+    <use href="#cero-digital" transform="translate(365 289.5)"/>
+    <use href="#cero-digital" transform="translate(416 289.5)"/>
+    <g id="dos-puntos" fill="#101010">
+      <rect x="466" y="309" width="10" height="10"/>
+      <rect x="466" y="344" width="10" height="10"/>
+    </g>
+    <use href="#cero-digital" transform="translate(485 289.5)"/>
+    <use href="#cero-digital" transform="translate(536 289.5)"/>
+    <rect id="punto-decimal" x="583" y="367" width="6" height="6" fill="#101010"/>
+    <use href="#cero-digital" transform="translate(594 318) scale(0.68 0.66)"/>
+    <use href="#cero-digital" transform="translate(630 318) scale(0.68 0.66)"/>
+  </g>
+</svg>

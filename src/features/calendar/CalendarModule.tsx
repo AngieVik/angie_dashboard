@@ -1,15 +1,18 @@
-import { createContext, useContext, useMemo, useState, useSyncExternalStore } from 'react'
+import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ComponentProps } from 'react'
 import { addDays, addMonths, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { MonthCaption } from 'react-day-picker'
 import type { DayButtonProps } from 'react-day-picker'
-import { Check, ChevronLeft, ChevronRight, PenLine, Plus, RefreshCw, Trash, X } from 'lucide-react'
+import { CalendarHeart, Check, ChevronLeft, ChevronRight, PenLine, Plus, RefreshCw, Trash, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Calendar, CalendarDayButton } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '@/layout/ViewportContext'
+import { ModuleSizeContext } from '@/layout/ModuleSizeContext'
+import { ModuleZoomContext } from '@/layout/ModuleZoomContext'
+import { syncCalendarAgendaLayout } from '@/layout/windowContentSize'
 import { calendarDateKey as dateKey, createCalendarEvent, eventsOnDate } from './calendarEvents'
 import type { CalendarEvent, CalendarEventInput } from './calendarEvents'
 import type { CalendarStore } from './calendarStore'
@@ -30,14 +33,32 @@ function EventDayButton(props: DayButtonProps) {
 export function CalendarModule({ store }: { store: CalendarStore }) {
   const { events, selectedDate, ready, busy, error } = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const { blocked, blockedRef } = useViewportInteraction()
+  const requestSpace = useContext(ModuleSizeContext)
+  const { scale } = useContext(ModuleZoomContext)
+  const calendarRef = useRef<HTMLDivElement>(null)
   const selected = useMemo(() => parseISO(selectedDate), [selectedDate])
   const [month, setMonth] = useState(() => parseISO(store.getSnapshot().selectedDate))
   const [view, setView] = useState<'month' | 'week'>('month')
+  const [showEvents, setShowEvents] = useState(true)
   const [editing, setEditing] = useState<{ original: CalendarEvent | null; input: CalendarEventInput } | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [, notice] = useValidationNotice()
   const disabled = blocked || !ready || busy
   const selectedKey = dateKey(selected), daily = eventsOnDate(events, selectedKey)
+  const editorOpen = editing !== null
+  useLayoutEffect(() => {
+    const calendar = calendarRef.current
+    if (!calendar) return
+    const synchronize = () => {
+      syncCalendarAgendaLayout(calendar)
+      requestSpace('minimum')
+    }
+    synchronize()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(synchronize)
+    observer.observe(calendar)
+    return () => observer.disconnect()
+  }, [requestSpace, events, selectedDate, month, view, showEvents, editorOpen, deleting, blocked, scale])
   function choose(date: Date) { if (!blockedRef.current) { store.selectDate(dateKey(date)); setMonth(date); setDeleting(null) } }
   function navigate(direction: number) {
     if (view === 'week') choose(addDays(selected, direction * 7))
@@ -58,21 +79,22 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
     } catch (error) { notice(error instanceof Error ? error.message : 'No se pudo guardar el evento.') }
   }
   const week = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(selected, { weekStartsOn: 1 }), index))
-  return <div className={styles.base} data-slot="calendar-module">
-    <header className={styles.toolbar}>
-      <Input type="month" className={styles.month} aria-label="Mes y año" value={format(month, 'yyyy-MM')} disabled={disabled} onChange={event => { if (/^\d{4}-\d{2}$/.test(event.target.value)) choose(parseISO(event.target.value + '-01')) }} />
-      <div className={styles.navigation} role="group" aria-label="Navegación del calendario">
+  return <div ref={calendarRef} className={styles.base} data-slot="calendar-module">
+    <div className={styles.layout} data-slot="calendar-layout" data-events-open={showEvents}>
+      <header className={styles.toolbar}>
+        <Input type="month" className={styles.month} aria-label="Mes y año" value={format(month, 'yyyy-MM')} disabled={disabled} onChange={event => { if (/^\d{4}-\d{2}$/.test(event.target.value)) choose(parseISO(event.target.value + '-01')) }} />
+        <Button disabled={blocked} aria-label={showEvents ? 'Ocultar eventos' : 'Mostrar eventos'} aria-expanded={showEvents} aria-pressed={showEvents} onClick={() => { if (!blockedRef.current) setShowEvents(value => !value) }}><CalendarHeart aria-hidden="true" /></Button>
+        {error && <Button disabled={busy} aria-label="Recargar agenda" onClick={() => { void store.reload() }}><RefreshCw aria-hidden="true" /></Button>}
+      </header>
+      <div className={styles.navigation} role="group" aria-label="Navegación y vista del calendario">
         <Button disabled={disabled} aria-label={view === 'month' ? 'Mes anterior' : 'Semana anterior'} onClick={() => navigate(-1)}><ChevronLeft aria-hidden="true" /></Button>
+        <div className={styles.views} role="group" aria-label="Vista del calendario">
+          <Button disabled={disabled} onClick={() => choose(new Date())}>Hoy</Button>
+          <Button disabled={disabled} aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</Button>
+          <Button disabled={disabled} aria-pressed={view === 'month'} onClick={() => setView('month')}>Mes</Button>
+        </div>
         <Button disabled={disabled} aria-label={view === 'month' ? 'Mes siguiente' : 'Semana siguiente'} onClick={() => navigate(1)}><ChevronRight aria-hidden="true" /></Button>
       </div>
-      <div className={styles.views} role="group" aria-label="Vista del calendario">
-        <Button disabled={disabled} onClick={() => choose(new Date())}>Hoy</Button>
-        <Button disabled={disabled} aria-pressed={view === 'month'} onClick={() => setView('month')}>Mes</Button>
-        <Button disabled={disabled} aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</Button>
-      </div>
-      {error && <Button disabled={busy} aria-label="Recargar agenda" onClick={() => { void store.reload() }}><RefreshCw aria-hidden="true" /></Button>}
-    </header>
-    <div className={styles.layout} data-view={view}>
       <section className={styles.dates} aria-label={view === 'month' ? 'Calendario mensual' : 'Calendario semanal'}>
         {view === 'month' ? <EventsContext value={events}>
           <Calendar mode="single" required selected={selected} onSelect={choose} month={month} onMonthChange={setMonth} hideNavigation fixedWeeks
@@ -88,7 +110,7 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
           })}
         </div>}
       </section>
-      <section className={styles.agenda} aria-label="Agenda del día" data-minimum-scroll-content>
+      <section className={styles.agenda} aria-label="Agenda del día" hidden={!showEvents}>
         <header className={styles.agendaHeader}><h3>{dayLabel(selected)}</h3><Button disabled={disabled || Boolean(error)} aria-label="Nuevo evento" onClick={() => edit()}><Plus aria-hidden="true" /></Button></header>
         <MoonPhase day={selectedKey} />
         {editing ? <form className={styles.form} aria-label={editing.original ? 'Editar evento' : 'Nuevo evento'} onSubmit={event => { event.preventDefault(); void save() }}>

@@ -9,7 +9,6 @@
     background-color: var(--color-field);
   }
 
-  .base:has([aria-invalid="true"]) { border-color: var(--color-accent-red); }
   .base[hidden] { display: none; }
 }
 

@@ -11,7 +11,7 @@ export function MobileViewport({ children, state, size, bounds = size, headerHei
   const element = useRef<HTMLDivElement>(null)
   const vertical = useRef<HTMLDivElement>(null), horizontal = useRef<HTMLDivElement>(null)
   const workspaceId = useId()
-  const { blocked, blockedRef, moduleNavigationRef, handlers } = useViewportGestures(state, size, bounds, onChange, element, headerHeight)
+  const { blocked, blockedRef, moduleNavigationsRef, handlers } = useViewportGestures(state, size, bounds, onChange, element, headerHeight)
   const maximumX = Math.max(0, bounds.width * state.scale - size.width)
   const maximumY = Math.max(0, bounds.height * state.scale - size.height)
   useLayoutEffect(() => {
@@ -22,7 +22,7 @@ export function MobileViewport({ children, state, size, bounds = size, headerHei
   return (
     <div ref={element} data-slot="mobile-viewport" className={styles.base} data-testid="mobile-viewport" data-gesturing={blocked}
       data-scale={state.scale} data-offset-x={state.offsetX} data-offset-y={state.offsetY} {...handlers}>
-      <ViewportContext.Provider value={{ blocked, blockedRef, moduleNavigationRef }}>
+      <ViewportContext.Provider value={{ blocked, blockedRef, moduleNavigationsRef }}>
         <div id={workspaceId} className={`${styles.workspace} logical-workspace`} style={{ width: bounds.width, height: bounds.height, transform: `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.scale})` }}>
           {children}
         </div>

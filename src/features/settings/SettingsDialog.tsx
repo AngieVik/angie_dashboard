@@ -9,7 +9,6 @@ import { toast } from '@/components/ui/sonner'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { FileDialogContent } from '../document/FileDialog'
 import { StoragePermissionsPanel } from '../document/PermissionsDialog'
-import type { DirectoryActions } from '../document/PermissionsDialog'
 import { parseCoordinate } from '../coordinates/parseCoordinate'
 import { toGeographic } from '../coordinates/convertCoordinate'
 import { useMapSearch } from '../map/useMapSearch'
@@ -20,7 +19,7 @@ import styles from './settings.module.css'
 
 export type SettingsSection = 'location' | 'storage'
 const placeKinds: Record<string, string> = { city: 'Ciudad', town: 'Localidad', village: 'Localidad', hamlet: 'Núcleo de población', municipality: 'Municipio', province: 'Provincia', state: 'Región', country: 'País', suburb: 'Barrio' }
-export function SettingsDialog({ initialSection = 'location', onClose, onCloseFocus, onContinueLocally, onDownload, store = getSettingsStore() }: DirectoryActions & {
+export function SettingsDialog({ initialSection = 'location', onClose, onCloseFocus, store = getSettingsStore() }: {
   initialSection?: SettingsSection; onClose: () => void; onCloseFocus: () => void; store?: SettingsStore
 }) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
@@ -43,8 +42,7 @@ export function SettingsDialog({ initialSection = 'location', onClose, onCloseFo
           {snapshot.error && <Button disabled={snapshot.loading || snapshot.saving} onClick={() => { void store.reload() }}><RefreshCw aria-hidden="true" />Recargar configuración</Button>}
         </section>
         <section className={styles.panel} hidden={section !== 'storage'} aria-label="Almacenamiento y permisos">
-          <StoragePermissionsPanel onDownload={onDownload}
-            onContinueLocally={onContinueLocally ? () => { onContinueLocally(); close() } : undefined} />
+          <StoragePermissionsPanel />
           <div className={styles.actions}><Button disabled={snapshot.saving} onClick={close}>Cerrar</Button></div>
         </section>
       </div>

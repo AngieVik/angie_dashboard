@@ -2,22 +2,37 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, PointerEvent, RefObject, TouchEvent as ReactTouchEvent } from 'react'
 import type { Size, ViewportState } from './layoutTypes'
 import { pan, zoomAt } from './viewportMath'
-import type { ModuleNavigation } from './ViewportContext'
+import type { ModuleGesture, ModuleNavigation } from './ViewportContext'
 
 interface Point { x: number; y: number }
+
+function isViewportBackground(target: EventTarget | null, root: HTMLElement | null) {
+  return target instanceof Element && root?.contains(target) && !target.closest('[data-module],[data-slot="module-frame"],[data-map-surface],.viewport-scrollbar,button,input,textarea,select,a,[role="button"],[contenteditable="true"]')
+}
+
+function findModuleNavigation(target: EventTarget | null, root: HTMLElement | null, navigations: Map<HTMLElement, ModuleNavigation>): ModuleNavigation | null {
+  if (!(target instanceof Element) || !root?.contains(target)) return null
+  for (let node: Element | null = target; node && node !== root; node = node.parentElement) {
+    const navigation = node instanceof HTMLElement ? navigations.get(node) : undefined
+    if (navigation) return navigation
+  }
+  return null
+}
+
 export function useViewportGestures(state: ViewportState, size: Size, bounds: Size, onChange: (state: ViewportState) => void, element: RefObject<HTMLDivElement | null>, headerHeight = 0) {
   const pointers = useRef(new Map<number, Point>())
   const origin = useRef({ left: 0, top: 0 })
-  const moduleNavigationRef = useRef<ModuleNavigation | null>(null)
+  const moduleNavigationsRef = useRef(new Map<HTMLElement, ModuleNavigation>())
+  const initialNavigation = useRef<ModuleNavigation | null>(null)
   const gestureOwner = useRef<'main' | 'module' | 'cancel' | null>(null)
-  const moduleGesture = useRef<{ navigation: ModuleNavigation; scale: number } | null>(null)
+  const moduleGesture = useRef<{ navigation: ModuleNavigation; scale: number; update: ModuleGesture | null } | null>(null)
   const blockedRef = useRef(false)
   const suppressClick = useRef(false)
   const nativeTouches = useRef<Touch[]>([])
   const [blocked, setBlocked] = useState(false)
   const current = useRef(state)
   const previous = useRef<{ midpoint: Point; distance: number } | null>(null)
-  const drag = useRef<{ pointerId: number; point: Point; state: ViewportState } | null>(null)
+  const drag = useRef<{ pointerId: number; point: Point; state: ViewportState; button: number } | null>(null)
   // Both fingers use one reference, so transient clamping between their events
   // cannot change the final scale of a translation.
   const config = useRef({ state, size, bounds, onChange, headerHeight })
@@ -40,7 +55,13 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       suppressClick.current = false
       return
     }
-    if (event.pointerType === 'mouse' && event.button !== 0) return
+    const middle = event.pointerType === 'mouse' && event.button === 1
+    if (event.pointerType === 'mouse' && event.button !== 0 && !middle) return
+    if (middle) {
+      if (!isViewportBackground(event.target, element.current)) return
+      // Prevent the browser's middle-button autoscroll before it starts.
+      event.preventDefault(); event.stopPropagation()
+    }
     if (!pointers.current.size) {
       const rect = element.current?.getBoundingClientRect()
       origin.current = { left: rect?.left ?? 0, top: rect?.top ?? 0 }
@@ -48,9 +69,10 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       config.current = { state, size, bounds, onChange, headerHeight }
       suppressClick.current = false
       gestureOwner.current = null
-      const target = event.target
-      if (target instanceof Element && !target.closest('[data-module],.viewport-scrollbar,button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) {
-        drag.current = { pointerId: event.pointerId, point: point(event), state }
+      // Resolve before capture or activation can change the target of later events.
+      initialNavigation.current = findModuleNavigation(event.target, element.current, moduleNavigationsRef.current)
+      if (isViewportBackground(event.target, element.current)) {
+        drag.current = { pointerId: event.pointerId, point: point(event), state, button: middle ? 1 : 0 }
         element.current?.setPointerCapture?.(event.pointerId)
       }
     }
@@ -63,8 +85,8 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       suppressClick.current = true
       setBlocked(true)
       if (entering) {
-        const navigation = moduleNavigationRef.current
-        moduleGesture.current = navigation ? { navigation, scale: navigation.scale } : null
+        const navigation = initialNavigation.current
+        moduleGesture.current = navigation ? { navigation, scale: navigation.scale, update: navigation.beginGesture?.() ?? null } : null
         gestureOwner.current = navigation ? 'module' : 'main'
       } else {
         gestureOwner.current = 'cancel'
@@ -110,14 +132,18 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     if (gestureOwner.current === 'cancel') return
     const next = pair(), old = previous.current
     if (next && old && old.distance > 0) {
+      const translation = { x: next.midpoint.x - old.midpoint.x, y: next.midpoint.y - old.midpoint.y }
       if (gestureOwner.current === 'module') {
         const owner = moduleGesture.current
-        if (!owner || moduleNavigationRef.current?.element !== owner.navigation.element) { gestureOwner.current = 'cancel'; return }
-        owner.navigation.zoom(owner.scale * next.distance / old.distance, { x: old.midpoint.x + origin.current.left, y: old.midpoint.y + origin.current.top })
+        if (!owner || moduleNavigationsRef.current.get(owner.navigation.element) !== owner.navigation) { gestureOwner.current = 'cancel'; return }
+        const scale = owner.scale * next.distance / old.distance
+        owner.navigation.zoom(scale, { x: old.midpoint.x + origin.current.left, y: old.midpoint.y + origin.current.top })
+        owner.update?.(scale, translation)
         return
       }
       const settings = config.current
-      current.current = zoomAt(settings.state, settings.state.scale * next.distance / old.distance, { x: 0, y: 0 }, settings.size, settings.bounds)
+      const zoomed = zoomAt(settings.state, settings.state.scale * next.distance / old.distance, { x: 0, y: 0 }, settings.size, settings.bounds)
+      current.current = translation.x || translation.y ? pan(zoomed, translation.x, translation.y, settings.size, settings.bounds) : zoomed
       settings.onChange(current.current)
     }
   }
@@ -130,7 +156,10 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     if (blockedRef.current) { event.preventDefault(); event.stopPropagation() }
     previous.current = pair()
     if (pointers.current.size < 2 && blockedRef.current) gestureOwner.current = 'cancel'
-    if (!pointers.current.size) { blockedRef.current = false; setBlocked(false); gestureOwner.current = null }
+    if (!pointers.current.size) {
+      blockedRef.current = false; setBlocked(false); gestureOwner.current = null
+      initialNavigation.current = null; moduleGesture.current = null
+    }
   }
   useEffect(() => {
     const node = element.current
@@ -140,13 +169,30 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     }
     function wheel(event: WheelEvent) {
       if (event.target instanceof Element && event.target.closest('[data-map-surface]')) return
-      if (!event.ctrlKey) return
+      if (!event.ctrlKey) {
+        // Modules and the viewport scrollbars keep their native scrolling.
+        if (event.target instanceof Element && event.target.closest('[data-module],[data-slot="module-frame"],.viewport-scrollbar')) return
+        event.preventDefault(); event.stopPropagation()
+        if (blockedRef.current || pointers.current.size) return
+        const settings = latest.current
+        const unit = event.deltaMode === 1 ? 16 : 1
+        // Some browsers already convert Shift + wheel into deltaX.
+        const horizontal = event.shiftKey && event.deltaX === 0
+        const dx = (horizontal ? event.deltaY : event.deltaX) * (event.deltaMode === 2 ? settings.size.width : unit)
+        const dy = horizontal ? 0 : event.deltaY * (event.deltaMode === 2 ? settings.size.height : unit)
+        const next = pan(current.current, -dx, -dy, settings.size, settings.bounds)
+        if (next.offsetX !== current.current.offsetX || next.offsetY !== current.current.offsetY) {
+          current.current = next
+          settings.onChange(next)
+        }
+        return
+      }
       event.preventDefault(); event.stopPropagation()
       if (blockedRef.current || pointers.current.size || !event.deltaY) return
       const settings = latest.current
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? settings.size.height : 1
       const factor = Math.exp(-event.deltaY * unit * .002)
-      const navigation = moduleNavigationRef.current
+      const navigation = findModuleNavigation(event.target, node, moduleNavigationsRef.current)
       if (navigation) { navigation.zoom(navigation.scale * factor, { x: event.clientX, y: event.clientY }); return }
       current.current = zoomAt(current.current, current.current.scale * factor, { x: 0, y: 0 }, settings.size, settings.bounds)
       settings.onChange(current.current)
@@ -154,7 +200,10 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     function blur() { for (const pointerId of pointers.current.keys()) cancelPointer(pointerId) }
     function release(event: globalThis.PointerEvent) {
       // The first movement after a release outside the browser can target any surface.
-      if (event.pointerType === 'mouse' && event.buttons === 0 && pointers.current.has(event.pointerId)) cancelPointer(event.pointerId)
+      // Releasing one mouse button can emit pointermove while another stays down.
+      const active = drag.current?.pointerId === event.pointerId ? drag.current : null
+      const released = active ? !(event.buttons & (active.button === 1 ? 4 : 1)) : event.buttons === 0
+      if (event.pointerType === 'mouse' && released && pointers.current.has(event.pointerId)) cancelPointer(event.pointerId)
     }
     node.addEventListener('wheel', wheel, { capture: true, passive: false })
     window.addEventListener('blur', blur)
@@ -166,8 +215,11 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     }
   }, [element])
   return {
-    blocked, blockedRef, moduleNavigationRef,
+    blocked, blockedRef, moduleNavigationsRef,
     handlers: {
+      onAuxClickCapture: (event: ReactMouseEvent) => {
+        if (event.button === 1 && isViewportBackground(event.target, element.current)) { event.preventDefault(); event.stopPropagation() }
+      },
       onPointerDownCapture: start, onPointerMoveCapture: move,
       onPointerUpCapture: end, onPointerCancelCapture: end,
       onLostPointerCapture: (event: PointerEvent) => {

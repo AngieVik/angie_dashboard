@@ -19,16 +19,22 @@ export function snapModulePosition(layout: ModuleLayout, others: readonly Module
     horizontal.push(other.x, other.x + other.width - layout.width, other.x + (other.width - layout.width) / 2)
     vertical.push(other.y, other.y + other.height - layout.height, other.y + (other.height - layout.height) / 2)
   }
-  let next = { ...layout }
-  for (const [axis, candidates] of [['x', horizontal], ['y', vertical]] as const) {
-    // Compact bars in the same row share a baseline, including saved 29 px bars.
-    const aligned = axis === 'y' ? row.map(other => other.y).sort((a, b) => Math.abs(a - layout.y) - Math.abs(b - layout.y)) : []
-    const closest = candidates.filter(value => value >= 0 && Math.abs(value - layout[axis]) <= threshold)
-      .sort((a, b) => Math.abs(a - layout[axis]) - Math.abs(b - layout[axis]))
-    const target = [...aligned, ...closest].find(value => !overlaps({ ...next, [axis]: value }))
-    if (target !== undefined) next = { ...next, [axis]: target }
+  const nearest = (axis: 'x' | 'y', candidates: readonly number[]) => [...new Set(candidates)]
+    .filter(value => value >= 0 && Math.abs(value - layout[axis]) <= threshold)
+    .sort((a, b) => Math.abs(a - layout[axis]) - Math.abs(b - layout[axis]))
+  // Compact bars in the same row share a baseline, including saved 29 px bars.
+  const aligned = row.map(other => other.y).sort((a, b) => Math.abs(a - layout.y) - Math.abs(b - layout.y))
+  const horizontalCandidates = [...new Set([...nearest('x', horizontal), layout.x])]
+  const verticalCandidates = [...new Set([...aligned, ...nearest('y', vertical), layout.y])]
+  // Validate the complete position: a corner can require both axes to move
+  // before it clears the neighbouring modules, regardless of their sizes/states.
+  for (const x of horizontalCandidates) {
+    for (const y of verticalCandidates) {
+      const candidate = { ...layout, x, y }
+      if (!overlaps(candidate)) return candidate
+    }
   }
-  return next
+  return layout
 }
 
 export function snapModuleSize(layout: ModuleLayout, others: readonly ModuleLayout[], scale: number): ModuleLayout {

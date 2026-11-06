@@ -43,15 +43,5 @@
       "sources": ["src/components/ui/sheet/sheet.tsx", "src/components/ui/sheet/sheet.module.css"]
     }
   ],
-  "exceptions": [
-    {
-      "id": "clock-content-font",
-      "group": "module-content-typography",
-      "moduleId": "clock",
-      "property": "font-family",
-      "expected": "\"Rajdhani\", sans-serif",
-      "reason": "DISEÑO.md establece Rajdhani para el contenido del Reloj y temporizadores. Las cabeceras y avisos conservan la fuente común y no están incluidos en esta excepción.",
-      "sources": ["DISEÑO.md", "src/features/clock/clock.module.css"]
-    }
-  ]
+  "exceptions": []
 }

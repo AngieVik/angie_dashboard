@@ -5,15 +5,16 @@ import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
+import { coordinateNearLongitude, longitudeShift, pathLongitudeBounds, pathNearLongitude, unwrapPath } from '../map/longitudeGeometry'
 import type { PlanMode } from './planTypes'
 import styles from './PlanDrawing.module.css'
 import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
 
-function strokeLayer(map: L.Map, points: GeographicPosition[], color: string, width: number) {
+function strokeLayer(map: L.Map, points: L.LatLngTuple[], color: string, width: number) {
   const pane = map.getPane('operational-plan-strokes') ?? map.createPane('operational-plan-strokes')
   pane.style.zIndex = '450'
   pane.style.pointerEvents = 'none'
-  return L.polyline(points.map(point => L.latLng(point.latitude, point.longitude)), { pane: 'operational-plan-strokes', color, weight: width, opacity: 1, interactive: false, lineCap: 'round', lineJoin: 'round' })
+  return L.polyline(points, { pane: 'operational-plan-strokes', color, weight: width, opacity: 1, interactive: false, lineCap: 'round', lineJoin: 'round' })
 }
 
 export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeId, onStroke, onErase, onPlace, onReject }: {
@@ -39,8 +40,22 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
     const map = mapRef.current
     if (!map) return
     const group = L.layerGroup().addTo(map)
-    for (const stroke of strokes) strokeLayer(map, stroke.points, stroke.color, stroke.width * zoom).addTo(group)
-    return () => { group.remove() }
+    const layers = strokes.filter(stroke => stroke.points.length).map(stroke => {
+      const points = unwrapPath(stroke.points), [west, east] = pathLongitudeBounds(points)
+      const shift = longitudeShift(west, east, map.getCenter().lng)
+      const layer = strokeLayer(map, points.map(([lat, lng]) => [lat, lng + shift]), stroke.color, stroke.width * zoom).addTo(group)
+      return { points, west, east, shift, layer }
+    })
+    function positionStrokes() {
+      for (const item of layers) {
+        const shift = longitudeShift(item.west, item.east, map!.getCenter().lng)
+        if (shift === item.shift) continue
+        item.shift = shift
+        item.layer.setLatLngs(item.points.map(([lat, lng]) => [lat, lng + shift]))
+      }
+    }
+    map.on('moveend', positionStrokes)
+    return () => { map.off('moveend', positionStrokes); group.remove() }
   }, [mapRef, navigationKey, strokes, zoom])
 
   useEffect(() => {
@@ -48,7 +63,7 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
     if (!map || !node || !active) return
     const pointers = new Set<number>()
     let interrupted = false
-    let gesture: { pointerId: number; start: L.Point; last: L.Point; points: GeographicPosition[]; draft: L.Polyline | null; moved: boolean } | null = null
+    let gesture: { pointerId: number; start: L.Point; last: L.Point; points: GeographicPosition[]; draft: L.Polyline | null; longitude: number; moved: boolean } | null = null
     function cancel() {
       const current = gesture
       gesture = null
@@ -72,8 +87,9 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
       if (blockedRef.current || interrupted || event.button !== 0 || mode === 'place' && !placeId) return
       event.preventDefault(); event.stopPropagation(); cancel()
       const start = map!.mouseEventToContainerPoint(event), point = coordinate(event)
-      const draft = mode === 'draw' ? strokeLayer(map!, [point, point], color, width * zoom).addTo(map!) : null
-      gesture = { pointerId: event.pointerId, start, last: start, points: [point], draft, moved: false }
+      const visual = coordinateNearLongitude(point, map!.mouseEventToLatLng(event).lng)
+      const draft = mode === 'draw' ? strokeLayer(map!, [visual, visual], color, width * zoom).addTo(map!) : null
+      gesture = { pointerId: event.pointerId, start, last: start, points: [point], draft, longitude: visual[1], moved: false }
       node!.setPointerCapture(event.pointerId)
     }
     function append(event: globalThis.PointerEvent) {
@@ -88,7 +104,9 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
       const point = coordinate(event)
       gesture.points.push(point)
       gesture.last = next
-      gesture.draft?.addLatLng([point.latitude, point.longitude])
+      const visual = coordinateNearLongitude(point, gesture.longitude)
+      gesture.longitude = visual[1]
+      gesture.draft?.addLatLng(visual)
     }
     function move(event: globalThis.PointerEvent) {
       if (!gesture || gesture.pointerId !== event.pointerId) return
@@ -111,7 +129,7 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
         const point = map!.mouseEventToContainerPoint(event)
         // Remove only the topmost annotation hit; the base map, pins and GPX are independent.
         const hit = callbacks.current.strokes.findLast(stroke => {
-          const points = stroke.points.map(point => map!.latLngToContainerPoint([point.latitude, point.longitude]))
+          const points = pathNearLongitude(unwrapPath(stroke.points), map!.getCenter().lng).map(point => map!.latLngToContainerPoint(point))
           return points.some((end, index) => index > 0 && L.LineUtil.pointToSegmentDistance(point, points[index - 1]!, end) <= Math.max(8, stroke.width * zoom / 2 + 4))
         })
         if (hit) callbacks.current.onErase(hit.id)

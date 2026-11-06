@@ -6,7 +6,6 @@
   .panelHeading > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .colorControl { position: relative; display: flex; flex: none; }
   .base {
-    --map-control-size: var(--control-height);
     --map-panel-width: calc(160px * var(--module-zoom, 1));
     position: relative;
     display: flex;
@@ -17,10 +16,10 @@
     overflow: hidden;
   }
 
-  :where(.base) :global(.map-toolbar) { display: flex; flex: none; align-items: flex-start; box-sizing: border-box; padding-right: min(var(--map-panel-width), 60%); border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
-  :where(.base) :global(.map-toolbar) form { display: flex; align-items: center; flex: 1; box-sizing: border-box; min-width: 0; gap: 3px; padding: 3px 5px; }
+  :where(.base) :global(.map-toolbar) { display: flex; flex: 0 0 var(--toolbar-height); align-items: center; box-sizing: border-box; height: var(--toolbar-height); min-height: var(--toolbar-height); padding-right: min(var(--map-panel-width), 60%); border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); overflow-x: auto; overflow-y: hidden; }
+  :where(.base) :global(.map-toolbar) form { display: flex; align-items: center; flex: 1; box-sizing: border-box; min-width: 0; gap: calc(var(--control-gap) * var(--module-zoom, 1)); padding: var(--toolbar-padding-block) var(--toolbar-padding-inline); }
   :where(.base) :global(.map-toolbar)[hidden] { display: none; }
-  :where(.base) :global(.map-panel-toggles) { position: absolute; top: 0; right: 0; z-index: 1001; display: flex; align-items: center; justify-content: space-evenly; box-sizing: border-box; width: var(--map-panel-width); max-width: 60%; padding: 3px 2px; border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
+  :where(.base) :global(.map-panel-toggles) { position: absolute; top: 0; right: 0; z-index: 1001; display: flex; align-items: center; justify-content: space-evenly; box-sizing: border-box; width: var(--map-panel-width); max-width: 60%; height: var(--toolbar-height); min-height: var(--toolbar-height); padding: var(--toolbar-padding-block) var(--toolbar-padding-inline); border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
   :where(.base) :global(.map-search-results) { position: absolute; top: 5px; left: 5px; right: 5px; z-index: 1001; box-sizing: border-box; max-height: 60%; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-field); background: var(--color-module); color: var(--color-text); font-size: var(--control-font-size); }
   :where(.base) :global(.map-search-results) ul { list-style: none; margin: 0; padding: 0; }
   :where(.base) :global(.map-search-results) li + li { border-top: 1px solid var(--color-border); }
@@ -30,7 +29,7 @@
   :where(.base) :global(.map-workspace) { display: flex; flex: 1; min-width: 0; min-height: 50px; }
   :where(.base) :global(.map-sidepanels) { display: flex; flex-direction: column; flex: none; box-sizing: border-box; width: var(--map-panel-width); max-width: 60%; min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid var(--color-border); background: var(--color-module); }
   :where(.base) :global(.map-sidepanels)[hidden] { display: none; }
-  .base[data-coordinates-open="false"] :global(.map-sidepanels) { padding-top: calc(var(--map-control-size) + 7px); }
+  .base[data-coordinates-open="false"] :global(.map-sidepanels) { padding-top: var(--toolbar-height); }
   :where(.base) :global(.map-sidepanels) > aside + aside { border-top: 1px solid var(--color-border); }
   :where(.base) :global(.map-area) { position: relative; flex: 1; min-width: 0; min-height: 50px; isolation: isolate; }
   :where(.base) :global(.map-canvas) { width: 100%; height: 100%; }
@@ -40,8 +39,8 @@
   :where(.pkPopover) :global(.map-pk-heading) { display: flex; align-items: center; gap: var(--space-2); font-size: var(--control-font-size); }
   :where(.pkPopover) :global(.map-pk-heading) output { margin-left: auto; font-family: var(--font-interface); }
   :where(.pkPopover) :global(.map-pk-steps) { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-family: var(--font-interface); font-size: var(--font-size-technical); }
-  :where(.base) :global(.map-track-info) { display: flex; flex-wrap: wrap; align-items: baseline; flex: none; min-width: 0; gap: 2px 12px; padding: 3px 5px; border-top: 1px solid var(--color-border); font-size: var(--control-font-size); }
-  :where(.base) :global(.map-track-info) dl { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; }
+  :where(.base) :global(.map-track-info) { display: flex; flex-wrap: wrap; align-items: baseline; flex: none; min-width: 0; gap: var(--section-gap); padding: 3px 5px; border-top: 1px solid var(--color-border); font-size: var(--control-font-size); }
+  :where(.base) :global(.map-track-info) dl { display: flex; flex-wrap: wrap; gap: var(--section-gap); margin: 0; }
   :where(.base) :global(.map-track-info) dl > div { display: flex; align-items: baseline; gap: var(--space-1); min-width: 0; }
   :where(.base) :global(.map-track-info) dt { color: var(--color-text-secondary); }
   :where(.base) :global(.map-track-info) dd { margin: 0; font-family: var(--font-interface); overflow-wrap: anywhere; }
@@ -55,6 +54,7 @@
   .panelTool { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
   .panelTool[aria-pressed="true"] { background: var(--color-selected); color: var(--color-text); }
   :where(.gpxPanel) :global(.map-file-name) { display: block; box-sizing: border-box; flex: 1; width: 0; min-width: 0; height: var(--control-height); min-height: var(--control-height); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  :where(.gpxPanel) :global(.map-file-name) > [data-slot="button-label"] { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   :where(.gpxPanel) :global(.map-file-name)[data-visible="false"] { color: var(--color-text-secondary); }
   :where(.gpxPanel) :global(.map-file-name)[aria-pressed="true"] { border-color: var(--color-selection-border); background: var(--color-selected); }
   :where(.base) :global(.map-coordinate-field) { flex: 1; align-items: center; }
@@ -62,7 +62,8 @@
   :where(.base) :is(:global(.map-panel-toggles), :global(.map-zoom)) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
   :where(.base) :global(.map-panel-toggles) [data-slot="button"] { flex-shrink: 1; min-width: 0; }
   :where(.base) :global(.map-panel-toggles) [data-slot="button"][aria-pressed="true"] { background: var(--color-selected); color: var(--color-text); }
-  :where(.base) :global(.map-search-results) [data-slot="button"] { display: flex; flex-direction: column; align-items: stretch; gap: 2px; box-sizing: border-box; width: 100%; min-width: 0; height: auto; padding: var(--space-1) var(--space-2); line-height: normal; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  :where(.base) :global(.map-search-results) [data-slot="button"] { display: flex; flex-direction: column; align-items: stretch; gap: var(--control-gap); box-sizing: border-box; width: 100%; min-width: 0; height: auto; padding: calc(var(--button-padding-base) * var(--module-zoom, 1)); line-height: normal; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  :where(.base) :global(.map-search-results) strong { font-size: var(--font-size-title); }
   :where(.base) :global(.map-zoom) [data-slot="button"]:not(:hover:enabled, :active:enabled) { background: var(--color-module); }
 }
 

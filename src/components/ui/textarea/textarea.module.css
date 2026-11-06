@@ -15,11 +15,10 @@
     font-size: var(--field-font-size);
     line-height: 1.4;
     resize: none;
-    overflow: hidden;
+    overflow: auto;
   }
 
   .base:disabled { opacity: .5; }
-  .base[aria-invalid="true"] { border-color: var(--color-accent-red); }
   .base:focus-visible { outline: none; }
   .base::placeholder { color: var(--color-text-secondary); opacity: 1; }
   .base[hidden] { display: none; }

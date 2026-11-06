@@ -226,7 +226,8 @@ export async function collectBundle() {
     const precacheGroups = new Map()
     for (const file of precached) {
       const name = slash(path.relative(temporary, file))
-      const kind = name.startsWith('assets/elements/') ? 'Iconos de elementos PNG' : name.endsWith('.wasm') ? 'WASM'
+      const kind = name.startsWith('assets/pins/') ? 'Pines SVG'
+        : name === 'assets/elements/icon_chincheta.png' ? 'Icono de la aplicación PNG' : name.endsWith('.wasm') ? 'WASM'
         : name.endsWith('.js') ? 'JavaScript' : name.includes('/fonts/') ? 'Fuentes' : name.endsWith('.css') ? 'CSS'
           : /\.(?:png|jpe?g|svg|webp|avif)$/.test(name) ? 'Otras imágenes' : 'Otros'
       const row = precacheGroups.get(kind) ?? { kind, files: 0, bytes: 0 }

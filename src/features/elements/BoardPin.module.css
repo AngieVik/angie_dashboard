@@ -13,6 +13,6 @@
 
 @layer overrides {
   .palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--section-gap); }
-  .paletteOption { min-width: 0; height: auto; white-space: normal; overflow-wrap: anywhere; touch-action: manipulation; }
+  .paletteOption { --button-label-height: auto; min-width: 0; height: auto; white-space: normal; overflow-wrap: anywhere; touch-action: manipulation; }
   :where(.palette) .paletteOption[aria-pressed="true"], :where(.palette) .paletteOption:focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: 1px; }
 }

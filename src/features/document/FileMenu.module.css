@@ -2,9 +2,20 @@
   .saveDetails { display: flex; flex-direction: column; gap: 3px; max-width: 280px; padding: 6px; overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
   .noticeSlot { display: flex; flex: 0 0 var(--control-height-base); align-items: center; width: var(--control-height-base); }
   .noticeSlot[data-empty="true"] { visibility: hidden; }
-  .noticePanel { display: flex; flex-direction: column; gap: 10px; width: 360px; overflow-wrap: anywhere; }
-  .noticePanel section { display: flex; flex-direction: column; gap: var(--section-gap); }
+  .noticeHeader { display: flex; flex: none; align-items: center; gap: var(--section-gap); padding: var(--section-gap) 10px; border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
+  .noticeHeader h2 { flex: 1; min-width: 0; margin: 0; font-size: var(--control-font-size-base); font-weight: 650; }
+  .noticeHeader > svg, .noticeCard h3 > svg { flex: none; width: var(--icon-size-base); height: var(--icon-size-base); color: var(--color-text-secondary); }
+  .noticeList { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: var(--section-gap); padding: var(--section-gap); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--color-field-border) var(--color-module); }
+  .noticeCard { display: flex; flex: none; flex-direction: column; gap: var(--section-gap); padding: 10px; border: 1px solid var(--color-border); border-left: 2px solid var(--color-accent-yellow); border-radius: var(--radius-control); background: var(--surface-inset); }
+  .noticeCard section { display: flex; flex-direction: column; gap: var(--section-gap); }
+  .noticeCard section + section { padding-top: var(--section-gap); border-top: 1px solid var(--color-border); }
   .noticePanel h3, .noticePanel p { margin: 0; }
-  .noticePanel h3 { font-size: var(--font-size-title); font-weight: 650; }
-  .noticeActions { display: flex; flex-wrap: wrap; gap: var(--section-gap); }
+  .noticePanel h3 { display: flex; align-items: flex-start; gap: var(--section-gap); font-size: var(--font-size-title); font-weight: 650; }
+  .noticePanel p { color: var(--color-text-secondary); }
+  .noticeActions { display: flex; flex-wrap: wrap; gap: var(--control-gap); padding-top: var(--section-gap); border-top: 1px solid var(--color-border); }
+}
+
+@layer overrides {
+  .noticePanel { display: flex; flex-direction: column; gap: 0; width: min(384px, calc(100vw - 16px)); max-height: min(560px, var(--radix-popover-content-available-height, 560px)); padding: 0; overflow: hidden; overflow-wrap: anywhere; background: var(--color-module); }
+  .noticeActions [data-slot="button"] { --button-label-height: auto; max-width: 100%; height: auto; min-height: var(--control-height-base); white-space: normal; text-align: left; }
 }

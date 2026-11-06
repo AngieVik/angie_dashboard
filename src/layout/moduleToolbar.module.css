@@ -1,5 +1,6 @@
 @layer components {
-  .base { display: flex; flex-wrap: wrap; align-items: center; gap: var(--control-gap); flex: 0 0 auto; min-width: 0; min-height: 32px; padding: 3px 5px; border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); }
+  .base { display: flex; flex-wrap: nowrap; align-items: center; gap: calc(var(--control-gap) * var(--module-zoom, 1)); flex: 0 0 var(--toolbar-height); min-width: 0; height: var(--toolbar-height); min-height: var(--toolbar-height); padding: var(--toolbar-padding-block) var(--toolbar-padding-inline); border-bottom: 1px solid var(--color-border); background: var(--surface-toolbar); white-space: nowrap; overflow-x: auto; overflow-y: hidden; }
+  .base > * { flex-shrink: 0; }
 }
 
 @layer overrides {

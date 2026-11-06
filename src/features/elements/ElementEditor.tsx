@@ -3,8 +3,8 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import type { CSSProperties, FocusEvent, MouseEvent, PointerEvent } from 'react'
 import type { AssetId, DocumentElement, ElementVisual, PinAnchor, PinNameColor, Position } from '../../domain/document/types'
 import type { CreateElementInput, ElementBatchPatch } from './elementTypes'
-import { getPinBox, ICON_CATALOG } from './iconCatalog'
-import { clampAssetScale } from './elementCommands'
+import { getIconIds, getPinBox, ICON_CATALOG } from './iconCatalog'
+import { ASSET_SCALE_RANGE, assetScaleFromValue, assetScaleToValue, clampAssetScale } from './elementCommands'
 import { getPinAnchorFromPoint, getPinAnchorPoint, getRotatedPinBox, PIN_NAME_COLORS, pinTransform } from './pinPresentation'
 import { Button } from '@/components/ui/button'
 import { AArrowDown, AArrowUp, Crosshair, Eye, EyeOff, RotateCcw, RotateCw, SwatchBook, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical } from 'lucide-react'
@@ -15,15 +15,16 @@ import { useAutoGrowingTextarea } from '../notebook/useAutoGrowingTextarea'
 
 type ElementEditorProps = {
   element?: DocumentElement; isUnit?: boolean; creating?: boolean; formId: string
+  onSizeChange?: (patch: Pick<ElementBatchPatch, 'visual' | 'nameFontSize'>) => boolean
 } & ({
-  onSave: (input: CreateElementInput, keepOpen: boolean) => void; onSaveBatch?: never; batchCount?: never
+  onSave: (input: CreateElementInput, keepOpen: boolean) => boolean; onSaveBatch?: never; batchCount?: never
 } | {
-  onSave?: never; onSaveBatch: (patch: ElementBatchPatch, keepOpen: boolean) => void; batchCount: number
+  onSave?: never; onSaveBatch: (patch: ElementBatchPatch, keepOpen: boolean) => boolean; batchCount: number
 })
 type RepeatAction = 'name-down' | 'name-up' | 'scale-down' | 'scale-up' | 'rotate-left' | 'rotate-right' | 'flip-x' | 'flip-y'
 const emojiCharacters = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
-export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId, isUnit = false, creating = !element }: ElementEditorProps) {
+export function ElementEditor({ element, onSave, onSaveBatch, onSizeChange, batchCount, formId, isUnit = false, creating = !element }: ElementEditorProps) {
   const { blocked, blockedRef } = useViewportInteraction()
   const changed = useRef(new Set<'icon' | 'scale' | 'rotation' | 'flipX' | 'flipY' | 'nameFontSize' | 'nameHidden' | 'nameColor' | 'pinAnchor'>())
   const [pinAnchor, setPinAnchor] = useState<PinAnchor>(element?.pinAnchor ?? 'center')
@@ -43,7 +44,10 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
   const [nameSizeText, setNameSizeText] = useState<string | null>(null)
   const setNameSize = (value: number) => {
     if (blockedRef.current || !Number.isFinite(value)) return
-    changed.current.add('nameFontSize'); setNameFontSize(Math.max(8, Math.min(72, value))); setNameSizeText(null)
+    const next = Math.max(8, Math.min(72, value))
+    if (onSizeChange && !onSizeChange({ nameFontSize: next })) return
+    if (!onSizeChange) changed.current.add('nameFontSize')
+    setNameFontSize(next); setNameSizeText(null)
   }
   const [nameHidden, setNameHidden] = useState(element?.nameHidden ?? false)
   const [draftNameColor, setDraftNameColor] = useState<PinNameColor | null>(null)
@@ -51,7 +55,7 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
   const informationRef = useAutoGrowingTextarea(information)
   const nameId = useId()
   const unit = element?.isUnit ?? isUnit
-  const catalog: AssetId[] = unit ? ['ambulance', 'pathfinder', 'quad'] : ['checkpoint', 'hydration', 'start', 'finish', 'warning', 'pushpin']
+  const catalog = getIconIds(unit)
   const [representation, setRepresentation] = useState(element?.visual.type ?? 'asset')
   const [assetId, setAssetId] = useState<AssetId>(element?.visual.type === 'asset' ? element.visual.assetId : catalog[0]!)
   const [emoji, setEmoji] = useState<string>(() => element?.visual.type === 'emoji' ? emojiCharacters.segment(element.visual.value)[Symbol.iterator]().next().value?.segment ?? '' : '')
@@ -64,8 +68,14 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
   // Direct pin resizing synchronizes scale without replacing the other draft fields.
   if (draftScale.source !== savedScale) { setDraftScale({ source: savedScale, value: savedScale }); setScaleText(null) }
   const scale = draftScale.source === savedScale ? draftScale.value : savedScale
-  const scaleValue = Number((1 + (scale - .25) * 99 / 3.75).toFixed(4))
-  const setScale = (value: number) => { if (!blockedRef.current && Number.isFinite(value)) { changed.current.add('scale'); setDraftScale({ source: savedScale, value: clampAssetScale(value) }); setScaleText(null) } }
+  const scaleValue = assetScaleToValue(scale)
+  const setScale = (value: number) => {
+    if (blockedRef.current || !Number.isFinite(value)) return
+    const next = clampAssetScale(value)
+    if (onSizeChange && !onSizeChange({ visual: { scale: next } })) return
+    if (!onSizeChange) changed.current.add('scale')
+    setDraftScale({ source: onSizeChange ? next : savedScale, value: next }); setScaleText(null)
+  }
   const repeatStep = useRef<(action: RepeatAction) => void>(() => {})
   const repeatTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const repeatPress = useRef<{ pointerId: number; x: number; y: number; target: HTMLButtonElement; repeated: boolean } | null>(null)
@@ -84,8 +94,8 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
       switch (action) {
         case 'name-down': setNameSize(nameFontSize - 1); break
         case 'name-up': setNameSize(nameFontSize + 1); break
-        case 'scale-down': setScale(.25 + (scaleValue - 2) * 3.75 / 99); break
-        case 'scale-up': setScale(.25 + scaleValue * 3.75 / 99); break
+        case 'scale-down': setScale(assetScaleFromValue(scaleValue - 1)); break
+        case 'scale-up': setScale(assetScaleFromValue(scaleValue + 1)); break
         case 'rotate-left': changed.current.add('rotation'); setRotation(value => (value + 350) % 360); break
         case 'rotate-right': changed.current.add('rotation'); setRotation(value => (value + 10) % 360); break
         case 'flip-x': changed.current.add('flipX'); setFlipX(value => !value); break
@@ -216,11 +226,11 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
         ...(fields.has('scale') ? { scale } : {}), ...(fields.has('rotation') ? { rotation } : {}),
         ...(fields.has('flipX') ? { flipX } : {}), ...(fields.has('flipY') ? { flipY } : {}),
       }
-      onSaveBatch({ ...(fields.has('nameFontSize') ? { nameFontSize } : {}),
+      const accepted = onSaveBatch({ ...(fields.has('nameFontSize') ? { nameFontSize } : {}),
         ...(fields.has('nameHidden') ? { nameHidden } : {}), ...(fields.has('nameColor') ? { nameColor } : {}),
         ...(fields.has('pinAnchor') ? { pinAnchor } : {}),
         ...(Object.keys(visualPatch).length ? { visual: visualPatch } : {}) }, keepOpen)
-      fields.clear()
+      if (accepted) fields.clear()
     } else onSave?.({ name, nameFontSize, nameHidden, nameOffset, nameColor, pinAnchor: pinAnchor === 'center' && !element?.pinAnchor ? undefined : pinAnchor,
       information, visual, isUnit: unit }, keepOpen)
   }}>
@@ -284,18 +294,18 @@ export function ElementEditor({ element, onSave, onSaveBatch, batchCount, formId
         <div className="element-adjustment-row">
           <span>Escala</span>
           <div className="element-value-control" role="group" aria-label="Escala del icono">
-            <Input type="number" inputMode="decimal" aria-label="Escala del icono" min={1} max={100} step="any" required value={scaleText ?? scaleValue} onChange={event => {
+            <Input type="number" inputMode="decimal" aria-label="Escala del icono" min={ASSET_SCALE_RANGE.min} max={ASSET_SCALE_RANGE.max} step="any" required value={scaleText ?? scaleValue} onChange={event => {
               if (blockedRef.current) return
               const value = event.target.valueAsNumber
-              if (Number.isFinite(value) && value >= 1 && value <= 100) setScale(.25 + (value - 1) * 3.75 / 99)
+              if (Number.isFinite(value) && value >= ASSET_SCALE_RANGE.min && value <= ASSET_SCALE_RANGE.max) setScale(assetScaleFromValue(value))
               setScaleText(event.target.value)
             }} onBlur={event => {
-              if (scaleText !== null && event.target.value !== '') setScale(.25 + (event.target.valueAsNumber - 1) * 3.75 / 99)
+              if (scaleText !== null && event.target.value !== '') setScale(assetScaleFromValue(event.target.valueAsNumber))
               setScaleText(null)
             }} />
             <span className="element-icon-group">
-              <Button aria-label="Reducir escala" disabled={blocked || scaleValue <= 1} {...repeatingButton('scale-down')}><AArrowDown aria-hidden="true" /></Button>
-              <Button aria-label="Aumentar escala" disabled={blocked || scaleValue >= 100} {...repeatingButton('scale-up')}><AArrowUp aria-hidden="true" /></Button>
+              <Button aria-label="Reducir escala" disabled={blocked || scaleValue <= ASSET_SCALE_RANGE.min} {...repeatingButton('scale-down')}><AArrowDown aria-hidden="true" /></Button>
+              <Button aria-label="Aumentar escala" disabled={blocked || scaleValue >= ASSET_SCALE_RANGE.max} {...repeatingButton('scale-up')}><AArrowUp aria-hidden="true" /></Button>
             </span>
           </div>
         </div>

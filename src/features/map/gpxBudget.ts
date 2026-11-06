@@ -4,7 +4,8 @@ export const GPX_GEOMETRY_BYTES = 64 * 1024 * 1024
 // Admission estimate: points, metrics/profile, transfer buffers, and two live
 // Leaflet views (Mapa/Plano). This is not a measurement of the engine's heap.
 export function gpxGeometryBytes(data: GpxData) {
-  let bytes = 128 + data.lines.length * 96 + data.pointCount * 400
+  // Include the display-longitude buffer and its references in profile samples.
+  let bytes = 128 + data.lines.length * 96 + data.pointCount * 416
   // Isolated points own circle layers (and possibly tooltip content) in each
   // view, unlike vertices which share a bounded polyline chunk.
   bytes += (data.waypoints.length + data.lines.filter(line => line.length === 1).length) * 4000

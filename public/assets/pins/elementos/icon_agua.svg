@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="154 24 370 974" fill="none" role="img" aria-labelledby="agua-title agua-desc">
+  <title id="agua-title">Agua</title>
+  <desc id="agua-desc">Botella azul con tapón estriado, nivel de agua visible y relieves horizontales negros. El cuello y el anillo blancos son opacos; el exterior es transparente.</desc>
+  <defs>
+    <path id="silueta-botella" d="M273 160H407Q406 182 418 194C451 226 482 272 496 317C505 340 500 349 489 356C510 377 511 407 495 427Q498 430 498 437V652Q497 659 491 664C508 682 509 711 494 728C508 745 509 772 495 789C507 807 507 837 495 856C510 880 501 917 482 947Q470 968 440 963C420 983 391 983 373 965C359 985 320 984 305 965C283 984 254 981 238 962Q219 972 205 959C181 936 169 887 179 856C167 836 167 807 182 789C169 771 168 746 182 728C168 710 169 682 186 663Q180 658 180 652V435Q180 429 186 425C169 412 169 379 185 357C175 352 174 342 179 323C192 274 224 229 259 194Q273 182 273 160Z"/>
+    <clipPath id="recorte-botella"><use href="#silueta-botella"/></clipPath>
+  </defs>
+
+  <use href="#silueta-botella" fill="#FFFFFF"/>
+  <path id="agua-contenida" fill="#409ACC" clip-path="url(#recorte-botella)" d="M216 261C226 242 453 242 464 261L520 300V1000H160V300Z"/>
+  <ellipse id="nivel-agua" cx="339" cy="261" rx="116" ry="15" fill="#409ACC" stroke="#101010" stroke-width="7"/>
+
+  <g id="relieves" stroke="#101010" stroke-width="9" stroke-linecap="round">
+    <path id="relieve-hombro" d="M185 356C210 372 471 372 489 356"/>
+    <path id="relieve-superior" d="M185 428C224 452 455 452 495 429"/>
+    <path id="relieve-central" d="M184 654C205 691 471 690 494 654"/>
+    <path id="relieve-inferior-1" d="M184 727C210 763 469 764 494 728"/>
+    <path id="relieve-inferior-2" d="M182 788C210 825 469 825 495 789"/>
+    <path id="relieve-inferior-3" d="M180 854C220 895 458 895 495 854"/>
+  </g>
+  <path id="pliegues-base" stroke="#101010" stroke-width="7" stroke-linecap="round" d="M222 919C226 938 229 951 239 962M455 919C452 938 448 951 439 962"/>
+  <use href="#silueta-botella" stroke="#101010" stroke-width="12" stroke-linejoin="round"/>
+
+  <path id="anillo-cuello" fill="#FFFFFF" stroke="#101010" stroke-width="12" stroke-linejoin="round" d="M275 135H405C423 135 425 156 409 159C373 165 308 165 270 159C253 157 256 138 275 135Z"/>
+  <path id="tapon" fill="#409ACC" stroke="#101010" stroke-width="12" stroke-linejoin="round" d="M258 124L259 71C259 48 277 42 340 42C403 42 421 49 421 72L422 123C422 137 407 139 339 140C272 140 258 137 258 124Z"/>
+  <path id="estrias-tapon" stroke="#101010" stroke-width="7.5" stroke-linecap="round" d="M278 71L276 122M300 72L299 123M324 73V124M352 73V124M376 72L377 123M400 70L402 121"/>
+</svg>

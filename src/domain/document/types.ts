@@ -4,7 +4,11 @@ export const DOCUMENT_STATUSES = [
 ] as const
 
 export type OperationalStatus = typeof DOCUMENT_STATUSES[number] | 'Personalizada'
-export type AssetId = 'ambulance' | 'pathfinder' | 'quad' | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
+export type AssetId =
+  | 'ambulance' | 'pathfinder' | 'quad' | 'doctor' | 'nurse'
+  | 'checkpoint' | 'hydration' | 'start' | 'finish' | 'warning' | 'pushpin'
+  | 'refreshment' | 'firstAid' | 'tent' | 'communications' | 'roadClosure' | 'timing'
+  | 'aed' | 'backpack' | 'noEntry' | 'commandPost' | 'meetingPoint'
 export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information' | 'operations' | 'coordinates' | 'map' | 'plan' | 'clock' | 'calculator' | 'notebook' | 'timeline' | 'reports' | 'calendar'
 
 export interface Position { x: number; y: number }
@@ -66,18 +70,18 @@ export type TimelineEntry = { revisions: TimelineRevision[] } & (
 
 export interface ModuleLayout { x: number; y: number; width: number; height: number; referenceSize: { width: number; height: number } }
 
-export interface AngieDocumentV3 {
-  format: 'angie-dashboard'
-  formatVersion: 3
+/** Working state. Geometry and resources live only for the current session. */
+export interface AngieDocument {
   document: { readonly id: string; title: string; readonly createdAt: string; updatedAt: string }
-  board: { backgroundColor: string; strokes: BoardStroke[]; quickNotes: QuickNote[] }
+  board: { backgroundColor: string; strokes: BoardStroke[]; quickNotes: QuickNote[]; backgroundImage?: ReferencedBoardImage }
   elements: DocumentElement[]
   notebook: NotebookBlock[]
   timeline: TimelineEntry[]
   moduleLayouts: Partial<Record<DocumentModuleId, ModuleLayout>>
+  map?: MapDocument
+  plan?: OperationalPlanDocument
 }
 
-export interface EmbeddedBoardImage { dataUrl: string; layout: { x: number; y: number; width: number; height: number } }
 export interface MapMarker { id: string; name: string; latitude: number; longitude: number; color: string }
 export interface MapGpxReference {
   id: string
@@ -95,24 +99,25 @@ export interface GeographicPosition { latitude: number; longitude: number }
 export interface PlanPin extends GeographicPosition { elementId: string; visible: boolean }
 export interface PlanStroke { id: string; color: string; width: number; points: GeographicPosition[] }
 export interface OperationalPlanDocument { pins: PlanPin[]; strokes: PlanStroke[] }
-export interface AngieDocumentV4 extends Omit<AngieDocumentV3, 'formatVersion' | 'board'> {
-  formatVersion: 4
-  board: AngieDocumentV3['board'] & { backgroundImage?: EmbeddedBoardImage }
-  map?: MapDocument
-  plan?: OperationalPlanDocument
-}
-export interface ReferencedBoardImage { resourceId: string; layout: EmbeddedBoardImage['layout'] }
-// Local working documents may refer to originals; the portable V4 contract stays embedded.
-export type AngieDocument = Omit<AngieDocumentV4, 'board'> & {
-  board: AngieDocumentV3['board'] & { backgroundImage?: EmbeddedBoardImage | ReferencedBoardImage }
+export interface ReferencedBoardImage { resourceId: string; layout: { x: number; y: number; width: number; height: number } }
+
+export type ElementIcon = { type: 'asset'; assetId: AssetId } | { type: 'emoji'; value: string }
+export type UIBoardElement = {
+  id: string; name: string; icon: ElementIcon; information: string
+} & ({ isUnit: true; operational: UnitOperational } | { isUnit: false; operational: null })
+
+/** The only file and recovery contract. No resources or presentation fields. */
+export interface UIBoardData {
+  format: 'angie-uiboard'
+  document: AngieDocument['document']
+  elements: UIBoardElement[]
+  notebook: NotebookBlock[]
+  timeline: TimelineEntry[]
+  quickNotes: Pick<QuickNote, 'id' | 'title' | 'text'>[]
+  openModules: DocumentModuleId[]
 }
 
 export interface ValidationIssue { path: string; message: string }
 export type ValidationResult<T> =
   | { success: true; document: T }
   | { success: false; errors: ValidationIssue[] }
-
-export type MigrationFailureCode = 'invalid-format' | 'invalid-version' | 'unsupported-old-version' | 'future-version' | 'invalid-document'
-export type MigrationResult<T> =
-  | { success: true; document: T; migrated: boolean }
-  | { success: false; code: MigrationFailureCode; errors: ValidationIssue[] }

@@ -8,11 +8,26 @@ function hasText(children: ReactNode): boolean {
       (isValidElement<{ children?: ReactNode }>(child) && hasText(child.props.children)))
 }
 
+function withTextLabels(children: ReactNode): ReactNode[] {
+  const content: ReactNode[] = []
+  let label = ''
+  const flush = () => {
+    if (label) content.push(<span key={`label-${content.length}`} data-slot="button-label" className={styles.label}>{label}</span>)
+    label = ''
+  }
+  for (const child of Children.toArray(children)) {
+    if (typeof child === 'string' || typeof child === 'number') label += child
+    else { flush(); content.push(child) }
+  }
+  flush()
+  return content
+}
+
 export function Button({ children, className = '', variant, appearance = 'default', ...props }: ComponentProps<'button'> & {
   variant?: 'text' | 'icon'
   appearance?: 'default' | 'integrated'
 }) {
   const text = hasText(children)
   return <button data-slot="button" data-text-button={text || undefined} type="button" {...props}
-    className={`${styles.base} ${styles[variant ?? (text ? 'text' : 'icon')]} ${appearance === 'integrated' ? styles.integrated : ''} ${className}`.trim()}>{children}</button>
+    className={`${styles.base} ${styles[variant ?? (text ? 'text' : 'icon')]} ${appearance === 'integrated' ? styles.integrated : ''} ${className}`.trim()}>{withTextLabels(children)}</button>
 }

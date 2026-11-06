@@ -1,10 +1,18 @@
 import type { BoardImageResult } from './boardTypes'
-import { checkFileBytes } from '../../domain/input/inputBudgets'
+import { checkFileBytes, checkImageDimensions, InputBudgetError } from '../../domain/input/inputBudgets'
+import { readImageDimensions } from './imageDimensions'
 
 export async function loadBoardImage(file: File): Promise<BoardImageResult> {
   try { checkFileBytes(file.size, 'image') }
   catch (error) { return { success: false, message: (error as Error).message } }
   if (!['image/png', 'image/jpeg'].includes(file.type)) return { success: false, message: 'Selecciona una imagen JPG o PNG.' }
+  try {
+    const { width, height } = await readImageDimensions(file)
+    checkImageDimensions(width, height)
+  } catch (error) {
+    return { success: false, message: error instanceof InputBudgetError ? error.message
+      : 'No se pudieron comprobar las dimensiones de la imagen. Se conserva el fondo anterior.' }
+  }
   let source: ImageBitmap | undefined
   try {
     source = await createImageBitmap(file)

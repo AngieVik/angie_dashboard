@@ -5,27 +5,27 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    padding: calc(2px * var(--module-zoom, 1));
+    padding: 0;
     overflow-wrap: anywhere;
     overflow-anchor: none;
     font-size: var(--font-size-body);
   }
 
-  :where(.base) :global(.information-card) { position: relative; display: flex; flex: 1 0 auto; flex-direction: column; min-width: 0; min-height: min-content; padding: 0 2px 2px; border-bottom: 1px solid var(--color-border); cursor: pointer; }
+  :where(.base) :global(.information-card) { position: relative; display: flex; flex: 1 0 auto; flex-direction: column; min-width: 0; min-height: var(--information-card-min-height, min-content); padding: calc(var(--field-padding-base) * var(--module-zoom, 1)); border-bottom: 1px solid var(--color-border); cursor: pointer; }
   :where(.base) :global(.information-card):not([data-selected="true"]):has(:global(.information-select):enabled):hover { background: var(--surface-button-hover); }
   :where(.base) :global(.information-card)[data-selected="true"] { background: var(--color-selected); box-shadow: inset 2px 0 var(--color-selection-border); }
-  :where(.base) :global(.information-heading) { display: flex; flex: 1; flex-direction: column; justify-content: center; min-width: 0; }
+  :where(.base) :global(.information-heading) { display: flex; flex: none; flex-direction: column; justify-content: flex-start; min-width: 0; }
   :where(.base) :global(.information-summary) { display: grid; flex: none; grid-template-columns: max-content minmax(0, 1fr) var(--control-height); grid-template-rows: minmax(calc(15px * var(--module-zoom, 1)), auto) var(--control-height); column-gap: var(--control-gap); align-items: center; min-width: 0; }
   :where(.base) :global(.information-select) > img, :where(.base) :global(.information-emoji) { flex: none; width: auto; height: calc(40px * var(--module-zoom, 1)); object-fit: contain; }
   :where(.base) :global(.information-emoji) { display: grid; place-items: center; font-size: calc(40px * var(--module-zoom, 1)); line-height: 1; }
-  :where(.base) :global(.information-name) { grid-column: 2; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--font-size-body); line-height: calc(15px * var(--module-zoom, 1)); white-space: nowrap; }
+  :where(.base) :global(.information-name) { grid-column: 2; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--font-size-title); line-height: calc(15px * var(--module-zoom, 1)); white-space: nowrap; }
   :where(.base) :global(.information-pin) { grid-column: 3; grid-row: 1; display: flex; justify-content: center; align-items: center; height: calc(15px * var(--module-zoom, 1)); color: var(--color-text-secondary); }
   :where(.base) :global(.information-operative) { grid-column: 2; grid-row: 2; display: flex; align-items: center; min-width: 0; }
   :where(.base) :global(.information-status-name) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  :where(.base) :global(.information-phase) { flex: none; margin: 2px 0 0; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
+  :where(.base) :global(.information-phase) { flex: none; margin: var(--control-gap) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-technical); }
   :where(.base) :global(.information-phase) span { color: var(--color-text); font-weight: 650; }
-  :where(.base) :global(.information-description) { flex: none; margin: 2px 0 0; line-height: 1.4; font-size: var(--control-font-size); color: var(--color-text-secondary); }
-  :where(.base) :global(.information-additional) { flex: none; margin-top: 8px; }
+  :where(.base) :global(.information-description) { flex: none; margin: var(--control-gap) 0 0; line-height: 1.4; font-size: var(--control-font-size); color: var(--color-text-secondary); }
+  :where(.base) :global(.information-additional) { flex: none; margin-top: var(--section-gap); }
   :where(.base) :global(.information-details) { min-height: 0; }
   :where(.base) :global(.information-text) { margin-top: 4px; white-space: pre-wrap; }
   :where(.base) :global(.module-empty) { margin: 4px 0; color: var(--color-text-secondary); font-size: var(--font-size-body); }
@@ -41,7 +41,6 @@
 
   :global(.module-frame)[data-fitting] :global(.module-scaled-content) > .base { display: flex; width: max-content; }
   :global(.module-frame)[data-fitting] .base :global(.information-card) { flex: none; height: auto; min-height: 0; }
-  :global(.module-scaled-content)[data-measuring="true"] .base :global(.information-card) { flex: none; }
-  :global(.module-scaled-content)[data-measuring="true"] .base :global(.information-heading) { flex: none; min-height: 0 !important; }
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.information-card) { flex: none; min-height: 0; }
   :global(.module-scaled-content)[data-measuring="minimum-width"] .base :global(.information-summary) { grid-template-columns: max-content var(--information-status-width) var(--control-height); }
 }

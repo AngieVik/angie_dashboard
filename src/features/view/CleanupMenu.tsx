@@ -25,8 +25,8 @@ const contents: Record<ModuleId, string> = {
   reports: 'Selección y vista previa. Los informes guardados se conservan.',
 }
 
-export function CleanupMenu({ active, disabled, request, onRequest, onCancel, onConfirm, error }: {
-  active: ModuleId | null; disabled: boolean; request: CleanupRequest | null
+export function CleanupMenu({ active, disabled, busy, request, onRequest, onCancel, onConfirm, error }: {
+  active: ModuleId | null; disabled: boolean; busy: boolean; request: CleanupRequest | null
   onRequest: (id: ModuleId | null, close: boolean) => void; onCancel: () => void; onConfirm: () => void; error: string | null
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
@@ -49,16 +49,16 @@ export function CleanupMenu({ active, disabled, request, onRequest, onCancel, on
         </MenubarGroup>
       </MenubarContent>
     </MenubarMenu>
-    <AlertDialog open={Boolean(request)} onOpenChange={open => { if (!open) onCancel() }}>
-      <AlertDialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
+    <AlertDialog open={Boolean(request)} onOpenChange={open => { if (!open && !busy) onCancel() }}>
+      <AlertDialogContent aria-busy={busy} onEscapeKeyDown={event => { if (busy) event.preventDefault() }} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <AlertDialogTitle>{request?.close ? 'Limpiar y cerrar ' : 'Limpiar '}{target}</AlertDialogTitle>
         <AlertDialogDescription>
           {all ? 'Incluye módulos cerrados, temporizadores y alarmas.' : request ? contents[request.ids[0]!] : ''}
         </AlertDialogDescription>
 
         <AlertDialogFooter>
-          <AlertDialogCancel asChild><Button>Cancelar</Button></AlertDialogCancel>
-          <Button disabled={disabled} onClick={onConfirm}>{request?.close ? 'Limpiar y cerrar' : 'Limpiar'}</Button>
+          <AlertDialogCancel asChild><Button disabled={busy}>Cancelar</Button></AlertDialogCancel>
+          <Button disabled={disabled || busy} onClick={onConfirm}>{busy ? 'Limpiando…' : request?.close ? 'Limpiar y cerrar' : 'Limpiar'}</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -12,8 +12,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       workbox: {
+        // Keep updates waiting until all clients of the active worker close.
+        skipWaiting: false,
+        // Control the first installation too; claiming does not bypass waiting.
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html}', 'assets/*.{png,jpg,jpeg,svg,webp,avif,wasm}'],
         // The offline geographic time-zone database is a separate 4.3 MB WASM asset.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
@@ -21,7 +25,7 @@ export default defineConfig({
         // Do not include the public font stylesheet a second time.
         globIgnores: ['assets/fonts/**'],
       },
-      includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/fonts/rajdhani/*', 'assets/elements/*.png', 'assets/audio/alarm.mp3', 'assets/licenses/*'],
+      includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/fonts/rajdhani/*', 'assets/pins/**/*.svg', 'assets/elements/icon_chincheta.png', 'assets/audio/alarm.mp3', 'assets/licenses/*'],
       manifest: {
         id: '/',
         name: 'Angie Dashboard',

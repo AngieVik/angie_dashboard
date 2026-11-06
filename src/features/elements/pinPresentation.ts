@@ -60,19 +60,25 @@ export function pinNameLines(name: string) {
 }
 
 type PinNameElement = Pick<DocumentElement, 'visual' | 'nameFontSize' | 'nameOffset' | 'nameColor'> & { name?: string }
+export function getScaledPinNameOffset(element: Pick<DocumentElement, 'visual' | 'nameOffset'>, scale: number) {
+  if (!element.nameOffset) return undefined
+  const ratio = scale / element.visual.scale
+  return { x: element.nameOffset.x * ratio, y: element.nameOffset.y * ratio }
+}
+
 export function getPinNameLayout(element: PinNameElement, measuredWidth?: number) {
-  const box = getRotatedPinBox(element.visual), fontSize = element.nameFontSize ?? 16
+  const box = getRotatedPinBox(element.visual), fontSize = (element.nameFontSize ?? 16) * element.visual.scale
   const height = fontSize * 1.25 * pinNameLines(element.name ?? '').length + 2 * element.visual.scale
   const width = measuredWidth ?? 200 * element.visual.scale
-  const offset = element.nameOffset ?? { x: 0, y: box.height / 2 + 6 + height / 2 }
-  return { width, height, offset }
+  const offset = element.nameOffset ?? { x: 0, y: box.height / 2 + 6 * element.visual.scale + height / 2 }
+  return { width, height, offset, fontSize }
 }
 
 export function pinNameStyle(element: PinNameElement): CSSProperties {
-  const box = getPinBox(element.visual), { offset, width } = getPinNameLayout(element)
+  const box = getPinBox(element.visual), { offset, width, fontSize } = getPinNameLayout(element)
   const theme = PIN_NAME_COLORS[element.nameColor ?? 'dark']
   return { left: box.width / 2 + offset.x, top: box.height / 2 + offset.y, transform: 'translate(-50%, -50%)',
-    fontSize: element.nameFontSize ?? 16, lineHeight: `${(element.nameFontSize ?? 16) * 1.25}px`,
+    fontSize, lineHeight: `${fontSize * 1.25}px`,
     maxWidth: width, padding: `${element.visual.scale}px ${4 * element.visual.scale}px`,
     backgroundColor: theme.backgroundColor, color: theme.color }
 }

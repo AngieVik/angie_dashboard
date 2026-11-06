@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="75 20 1160 1165" fill="none" role="img" aria-labelledby="medico-title medico-desc">
+  <title id="medico-title">Médico</title>
+  <desc id="medico-desc">Busto médico naranja sin rasgos faciales, con bata blanca y fonendoscopio negro. La bata es opaca y el exterior es transparente.</desc>
+  <path id="bata" fill="#FFFFFF" stroke="#101010" stroke-width="26" stroke-linejoin="round" d="M510 641C488 649 468 669 447 682L278 755C215 784 174 815 151 872C122 946 109 1055 103 1150H1204C1191 1024 1178 929 1154 879C1135 821 1098 789 1032 759L861 686C838 662 818 647 797 641Z"/>
+  <path id="cuello-y-camiseta" fill="#EF8321" stroke="#101010" stroke-width="22" stroke-linejoin="round" d="M525 564C529 611 520 650 510 674L654 1018L799 674C787 641 781 606 785 564Z"/>
+  <path id="cuello-camiseta" stroke="#101010" stroke-width="14" d="M559 770Q655 807 754 770"/>
+  <path id="cabeza" fill="#EF8321" stroke="#101010" stroke-width="26" stroke-linejoin="round" d="M449 317C413 172 522 49 653 49C788 49 892 171 859 317C891 313 904 341 895 380C886 431 870 465 838 460C825 530 780 591 721 623C674 650 641 644 607 631C536 603 482 535 469 460C438 468 418 436 411 392C399 348 412 316 449 317Z"/>
+  <g id="solapas" stroke="#101010" stroke-width="14" stroke-linejoin="miter">
+    <path id="solapa-izquierda" d="M410 790L518 833L495 885L645 1096"/>
+    <path id="solapa-derecha" d="M897 790L798 833L825 885L642 1136"/>
+    <path id="cierre-bata" d="M654 1018L642 1150"/>
+  </g>
+  <g id="fonendoscopio" stroke="#101010" stroke-linecap="round" stroke-linejoin="round">
+    <path id="tubos" stroke-width="29" d="M449 687C409 742 392 807 386 870M856 688C909 767 933 852 932 984"/>
+    <path id="arco-auricular" stroke-width="29" d="M328 1062C309 1063 299 1054 298 1035C290 932 317 873 376 872C434 867 469 927 468 1026C467 1049 457 1062 430 1063"/>
+    <circle id="campana" cx="932" cy="1036" r="55" fill="#FFFFFF" stroke-width="22"/>
+  </g>
+</svg>

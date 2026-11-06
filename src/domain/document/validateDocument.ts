@@ -1,10 +1,12 @@
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject } from 'ajv'
-import schema from './schema/angie-document-v4.schema.json'
-import type { AngieDocument, AngieDocumentV4, ValidationIssue, ValidationResult } from './types'
+import schema from './schema/uiboard.schema.json'
+import type { UIBoardData, ValidationIssue, ValidationResult } from './types'
+import { compareUtcDates } from './documentTime'
 import { checkDocumentBudget } from '../input/inputBudgets'
 import { isTimelineEntryDeleted, isTimelineEntryCorrected, projectUnitStatus } from '../operations/timelineProjection'
+import { buildTimelineIndex, currentEntryIds } from '../operations/operationIndexes'
 
 const ajv = new Ajv2020({
   strict: true,
@@ -16,15 +18,7 @@ const ajv = new Ajv2020({
   ownProperties: true,
 })
 addFormats(ajv)
-const validateSchema = ajv.compile<AngieDocumentV4>(schema)
-const workingSchema = structuredClone(schema)
-const embeddedSchema = workingSchema.properties.board.properties.backgroundImage
-Object.assign(workingSchema, { $id: 'angie-working-document' })
-Object.assign(workingSchema.properties.board.properties, { backgroundImage: { oneOf: [embeddedSchema, {
-  type: 'object', additionalProperties: false, required: ['resourceId', 'layout'],
-  properties: { resourceId: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' }, layout: embeddedSchema.properties.layout },
-}] } })
-const validateWorkingSchema = ajv.compile<AngieDocument>(workingSchema)
+const validateSchema = ajv.compile<UIBoardData>(schema)
 
 function issueFromSchema(error: ErrorObject): ValidationIssue {
   const parts = error.instancePath.split('/').slice(1).map(part => part.replace(/~1/g, '/').replace(/~0/g, '~'))
@@ -50,61 +44,17 @@ function issueFromSchema(error: ErrorObject): ValidationIssue {
     oneOf: 'debe coincidir con una única variante permitida',
     if: 'no cumple la relación condicional requerida',
   }
-  return { path, message: `${path} ${messages[error.keyword] ?? 'no cumple el esquema V4'}` }
+  return { path, message: `${path} ${messages[error.keyword] ?? 'no contiene datos válidos de UIBoard'}` }
 }
 
-// Compare the complete UTC instant, including fractions finer than milliseconds.
-function compareUtcDates(left: string, right: string): number {
-  const leftSeconds = left.slice(0, 19)
-  const rightSeconds = right.slice(0, 19)
-  if (leftSeconds !== rightSeconds) return leftSeconds < rightSeconds ? -1 : 1
-  const fraction = (date: string) => date[19] === '.' ? date.slice(20, -1) : ''
-  const leftFraction = fraction(left)
-  const rightFraction = fraction(right)
-  const length = Math.max(leftFraction.length, rightFraction.length)
-  const a = leftFraction.padEnd(length, '0')
-  const b = rightFraction.padEnd(length, '0')
-  return a === b ? 0 : a < b ? -1 : 1
-}
-
-export function validateDocument(input: unknown): ValidationResult<AngieDocumentV4> {
-  return validate(input, false) as ValidationResult<AngieDocumentV4>
-}
-
-export function validateWorkingDocument(input: unknown): ValidationResult<AngieDocument> {
-  return validate(input, true)
-}
-
-function validate(input: unknown, working: boolean): ValidationResult<AngieDocument> {
+export function validateDocument(input: unknown): ValidationResult<UIBoardData> {
   const budget = checkDocumentBudget(input)
   if (budget) return { success: false, errors: [budget] }
-  if (input && typeof input === 'object' && !Array.isArray(input) && 'moduleLayouts' in input) {
-    const layouts = input.moduleLayouts
-    if (layouts && typeof layouts === 'object' && !Array.isArray(layouts)) {
-      const supported = schema.properties.moduleLayouts.properties
-      input = { ...input, moduleLayouts: Object.fromEntries(Object.entries(layouts).filter(([id]) => Object.hasOwn(supported, id))) }
-    }
-  }
-  const validator = working ? validateWorkingSchema : validateSchema
-  if (!validator(input)) {
-    return { success: false, errors: (validator.errors ?? []).map(issueFromSchema) }
-  }
-  const document = input as AngieDocument
-
+  if (!validateSchema(input)) return { success: false, errors: (validateSchema.errors ?? []).map(issueFromSchema) }
+  const document = input
+  const timelineIndex = buildTimelineIndex(document.timeline), currentIds = currentEntryIds(document.elements)
   const errors: ValidationIssue[] = []
   const add = (path: string, message: string) => errors.push({ path, message: `${path} ${message}` })
-  const image = document.board.backgroundImage
-  if (image && 'dataUrl' in image) {
-    try {
-      const base64 = image.dataUrl.slice(image.dataUrl.indexOf(',') + 1)
-      const prefix = atob(base64.slice(0, 16))
-      const png = image.dataUrl.startsWith('data:image/png;')
-      const valid = png ? [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => prefix.charCodeAt(index) === byte)
-        : prefix.charCodeAt(0) === 255 && prefix.charCodeAt(1) === 216 && prefix.charCodeAt(2) === 255
-      const byteLength = base64.length / 4 * 3 - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
-      if (!valid || base64.length % 4 !== 0 || byteLength <= 0) add('board.backgroundImage.dataUrl', 'debe contener una imagen PNG o JPEG válida')
-    } catch { add('board.backgroundImage.dataUrl', 'no contiene una imagen base64 válida') }
-  }
   const ids = new Set<string>()
   const identify = (id: string, path: string) => {
     // UUID spelling is case-insensitive; references such as unitId are not owners.
@@ -113,23 +63,7 @@ function validate(input: unknown, working: boolean): ValidationResult<AngieDocum
     ids.add(key)
   }
   identify(document.document.id, 'document.id')
-  const placedElements = new Set<string>()
-  document.plan?.pins.forEach((pin, index) => {
-    const key = pin.elementId.toLowerCase()
-    if (!document.elements.some(element => element.id.toLowerCase() === key)) add(`plan.pins[${index}].elementId`, 'debe referenciar un Elemento o una Dotación existente')
-    if (placedElements.has(key)) add(`plan.pins[${index}].elementId`, 'no puede colocar dos veces el mismo recurso')
-    placedElements.add(key)
-  })
-  document.plan?.strokes.forEach((stroke, index) => identify(stroke.id, `plan.strokes[${index}].id`))
-  document.map?.markers.forEach((marker, index) => identify(marker.id, `map.markers[${index}].id`))
-  const fingerprints = new Set<string>()
-  document.map?.gpx.forEach((file, index) => {
-    identify(file.id, `map.gpx[${index}].id`)
-    if (fingerprints.has(file.fingerprint)) add(`map.gpx[${index}].fingerprint`, 'no puede duplicar otro archivo GPX')
-    fingerprints.add(file.fingerprint)
-  })
-  document.board.strokes.forEach((stroke, index) => identify(stroke.id, `board.strokes[${index}].id`))
-  document.board.quickNotes.forEach((note, index) => identify(note.id, `board.quickNotes[${index}].id`))
+  document.quickNotes.forEach((note, index) => identify(note.id, `quickNotes[${index}].id`))
   if (compareUtcDates(document.document.updatedAt, document.document.createdAt) < 0) {
     add('document.updatedAt', 'no puede ser anterior a createdAt')
   }
@@ -146,8 +80,8 @@ function validate(input: unknown, working: boolean): ValidationResult<AngieDocum
     const path = `elements[${index}].operational.currentEntryId`
     if ((status === null) !== (currentEntryId === null)) add(path, 'y status deben ser nulos conjuntamente')
     if (currentEntryId !== null) {
-      if (projectUnitStatus(document.timeline, element.id, currentEntryId) !== status) add(path, 'debe referenciar un cambio vigente de esta dotación con el mismo estado')
-      const latest = document.timeline.findLast(entry => entry.type === 'status-change' && entry.unitId.toLowerCase() === element.id.toLowerCase())
+      if (projectUnitStatus(document.timeline, element.id, currentEntryId, timelineIndex) !== status) add(path, 'debe referenciar un cambio vigente de esta dotación con el mismo estado')
+      const latest = timelineIndex.latestByUnit.get(element.id.toLowerCase())
       if (latest?.id.toLowerCase() !== currentEntryId.toLowerCase()) add(path, 'debe identificar la selección más reciente, sin recuperar anteriores')
     }
   })
@@ -175,13 +109,9 @@ function validate(input: unknown, working: boolean): ValidationResult<AngieDocum
         corrected = true
       }
     })
-    if ((isTimelineEntryDeleted(entry) || isTimelineEntryCorrected(entry)) && document.elements.some(element => element.isUnit && element.operational.currentEntryId?.toLowerCase() === entry.id.toLowerCase())) {
+    if ((isTimelineEntryDeleted(entry) || isTimelineEntryCorrected(entry)) && currentIds.has(entry.id.toLowerCase())) {
       add(`timeline[${index}].revisions`, 'una entrada retirada no puede ser Actual')
     }
   })
-  for (const [id, layout] of Object.entries(document.moduleLayouts)) {
-    if (layout.x + layout.width > layout.referenceSize.width) add(`moduleLayouts.${id}.x`, 'junto con width debe quedar dentro de referenceSize.width')
-    if (layout.y + layout.height > layout.referenceSize.height) add(`moduleLayouts.${id}.y`, 'junto con height debe quedar dentro de referenceSize.height')
-  }
   return errors.length ? { success: false, errors } : { success: true, document }
 }

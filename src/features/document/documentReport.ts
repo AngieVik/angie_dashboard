@@ -1,16 +1,9 @@
 import type { AngieDocument } from '../../domain/document/types'
 import { getTimelineEntryLabel, isCurrentTimelineEntry, isTimelineEntryCorrected, isTimelineEntryDeleted } from '../../domain/operations/timelineProjection'
+import { getTimelineIndex } from '../../domain/operations/operationIndexes'
 import { formatTimelineDate } from '../timeline/timelineCommands'
-import { MAP_BACKGROUNDS, PNOA_INFORMATION } from '../map/mapBackgrounds'
-import type { MapReportContent } from './mapReport'
-import type { BoardReportContent } from './boardReport'
-import type { ReportLegendEntry } from './reportLegend'
-import { parseCoordinate } from '../coordinates/parseCoordinate'
-import { UTM_BANDS } from '../coordinates/coordinateTypes'
 import { calculateTimerValue, formatDuration } from '../clock/timerEngine'
 import type { TimerRecord } from '../clock/timerTypes'
-import { createReportIssue, formatReportIssue } from './reportIssues'
-import type { ReportGraphicSection, ReportIssue } from './reportIssues'
 import { reportPageStyles } from './reportPagination'
 import { DEFAULT_REPORT_PAGE } from './reportPageOptions'
 import type { ReportPageOptions } from './reportPageOptions'
@@ -22,41 +15,8 @@ const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;
 function escape(value: string) { return value.replace(/[&<>"']/g, character => entities[character]!) }
 function text(value: string) { return escape(value).replace(/\n/g, '<br>') }
 
-export function createDocumentReport(document: AngieDocument, generatedAt: Date, fontStyles: string, selection: ReportSelection = defaultReportSelection(), mapReport?: MapReportContent, planReport?: MapReportContent, boardReport?: BoardReportContent, coordinateInput = '', timerRecords?: readonly TimerRecord[] | null, page: ReportPageOptions = DEFAULT_REPORT_PAGE) {
+export function createDocumentReport(document: AngieDocument, generatedAt: Date, fontStyles: string, selection: ReportSelection = defaultReportSelection(), timerRecords?: readonly TimerRecord[] | null, page: ReportPageOptions = DEFAULT_REPORT_PAGE) {
   const selected = (section: ReportSection, field: string) => selection[section]?.includes(field) ?? false
-  if (selection.map?.length && mapReport && mapReport.documentId !== document.document.id) throw new Error('El mapa pertenece a otro UIBoard.')
-  if (selection.plan?.length && planReport && planReport.documentId !== document.document.id) throw new Error('El plano pertenece a otro UIBoard.')
-  if (selection.board?.length && boardReport && boardReport.documentId !== document.document.id) throw new Error('La pizarra pertenece a otro UIBoard.')
-  const issues: ReportIssue[] = [
-    ...(selection.map?.length ? mapReport?.issues ?? [] : []),
-    ...(selection.plan?.length ? planReport?.issues ?? [] : []),
-    ...(selection.board?.length ? boardReport?.issues ?? [] : []),
-  ]
-  function notices(section: ReportGraphicSection) {
-    return issues.filter(issue => issue.section === section).map(issue => `<p class="report-unavailable">${text(formatReportIssue(issue))}</p>`).join('')
-  }
-  function missingSection(section: ReportGraphicSection, label: string) {
-    issues.push(createReportIssue(section, 'Los datos seleccionados no están disponibles.', { kind: 'representation', resourceId: 'section', label }))
-  }
-  function reportLegend(section: ReportGraphicSection, entries: ReportLegendEntry[] = []) {
-    if (!entries.length) return ''
-    if (entries.some(entry => !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(entry.image))) {
-      issues.push(createReportIssue(section, 'No disponible.', { kind: 'legend', resourceId: 'legend', label: 'Leyenda' }))
-      return ''
-    }
-    return '<div class="report-legend"><h3>Leyenda</h3><ul>' + entries.map(entry => {
-      return `<li><img src="${escape(entry.image)}" alt=""><span>${text(entry.label)}</span></li>`
-    }).join('') + '</ul></div>'
-  }
-  function reportImage(image: MapReportContent['image'], title: string, section: 'map' | 'plan') {
-    if (!image || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(image.dataUrl)) {
-      if (image || !issues.some(issue => issue.section === section)) issues.push(createReportIssue(section, 'No disponible.', { kind: 'representation', resourceId: 'image', label: title }))
-      return '<p class="report-unavailable">Imagen no disponible.</p>'
-    }
-    const sources = [image.background ? MAP_BACKGROUNDS[image.background].attribution : '', image.pnoaInformation ? PNOA_INFORMATION.attribution : ''].filter(Boolean)
-    const attribution = sources.length ? `<figcaption>${sources.join(' · ')}</figcaption>` : ''
-    return `<figure><img class="report-map-image" src="${escape(image.dataUrl)}" alt="${escape(title)}">${attribution}${reportLegend(section, image.legend)}</figure>`
-  }
   function rowsTable(fields: [string, string][], rows: Record<string, string>[]) {
     return rows.length ? `<table><thead><tr>${fields.map(([, label]) => `<th scope="col">${escape(label)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${fields.map(([id]) => `<td>${text(row[id] ?? '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '<p>Sin datos.</p>'
   }
@@ -68,7 +28,7 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
   const resources = (units: boolean) => document.elements.filter(element => element.isUnit === units).map(element => ({
     name: element.name, information: element.information, tags: element.isUnit ? element.operational.tags.join('\n') : '',
   }))
-  const currentEntries = new Map(document.timeline.map(entry => [entry.id.toLowerCase(), entry]))
+  const currentEntries = getTimelineIndex(document.timeline).byId
   const operational: Record<string, string>[] = document.elements.flatMap(element => {
     if (!element.isUnit) return []
     const entry = currentEntries.get(element.operational.currentEntryId?.toLowerCase() ?? '')
@@ -82,53 +42,6 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
   }))
   const notebook = document.notebook.map(block => ({ title: block.title,
     text: block.type === 'note' ? block.text : block.items.map(item => `${item.checked ? '☑' : '☐'} ${item.text}`).join('\n') }))
-  let mapContent = ''
-  if (selection.map?.length) {
-    if (!mapReport) missingSection('map', 'Mapa')
-    else if (!mapReport.omittedSection) {
-      if (selected('map', 'image') && !mapReport.omittedImage) mapContent += reportImage(mapReport.image, 'Mapa del informe', 'map')
-      if (selected('map', 'coordinates')) mapContent += '<h3>Coordenadas</h3>' + rowsTable([['name', 'Marcador'], ['latitude', 'Latitud'], ['longitude', 'Longitud']], mapReport.markers.map(marker => ({
-        name: marker.name || 'Marcador', latitude: marker.latitude.toFixed(6), longitude: marker.longitude.toFixed(6),
-      })))
-      if (selected('map', 'gpx')) mapContent += '<h3>GPX</h3>' + rowsTable([['name', 'Recorrido'], ['distance', 'Distancia'], ['points', 'Puntos'], ['availability', 'Disponibilidad']], mapReport.gpx)
-    }
-    mapContent = '<section data-report-section="map"><h2>Mapa</h2>' + notices('map') + mapContent + '</section>'
-  }
-  let planContent = ''
-  if (selection.plan?.length) {
-    if (!planReport) missingSection('plan', 'Plano operativo')
-    else if (!planReport.omittedSection) {
-      if (selected('plan', 'image') && !planReport.omittedImage) planContent += reportImage(planReport.image, 'Plano operativo del informe', 'plan')
-      if (selected('plan', 'resources')) {
-        if (planReport.resources) planContent += '<h3>Recursos</h3>' + rowsTable([['name', 'Nombre'], ['type', 'Tipo'], ['information', 'Información'], ['latitude', 'Latitud'], ['longitude', 'Longitud']], planReport.resources)
-        else issues.push(createReportIssue('plan', 'No disponibles.', { kind: 'representation', resourceId: 'resources', label: 'Recursos' }))
-      }
-    }
-    planContent = '<section data-report-section="plan"><h2>Plano operativo</h2>' + notices('plan') + planContent + '</section>'
-  }
-  let boardContent = ''
-  if (selection.board?.length) {
-    if (!boardReport) missingSection('board', 'Pizarra')
-    else if (!boardReport.omittedSection) {
-      if (selected('board', 'image') && !boardReport.omittedImage) {
-        if (!boardReport.image || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(boardReport.image)) {
-          if (boardReport.image || !issues.some(issue => issue.section === 'board')) issues.push(createReportIssue('board', 'No disponible.'))
-          boardContent += '<p class="report-unavailable">Imagen no disponible.</p>'
-        } else boardContent += `<figure><img class="report-map-image" src="${escape(boardReport.image)}" alt="Pizarra del informe">${reportLegend('board', boardReport.legend)}</figure>`
-      }
-      if (selected('board', 'notes')) boardContent += '<h3>Notas</h3>' + rowsTable([['title', 'Título'], ['text', 'Texto']], boardReport.notes)
-    }
-    boardContent = '<section data-report-section="board"><h2>Pizarra</h2>' + notices('board') + boardContent + '</section>'
-  }
-  const coordinates: Record<string, string>[] = []
-  if (selection.coordinates?.length && coordinateInput.trim()) {
-    const parsed = parseCoordinate(coordinateInput)
-    const coordinate = parsed.ok ? parsed.coordinate : null
-    const system = coordinate?.format === 'UTM'
-      ? `WGS 84 / UTM ${coordinate.zone}${UTM_BANDS.indexOf(coordinate.band) < UTM_BANDS.indexOf('N') ? 'S' : 'N'} · Banda ${coordinate.band}`
-      : coordinate ? `WGS 84 (EPSG:4326) · ${coordinate.format}` : 'No reconocido'
-    coordinates.push({ value: parsed.ok ? parsed.normalizedInput : coordinateInput.trim(), system })
-  }
   let timerContent = ''
   if (selection.timers?.length) {
     if (timerRecords == null) timerContent = '<section><h2>Temporizadores</h2><p>Temporizadores no disponibles.</p></section>'
@@ -145,18 +58,18 @@ export function createDocumentReport(document: AngieDocument, generatedAt: Date,
     }
   }
   const content = table('elements', resources(false)) + table('dotations', resources(true)) + table('information', operational) + table('operations', operational)
-    + table('timeline', timeline) + table('notebook', notebook) + mapContent + planContent + boardContent + table('coordinates', coordinates) + timerContent
+    + table('timeline', timeline) + table('notebook', notebook) + timerContent
   const title = document.document.title || 'Sin nombre'
   const dates = { createdAt: document.document.createdAt, updatedAt: document.document.updatedAt, generatedAt: generatedAt.toISOString() }
   const metadata = Object.entries(REPORT_SECTIONS.metadata.fields)
     .filter(([field]) => selected('metadata', field))
     .map(([field, label]) => `${escape(label)}: ${escape(formatTimelineDate(dates[field as keyof typeof dates]))}`)
     .join('<br>')
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"><title>Informe · ${escape(title)}</title>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src data:"><title>Informe · ${escape(title)}</title>
 <style>${fontStyles}
 ${reportStyles}
 ${reportPageStyles(page)}</style></head><body><main>
 <header><p>Angie Dashboard · Informe</p><h1>${escape(title)}</h1>${metadata ? `<p>${metadata}</p>` : ''}</header>
-${issues.length ? `<p class="report-unavailable">${issues.some(issue => !issue.omitted) ? 'Informe incompleto: recursos no disponibles.' : 'Informe con recursos omitidos.'}</p>` : ''}${content}</main></body></html>`
-  return { filename: `informe_${generatedAt.toISOString().replace(/[:.]/g, '-')}_${crypto.randomUUID()}.html`, html, issues }
+${content}</main></body></html>`
+  return { filename: `informe_${generatedAt.toISOString().replace(/[:.]/g, '-')}_${crypto.randomUUID()}.html`, html }
 }

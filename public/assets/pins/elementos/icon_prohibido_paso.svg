@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="prohibido-title prohibido-desc">
+  <title id="prohibido-title">Prohibido el paso</title>
+  <desc id="prohibido-desc">Señal circular roja con contorno negro y barra horizontal blanca con borde negro. El exterior de la señal es transparente y la barra blanca es opaca.</desc>
+  <circle id="disco" cx="128" cy="128" r="126.5" fill="#D4171D" stroke="#101010" stroke-width="3"/>
+  <rect id="barra" x="34" y="101.5" width="188" height="53" fill="#FFFFFF" stroke="#101010" stroke-width="3"/>
+</svg>

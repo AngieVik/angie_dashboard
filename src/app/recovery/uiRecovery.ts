@@ -1,12 +1,13 @@
-import type { AngieDocument } from '../../domain/document/types'
+import type { AngieDocument, DocumentModuleId } from '../../domain/document/types'
+import { captureUIBoard } from '../../domain/document/uiBoardData'
 import { suggestFilename } from '../../platform/files/fileAccess'
 
 // Rescue the current in-memory document without waiting for storage or validating
 // it again. Valid data keeps the portable format; damaged data remains available
 // for manual recovery instead of blocking the download.
-export function createEmergencyCopy(document: AngieDocument) {
+export function createEmergencyCopy(document: AngieDocument, openModules: DocumentModuleId[]) {
   return {
-    text: JSON.stringify(document, null, 2) + '\n',
+    text: JSON.stringify(captureUIBoard(document, openModules), null, 2) + '\n',
     filename: suggestFilename((document.document?.title || 'UIBoard') + '_recuperacion'),
   }
 }

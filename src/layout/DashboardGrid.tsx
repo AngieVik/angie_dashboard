@@ -23,9 +23,10 @@ function ModuleContent({ id, renderModule }: { id: ModuleId; renderModule?: (id:
   return renderModule?.(id)
 }
 
-export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onLayout, onGrow, renderModule, generation = 0, magnet = false, navigationKey, viewOrigin = { x: 0, y: 0 }, revisions = {}, contentSizeRevisions = {}, locationHighlight, onReset, onActions }: {
+export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onRetry, onLayout, onGrow, renderModule, generation = 0, magnet = false, navigationKey, viewOrigin = { x: 0, y: 0 }, revisions = {}, contentSizeRevisions = {}, locationHighlight, onReset, onActions }: {
   modules: readonly OpenModule[]; bounds: Size; visible?: Size; layers: readonly ModuleId[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void
   onClose: (id: ModuleId) => void; onLayout: (id: ModuleId, layout: ModuleLayout, kind?: 'move' | 'resize') => void
+  onRetry: (id: ModuleId) => void
   onActions?: (id: ModuleId, actions: ModuleActions | null) => void
   locationHighlight?: { id: ModuleId; sequence: number }
   viewOrigin?: { x: number; y: number }; revisions?: Partial<Record<ModuleId, number>>; contentSizeRevisions?: Partial<Record<ModuleId, number>>; onReset?: (id: ModuleId) => void
@@ -108,7 +109,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     if (!module || module.layout.height <= 29) return { w, h }
     const frame = grid.current?.querySelector<HTMLElement>('[data-module="' + item.i + '"] .module-frame')
     const minimum = moduleExpandedMinimumSize(id)
-    const heightLimit = definition.baseHeight === 'fixed' ? minimum.height : moduleAutoHeightLimit(id)
+    const heightLimit = moduleAutoHeightLimit(id)
     const size = constrainWindowContentSize(frame, { width: Math.max(w, minimum.width), height: Math.max(h, minimum.height) }, definition.sizeMode, heightLimit)
     return { w: size.width, h: size.height }
   } }
@@ -200,7 +201,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
             // A completed icon drag must not also contract or restore the window.
             if (draggedModule.current === id && event.detail !== 0) { event.preventDefault(); event.stopPropagation() }
           }}>
-          <ModuleErrorBoundary key={`${navigationKey}.${generation}`} name={MODULE_REGISTRY[id].name} onClose={() => onClose(id)}>
+          <ModuleErrorBoundary key={`${navigationKey}.${generation}`} name={MODULE_REGISTRY[id].name} onRetry={() => onRetry(id)} onClose={() => onClose(id)}>
           {/* Mount the frame with its loaded content so size and scroll restore together. */}
           <Suspense fallback={null}>
           <ModuleFrame onActions={onActions} id={id} width={layout.width} navigationKey={navigationKey ? navigationKey + '.' + id : undefined} resetSizeOnMount={resetSizeOnMount} height={layout.height} generation={generation} contentSizeRevision={contentSizeRevisions[id]} locateToken={locationHighlight?.id === id ? locationHighlight.sequence : 0} active={active === id} onFront={() => onActive(id)} onPark={size => park(id, size)} onReset={onReset ? () => onReset(id) : undefined} onClose={() => onClose(id)} onFit={size => {

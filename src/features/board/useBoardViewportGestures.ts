@@ -3,11 +3,13 @@ import type { PointerEvent, RefObject } from 'react'
 import type { Position } from '../../domain/document/types'
 import type { Size } from '../../layout/layoutTypes'
 import { useViewportInteraction } from '../../layout/ViewportContext'
-import { panBoard } from './boardViewport'
+import { useModuleZoom } from '../../layout/ModuleZoomContext'
+import { panBoard, zoomBoardAt } from './boardViewport'
 import type { BoardBounds, BoardViewportState } from './boardViewport'
 
 export function useBoardViewportGestures(view: BoardViewportState, size: Size, bounds: BoardBounds, onChange: (view: BoardViewportState) => void, surfaceRef: RefObject<HTMLDivElement | null>, allowDrag = false) {
   const { blockedRef } = useViewportInteraction()
+  const { beginGestureRef } = useModuleZoom()
   const current = useRef(view), settings = useRef({ size, bounds, onChange })
   const middle = useRef<{ id: number; point: Position; moved: boolean; button: number } | null>(null)
   const suppressClick = useRef(false)
@@ -17,6 +19,25 @@ export function useBoardViewportGestures(view: BoardViewportState, size: Size, b
     return { x: (point.x - rect.left) * size.width / rect.width, y: (point.y - rect.top) * size.height / rect.height }
   }, [surfaceRef])
   const apply = useCallback((next: BoardViewportState) => { current.current = next; settings.current.onChange(next) }, [])
+  useLayoutEffect(() => {
+    if (!beginGestureRef) return
+    const begin = () => {
+      const node = surfaceRef.current, rect = node?.getBoundingClientRect()
+      if (!rect?.width || !rect.height) return null
+      middle.current = null
+      const initial = current.current, config = settings.current
+      // Each update uses the same view and screen-to-canvas ratio, even when
+      // the two pointer events arrive separately or the zoom hits a limit.
+      return (scale: number, translation: Position) => {
+        if (surfaceRef.current !== node) return
+        const zoomed = zoomBoardAt(initial, scale, { x: 0, y: 0 }, config.size, config.bounds)
+        apply(panBoard(zoomed, translation.x * config.size.width / rect.width,
+          translation.y * config.size.height / rect.height, config.size, config.bounds))
+      }
+    }
+    beginGestureRef.current = begin
+    return () => { if (beginGestureRef.current === begin) beginGestureRef.current = null }
+  }, [beginGestureRef, surfaceRef, apply])
   return {
     onPointerDownCapture: (event: PointerEvent<HTMLDivElement>) => {
       suppressClick.current = false

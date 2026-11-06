@@ -6,16 +6,6 @@ h2 { margin-top: 26px; border-bottom: 1px solid #aaa; font-size: 18px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th, td { text-align: left; vertical-align: top; border-bottom: 1px solid #ddd; padding: 6px; overflow-wrap: anywhere; word-break: break-word; }
 thead { background: #eee; }
-figure { margin: 12px 0; break-inside: avoid; }
-.report-map-image { display: block; max-width: 100%; width: auto; height: auto; }
-figcaption { font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; }
-.report-legend { font-size: 12px; margin-top: 8px; }
-.report-legend h3 { font-size: 12px; margin: 0 0 4px; }
-.report-legend ul { display: flex; flex-wrap: wrap; gap: 6px 14px; list-style: none; margin: 0; padding: 0; }
-.report-legend li { display: flex; align-items: center; gap: 6px; max-width: 100%; break-inside: avoid; }
-.report-legend img { flex: none; width: 48px; height: 30px; object-fit: contain; }
-.report-legend span { overflow-wrap: anywhere; }
-.report-unavailable { border-left: 3px solid #a92323; padding: 4px 8px; overflow-wrap: anywhere; }
 
 main { width: var(--report-content-width); max-width: none; margin: 0 auto; padding: 0; }
 main.report-pages { width: auto; margin: 0; padding: 0; background: transparent; }
@@ -23,11 +13,7 @@ main.report-pages { width: auto; margin: 0; padding: 0; background: transparent;
 .report-page-content { position: relative; display: flow-root; width: 100%; height: 100%; }
 .report-page-content > :first-child { margin-top: 0; }
 .report-page table { table-layout: fixed; }
-.report-page figure { margin: 0; }
 th { overflow-wrap: anywhere; word-break: normal; }
-.report-composition-box { position: relative; overflow: hidden; }
-.report-composition-content { position: absolute; top: 0; transform-origin: top left; }
-.report-composition-content .report-map-image { margin: 0 auto; max-height: none; }
 
 @media screen {
   .report-preview { position: relative; width: calc(var(--preview-width) * var(--preview-scale)); min-width: 100%; height: var(--preview-height); }

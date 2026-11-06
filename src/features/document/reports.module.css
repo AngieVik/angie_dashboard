@@ -19,10 +19,7 @@
   .selectionSheet label { display: flex; align-items: center; gap: var(--space-2); margin: 3px 0; overflow-wrap: anywhere; }
   .selectionSheet label:has(> [data-slot="checkbox"]) { gap: var(--control-gap); }
   .selectionSheet legend label { margin: 0; font-weight: 600; }
-  .selectionSheet .framing { padding: 0; border: 0; margin-top: var(--space-2); }
-  .framing:empty { display: none; }
   .selectionSheet :global(.reports-page-toolbar) label { flex-wrap: wrap; justify-content: space-between; }
-  .selectionSheet :global(.reports-map-selection) { grid-template-columns: minmax(0, 1fr); }
   .preview { display: flex; flex-direction: column; position: relative; height: 100%; min-width: 0; min-height: 0; background: var(--color-module); }
   .preview iframe { display: block; flex: 1; width: 100%; height: 100%; min-height: 0; border: 0; background: white; }
   .preview iframe[hidden] { display: none; }
@@ -30,7 +27,7 @@
 }
 
 @layer overrides {
-  /* A nonmodal Sheet shares the module's columns; keep capture surfaces sized while closed. */
+  /* A nonmodal Sheet shares the module's columns; preserve its width while closed. */
   .selectionSheet[data-side="left"] { position: absolute; inset: 0; width: var(--report-selection-width); max-height: 100%; padding: 0; gap: 0; box-shadow: none; }
   .selectionSheet [data-slot="sheet-header"] { padding-inline-end: 0; }
   .resizeHandle[aria-orientation="vertical"] { background: var(--color-field-border); }

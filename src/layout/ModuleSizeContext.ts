@@ -1,4 +1,3 @@
 import { createContext } from 'react'
-import type { Size } from './layoutTypes'
 
-export const ModuleSizeContext = createContext<(minimum: Size) => void>(() => {})
+export const ModuleSizeContext = createContext<(mode?: 'minimum') => void>(() => {})

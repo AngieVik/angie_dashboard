@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 58 1100 960" role="img" aria-labelledby="atencion-title atencion-desc">
+  <title id="atencion-title">Atención</title>
+  <desc id="atencion-desc">Señal triangular amarilla con contorno negro y signo de exclamación negro. Pictograma sólido con fondo transparente.</desc>
+  <path id="contorno" fill="#101010" d="M621 130C639 101 666 84 701 84C736 84 763 101 781 130L1208 866C1222 889 1226 910 1220 935C1212 974 1185 993 1143 993H255C213 993 186 974 178 935C172 910 176 889 190 866Z"/>
+  <path id="relleno" fill="#F9CA22" d="M658 152C668 134 681 124 700 124C719 124 732 134 742 152L1163 883C1189 927 1171 947 1129 947H269C227 947 209 927 235 883Z"/>
+  <path id="barra" fill="#101010" d="M700 305C646 305 617 314 617 354L649 676C652 707 663 717 700 717C737 717 749 707 752 676L785 354C785 314 754 305 700 305Z"/>
+  <circle id="punto" cx="700" cy="815" r="79" fill="#101010"/>
+</svg>

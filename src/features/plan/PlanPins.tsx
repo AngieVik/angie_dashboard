@@ -4,7 +4,7 @@ import type { DocumentElement, GeographicPosition, PlanPin, Position } from '../
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { getPinBox, ICON_CATALOG } from '../elements/iconCatalog'
-import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, pinNameLines, PIN_NAME_COLORS, PIN_BASE_SCALE, PIN_REFERENCE_ZOOM, pinTransform } from '../elements/pinPresentation'
+import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, getScaledPinNameOffset, pinNameLines, PIN_NAME_COLORS, PIN_BASE_SCALE, PIN_REFERENCE_ZOOM, pinTransform } from '../elements/pinPresentation'
 import { clampAssetScale } from '../elements/elementCommands'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
@@ -54,7 +54,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
       if (!element.nameHidden) {
         const label = getPinNameLayout(element)
         const node = renderedPins.current.get(element.id)?.getElement()?.querySelector<HTMLElement>('.plan-pin-name')
-        const estimatedWidth = Math.max(...pinNameLines(element.name).map(line => [...line].length)) * (element.nameFontSize ?? 16) * .75 + 8 * element.visual.scale
+        const estimatedWidth = Math.max(...pinNameLines(element.name).map(line => [...line].length)) * label.fontSize * .75 + 8 * element.visual.scale
         const width = node?.offsetWidth ? node.offsetWidth / factor : estimatedWidth
         const height = node?.offsetHeight ? node.offsetHeight / factor : label.height
         left = Math.min(left, center.x + label.offset.x - width / 2)
@@ -135,7 +135,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
       }
       content.append(visual)
       function nameLayout(scale = element.visual.scale) {
-        return getPinNameLayout({ ...element, visual: { ...element.visual, scale } })
+        return getPinNameLayout({ ...element, visual: { ...element.visual, scale }, nameOffset: getScaledPinNameOffset(element, scale) })
       }
       let name: HTMLButtonElement | null = null
       function positionName(offset: Position) {
@@ -153,7 +153,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
         name.textContent = pinNameLines(element.name).join('\n')
         const theme = PIN_NAME_COLORS[element.nameColor ?? 'dark']
         positionName(nameLayout().offset)
-        name.style.fontSize = `${(element.nameFontSize ?? 16) * factor}px`
+        name.style.fontSize = `${nameLayout().fontSize * factor}px`
         name.style.padding = `${element.visual.scale * factor}px ${4 * element.visual.scale * factor}px`
         name.style.backgroundColor = theme.backgroundColor
         name.style.color = theme.color
@@ -165,12 +165,8 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
       resizeHandle.disabled = !enabled
       resizeHandle.setAttribute('aria-label', 'Redimensionar ' + element.name)
       content.append(resizeHandle)
-      const resizeCorner = { right: anchor.x <= box.width / 2, bottom: anchor.y <= box.height / 2 }
-      resizeHandle.style.left = resizeCorner.right ? 'auto' : '0'
-      resizeHandle.style.right = resizeCorner.right ? '0' : 'auto'
-      resizeHandle.style.top = resizeCorner.bottom ? 'auto' : '0'
-      resizeHandle.style.bottom = resizeCorner.bottom ? '0' : 'auto'
-      resizeHandle.style.cursor = resizeCorner.right === resizeCorner.bottom ? 'nwse-resize' : 'nesw-resize'
+      // Keep the handle reachable when the geographic zoom makes the pin small.
+      resizeHandle.style.transform = `scale(${1 / mapScale})`
       const marker = L.marker([pin.latitude, pin.longitude], {
         icon: L.divIcon({ className: 'plan-pin', html: content, iconSize: [box.width * factor, box.height * factor], iconAnchor: [anchor.x * factor, anchor.y * factor] }),
         interactive: enabled, keyboard: enabled, bubblingMouseEvents: false, zIndexOffset: selected ? 700 : 500,
@@ -198,16 +194,21 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
         node!.style.marginTop = `${-anchor.y * factor}px`
         content.style.transformOrigin = `${anchor.x * factor}px ${anchor.y * factor}px`
         if (element.visual.type === 'emoji') visual.style.fontSize = `${48 * scale * factor}px`
-        if (name) name.style.padding = `${scale * factor}px ${4 * scale * factor}px`
+        if (name) {
+          name.style.fontSize = `${nameLayout(scale).fontSize * factor}px`
+          name.style.padding = `${scale * factor}px ${4 * scale * factor}px`
+        }
         positionName(nameLayout(scale).offset)
       }
       function updateMapZoom() {
         mapScale = map!.getZoomScale(map!.getZoom(), PIN_REFERENCE_ZOOM)
         content.style.transform = `scale(${mapScale})`
+        resizeHandle.style.transform = `scale(${1 / mapScale})`
       }
       function animateMapZoom(event: L.ZoomAnimEvent) {
         mapScale = map!.getZoomScale(event.zoom, PIN_REFERENCE_ZOOM)
         content.style.transform = `scale(${mapScale})`
+        resizeHandle.style.transform = `scale(${1 / mapScale})`
       }
       map.on('zoom zoomend', updateMapZoom)
       map.on('zoomanim', animateMapZoom)
@@ -243,7 +244,11 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
         } else if (drag.kind === 'resize') {
           const base = getPinBox({ ...element.visual, scale: 1 })
           const anchor = getPinAnchorPoint({ ...element.visual, scale: 1 }, element.pinAnchor)
-          const x = (resizeCorner.right ? base.width : 0) - anchor.x, y = (resizeCorner.bottom ? base.height : 0) - anchor.y
+          // A bottom-right coordinate anchor coincides with the handle: use the
+          // center-to-corner vector then, keeping the geographic position fixed.
+          const corner = { x: base.width - anchor.x, y: base.height - anchor.y }
+          const coincident = Math.hypot(corner.x, corner.y) < 1e-9
+          const x = coincident ? base.width / 2 : corner.x, y = coincident ? base.height / 2 : corner.y
           drag.nextScale = clampAssetScale(drag.scale + (delta.x * x + delta.y * y) / (factor * mapScale * (x ** 2 + y ** 2)))
           resize(drag.nextScale)
         } else {

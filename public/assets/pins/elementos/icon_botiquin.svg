@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="55 65 1200 1080" fill="none" role="img" aria-labelledby="botiquin-title botiquin-desc">
+  <title id="botiquin-title">Botiquín</title>
+  <desc id="botiquin-desc">Maletín sanitario rojo con asa integrada, cierre sencillo y cruz blanca. El exterior y el hueco del asa son transparentes; la cruz es opaca.</desc>
+  <path id="lateral" fill="#D9333A" stroke="#101010" stroke-width="20" stroke-linejoin="round" d="M1048 292H1115C1178 292 1229 348 1229 413V994C1229 1058 1184 1110 1120 1110H1056Z"/>
+  <path id="cuerpo-y-asa" fill="#D9333A" fill-rule="evenodd" stroke="#101010" stroke-width="20" stroke-linejoin="round" d="M196 292H291C312 292 323 279 325 258L329 220C337 148 395 92 461 92H849C918 92 971 149 980 218L984 258C986 279 996 292 1015 292H1048C1111 292 1159 347 1159 414V997C1159 1060 1113 1110 1056 1110H196C133 1110 82 1058 82 994V414C82 349 134 292 196 292ZM446 292H861C873 292 880 285 880 273V244C880 207 851 177 814 177H494C457 177 427 207 427 244V274C427 285 434 292 446 292Z"/>
+  <path id="junta-tapa" stroke="#101010" stroke-width="15" d="M82 433L588 432M703 432H1159"/>
+  <rect id="cierre" x="588" y="388" width="115" height="115" rx="23" fill="#D9333A" stroke="#101010" stroke-width="15"/>
+  <path id="cruz-sanitaria" fill="#FFFFFF" d="M567 560H710V698H852V852H710V991H567V852H424V698H567Z"/>
+</svg>

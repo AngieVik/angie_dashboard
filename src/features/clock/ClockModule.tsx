@@ -19,7 +19,7 @@ export function ClockModule({ store }: { store: TimerStore }) {
   const { settings } = useSettings()
   const timeZone = settings.location?.timeZone ?? DEFAULT_TIME_ZONE
   const clock = referenceClock(now, timeZone), offset = utcOffsetLabel(now, timeZone)
-  const root = useRef<HTMLDivElement>(null), expandPending = useRef(false)
+  const expandPending = useRef(false)
   const previousCount = useRef(timers.length)
   const requestSpace = useContext(ModuleSizeContext)
   function addTimer(kind: TimerKind) { expandPending.current = true; store.add(kind) }
@@ -27,17 +27,10 @@ export function ClockModule({ store }: { store: TimerStore }) {
     const collect = timers.length < previousCount.current, expand = expandPending.current
     previousCount.current = timers.length
     expandPending.current = false
-    const node = root.current
-    if ((!expand && !collect) || !node) return
-    const availableHeight = node.clientHeight
-    node.dataset.sizing = 'true'
-    try {
-      const height = node.scrollHeight
-      if (collect || height > availableHeight) requestSpace({ width: 0, height })
-    } finally { delete node.dataset.sizing }
+    if (expand || collect) requestSpace()
   }, [timers.length, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])
-  return <div ref={root} data-slot="clock-module" className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
+  return <div data-slot="clock-module" className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
     <div className="clock-display">
       <div className="clock-reference"><span className="clock-season-active" aria-label={offset}><span className="clock-label-full" aria-hidden="true">{offset}</span><span className="clock-label-short" aria-hidden="true">{offset.replace('UTC', '')}</span></span><span aria-label={timeZone}>{timeZoneCity(timeZone)}</span></div>
       <div className="clock-top">

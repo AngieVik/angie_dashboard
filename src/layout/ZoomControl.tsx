@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { GitCommitHorizontal, GitCommitVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,7 @@ import labelStyles from './controlValueLabel.module.css'
 export function ZoomControl({ scale, onChange, label, disabled = false, side = 'bottom' }: {
   scale: number; onChange: (scale: number) => void; label: string; disabled?: boolean; side?: 'bottom' | 'right'
 }) {
+  const inputId = useId()
   const percent = Math.round(scale * 100)
   const [draft, setDraft] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -53,7 +54,7 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
     replaceInput.current = true
   }
   const percentage = <>
-    <Input ref={input} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={25} max={200} step={1}
+    <Input ref={input} id={inputId} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={25} max={200} step={1}
       disabled={disabled} value={draft ?? percent}
       onFocus={() => { replaceInput.current = true }} onPointerDown={() => { replaceInput.current = true }}
       onChange={event => { replaceInput.current = false; setDraft(event.target.value) }} onBlur={commit}

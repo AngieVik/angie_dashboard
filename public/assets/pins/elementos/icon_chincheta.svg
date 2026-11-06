@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="86 44 772 1580" fill="none" role="img" aria-labelledby="chincheta-title chincheta-desc">
+  <title id="chincheta-title">Chincheta</title>
+  <desc id="chincheta-desc">Chincheta vertical roja con contorno negro, cabeza y base anchas, cuerpo corto y aguja negra. Pictograma sólido con detalles técnicos sutiles.</desc>
+  <path id="aguja" fill="#101010" d="M409 1033H533C528 1218 522 1382 493 1521C486 1555 478 1585 472 1605C466 1585 458 1555 451 1521C422 1382 415 1218 409 1033Z"/>
+  <path id="cuerpo" fill="#D9333A" stroke="#101010" stroke-width="22" stroke-linejoin="round" d="M158 234C158 148 297 78 471 78C644 78 784 148 784 234C794 314 754 372 674 400C641 491 638 594 676 698C766 741 823 809 823 884C823 984 669 1045 471 1045C273 1045 117 984 117 884C117 809 175 741 264 698C302 594 300 491 267 400C188 372 148 314 158 234Z"/>
+  <path id="borde-cabeza" stroke="#101010" stroke-width="17" stroke-linecap="round" d="M160 219C160 276 299 313 471 313S782 276 782 219"/>
+  <path id="union-base" stroke="#101010" stroke-width="17" stroke-linecap="round" stroke-linejoin="round" d="M264 698C255 721 249 731 257 747C283 793 380 814 471 814C565 814 661 793 684 747C692 731 686 721 676 698"/>
+  <path id="encuentros-cabeza" fill="#101010" d="M264 390Q309 415 366 424Q317 429 277 411ZM678 390Q633 415 576 424Q625 429 665 411Z"/>
+</svg>

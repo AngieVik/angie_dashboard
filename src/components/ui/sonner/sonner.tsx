@@ -6,6 +6,6 @@ export function Toaster({ scale = 1 }: { scale?: number }) {
   return <SonnerToaster position="top-right" theme="dark" duration={5000} visibleToasts={1} closeButton
     offset={offset} mobileOffset={offset} containerAriaLabel="Avisos"
     toastOptions={{ unstyled: true, classNames: {
-      toast: styles.toast, title: styles.title, content: styles.content, icon: styles.icon, error: styles.error, closeButton: styles.close,
+      toast: styles.toast, title: styles.title, description: styles.description, content: styles.content, icon: styles.icon, error: styles.error, closeButton: styles.close,
     } }} />
 }

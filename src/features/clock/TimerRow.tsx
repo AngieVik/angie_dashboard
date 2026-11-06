@@ -13,7 +13,14 @@ const STATUS_LABELS = { idle: 'Inactivo', running: 'En marcha', paused: 'Pausado
 export function TimerRow({ timer, index, now, store, disabled = false }: { timer: TimerRecord; index: number; now: number; store: TimerStore; disabled?: boolean }) {
   const row = useRef<HTMLDivElement>(null)
   const resetControl = useRef<HTMLButtonElement>(null)
-  const [durationText, setDurationText] = useState(() => formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds))
+  const savedDuration = formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds)
+  const [durationDraft, setDurationDraft] = useState({ saved: savedDuration, text: savedDuration })
+  if (durationDraft.saved !== savedDuration) {
+    // A remote refresh updates untouched fields without discarding a local draft.
+    setDurationDraft({ saved: savedDuration, text: durationDraft.text === durationDraft.saved ? savedDuration : durationDraft.text })
+  }
+  const durationText = durationDraft.text
+  function setDurationText(text: string) { setDurationDraft({ saved: savedDuration, text }) }
   const snapshot = calculateTimerValue(timer, now), name = `${TIMER_LABELS[timer.kind]} ${index}`
   function enteredDuration() {
     const fields = durationText.includes(':') ? durationText.split(':') : durationText.padStart(6, '0').match(/.{2}/g)!

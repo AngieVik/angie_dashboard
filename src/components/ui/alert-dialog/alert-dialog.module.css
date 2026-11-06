@@ -22,7 +22,7 @@
   }
   .title { margin: 0; font-family: var(--font-interface-default); font-size: var(--font-size-title); }
   .description, .base > p { color: var(--color-text-secondary); }
-  .footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--control-gap); }
   .footer[hidden], .form[hidden] { display: none; }
 }
 

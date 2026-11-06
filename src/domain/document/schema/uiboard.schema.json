@@ -1,0 +1,572 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Angie UIBoard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "document",
+    "elements",
+    "notebook",
+    "timeline",
+    "quickNotes",
+    "openModules"
+  ],
+  "properties": {
+    "format": {
+      "const": "angie-uiboard"
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/utcDate"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/utcDate"
+        }
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/element"
+      }
+    },
+    "notebook": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/notebookBlock"
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/timelineEntry"
+      }
+    },
+    "quickNotes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/quickNote"
+      }
+    },
+    "openModules": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "board",
+          "elements",
+          "dotations",
+          "information",
+          "operations",
+          "coordinates",
+          "map",
+          "plan",
+          "clock",
+          "calculator",
+          "notebook",
+          "timeline",
+          "reports",
+          "calendar"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "utcDate": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "nonBlank": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "tag": {
+      "type": "string",
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Disponible",
+        "Activada",
+        "Aproximandose",
+        "Interviniendo",
+        "Trasladando",
+        "Transfiriendo",
+        "Operativa",
+        "Inoperativa",
+        "Personalizada"
+      ]
+    },
+    "quickNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "operational": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "notes",
+        "tags",
+        "currentEntryId"
+      ],
+      "properties": {
+        "status": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/status"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        },
+        "currentEntryId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notesColor": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "information",
+        "isUnit",
+        "operational",
+        "icon"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "name": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "information": {
+          "type": "string"
+        },
+        "isUnit": {
+          "type": "boolean"
+        },
+        "operational": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/operational"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "icon": {
+          "$ref": "#/$defs/icon"
+        }
+      },
+      "if": {
+        "properties": {
+          "isUnit": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "operational": {
+            "$ref": "#/$defs/operational"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "operational": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "checklistItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "checked"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "text": {
+          "type": "string"
+        },
+        "checked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "notebookBlock": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "text",
+            "title"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "type": {
+              "const": "note"
+            },
+            "text": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "items",
+            "title"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "type": {
+              "const": "checklist"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/checklistItem"
+              }
+            },
+            "title": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "timelineEntry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "occurredAt",
+            "text",
+            "revisions"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "type": {
+              "const": "manual"
+            },
+            "occurredAt": {
+              "$ref": "#/$defs/utcDate"
+            },
+            "text": {
+              "type": "string"
+            },
+            "revisions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/revision"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "occurredAt",
+            "unitId",
+            "unitName",
+            "previousStatus",
+            "nextStatus",
+            "revisions"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "type": {
+              "const": "status-change"
+            },
+            "occurredAt": {
+              "$ref": "#/$defs/utcDate"
+            },
+            "unitId": {
+              "$ref": "#/$defs/uuid"
+            },
+            "unitName": {
+              "type": "string"
+            },
+            "previousStatus": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/status"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "nextStatus": {
+              "$ref": "#/$defs/status"
+            },
+            "customLabel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "customColor": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "revisions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/revision"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "nextStatus": {
+                    "const": "Personalizada"
+                  }
+                },
+                "required": [
+                  "nextStatus"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "customLabel": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "customLabel"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "revision": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "recordedAt",
+            "text"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "kind": {
+              "const": "text"
+            },
+            "recordedAt": {
+              "$ref": "#/$defs/utcDate"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "recordedAt"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "kind": {
+              "const": "delete"
+            },
+            "recordedAt": {
+              "$ref": "#/$defs/utcDate"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "recordedAt"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "kind": {
+              "const": "correction"
+            },
+            "recordedAt": {
+              "$ref": "#/$defs/utcDate"
+            }
+          }
+        }
+      ]
+    },
+    "icon": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "assetId"
+          ],
+          "properties": {
+            "type": {
+              "const": "asset"
+            },
+            "assetId": {
+              "enum": [
+                "ambulance",
+                "pathfinder",
+                "quad",
+                "doctor",
+                "nurse",
+                "checkpoint",
+                "hydration",
+                "start",
+                "finish",
+                "warning",
+                "pushpin",
+                "refreshment",
+                "firstAid",
+                "tent",
+                "communications",
+                "roadClosure",
+                "timing",
+                "aed",
+                "backpack",
+                "noEntry",
+                "commandPost",
+                "meetingPoint"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "emoji"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

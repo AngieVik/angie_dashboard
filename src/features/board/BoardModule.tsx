@@ -3,13 +3,14 @@ import { Stage, Layer, Rect, Image, Line, Circle, Group } from 'react-konva'
 import type { PointerEvent, RefObject } from 'react'
 import type { BoardStroke, Position } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
+import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { replaceBoard } from '../document/documentEdits'
 import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
 import { boardReducer, createBoardState } from './boardReducer'
 import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
-import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition, writeBoardFrame } from './boardViewport'
+import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition } from './boardViewport'
 import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { transformBoardImage } from './boardImageGeometry'
 import type { BoardImageLayout, ImageAction } from './boardImageGeometry'
@@ -68,10 +69,6 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   const scaledView = zoomBoardAt(view, scale, { x: 0, y: 0 }, { width: 0, height: 0 }, { left: 0, top: 0, right: 0, bottom: 0 })
   if (view.scale !== scaledView.scale) setView(scaledView)
   useEffect(() => { writeNavigation(canvasKey, view) }, [canvasKey, view])
-  useLayoutEffect(() => {
-    if (!size.width || !size.height || !surface.current?.clientWidth || !surface.current.clientHeight) return
-    writeBoardFrame(document.document.id, { x: -view.offsetX / view.scale, y: -view.offsetY / view.scale, width: size.width / view.scale, height: size.height / view.scale })
-  }, [document.document.id, view.scale, view.offsetX, view.offsetY, size.width, size.height])
   const [explored, setExplored] = useState({ width: 0, height: 0 })
   const previousSize = useRef({ width: 0, height: 0 })
   const [imagePreview, setImagePreview] = useState<{ image: typeof imageSession.image; layout: BoardImageLayout } | null>(null)
@@ -121,17 +118,28 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     observer.observe(node)
     return () => observer.disconnect()
   }, [store])
+  const apply = useCallback((command: DocumentCommand) => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return false
+    try {
+      if (!store.applyDocumentCommand(command)) {
+        toast.error(store.getSnapshot().fileMessage ?? 'No se pudo modificar la Pizarra.'); return false
+      }
+      return true
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo modificar la Pizarra.'); return false }
+  }, [store, documentGeneration])
   const dispatch = useCallback((action: BoardAction) => {
+    if (store.getSnapshot().documentGeneration !== documentGeneration) return false
     const board = store.getSnapshot().document.board
     if (action.type === 'point' && (interaction.current.draft?.points.length ?? 0) >= INPUT_BUDGETS.strokePoints) {
       toast.error(budgetIssue(`board.strokes[${board.strokes.length}].points`, INPUT_BUDGETS.strokePoints, 'puntos').message)
       action = { type: 'cancel' }
     }
     const next = boardReducer({ ...interaction.current, board }, action)
+    if (next.board !== board && !apply(document => replaceBoard(document, next.board))) return false
     interaction.current = next
     setState(next)
-    if (next.board !== board) store.applyDocumentCommand(document => replaceBoard(document, next.board))
-  }, [store])
+    return true
+  }, [store, documentGeneration, apply])
   useEffect(() => { dispatch({ type: 'select-note', id: null }) }, [selectionReset, dispatch])
   useEffect(() => {
     // The external viewport gesture cancels the stroke and pending empty selection.
@@ -214,15 +222,15 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     const { position } = findQuickNotePlacement(visible, dimensions, occupied)
     const id = crypto.randomUUID()
     pointer.current = null; emptyPointer.current = null
-    dispatch({ type: 'add-note', note: { id, title: '', text: '', scale: 1, position, ...dimensions } })
+    if (!dispatch({ type: 'add-note', note: { id, title: '', text: '', scale: 1, position, ...dimensions } })) return
     onSelect?.(null); setFocusNote(id)
   }
   const image = imageSession.image
   const strokes = state.draft && !blocked ? [...document.board.strokes, state.draft] : document.board.strokes
   return <div className={`board-module ${styles.base}`} data-mode={state.mode}>
     <BoardToolbar toolbarRef={toolbar} imageInputRef={imageInputRef} mode={state.mode} onMode={mode => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'mode', mode }) }}
-      onAddNote={addNote} background={document.board.backgroundColor} onBackground={color => { cancelImage(); imageSession.clear(); if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }); dispatch({ type: 'background', color }) }}
-      color={color} onColor={setColor} width={width} onWidth={setWidth} onClearStrokes={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'clear-strokes' }) }} hasStrokes={Boolean(document.board.strokes.length || state.draft)} onClearImage={() => { cancelImage(); imageSession.clear(); if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }) }} hasImage={Boolean(imageSession.image)} onOpenModule={onOpenModule} onImage={file => { cancelImage(); void imageSession.load(file).then(loaded => { if (loaded) setView(current => ({ ...current, offsetX: 0, offsetY: 0 })) }) }} busy={imageSession.busy} blocked={blocked} />
+      onAddNote={addNote} background={document.board.backgroundColor} onBackground={color => { cancelImage(); if (!imageSession.clear()) return; if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }); dispatch({ type: 'background', color }) }}
+      color={color} onColor={setColor} width={width} onWidth={setWidth} onClearStrokes={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'clear-strokes' }) }} hasStrokes={Boolean(document.board.strokes.length || state.draft)} onClearImage={() => { cancelImage(); if (!imageSession.clear()) return; if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }) }} hasImage={Boolean(imageSession.image)} onOpenModule={onOpenModule} onImage={file => { cancelImage(); void imageSession.load(file).then(loaded => { if (loaded) setView(current => ({ ...current, offsetX: 0, offsetY: 0 })) }) }} busy={imageSession.busy} blocked={blocked} />
     <div ref={area} className="board-area">
       <div ref={noteMeasure} className={`quick-note-measure ${noteStyles.base} ${noteStyles.measurement}`} aria-hidden="true">
         <div className="quick-note-header" /><Textarea rows={1} className="quick-note-text" tabIndex={-1} readOnly />
@@ -275,20 +283,24 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
                 if (blockedRef.current) return
                 dispatch({ type: 'select-note', id: null }); onSelect?.(element.id); onEditElement?.(element.id)
               }}
-              onMove={position => { if (!blockedRef.current) store.applyDocumentCommand(document => updateElement(document, element.id, { position })) }}
-              onNameMove={nameOffset => { if (!blockedRef.current) store.applyDocumentCommand(document => updateElement(document, element.id, { nameOffset })) }}
-              onNameColor={nameColor => { if (!blockedRef.current) store.applyDocumentCommand(document => updateElement(document, element.id, { nameColor })) }}
+              onMove={position => { if (!blockedRef.current) apply(document => updateElement(document, element.id, { position })) }}
+              onNameMove={nameOffset => { if (!blockedRef.current) apply(document => updateElement(document, element.id, { nameOffset })) }}
+              onNameColor={nameColor => { if (!blockedRef.current) apply(document => updateElement(document, element.id, { nameColor })) }}
               onScale={scale => {
                 if (blockedRef.current) return
                 const visual = { ...element.visual, scale }
-                store.applyDocumentCommand(document => updateElement(document, element.id, { visual }))
+                apply(document => updateElement(document, element.id, { visual }))
               }} />)}
         </div>
         <div className="board-notes" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
           {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} view={view} viewportSize={size} focusBody={focusNote === note.id} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
             onSelect={() => { onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
             onResize={size => dispatch({ type: 'resize-note', id: note.id, size })}
-            onEdit={patch => { if (store.getSnapshot().documentGeneration === documentGeneration) dispatch({ type: 'edit-note', id: note.id, ...patch }) }} onDelete={() => { focusTool(); dispatch({ type: 'delete-note', id: note.id }) }} />)}
+            initialDraft={store.getQuickNoteDraft(note.id, documentGeneration)} onDraftChange={text => store.setQuickNoteDraft(note.id, text, documentGeneration)}
+            onEdit={patch => dispatch({ type: 'edit-note', id: note.id, ...patch })} onDelete={() => {
+              if (!dispatch({ type: 'delete-note', id: note.id })) return false
+              focusTool(); return true
+            }} />)}
         </div>
       </div>
     </div>

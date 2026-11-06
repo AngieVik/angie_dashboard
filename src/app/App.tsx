@@ -27,20 +27,27 @@ import { readNavigation, writeNavigation } from '../layout/navigationStorage'
 import type { Position } from '../domain/document/types'
 import { clearDocumentModules, updateModuleLayouts } from '../features/document/documentEdits'
 
-const BoardModule = lazy(() => import('../features/board/BoardModule').then(module => ({ default: module.BoardModule })))
-const ElementsModule = lazy(() => import('../features/elements/ElementsModule').then(module => ({ default: module.ElementsModule })))
-const DotationsModule = lazy(() => import('../features/elements/DotationsModule').then(module => ({ default: module.DotationsModule })))
-const InformationModule = lazy(() => import('../features/information/InformationModule').then(module => ({ default: module.InformationModule })))
-const OperationsModule = lazy(() => import('../features/operations/OperationsModule').then(module => ({ default: module.OperationsModule })))
-const TimelineModule = lazy(() => import('../features/timeline/TimelineModule').then(module => ({ default: module.TimelineModule })))
-const ClockModule = lazy(() => import('../features/clock/ClockModule').then(module => ({ default: module.ClockModule })))
-const CoordinatesModule = lazy(() => import('../features/coordinates/CoordinatesModule').then(module => ({ default: module.CoordinatesModule })))
-const CalculatorModule = lazy(() => import('../features/calculator/CalculatorModule').then(module => ({ default: module.CalculatorModule })))
-const NotebookModule = lazy(() => import('../features/notebook/NotebookModule').then(module => ({ default: module.NotebookModule })))
-const ReportsModule = lazy(() => import('../features/document/ReportsModule').then(module => ({ default: module.ReportsModule })))
-const MapModule = lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule })))
-const PlanModule = lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule })))
-const CalendarModule = lazy(() => import('../features/calendar/CalendarModule').then(module => ({ default: module.CalendarModule })))
+const moduleFactories = {
+  board: () => lazy(() => import('../features/board/BoardModule').then(module => ({ default: module.BoardModule }))),
+  elements: () => lazy(() => import('../features/elements/ElementsModule').then(module => ({ default: module.ElementsModule }))),
+  dotations: () => lazy(() => import('../features/elements/DotationsModule').then(module => ({ default: module.DotationsModule }))),
+  information: () => lazy(() => import('../features/information/InformationModule').then(module => ({ default: module.InformationModule }))),
+  operations: () => lazy(() => import('../features/operations/OperationsModule').then(module => ({ default: module.OperationsModule }))),
+  timeline: () => lazy(() => import('../features/timeline/TimelineModule').then(module => ({ default: module.TimelineModule }))),
+  clock: () => lazy(() => import('../features/clock/ClockModule').then(module => ({ default: module.ClockModule }))),
+  coordinates: () => lazy(() => import('../features/coordinates/CoordinatesModule').then(module => ({ default: module.CoordinatesModule }))),
+  calculator: () => lazy(() => import('../features/calculator/CalculatorModule').then(module => ({ default: module.CalculatorModule }))),
+  notebook: () => lazy(() => import('../features/notebook/NotebookModule').then(module => ({ default: module.NotebookModule }))),
+  reports: () => lazy(() => import('../features/document/ReportsModule').then(module => ({ default: module.ReportsModule }))),
+  map: () => lazy(() => import('../features/map/MapModule').then(module => ({ default: module.MapModule }))),
+  plan: () => lazy(() => import('../features/plan/PlanModule').then(module => ({ default: module.PlanModule }))),
+  calendar: () => lazy(() => import('../features/calendar/CalendarModule').then(module => ({ default: module.CalendarModule }))),
+}
+type ModuleViews = { [Id in ModuleId]: ReturnType<(typeof moduleFactories)[Id]> }
+
+function createModuleViews(): ModuleViews {
+  return Object.fromEntries(Object.entries(moduleFactories).map(([id, create]) => [id, create()])) as ModuleViews
+}
 
 type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
 
@@ -58,6 +65,15 @@ function presentedLayout(module: PresentedModule, saved: ModuleLayout, bounds: {
 }
 
 export function App() {
+  // Keep lazy identities above the window boundaries: only explicit recovery replaces one.
+  const [moduleViews, setModuleViews] = useState(createModuleViews)
+  const { board: BoardModule, elements: ElementsModule, dotations: DotationsModule, information: InformationModule,
+    operations: OperationsModule, timeline: TimelineModule, clock: ClockModule, coordinates: CoordinatesModule,
+    calculator: CalculatorModule, notebook: NotebookModule, reports: ReportsModule, map: MapModule,
+    plan: PlanModule, calendar: CalendarModule } = moduleViews
+  function retryModule(id: ModuleId) {
+    setModuleViews(previous => ({ ...previous, [id]: moduleFactories[id]() }))
+  }
   const store = getDocumentStore()
   const timers = getTimerStore()
   const calendar = getCalendarStore()
@@ -82,7 +98,6 @@ export function App() {
     if (!timerProblem && !audioProblem) toast.dismiss('clock-notice')
   }, [timerProblem, audioProblem])
   useEffect(() => () => { toast.dismiss('clock-notice') }, [])
-  useEffect(() => { void timers.initialize(); return timers.connect() }, [timers])
   const { document, documentGeneration, ready, openModules: savedOpenModules, replacing, active: boardActive } = useDocumentStore(store)
   const [reportNotices, setReportNotices] = useState<{ generation: number; value: ReportsNotice | null }>({ generation: documentGeneration, value: null })
   const updateReportNotices = useCallback((value: ReportsNotice | null) => {
@@ -114,32 +129,38 @@ export function App() {
     const size = { width: window.innerWidth, height: window.innerHeight }
     return { size, layoutSize: size, state: fit(size), measured: false }
   })
-  const [navigationDocument, setNavigationDocument] = useState<string | null>(null)
-  if (navigationDocument !== document.document.id) {
+  const [navigationGeneration, setNavigationGeneration] = useState(-1)
+  if (navigationGeneration !== documentGeneration) {
     const state = readNavigation(document.document.id + '.dashboard')
     setViewport(previous => ({ ...previous, state, measured: true }))
-    setNavigationDocument(document.document.id)
+    setNavigationGeneration(documentGeneration)
   }
   useEffect(() => {
-    if (boardActive && navigationDocument === document.document.id) writeNavigation(document.document.id + '.dashboard', viewport.state)
-  }, [boardActive, navigationDocument, document.document.id, viewport.state])
+    if (boardActive && navigationGeneration === documentGeneration) writeNavigation(document.document.id + '.dashboard', viewport.state)
+  }, [boardActive, navigationGeneration, documentGeneration, document.document.id, viewport.state])
   const [modules, setModules] = useState<PresentedModule[]>([])
   const [modulesGeneration, setModulesGeneration] = useState(-1)
   if (ready && modulesGeneration !== documentGeneration) {
     const available = getWorkspaceBounds(viewport.layoutSize, savedOpenModules)
     const restored: PresentedModule[] = []
-    for (const id of savedOpenModules) restored.push({ id, layout: findModulePlacement({ id, saved: document.moduleLayouts[id] }, restored.map(module => module.layout), available).layout })
+    for (const id of savedOpenModules) {
+      const layout = findModulePlacement({ id }, restored.map(module => module.layout), available).layout
+      restored.push({ id, layout, resetSizeOnMount: true,
+        presentation: { size: available, generation: documentGeneration, source: JSON.stringify(layout) } })
+    }
     setModules(restored)
     setModulesGeneration(documentGeneration)
   }
   useEffect(() => {
-    if (ready && modulesGeneration === documentGeneration) store.setOpenModules(modules.map(module => module.id))
+    if (ready && modulesGeneration === documentGeneration) store.setOpenModules(modules.map(module => module.id), documentGeneration)
   }, [ready, modulesGeneration, documentGeneration, modules, store])
   const [magnet, setMagnet] = useState(false)
   const [moduleRevisions, setModuleRevisions] = useState<Partial<Record<ModuleId, number>>>({})
   const [sizePreservation, setSizePreservation] = useState<{ generation: number; revisions: Partial<Record<ModuleId, number>> }>({ generation: documentGeneration, revisions: {} })
   const [cleanupRequest, setCleanupRequest] = useState<CleanupRequest | null>(null)
   const [cleanupError, setCleanupError] = useState<string | null>(null)
+  const [cleanupBusy, setCleanupBusy] = useState(false)
+  const cleanupInFlight = useRef(false)
   const [selectionReset, setSelectionReset] = useState(0)
   const [editRequest, setEditRequest] = useState<{ id: string; generation: number } | null>(null)
   const blankPointer = useRef<{ x: number; y: number; moved: boolean } | null>(null)
@@ -181,14 +202,11 @@ export function App() {
       setRadar(previous => ({ generation: documentGeneration, active: previous.generation === documentGeneration && previous.active, point: received }))
     }
   }, [store, documentGeneration])
-  const coordinateInput = useRef({ generation: documentGeneration, value: '' })
-  const rememberCoordinateInput = useCallback((value: string, point: GeographicCoordinate | null = null) => {
-    coordinateInput.current = { generation: documentGeneration, value }
+  const rememberCoordinateInput = useCallback((_value: string, point: GeographicCoordinate | null = null) => {
     if (store.getSnapshot().documentGeneration !== documentGeneration) return
     setRadar(previous => previous.generation !== documentGeneration || !previous.active ||
       previous.point?.latitude === point?.latitude && previous.point?.longitude === point?.longitude ? previous : { ...previous, point })
   }, [store, documentGeneration])
-  const getCoordinatesInput = useCallback(() => coordinateInput.current.generation === documentGeneration ? coordinateInput.current.value : '', [documentGeneration])
   const getTimerRecords = useCallback(() => {
     const snapshot = timers.getSnapshot()
     return snapshot.ready ? snapshot.timers : null
@@ -243,8 +261,11 @@ export function App() {
       placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
     }
     const saved = placed
-    try { store.applyDocumentCommand(document => updateModuleLayouts(document, saved)) }
-    catch { return }
+    try {
+      if (!store.applyDocumentCommand(document => updateModuleLayouts(document, saved))) {
+        setModulesError(store.getSnapshot().fileMessage ?? 'No se pudieron recolocar los módulos.'); return
+      }
+    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron recolocar los módulos.'); return }
     setModules(previous => previous.map(module => {
       const shown = placed.find(item => item.id === module.id)!, source = saved.find(item => item.id === module.id)!
       return { ...module, layout: shown.layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(source.layout) } }
@@ -282,7 +303,11 @@ export function App() {
     const saved = { ...layout, width: manual.width, height: manual.height, referenceSize: {
       width: Math.ceil(Math.max(bounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)), height: Math.ceil(Math.max(bounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)),
     } }
-    store.applyDocumentCommand(document => updateModuleLayouts(document, [{ id, layout: saved }]))
+    try {
+      if (!store.applyDocumentCommand(document => updateModuleLayouts(document, [{ id, layout: saved }]))) {
+        setModulesError(store.getSnapshot().fileMessage ?? 'No se pudo modificar la ventana.'); return
+      }
+    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudo modificar la ventana.'); return }
     setModules(previous => previous.map(module => module.id === id ? { ...module, layout, resetSizeOnMount: false, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
   }
   function close(id: ModuleId) {
@@ -295,20 +320,26 @@ export function App() {
     if (active === id) setActive(null)
   }
   function requestCleanup(id: ModuleId | null, close: boolean) {
+    if (cleanupInFlight.current) return
     setCleanupError(null)
     setCleanupRequest({ ids: id ? [id] : Object.keys(MODULE_REGISTRY) as ModuleId[], close, generation: documentGeneration })
   }
-  function confirmCleanup() {
+  async function confirmCleanup() {
     const request = cleanupRequest, snapshot = store.getSnapshot()
-    if (!request || request.generation !== snapshot.documentGeneration || !snapshot.ready || snapshot.replacing) return
+    if (cleanupInFlight.current || !request || request.generation !== snapshot.documentGeneration || !snapshot.ready || snapshot.replacing) return
+    cleanupInFlight.current = true
+    setCleanupBusy(true)
+    setCleanupError(null)
+    let otherModulesCleaned = false
     try {
       const timerSnapshot = timers.getSnapshot()
-      if (request.ids.includes('clock') && (!timerSnapshot.ready || timerSnapshot.storageUnavailable)) {
+      if (request.ids.includes('clock') && (!timerSnapshot.ready || timerSnapshot.storageUnavailable || timerSnapshot.storageConflict)) {
         throw new Error('Espera a que estén disponibles los temporizadores antes de limpiarlos.')
       }
       // Validate all document changes together before changing independent timers.
-      store.applyDocumentCommand(document => clearDocumentModules(document, request.ids))
-      if (request.ids.includes('clock')) for (const timer of timerSnapshot.timers) timers.close(timer.id)
+      if (!store.applyDocumentCommand(document => clearDocumentModules(document, request.ids))) {
+        setCleanupError(store.getSnapshot().fileMessage ?? 'No se pudieron limpiar los módulos.'); return
+      }
       if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
       if (request.ids.includes('coordinates')) rememberCoordinateInput('')
       if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
@@ -323,9 +354,27 @@ export function App() {
         for (const id of request.ids) next[id] = (next[id] ?? 0) + 1
         return next
       })
+      otherModulesCleaned = request.ids.some(id => id !== 'clock')
+      if (request.ids.includes('clock')) {
+        const result = await timers.clearAll()
+        const current = store.getSnapshot()
+        if (request.generation !== current.documentGeneration || current.replacing) return
+        if (result !== 'saved') {
+          throw new Error(result === 'conflict'
+            ? 'No se guardó la limpieza del reloj: los temporizadores cambiaron en otra pestaña. Recarga la lista guardada desde el aviso del reloj.'
+            : 'No se guardó la limpieza del reloj. Reintenta el guardado desde el aviso del reloj antes de confirmar de nuevo.')
+        }
+      }
       if (request.close) for (const id of request.ids) close(id)
       setCleanupRequest(null); setCleanupError(null); setModulesError(null)
-    } catch (error) { setCleanupError(error instanceof Error ? error.message : 'No se pudieron limpiar los módulos.') }
+    } catch (error) {
+      if (request.generation !== store.getSnapshot().documentGeneration) return
+      const message = error instanceof Error ? error.message : 'No se pudieron limpiar los módulos.'
+      setCleanupError(`${otherModulesCleaned ? 'La limpieza de los demás módulos ya se aplicó. ' : ''}${message}`)
+    } finally {
+      cleanupInFlight.current = false
+      setCleanupBusy(false)
+    }
   }
   function arrangeOpen(mode: ViewArrangement, columns: number) {
     if (!open.length) return
@@ -370,7 +419,9 @@ export function App() {
         layout = { ...layout, referenceSize: { width: Math.max(bounds.width, layout.x + layout.width), height: Math.max(bounds.height, layout.y + layout.height) } }
         placed.push({ ...module, layout })
       }
-      store.applyDocumentCommand(document => updateModuleLayouts(document, placed))
+      if (!store.applyDocumentCommand(document => updateModuleLayouts(document, placed))) {
+        setModulesError(store.getSnapshot().fileMessage ?? 'No se pudieron distribuir los módulos.'); return
+      }
       setModules(placed.map(module => ({ ...module, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(module.layout) } })))
     } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron distribuir los módulos.') }
   }
@@ -387,13 +438,13 @@ export function App() {
     <><div data-slot="app-shell" className={`${styles.shell} app-shell`}>
       <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store }} reportNotices={reportNotices.generation === documentGeneration ? reportNotices.value : null} mapNotices={mapNotices.generation === documentGeneration ? mapNotices.value : {}}
         boardNotice={boardImage.resourceError && open.some(module => module.id === 'board') ? { message: boardImage.resourceError, busy: boardImage.busy, onChoose: () => boardImageInput.current?.click() } : null}
-        clockNotice={timerProblem || audioProblem ? { storage: timerProblem, audio: audioProblem, onRetry: () => { void timers.retryPersistence() }, onActivate: () => { void timers.alarm.activateSound() } } : null}
+        clockNotice={timerProblem || audioProblem ? { storage: timerProblem, audio: audioProblem, onRetry: () => { void timers.retryPersistence() }, onActivate: () => { void timers.activateSound() } } : null}
         modulesMenu={{ trigger: modulesTrigger, modules, disabled: !ready || !boardActive || replacing, onToggle: toggle }}
         viewMenu={{ disabled: !ready || !boardActive || replacing || !open.length, active: open.some(module => module.id === active),
           onArrange: arrangeOpen, onAutoArrange: recolocate, onFitActive: fitActiveModule }}
         cleanupMenu={{ active: open.some(module => module.id === active) ? active : null, disabled: !ready || !boardActive || replacing,
-          request: cleanupRequest?.generation === documentGeneration ? cleanupRequest : null, error: cleanupError,
-          onRequest: requestCleanup, onCancel: () => { setCleanupRequest(null); setCleanupError(null) }, onConfirm: confirmCleanup }}
+          request: cleanupRequest?.generation === documentGeneration ? cleanupRequest : null, error: cleanupRequest?.generation === documentGeneration ? cleanupError : null, busy: cleanupBusy,
+          onRequest: requestCleanup, onCancel: () => { if (cleanupInFlight.current) return; setCleanupRequest(null); setCleanupError(null) }, onConfirm: confirmCleanup }}
         moduleShortcuts={{ modules: open, active, disabled: !ready || replacing, onSelect: selectOpenModule }}
         magnet={{ active: magnet, onToggle: () => setMagnet(value => !value) }}
         radar={{ active: radarActive, onToggle: toggleRadar, disabled: !ready || !boardActive || replacing }}
@@ -417,7 +468,7 @@ export function App() {
         <div data-slot="app-workspace-content" className={styles.content} inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
-            renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
+            onRetry={retryModule} renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
               onEditElement={elementId => {
                 const element = document.elements.find(element => element.id === elementId)
@@ -436,7 +487,7 @@ export function App() {
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :
-              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getCoordinatesInput={getCoordinatesInput} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /> :
+              id === 'reports' ? <ReportsModule key={documentGeneration} store={store} getTimerRecords={getTimerRecords} onNoticesChange={updateReportNotices} /> :
               id === 'clock' ? <ClockModule store={timers} /> :
               id === 'calendar' ? <CalendarModule key={moduleRevisions.calendar ?? 0} store={calendar} /> :
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} radar={{ active: radarActive, onToggle: toggleRadar }} /> :

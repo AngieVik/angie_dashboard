@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="38 38 180 180" fill="none" role="img" aria-labelledby="encuentro-title encuentro-desc">
+  <title id="encuentro-title">Punto de encuentro</title>
+  <desc id="encuentro-desc">Cuatro flechas negras simétricas dirigidas desde las esquinas hacia un centro común, sobre fondo transparente.</desc>
+  <defs>
+    <path id="flecha-base" d="M64 48L96 80L110 66V110H66L80 96L48 64Z"/>
+  </defs>
+  <g id="flechas" fill="#101010">
+    <use id="flecha-superior-izquierda" href="#flecha-base"/>
+    <use id="flecha-superior-derecha" href="#flecha-base" transform="rotate(90 128 128)"/>
+    <use id="flecha-inferior-derecha" href="#flecha-base" transform="rotate(180 128 128)"/>
+    <use id="flecha-inferior-izquierda" href="#flecha-base" transform="rotate(270 128 128)"/>
+  </g>
+</svg>

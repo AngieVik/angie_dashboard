@@ -5,7 +5,7 @@ import styles from './select.module.css'
 
 export type SelectOption = { value: string; label: string; disabled?: boolean }
 
-// Field adapter: all menu presentation and choice behavior belong to DropdownMenu.
+// DropdownMenu owns choice navigation; local styles specialize the selector list.
 export function Select({ value, onValueChange, options, className = '', disabled, ...props }: Omit<ComponentProps<'button'>, 'value' | 'onChange' | 'children' | 'ref'> & {
   value: string; onValueChange: (value: string) => void; options: readonly SelectOption[]
 }) {
@@ -17,7 +17,7 @@ export function Select({ value, onValueChange, options, className = '', disabled
   return <DropdownMenu open={open && !disabled} onOpenChange={next => {
     if (next && trigger.current) {
       const computed = getComputedStyle(trigger.current)
-      setFont({ fontSize: computed.fontSize, fontFamily: computed.fontFamily })
+      setFont({ fontSize: computed.fontSize, fontFamily: computed.fontFamily, '--select-row-height': computed.height } as CSSProperties)
     }
     setOpen(next)
   }}>
@@ -25,11 +25,11 @@ export function Select({ value, onValueChange, options, className = '', disabled
       <span className={styles.value}>{options.find(option => option.value === value)?.label ?? value}</span>
       <svg className={styles.arrow} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button></DropdownMenuTrigger>
-    <DropdownMenuContent style={font}>
+    <DropdownMenuContent className={styles.options} style={font}>
       <DropdownMenuGroup>
         <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
-          {options.map(option => <DropdownMenuRadioItem key={option.value} value={option.value} textValue={option.label} disabled={option.disabled}>
-            {option.label}
+          {options.map(option => <DropdownMenuRadioItem className={styles.option} key={option.value} value={option.value} textValue={option.label} disabled={option.disabled}>
+            <span className={styles.optionLabel}>{option.label}</span>
           </DropdownMenuRadioItem>)}
         </DropdownMenuRadioGroup>
       </DropdownMenuGroup>

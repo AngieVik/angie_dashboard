@@ -8,11 +8,11 @@
   .location, .form { display: flex; flex-direction: column; gap: var(--section-gap); min-width: 0; }
   .search { display: flex; flex: none; gap: var(--control-gap); }
   .search input { width: 0; }
-  .form label { display: flex; flex-direction: column; gap: 3px; min-width: 0; color: var(--color-text-secondary); }
+  .form label { display: flex; flex-direction: column; gap: var(--control-gap); min-width: 0; color: var(--color-text-secondary); }
   .form input { width: 100%; margin-bottom: 0; }
   .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--control-gap); margin-top: 4px; }
   .actions > button:first-child:not(:last-child) { margin-right: auto; }
-  .results { display: flex; flex-direction: column; gap: 3px; max-height: 140px; overflow: auto; }
+  .results { display: flex; flex-direction: column; gap: var(--control-gap); max-height: 140px; overflow: auto; }
   .result { justify-content: flex-start; height: auto; text-align: left; }
   .result span { min-width: 0; overflow-wrap: anywhere; }
   .resultCoordinates { display: block; font-size: var(--font-size-technical); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }

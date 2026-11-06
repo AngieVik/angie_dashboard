@@ -1,8 +1,8 @@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select } from '@/components/ui/select'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Download, ListFilter, Printer, RefreshCw, Save } from 'lucide-react'
+import { ListFilter, Printer, RefreshCw, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { ReportSelectionResize } from './ReportSelectionResize'
@@ -10,31 +10,19 @@ import { toast } from '@/components/ui/sonner'
 import { REPORT_SECTIONS, defaultReportSelection } from './reportSections'
 import type { ReportSection, ReportSelection } from './reportSections'
 import type { DocumentStore } from './documentStore'
-import type { ReportMapHandle } from './mapReport'
-import type { ReportBoardHandle } from './boardReport'
 import type { TimerRecord } from '../clock/timerTypes'
-import type { ReportGraphicSection, ReportIssue, ReportResourceAction } from './reportIssues'
 import { DEFAULT_REPORT_PAGE } from './reportPageOptions'
 import type { ReportPageOptions } from './reportPageOptions'
 import styles from './reports.module.css'
 import toolbarStyles from '@/layout/moduleToolbar.module.css'
 
-const ReportMap = lazy(() => import('./ReportMap').then(module => ({ default: module.ReportMap })))
-const ReportBoard = lazy(() => import('./ReportBoard').then(module => ({ default: module.ReportBoard })))
-const WorkDirectoryDialog = lazy(() => import('./PermissionsDialog').then(module => ({ default: module.WorkDirectoryDialog })))
-
 export interface ReportsNotice {
-  issues: ReportIssue[]
-  preparation: { section: ReportGraphicSection; message: string }[]
-  saveError: string | null
-  directoryNeeded: boolean
+  message: string
   busy: boolean
-  onResolve: (issue: ReportIssue, action: ReportResourceAction) => Promise<void>
-  onSave: () => Promise<void>
-  onDirectory: () => void
+  onRetry: () => Promise<void>
 }
 
-export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onNoticesChange }: { store: DocumentStore; getCoordinatesInput: () => string; getTimerRecords: () => readonly TimerRecord[] | null; onNoticesChange: (notice: ReportsNotice | null) => void }) {
+export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { store: DocumentStore; getTimerRecords: () => readonly TimerRecord[] | null; onNoticesChange: (notice: ReportsNotice | null) => void }) {
   const [fields, setFields] = useState<ReportSelection>(() => Object.fromEntries(Object.entries(REPORT_SECTIONS).map(([id, section]) => [id, Object.keys(section.fields)])))
   const [enabledSections, setEnabledSections] = useState(() => Object.entries(defaultReportSelection()).filter(([, fields]) => fields.length).map(([id]) => id as ReportSection))
   const selection = useMemo<ReportSelection>(() => Object.fromEntries(Object.keys(REPORT_SECTIONS).map(id => [id, enabledSections.includes(id as ReportSection) ? fields[id as ReportSection] : []])), [fields, enabledSections])
@@ -47,15 +35,11 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
   const [sheetContainer, setSheetContainer] = useState<HTMLDivElement | null>(null)
   const [previewScale, setPreviewScale] = useState<'fit' | 'actual'>('fit')
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [preparationNotices, setPreparationNotices] = useState<Partial<Record<ReportGraphicSection, string>>>({})
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [previewReady, setPreviewReady] = useState(false)
-  const [directoryNeeded, setDirectoryNeeded] = useState(false)
-  const [directoryOpen, setDirectoryOpen] = useState(false)
   const saveRequest = useRef(false)
   const generationRequest = useRef(false)
-  const saveButton = useRef<HTMLButtonElement>(null)
   const selectionButton = useRef<HTMLButtonElement>(null)
   const selectionPanel = useRef<HTMLDivElement>(null)
   const mounted = useRef(false)
@@ -69,21 +53,8 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
     mounted.current = true
     return () => { mounted.current = false; toast.dismiss(noticeId) }
   }, [noticeId])
-  const showPreparationNotice = useCallback((section: ReportGraphicSection, message: string | null) => {
-    setPreparationNotices(current => {
-      if ((current[section] ?? null) === message) return current
-      const next = { ...current }
-      if (message) next[section] = message
-      else delete next[section]
-      return next
-    })
-  }, [])
-  const openDirectory = useCallback(() => setDirectoryOpen(true), [])
   const frame = useRef<HTMLIFrameElement>(null)
   const previewDocument = useRef<Document | null>(null)
-  const mapCapture = useRef<ReportMapHandle | null>(null)
-  const planCapture = useRef<ReportMapHandle | null>(null)
-  const boardCapture = useRef<ReportBoardHandle | null>(null)
   const fitPreview = useCallback(() => {
     const node = frame.current, doc = node?.contentDocument, main = doc?.querySelector<HTMLElement>('main.report-pages')
     const page = main?.querySelector<HTMLElement>('.report-page')
@@ -140,22 +111,17 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
       await prepareReportTypography()
       const current = store.getSnapshot()
       if (!current.active || current.replacing || current.documentGeneration !== generation) return
-      const mapReport = selection.map?.length ? mapCapture.current?.capture(pageOptions) : undefined
-      const planReport = selection.plan?.length ? planCapture.current?.capture(pageOptions) : undefined
-      const boardRequest = selection.board?.includes('image') ? boardCapture.current?.capture() : undefined
-      const coordinateInput = selection.coordinates?.length ? getCoordinatesInput() : undefined
       const timerRecords = selection.timers?.length ? getTimerRecords() : undefined
-      const generated = await store.generateReport(selection, mapReport, planReport, boardRequest, coordinateInput, timerRecords, pageOptions)
+      const generated = await store.generateReport(selection, timerRecords, pageOptions)
       if (!generated || !isCurrent()) return
-      setPreviewReady(false); setPreview(generated); setSaveError(null); setDirectoryNeeded(false)
+      setPreviewReady(false); setPreview(generated); setSaveError(null)
       setPreviewSettings({ selection, pageOptions })
-      if (generated.report.issues.some(issue => !issue.omitted)) toast.error('Informe incompleto: recursos no disponibles.', { id: noticeId })
     } catch (error) {
       if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo generar el informe.', { id: noticeId })
     }
     finally { generationRequest.current = false; setGenerating(false) }
-  }, [any, store, isCurrent, selection, pageOptions, getCoordinatesInput, getTimerRecords, noticeId])
-  // Selection changes refresh an existing report; document edits and framing remain explicit.
+  }, [any, store, isCurrent, selection, pageOptions, getTimerRecords, noticeId])
+  // Selection changes refresh an existing report; document edits remain explicit.
   useEffect(() => {
     if (!preview || previewCurrent || !any) return
     const timer = setTimeout(() => { void generate() }, 200)
@@ -164,45 +130,27 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
   useEffect(() => {
     if (selectionOpen) selectionPanel.current?.focus()
   }, [selectionOpen, sheetContainer])
-  const resolveResource = useCallback(async (issue: ReportIssue, action: ReportResourceAction) => {
-    if (!preview || !previewCurrent || !isCurrent() || generationRequest.current || saveRequest.current) return
-    generationRequest.current = true; setGenerating(true)
-    try {
-      const result = await preview.resolveResource(issue, action)
-      if (!result || !isCurrent()) return
-      setPreviewReady(false); setPreview(result); setSaveError(null); setDirectoryNeeded(false)
-    } catch (error) { if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo resolver el recurso.', { id: noticeId }) }
-    finally { generationRequest.current = false; setGenerating(false) }
-  }, [preview, previewCurrent, isCurrent, noticeId])
   const save = useCallback(async () => {
     if (!preview || !previewCurrent || !isCurrent() || saveRequest.current || generationRequest.current) return
     saveRequest.current = true
     setSaving(true)
     try {
-      const result = await store.saveGeneratedReport(preview.document, preview.report)
-      if (!isCurrent()) return
-      const error = result.status === 'saved' ? null : result.status === 'error' ? result.message : 'Carpeta de trabajo sin configurar.'
-      setSaveError(error)
-      if (error) toast.error('No se pudo guardar el informe.', { id: noticeId })
-      setDirectoryNeeded(result.status === 'unconfigured' || (result.status === 'error' && Boolean(result.permissionRequired)))
+      await store.saveGeneratedReport(preview.report)
+      if (isCurrent()) setSaveError(null)
     } catch (error) {
       if (isCurrent()) { setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el informe.'); toast.error('No se pudo guardar el informe.', { id: noticeId }) }
     }
     finally { saveRequest.current = false; setSaving(false) }
   }, [preview, previewCurrent, store, isCurrent, noticeId])
   useEffect(() => {
-    const issues = previewCurrent ? preview?.report.issues.filter(issue => !issue.omitted) ?? [] : []
-    const preparation = previewCurrent ? [] : (Object.entries(preparationNotices) as [ReportGraphicSection, string][]).filter(([section]) => selection[section]?.length).map(([section, message]) => ({ section, message }))
-    onNoticesChange(issues.length || preparation.length || saveError ? {
-      issues, preparation, saveError, directoryNeeded, busy: generating || saving, onResolve: resolveResource, onSave: save, onDirectory: openDirectory,
-    } : null)
-  }, [preview, previewCurrent, selection, preparationNotices, saveError, directoryNeeded, generating, saving, resolveResource, save, openDirectory, onNoticesChange])
+    onNoticesChange(saveError ? { message: saveError, busy: generating || saving, onRetry: save } : null)
+  }, [saveError, generating, saving, save, onNoticesChange])
   useEffect(() => () => onNoticesChange(null), [onNoticesChange])
   return <div className={`reports-module ${styles.base}`} data-minimum-scroll-content style={{ '--report-selection-width': selectionWidth + 'cqi' } as CSSProperties}>
     <header className={`${toolbarStyles.base} ${styles.toolbar}`} aria-label="Acciones del informe">
       <Button ref={selectionButton} aria-label="Contenido del informe" title="Contenido del informe" aria-expanded={selectionOpen} aria-controls={`report-selection-${generation}`} onClick={() => setSelectionOpen(open => !open)}><ListFilter aria-hidden="true" /></Button>
       <Button disabled={!any || saving || generating} aria-label="Actualizar informe" title="Actualizar informe" aria-busy={generating} onClick={() => { void generate() }}><RefreshCw aria-hidden="true" /></Button>
-      <Button ref={saveButton} disabled={!previewCurrent || saving || generating} aria-label="Guardar informe" title="Guardar informe" aria-busy={saving} onClick={() => { void save() }}><Save aria-hidden="true" /></Button>
+      <Button disabled={!previewCurrent || saving || generating} aria-label="Guardar informe" title="Guardar informe" aria-busy={saving} onClick={() => { void save() }}><Save aria-hidden="true" /></Button>
       <Button disabled={!previewCurrent || !previewReady || saving || generating} aria-label="Imprimir / PDF" title="Imprimir / PDF" onClick={() => {
         try {
           const target = frame.current?.contentWindow
@@ -210,11 +158,6 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
           target.print()
         } catch { toast.error('No se pudo abrir la impresión.', { id: noticeId }) }
       }}><Printer aria-hidden="true" /></Button>
-      <Button disabled={!previewCurrent || saving || generating} aria-label="Descargar informe" title="Descargar informe" onClick={() => {
-        if (!preview) return
-        try { store.downloadReport(preview.report) }
-        catch { toast.error('No se pudo descargar el informe.', { id: noticeId }) }
-      }}><Download aria-hidden="true" /></Button>
       <Select aria-label="Tamaño de la vista previa" value={previewScale} onValueChange={value => {
         if (value === 'fit' || value === 'actual') setPreviewScale(value)
       }} options={[{ value: 'fit', label: 'Ajustar al ancho' }, { value: 'actual', label: 'Tamaño real' }]} />
@@ -236,9 +179,6 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
               <label>Orientación<Select aria-label="Orientación del informe" value={pageOptions.orientation} disabled={generating || saving} onValueChange={orientation => {
                 if (orientation === 'portrait' || orientation === 'landscape') setPageOptions(current => ({ ...current, orientation }))
               }} options={[{ value: 'portrait', label: 'Vertical' }, { value: 'landscape', label: 'Horizontal' }]} /></label>
-              <label>Calidad<Select aria-label="Calidad del informe" value={pageOptions.quality} disabled={generating || saving} onValueChange={quality => {
-                if (quality === 'normal' || quality === 'high') setPageOptions(current => ({ ...current, quality }))
-              }} options={[{ value: 'normal', label: 'Normal · 150 ppp' }, { value: 'high', label: 'Alta · 300 ppp' }]} /></label>
             </fieldset>
             <div className="reports-sections">
               {(Object.entries(REPORT_SECTIONS) as [ReportSection, typeof REPORT_SECTIONS[ReportSection]][]).map(([id, section]) => <fieldset key={id} disabled={generating || saving}>
@@ -247,17 +187,6 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
                   <div className={styles.fields}>
                     {Object.entries(section.fields).map(([field, label]) => <label key={field}><Checkbox disabled={generating || saving} checked={fields[id]?.includes(field) ?? false} onCheckedChange={nextChecked => toggleField(id, field, nextChecked)} />{label}</label>)}
                   </div>
-                  <fieldset className={styles.framing} disabled={generating || saving}>
-                    {id === 'map' && Boolean(selection.map?.length) && <Suspense fallback={null}>
-                      <ReportMap store={store} fields={selection.map!} captureRef={mapCapture} onNotice={showPreparationNotice} />
-                    </Suspense>}
-                    {id === 'plan' && Boolean(selection.plan?.length) && <Suspense fallback={null}>
-                      <ReportMap kind="plan" store={store} fields={selection.plan!} captureRef={planCapture} onNotice={showPreparationNotice} />
-                    </Suspense>}
-                    {id === 'board' && selection.board?.includes('image') && <Suspense fallback={null}>
-                      <ReportBoard store={store} captureRef={boardCapture} onNotice={showPreparationNotice} />
-                    </Suspense>}
-                  </fieldset>
                 </div>}
               </fieldset>)}
             </div>
@@ -270,7 +199,5 @@ export function ReportsModule({ store, getCoordinatesInput, getTimerRecords, onN
         {!previewCurrent && <p className={styles.empty} role="status">{generating ? 'Actualizando informe…' : !any ? 'Selecciona el contenido del informe.' : preview ? 'Actualiza el informe para ver la selección.' : 'Vista previa'}</p>}
       </section>
     </div>
-    {directoryOpen && <Suspense fallback={null}><WorkDirectoryDialog onClose={() => setDirectoryOpen(false)} onCloseFocus={() => saveButton.current?.focus()}
-      onContinueLocally={() => store.continueLocally()} /></Suspense>}
   </div>
 }

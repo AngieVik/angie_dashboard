@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { DocumentElement, PlanPin, TimelineEntry } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
+import { getTimelineIndex } from '../../domain/operations/operationIndexes'
 import { OperationalStatusIcon } from '../operations/OperationalStatusIcon'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,33 +15,32 @@ import styles from './information.module.css'
 
 export function InformationModule({ store, selectedId, onSelect }: { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void }) {
   const { document } = useDocumentStore(store)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [headingHeights, setHeadingHeights] = useState<Record<string, number>>({})
+  const [expansion, setExpansion] = useState<{ id: string; minimumHeights: Record<string, number> } | null>(null)
   const root = useRef<HTMLDivElement>(null)
   function toggle(id: string) {
-    if (expandedId === id) { setExpandedId(null); setHeadingHeights({}); return }
-    // Keep existing summaries in place; details extend the selected card below them.
-    setHeadingHeights(Object.fromEntries(Array.from(root.current?.querySelectorAll<HTMLElement>('.information-heading') ?? [])
-      .map(heading => [heading.dataset.elementId!, heading.offsetHeight])))
-    setExpandedId(id)
+    if (expansion?.id === id) { setExpansion(null); return }
+    const cards = root.current?.querySelectorAll<HTMLElement>('.information-card') ?? []
+    const minimumHeights = Object.fromEntries(Array.from(cards, card => [card.dataset.elementId!, parseFloat(getComputedStyle(card).height)]))
+    setExpansion({ id, minimumHeights })
   }
   const units = document.elements.filter((element): element is Extract<DocumentElement, { isUnit: true }> => element.isUnit)
+  const entries = getTimelineIndex(document.timeline).byId
   const planPins = new Map<string, PlanPin>(document.plan?.pins.map(pin => [pin.elementId.toLowerCase(), pin]))
   return <div ref={root} data-slot="information-module" className={`${styles.base} information-module`}>
-    {units.length ? units.map(element => <InformationCard key={element.id} element={element} planPin={planPins.get(element.id.toLowerCase())} currentEntry={document.timeline.find(entry => entry.id.toLowerCase() === element.operational.currentEntryId?.toLowerCase())} selected={element.id === selectedId} onSelect={onSelect} expanded={expandedId === element.id} headingHeight={expandedId ? headingHeights[element.id] : undefined} onToggle={() => toggle(element.id)} />) : <p className="module-empty">Sin dotaciones</p>}
+    {units.length ? units.map(element => <InformationCard key={element.id} element={element} planPin={planPins.get(element.id.toLowerCase())} currentEntry={entries.get(element.operational.currentEntryId?.toLowerCase() ?? '')} selected={element.id === selectedId} onSelect={onSelect} expanded={expansion?.id === element.id} minimumHeight={expansion?.minimumHeights[element.id]} onToggle={() => toggle(element.id)} />) : <p className="module-empty">Sin dotaciones</p>}
   </div>
 }
 
-function InformationCard({ element, planPin, currentEntry, selected, onSelect, expanded, headingHeight, onToggle }: { element: Extract<DocumentElement, { isUnit: true }>; planPin?: PlanPin; currentEntry?: TimelineEntry; selected: boolean; onSelect: (id: string | null) => void; expanded: boolean; headingHeight?: number; onToggle: () => void }) {
+function InformationCard({ element, planPin, currentEntry, selected, onSelect, expanded, minimumHeight, onToggle }: { element: Extract<DocumentElement, { isUnit: true }>; planPin?: PlanPin; currentEntry?: TimelineEntry; selected: boolean; onSelect: (id: string | null) => void; expanded: boolean; minimumHeight?: number; onToggle: () => void }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const status = OPERATIONAL_STATUSES.find(item => item.status === element.operational.status)
   const custom = currentEntry?.type === 'status-change' && currentEntry.nextStatus === 'Personalizada' ? currentEntry : undefined
   const hasDetails = Boolean(status || element.information.trim())
-  return <article className="information-card" aria-label={element.name} data-expanded={expanded} data-selected={selected} data-expandable={hasDetails} onClick={event => {
+  return <article className="information-card" aria-label={element.name} data-element-id={element.id} style={{ '--information-card-min-height': minimumHeight === undefined ? undefined : `${minimumHeight}px` } as CSSProperties} data-expanded={expanded} data-selected={selected} data-expandable={hasDetails} onClick={event => {
     if (blockedRef.current || !(event.target instanceof Element) || event.target.closest('button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) return
     onSelect(element.id)
   }}>
-    <div className="information-heading" data-element-id={element.id} style={{ minHeight: headingHeight }}>
+    <div className="information-heading">
     <div className="information-summary">
       <Button appearance="integrated" className="information-select" aria-label={'Seleccionar ' + element.name} aria-pressed={selected} disabled={blocked} onClick={() => { if (!blockedRef.current) onSelect(element.id) }}>
         {element.visual.type === 'asset' ? <img src={ICON_CATALOG[element.visual.assetId].path} alt="" /> : <span className="information-emoji" aria-hidden="true">{element.visual.value}</span>}

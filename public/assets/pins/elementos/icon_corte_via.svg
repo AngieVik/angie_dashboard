@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="70 165 1635 660" fill="none" role="img" aria-labelledby="corte-title corte-desc">
+  <title id="corte-title">Corte de vía</title>
+  <desc id="corte-desc">Barrera plegable naranja con bandas diagonales naranjas y blancas, dos caballetes y pies negros. El blanco del tablero es opaco; el exterior y los huecos entre patas son transparentes.</desc>
+  <defs>
+    <rect id="tablero" x="115" y="190" width="1544" height="270" rx="1"/>
+    <clipPath id="recorte-tablero"><use href="#tablero"/></clipPath>
+    <g id="soporte-base">
+      <g fill="#EF8321" stroke="#101010" stroke-width="14" stroke-linejoin="round">
+        <path id="pata-trasera" d="M229 460H308L425 781H347Z"/>
+        <path id="pata-delantera" d="M229 460H308L192 781H117Z"/>
+      </g>
+      <g fill="#101010">
+        <circle id="articulacion" cx="260" cy="490" r="12"/>
+        <rect id="pie-delantero" x="91" y="772" width="123" height="31" rx="4"/>
+        <rect id="pie-trasero" x="326" y="772" width="123" height="31" rx="4"/>
+      </g>
+    </g>
+  </defs>
+  <g id="caballetes">
+    <use id="soporte-izquierdo" href="#soporte-base"/>
+    <use id="soporte-derecho" href="#soporte-base" transform="translate(1774 0) scale(-1 1)"/>
+  </g>
+  <use href="#tablero" fill="#FFFFFF"/>
+  <g id="bandas-diagonales" fill="#EF8321" clip-path="url(#recorte-tablero)">
+    <path id="banda-1" d="M286 190H510L321 460H97Z"/>
+    <path id="banda-2" d="M732 190H956L767 460H543Z"/>
+    <path id="banda-3" d="M1178 190H1402L1213 460H989Z"/>
+    <path id="banda-4" d="M1624 190H1848L1659 460H1435Z"/>
+  </g>
+  <use href="#tablero" stroke="#101010" stroke-width="19" stroke-linejoin="round"/>
+</svg>

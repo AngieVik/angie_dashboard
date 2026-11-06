@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="145 45 1250 930" fill="none" role="img" aria-labelledby="mando-title mando-desc">
+  <title id="mando-title">Puesto de mando</title>
+  <desc id="mando-desc">Caseta compacta azul grisácea en perspectiva, con cubierta plana, antena, ventanilla y puerta. La ventanilla es blanca opaca y el exterior es transparente.</desc>
+  <g id="caseta" fill="#668B9E" stroke="#101010" stroke-width="14" stroke-linejoin="round">
+    <path id="pared-lateral" d="M1206 466L1358 416V862L1206 941Z"/>
+    <path id="pared-frontal" d="M180 466H1206V941H180Z"/>
+    <path id="cubierta-superior" d="M168 426L343 372H1369L1225 426Z"/>
+    <path id="borde-cubierta-lateral" d="M1225 426L1369 372V415L1225 466Z"/>
+    <path id="borde-cubierta-frontal" d="M168 426H1225V466H168Z"/>
+  </g>
+  <g id="antena" stroke="#101010">
+    <path id="mastil-antena" stroke-width="14" stroke-linecap="round" d="M370 68V359M370 110H428"/>
+    <rect id="base-antena" x="345" y="359" width="62" height="29" fill="#668B9E" stroke-width="12" stroke-linejoin="round"/>
+  </g>
+  <rect id="ventanilla" x="258" y="550" width="550" height="194" fill="#FFFFFF" stroke="#101010" stroke-width="14"/>
+  <path id="puerta" stroke="#101010" stroke-width="13" stroke-linejoin="round" d="M890 941V529H1132V941"/>
+  <g id="manilla" fill="#101010">
+    <rect id="base-manilla" x="912" y="730" width="26" height="33" rx="6"/>
+    <path id="palanca-manilla" stroke="#101010" stroke-width="14" stroke-linecap="round" d="M925 744H976"/>
+  </g>
+</svg>

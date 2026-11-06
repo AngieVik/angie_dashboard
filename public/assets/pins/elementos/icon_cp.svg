@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="320 50 560 1225" fill="none" role="img" aria-labelledby="control-title control-desc">
+  <title id="control-title">Punto de control</title>
+  <desc id="control-desc">Baliza blanca y naranja en perspectiva, con división diagonal, tirantes superiores y estaca vertical. Las zonas blancas son opacas; el exterior y los espacios entre tirantes son transparentes.</desc>
+  <defs>
+    <path id="lona-frontal" d="M382 268C487 268 594 267 678 266C710 265 731 260 746 262C761 263 770 274 770 290L770 690C770 706 761 718 744 717C625 713 504 713 382 713C357 713 341 697 341 673L341 310C341 286 357 269 382 268Z"/>
+    <path id="lona-lateral" d="M746 262C772 253 790 254 808 261C841 271 858 286 858 307L858 645C858 661 851 670 837 679L783 708C768 716 757 720 744 717L746 262Z"/>
+    <clipPath id="recorte-frontal"><use href="#lona-frontal"/></clipPath>
+    <clipPath id="recorte-lateral"><use href="#lona-lateral"/></clipPath>
+  </defs>
+  <path id="tirantes" stroke="#101010" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M378 268L578 142M622 142L793 258"/>
+  <rect id="estaca" x="578" y="74" width="43" height="1176" rx="21.5" fill="#FFFFFF" stroke="#101010" stroke-width="14"/>
+  <g id="panel-lateral">
+    <use href="#lona-lateral" fill="#FFFFFF"/>
+    <path id="naranja-lateral" fill="#EF8321" clip-path="url(#recorte-lateral)" d="M769 611L858 419L870 720L741 733Z"/>
+    <use href="#lona-lateral" stroke="#101010" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+  <g id="panel-frontal">
+    <use href="#lona-frontal" fill="#FFFFFF"/>
+    <path id="naranja-frontal" fill="#EF8321" clip-path="url(#recorte-frontal)" d="M340 703L770 277L785 735L334 735Z"/>
+    <use href="#lona-frontal" stroke="#101010" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+  <g id="tension-lona" fill="#101010">
+    <path id="tension-izquierda" d="M366 290C382 297 400 304 420 310C424 311 422 316 418 315C398 313 378 304 365 295C362 293 363 289 366 290Z"/>
+    <path id="tension-derecha" d="M747 277C734 285 717 297 698 306C694 308 696 312 700 311C720 305 738 292 750 281C753 278 751 275 747 277Z"/>
+    <path id="tension-lateral" d="M789 276C802 283 816 290 829 294C833 295 832 300 828 299C811 297 798 290 787 281C784 278 786 275 789 276Z"/>
+  </g>
+</svg>

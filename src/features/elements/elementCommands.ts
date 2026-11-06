@@ -1,12 +1,22 @@
 import type { AngieDocument, DocumentElement, ElementVisual, Position } from '../../domain/document/types'
 import type { CreateElementInput, ElementBatchPatch, ElementPatch } from './elementTypes'
 import { ICON_CATALOG } from './iconCatalog'
-import { PIN_ANCHORS, PIN_NAME_COLORS } from './pinPresentation'
+import { getScaledPinNameOffset, PIN_ANCHORS, PIN_NAME_COLORS } from './pinPresentation'
 import { commandResult, sameRecord } from '../../domain/document/documentCommand'
+
+export const ASSET_SCALE_RANGE = { min: 1, max: 200, unitsPerScale: 25 } as const
+
+export function assetScaleFromValue(value: number) {
+  return value / ASSET_SCALE_RANGE.unitsPerScale
+}
+
+export function assetScaleToValue(scale: number) {
+  return Number((scale * ASSET_SCALE_RANGE.unitsPerScale).toFixed(4))
+}
 
 export function clampAssetScale(value: number) {
   if (!Number.isFinite(value)) throw new Error('La escala debe ser un número finito.')
-  return Math.max(0.25, Math.min(4, value))
+  return Math.max(assetScaleFromValue(ASSET_SCALE_RANGE.min), Math.min(assetScaleFromValue(ASSET_SCALE_RANGE.max), value))
 }
 export function clampPinPosition(position: Position, _visual: ElementVisual) {
   // Keep the command's existing interface; a stable center no longer depends on its box.
@@ -88,11 +98,12 @@ export function updateElement(document: AngieDocument, id: string, patch: Elemen
   const name = resolveName(document, patch.name ?? element.name, element.isUnit, id)
   const normalized = patch.visual === undefined ? element.visual : normalizeVisual(patch.visual)
   const visual = sameRecord(element.visual, normalized) ? element.visual : normalized
+  const namePresentation = { ...patch, nameOffset: patch.nameOffset ?? getScaledPinNameOffset(element, visual.scale) }
   const requested = patch.position === undefined ? element.position : patch.position
   const normalizedPosition = requested ? clampPinPosition(requested, visual) : null
   const position = sameRecord(element.position, normalizedPosition) ? element.position : normalizedPosition
   const nameFontSize = patch.nameFontSize === undefined ? element.nameFontSize : validateNameFontSize(patch.nameFontSize)
-  const next = { ...element, ...normalizeNamePresentation(patch), ...normalizePinAnchor(patch.pinAnchor), ...(patch.nameHidden === undefined ? {} : { nameHidden: patch.nameHidden }), ...(nameFontSize === undefined ? {} : { nameFontSize }), name, visual, information: patch.information ?? element.information, position }
+  const next = { ...element, ...normalizeNamePresentation(namePresentation), ...normalizePinAnchor(patch.pinAnchor), ...(patch.nameHidden === undefined ? {} : { nameHidden: patch.nameHidden }), ...(nameFontSize === undefined ? {} : { nameFontSize }), name, visual, information: patch.information ?? element.information, position }
   if (next.nameOffset !== undefined && sameRecord(element.nameOffset, next.nameOffset)) next.nameOffset = element.nameOffset
   if (typeof element.pinAnchor === 'object' && typeof next.pinAnchor === 'object' && sameRecord(element.pinAnchor, next.pinAnchor)) next.pinAnchor = element.pinAnchor
   if (sameRecord(element, next)) return commandResult(document, document)

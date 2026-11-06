@@ -9,9 +9,11 @@ type MapQuery = { kind: 'coordinate'; parsed: Extract<CoordinateParseResult, { o
 const DEFAULT_ENDPOINT = 'https://nominatim.openstreetmap.org/search'
 const CACHE_KEY = 'angie.map.search.cache.v1'
 const RATE_KEY = 'angie.map.search.last-request'
+const REQUEST_INTERVAL = 1000
 const CACHE_LIFETIME = 24 * 60 * 60 * 1000
 interface CacheEntry { key: string; time: number; places: MapPlace[] }
-let fallbackCache: CacheEntry[] = [], fallbackLastRequest = 0
+let fallbackCache: CacheEntry[] = []
+let lastRequestTime: number | null = null
 let queue: Promise<unknown> = Promise.resolve()
 
 export function classifyMapQuery(input: string): MapQuery {
@@ -34,17 +36,26 @@ function validPlace(value: unknown): value is MapPlace {
     (value.kind === undefined || typeof value.kind === 'string')
 }
 function cacheEntries(): CacheEntry[] {
+  let stored: unknown = []
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(CACHE_KEY) ?? '[]')
-    if (!Array.isArray(stored)) return []
-    return stored.filter((entry): entry is CacheEntry => record(entry) && typeof entry.key === 'string' &&
-      typeof entry.time === 'number' && entry.time <= Date.now() && Date.now() - entry.time < CACHE_LIFETIME &&
-      Array.isArray(entry.places) && entry.places.length <= 5 && entry.places.every(validPlace)).slice(-40)
-  } catch { return fallbackCache.filter(entry => Date.now() - entry.time < CACHE_LIFETIME) }
+    stored = JSON.parse(localStorage.getItem(CACHE_KEY) ?? '[]')
+  } catch { /* Keep the in-memory cache when storage cannot be read. */ }
+  const now = Date.now()
+  const entries = [...(Array.isArray(stored) ? stored : []), ...fallbackCache].filter((entry): entry is CacheEntry =>
+    record(entry) && typeof entry.key === 'string' && typeof entry.time === 'number' &&
+    entry.time <= now && now - entry.time < CACHE_LIFETIME &&
+    Array.isArray(entry.places) && entry.places.length <= 5 && entry.places.every(validPlace))
+  const merged = new Map<string, CacheEntry>()
+  for (const entry of entries) {
+    const previous = merged.get(entry.key)
+    if (!previous || entry.time >= previous.time) merged.set(entry.key, entry)
+  }
+  fallbackCache = [...merged.values()].sort((a, b) => a.time - b.time).slice(-40)
+  return fallbackCache
 }
 function cachePlaces(key: string, places: MapPlace[]) {
-  const entries = [...cacheEntries().filter(entry => entry.key !== key), { key, time: Date.now(), places }].slice(-40)
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(entries)) } catch { fallbackCache = entries }
+  fallbackCache = [...cacheEntries().filter(entry => entry.key !== key), { key, time: Date.now(), places }].slice(-40)
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(fallbackCache)) } catch { /* Results remain cached in memory. */ }
 }
 function endpoint() {
   // Operators can switch to a compatible Nominatim service without updating the app:
@@ -94,12 +105,22 @@ export async function searchMapPlaces(query: string, signal: AbortSignal): Promi
     signal.throwIfAborted()
     const cached = cacheEntries().find(entry => entry.key === key)
     if (cached) return cached.places
-    let last = fallbackLastRequest
-    try { last = Number(localStorage.getItem(RATE_KEY)) || 0 } catch { /* Serialize in memory if storage is unavailable. */ }
-    const delay = Math.max(0, 1000 - (Date.now() - last))
+    // Keep local elapsed time independent of system clock changes.
+    const localDelay = lastRequestTime === null ? 0 : Math.max(0, REQUEST_INTERVAL - (performance.now() - lastRequestTime))
+    let sharedDelay = 0
+    try {
+      const stored = localStorage.getItem(RATE_KEY)
+      if (stored !== null) {
+        const last = stored.trim() ? Number(stored) : NaN
+        const now = Date.now()
+        // Future or corrupt timestamps conservatively require one interval, never the clock offset.
+        const normalizedLast = Number.isFinite(last) && last >= 0 ? Math.min(last, now) : now
+        sharedDelay = Math.max(0, REQUEST_INTERVAL - (now - normalizedLast))
+      }
+    } catch { /* The monotonic local limit remains active when storage is unavailable. */ }
+    const delay = Math.min(REQUEST_INTERVAL, Math.max(localDelay, sharedDelay))
     if (delay) await wait(delay, signal)
     signal.throwIfAborted()
-    try { localStorage.setItem(RATE_KEY, String(Date.now())) } catch { fallbackLastRequest = Date.now() }
     url.searchParams.set('q', query.trim())
     url.searchParams.set('format', 'jsonv2')
     url.searchParams.set('limit', '5')
@@ -109,6 +130,8 @@ export async function searchMapPlaces(query: string, signal: AbortSignal): Promi
     signal.addEventListener('abort', abort, { once: true })
     const timer = setTimeout(() => controller.abort(new DOMException('Tiempo de espera agotado.', 'TimeoutError')), 12000)
     try {
+      try { localStorage.setItem(RATE_KEY, String(Date.now())) } catch { /* Keep limiting requests locally. */ }
+      lastRequestTime = performance.now()
       const response = await fetch(url.href, { signal: controller.signal, credentials: 'omit', referrerPolicy: 'strict-origin-when-cross-origin' })
       signal.throwIfAborted()
       if (!response.ok) throw new Error(response.status === 429 ? 'El buscador está ocupado. Inténtalo de nuevo más tarde.' : 'El servicio de búsqueda no está disponible.')

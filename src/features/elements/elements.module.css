@@ -6,22 +6,21 @@
     min-height: 0;
     overflow: hidden;
   }
-  .base :global(.elements-configure-actions) { flex-direction: column; align-items: stretch; }
-  :where(.base) :global(.elements-primary-actions) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--control-gap); min-width: 0; }
+  :where(.base) :global(.elements-primary-actions) { display: flex; flex: none; align-items: center; gap: var(--control-gap); min-width: 0; }
   :where(.base) :is(:global(.elements-selection-actions), :global(.elements-selection-controls)) { display: flex; flex: 0 0 auto; align-items: center; gap: var(--control-gap); }
-  :where(.base) :global(.elements-selection-controls) { flex-wrap: wrap; justify-content: space-between; }
+  :where(.base) :global(.elements-selection-controls) { margin-left: auto; }
   :where(.base) :global(.elements-selection-controls) label { display: flex; align-items: center; gap: var(--control-gap); white-space: nowrap; }
   :where(.base) :global(.element-row)[data-checked="true"] { border-color: var(--color-selection-border); }
   :where(.base) :global(.element-batch-summary) { margin: 0 0 var(--section-gap); color: var(--color-text-secondary); }
   :where(.base) :global(.elements-list) { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: var(--control-gap); overflow-x: hidden; overflow-y: auto; }
   :where(.base) :global(.elements-list) section { display: flex; flex: 1; flex-direction: column; min-height: 0; }
   :where(.base) :global(.element-rows) { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
-  :where(.base) :global(.element-row) { display: flex; align-items: center; gap: 0; min-height: min-content; padding: 0 var(--control-gap); border: 1px solid transparent; border-radius: 2px; flex: 1 1 0; }
+  :where(.base) :global(.element-row) { display: flex; align-items: center; gap: 0; min-height: min-content; padding: 0; border: 1px solid transparent; border-radius: 2px; flex: 1 1 0; }
   :where(.base) :global(.element-row)[data-selected="true"] { background: var(--color-selected); border-color: var(--color-selection-border); box-shadow: inset 1px 0 var(--color-selection-border); }
   :where(.base) :global(.element-row-visual) { flex: 0 0 auto; width: auto; height: calc(40px * var(--module-zoom, 1)); object-fit: contain; }
   :where(.base) :global(.element-row-emoji) { display: grid; place-items: center; font-size: calc(40px * var(--module-zoom, 1)); line-height: 1; }
-  :where(.base) :global(.element-row-text) { flex: 0 0 auto; width: max-content; min-width: 0; }
-  :where(.base) :global(.element-row-text) strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+  :where(.base) :global(.element-row-text) { flex: 0 0 auto; width: max-content; min-width: 0; padding: calc(var(--field-padding-base) * var(--module-zoom, 1)); }
+  :where(.base) :global(.element-row-text) strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-title); font-weight: 650; }
   :where(.base) :global(.element-row-text) strong > span { display: block; overflow: hidden; text-overflow: ellipsis; }
   :where(.base) :global(.elements-empty) { color: var(--color-text-secondary); margin: 0; padding: 0; }
   :where(.base) :global(.element-editor) { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: var(--section-gap); overflow-x: hidden; overflow-y: auto; }
@@ -68,6 +67,7 @@
   :where(.base) :global(.element-transform-controls) [data-slot="button"][aria-pressed="true"]:not(:hover:enabled) { border-color: var(--color-selection-border); background: var(--color-selected); }
   :where(.base) :global(.element-icon-group) [data-slot="button"]:not([data-text-button]) { width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
   :global(.module-frame)[data-fitting] .base :is(:global(.elements-list), :global(.element-editor)) { flex: none; height: auto; min-height: 0; overflow: visible; }
+  :global(.module-scaled-content)[data-measuring="true"] .base :global(.element-editor) { flex: none; height: auto; overflow: visible; }
   :global(.module-scaled-content)[data-measuring="true"] .base :is(:global(.elements-list), :global(.element-rows)) { height: auto; min-height: 0; }
   :global(.module-scaled-content)[data-measuring="true"] .base :global(.element-row),
   :global(.module-frame)[data-fitting] .base :global(.element-row) { flex: none; }

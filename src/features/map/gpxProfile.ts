@@ -1,7 +1,7 @@
 import type { GpxData, GpxPoint } from './gpx'
 import { getGpxMetrics } from './gpxMetrics'
 
-export interface GpxProfileSample { point: GpxPoint; distanceMeters: number; segmentIndex: number }
+export interface GpxProfileSample { point: GpxPoint; distanceMeters: number; segmentIndex: number; displayLongitude?: number }
 interface ProfileGap { from: number; to: number; segmentIndex: number }
 export interface GpxProfile {
   segments: GpxProfileSample[][]
@@ -25,12 +25,13 @@ export function getGpxProfile(data: GpxData): GpxProfile {
   const metrics = getGpxMetrics(data)
   const profile: GpxProfile = { segments: [], samples: [], gaps: [], cuts: [], totalMeters: metrics.totalMeters, missingPoints: 0 }
   let ascent = 0, descent = 0, pairs = 0
+  let pointOffset = 0
   for (let segmentIndex = 0; segmentIndex < data.lines.length; segmentIndex++) {
     const line = data.lines[segmentIndex]!
     const segment: GpxProfileSample[] = []
     for (let index = 0; index < line.length; index++) {
       const point = line[index]!, distanceMeters = metrics.distances[segmentIndex]![index]!
-      const sample = { point, distanceMeters, segmentIndex }
+      const sample = { point, distanceMeters, segmentIndex, displayLongitude: data.displayLongitudes?.[pointOffset + index] }
       segment.push(sample); profile.samples.push(sample)
       const elevation = point.elevation
       if (elevation === undefined) profile.missingPoints++
@@ -56,6 +57,7 @@ export function getGpxProfile(data: GpxData): GpxProfile {
       if (profile.segments.length) profile.cuts.push(segment[0]!.distanceMeters)
       profile.segments.push(segment)
     }
+    pointOffset += line.length
   }
   if (pairs) { profile.ascent = ascent; profile.descent = descent }
   profiles.set(data, profile)

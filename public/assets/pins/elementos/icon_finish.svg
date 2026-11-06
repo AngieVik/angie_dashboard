@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="257 24 520 524" fill="none" role="img" aria-labelledby="meta-title meta-desc">
+  <title id="meta-title">Bandera de meta</title>
+  <desc id="meta-desc">Bandera ondulada de damero negro y blanco, con pliegue central y mástil inclinado. Las casillas blancas y el mástil son opacos; el exterior es transparente.</desc>
+  <defs>
+    <path id="tela-trasera" d="M551 116C602 139 659 130 719 104L727 160L736 217L744 273L753 330L761 386C703 407 646 419 595 405L587 342L578 285L569 229L560 172L551 116Z"/>
+    <path id="tela-frontal" d="M315 90C399 55 474 69 550 102L559 160L568 219L576 279L585 339L592 374C510 362 445 330 353 390L353 330L347 270L340 210L329 150L315 90Z"/>
+    <clipPath id="recorte-trasero"><use href="#tela-trasera"/></clipPath>
+    <clipPath id="recorte-frontal"><use href="#tela-frontal"/></clipPath>
+  </defs>
+
+  <path id="mastil" fill="#FFFFFF" stroke="#101010" stroke-width="6.5" stroke-linejoin="round" d="M282 75L343 531Q351 539 363 531L304 74Z"/>
+
+  <g id="pano-trasero">
+    <use href="#tela-trasera" fill="#FFFFFF"/>
+    <g id="damero-trasero" fill="#101010" stroke="#101010" stroke-width="0.25" stroke-linejoin="round" clip-path="url(#recorte-trasero)">
+      <path id="casilla-trasera-1-1" d="M551 116C568 123.667 585.667 127.778 603.889 128.889L612.852 184.889C594.667 183.778 577 179.667 560 172Z"/>
+      <path id="casilla-trasera-1-3" d="M660.111 123.778C679.333 119.444 699 112.667 719 104L727 160C707.333 168.667 687.889 175.444 668.815 179.778Z"/>
+      <path id="casilla-trasera-2-2" d="M612.852 184.889C631.037 186 649.741 184.111 668.815 179.778L677.815 236.778C658.741 241.111 640.037 243 621.852 241.889Z"/>
+      <path id="casilla-trasera-3-1" d="M569 229C586 236.667 603.667 240.778 621.852 241.889L630.815 297.889C612.667 296.778 595 292.667 578 285Z"/>
+      <path id="casilla-trasera-3-3" d="M677.815 236.778C696.889 232.444 716.333 225.667 736 217L744 273C724.667 281.667 705.444 288.444 686.519 292.778Z"/>
+      <path id="casilla-trasera-4-2" d="M630.815 297.889C648.963 299 667.593 297.111 686.519 292.778L695.519 349.778C676.593 354.111 657.963 356 639.815 354.889Z"/>
+      <path id="casilla-trasera-5-1" d="M587 342C604 349.667 621.667 353.778 639.815 354.889L647.815 410.963C629.667 411.444 612 409.667 595 405Z"/>
+      <path id="casilla-trasera-5-3" d="M695.519 349.778C714.444 345.444 733.667 338.667 753 330L761 386C741.667 393 722.444 399 703.519 403.37Z"/>
+    </g>
+    <use href="#tela-trasera" stroke="#101010" stroke-width="6" stroke-linejoin="round"/>
+    <path id="tension-trasera" fill="#101010" d="M560 151C568 180 582 207 598 227C583 211 571 186 560 151ZM577 252C585 285 604 319 625 340C606 323 589 294 577 252Z"/>
+  </g>
+
+  <path id="vuelta-pliegue" fill="#FFFFFF" stroke="#101010" stroke-width="5" stroke-linejoin="round" d="M535 358L542 390C558 401 575 405 595 407L589 381C571 376 553 367 535 358Z"/>
+  <path id="arista-pliegue" stroke="#101010" stroke-width="4" stroke-linecap="round" d="M543 390Q567 385 591 378"/>
+
+  <g id="pano-frontal">
+    <use href="#tela-frontal" fill="#FFFFFF"/>
+    <g id="damero-frontal" fill="#101010" stroke="#101010" stroke-width="0.25" stroke-linejoin="round" clip-path="url(#recorte-frontal)">
+      <path id="casilla-frontal-1-1" d="M315 90C336 81.25 356.438 75.562 376.469 72.469L387.156 132.016C367.875 135.375 348.5 141.25 329 150Z"/>
+      <path id="casilla-frontal-1-3" d="M435.5 70.5C454.875 72.125 474 75.875 493.031 81.281L501.969 139.172C482.938 133.906 463.875 130.438 444.75 129.125Z"/>
+      <path id="casilla-frontal-2-2" d="M387.156 132.016C406.438 128.656 425.625 127.812 444.75 129.125L453.25 188.625C434.25 187.438 415.312 188.406 396.438 191.859Z"/>
+      <path id="casilla-frontal-2-4" d="M501.969 139.172C521 144.438 540 151.5 559 160L568 219C548.75 210.5 529.562 203.5 510.438 198.328Z"/>
+      <path id="casilla-frontal-3-1" d="M340 210C358.75 201.25 377.562 195.312 396.438 191.859L404.156 251.859C385.062 255.312 366 261.25 347 270Z"/>
+      <path id="casilla-frontal-3-3" d="M453.25 188.625C472.25 189.812 491.312 193.156 510.438 198.328L518.844 258.328C499.75 253.156 480.625 249.812 461.5 248.625Z"/>
+      <path id="casilla-frontal-4-2" d="M404.156 251.859C423.25 248.406 442.375 247.438 461.5 248.625L469.75 308.625C450.375 307.438 430.938 308.406 411.469 311.859Z"/>
+      <path id="casilla-frontal-4-4" d="M518.844 258.328C537.938 263.5 557 270.5 576 279L585 339C566 330.5 546.875 323.5 527.656 318.328Z"/>
+      <path id="casilla-frontal-5-1" d="M353 330C372.5 321.25 392 315.312 411.469 311.859L417.625 360.5C397.312 365.75 376 375 353 390Z"/>
+      <path id="casilla-frontal-5-3" d="M469.75 308.625C489.125 309.812 508.438 313.156 527.656 318.328L533 363C513.938 359.25 495.25 356 476.25 355Z"/>
+    </g>
+    <use href="#tela-frontal" stroke="#101010" stroke-width="6" stroke-linejoin="round"/>
+    <path id="tension-frontal" fill="#101010" d="M526 108C533 120 537 136 539 154C536 139 531 122 526 108ZM546 209C549 232 551 249 554 267C550 249 548 230 546 209Z"/>
+  </g>
+
+  <g id="fijaciones" fill="#FFFFFF" stroke="#101010" stroke-width="4.5" stroke-linejoin="round">
+    <path id="fijacion-superior" d="M289 98C297 93 309 94 319 100L320 110C308 103 299 101 291 106Z"/>
+    <path id="fijacion-inferior" d="M325 375C335 382 344 376 352 371L354 383C344 392 333 393 327 388Z"/>
+  </g>
+  <circle id="remate-mastil" cx="291.5" cy="56.5" r="19.5" fill="#FFFFFF" stroke="#101010" stroke-width="6.5"/>
+</svg>

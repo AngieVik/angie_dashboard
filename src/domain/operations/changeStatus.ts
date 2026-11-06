@@ -1,10 +1,11 @@
 import { DOCUMENT_STATUSES } from '../document/types'
 import type { AngieDocument, OperationalStatus, TimelineEntry } from '../document/types'
-import { appendTimelineEntry } from './timelineEntries'
+import { appendTimelineEntry, nextTimelineEntryTime } from './timelineEntries'
 import { commandResult } from '../document/documentCommand'
+import { getTimelineIndex } from './operationIndexes'
 
-function statusChangeEntry(unitId: string, unitName: string, previousStatus: OperationalStatus | null, nextStatus: OperationalStatus, now: Date): TimelineEntry {
-  return { id: crypto.randomUUID(), type: 'status-change', occurredAt: now.toISOString(), unitId, unitName, previousStatus, nextStatus, revisions: [] }
+function statusChangeEntry(unitId: string, unitName: string, previousStatus: OperationalStatus | null, nextStatus: OperationalStatus, occurredAt: string): TimelineEntry {
+  return { id: crypto.randomUUID(), type: 'status-change', occurredAt, unitId, unitName, previousStatus, nextStatus, revisions: [] }
 }
 
 export function changeElementStatus(document: AngieDocument, elementId: string, nextStatus: OperationalStatus, now: Date) {
@@ -14,9 +15,10 @@ export function changeElementStatus(document: AngieDocument, elementId: string, 
   const customLabel = nextStatus === 'Personalizada' ? unit.operational.notes.trim() : undefined
   const customColor = nextStatus === 'Personalizada' ? unit.operational.notesColor : undefined
   if (nextStatus === 'Personalizada' && !customLabel) throw new Error('Escribe el nombre del estado personalizado.')
-  const current = document.timeline.find(entry => entry.id.toLowerCase() === unit.operational.currentEntryId?.toLowerCase())
+  if (customLabel && /[\r\n\u2028\u2029]/.test(customLabel)) throw new Error('El nombre del estado personalizado debe tener una sola línea.')
+  const current = getTimelineIndex(document.timeline).byId.get(unit.operational.currentEntryId?.toLowerCase() ?? '')
   if (unit.operational.status === nextStatus && (nextStatus !== 'Personalizada' || current?.type === 'status-change' && current.customLabel === customLabel && current.customColor === customColor)) return commandResult(document, document)
-  const entry = statusChangeEntry(unit.id, unit.name, unit.operational.status, nextStatus, now)
+  const entry = statusChangeEntry(unit.id, unit.name, unit.operational.status, nextStatus, nextTimelineEntryTime(document.timeline, now))
   if (entry.type === 'status-change' && customLabel) {
     entry.customLabel = customLabel
     if (customColor) entry.customColor = customColor

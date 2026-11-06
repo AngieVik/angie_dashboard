@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="135 130 1040 1000" fill="none" role="img" aria-labelledby="avituallamiento-title avituallamiento-desc">
+  <title id="avituallamiento-title">Avituallamiento</title>
+  <desc id="avituallamiento-desc">Vaso y manzana con hoja en naranja y negro. El interior blanco del borde del vaso es opaco y el exterior es transparente.</desc>
+  <g id="vaso" stroke="#101010" stroke-width="23" stroke-linejoin="round">
+    <path id="cuerpo-vaso" fill="#EF8321" d="M168 232L288 1025C294 1057 320 1060 481 1060C624 1060 646 1052 658 1024L796 232Z"/>
+    <ellipse id="boca-vaso" cx="482" cy="230" rx="314" ry="73" fill="#FFFFFF"/>
+  </g>
+  <path id="tallo" fill="#101010" d="M849 651C856 585 850 548 818 510C811 501 815 494 826 489C837 482 845 486 851 498C870 528 879 550 880 578C883 603 881 626 877 645Z"/>
+  <path id="hoja" fill="#EF8321" stroke="#101010" stroke-width="16" stroke-linejoin="round" d="M880 570C882 464 966 396 1092 402C1087 512 1036 557 955 561C926 560 899 559 880 570Z"/>
+  <path id="nervio-hoja" stroke="#101010" stroke-width="7" stroke-linecap="round" d="M887 563C925 515 968 477 1020 454"/>
+  <path id="manzana" fill="#EF8321" stroke="#101010" stroke-width="23" stroke-linejoin="round" d="M861 644C807 602 767 574 714 584C627 580 561 659 555 754C542 846 596 954 654 1019C700 1075 742 1094 792 1072C821 1061 833 1053 849 1053C880 1053 901 1077 935 1076C1022 1079 1102 965 1135 809C1151 707 1101 613 1022 601C959 588 909 617 861 644Z"/>
+  <path id="incavo-manzana" stroke="#101010" stroke-width="6" stroke-linecap="round" d="M796 654Q830 665 862 645"/>
+</svg>

@@ -50,12 +50,14 @@
   }
 
   .icon {
-    width: var(--control-height-base);
-    min-width: var(--control-height-base);
-    height: var(--control-height-base);
-    min-height: var(--control-height-base);
+    width: var(--control-height);
+    min-width: var(--control-height);
+    height: var(--control-height);
+    min-height: var(--control-height);
     padding: 0;
   }
+
+  .label { display: inline-block; min-width: 0; height: var(--button-label-height, var(--text-container-height)); vertical-align: middle; pointer-events: none; }
 
   .base.icon:not(:is([aria-checked="true"], [aria-pressed="true"], [data-state="open"])) {
     border-color: transparent;

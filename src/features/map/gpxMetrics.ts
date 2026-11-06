@@ -1,15 +1,15 @@
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import type { GpxData, GpxPoint } from './gpx'
+import { wrapLongitude } from './longitudeGeometry'
 
 export interface GpxMetrics { distances: number[][]; totalMeters: number }
-export interface GpxLocation { point: GpxPoint; distanceMeters?: number; offsetMeters: number }
-export interface KilometerMark { point: GpxPoint; kilometer: number }
+export interface GpxLocation { point: GpxPoint; distanceMeters?: number; offsetMeters: number; displayLongitude?: number }
+export interface KilometerMark { point: GpxPoint; kilometer: number; displayLongitude?: number }
 
 const EARTH_RADIUS = 6_371_000
 const radians = Math.PI / 180
 const metricsCache = new WeakMap<GpxData, GpxMetrics>()
 export function primeGpxMetrics(data: GpxData, metrics: GpxMetrics) { metricsCache.set(data, metrics) }
-const wrapLongitude = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180
 
 export function geographicDistance(a: GeographicCoordinate, b: GeographicCoordinate): number {
   const latitude = Math.sin((b.latitude - a.latitude) * radians / 2)
@@ -44,29 +44,17 @@ function interpolate(a: GpxPoint, b: GpxPoint, fraction: number): GpxPoint {
   }
 }
 
-export function closestGpxLocation(data: GpxData, query: GeographicCoordinate): GpxLocation | null {
-  const metrics = getGpxMetrics(data)
-  let closest: GpxLocation | null = null
-  function consider(point: GpxPoint, distanceMeters?: number) {
-    const offsetMeters = geographicDistance(query, point)
-    if (!closest || offsetMeters < closest.offsetMeters) closest = { point, offsetMeters, ...(distanceMeters !== undefined ? { distanceMeters } : {}) }
-  }
-  for (let lineIndex = 0; lineIndex < data.lines.length; lineIndex++) {
-    const line = data.lines[lineIndex]!, distances = metrics.distances[lineIndex]!
-    if (line.length === 1) consider(line[0]!, distances[0]!)
-    for (let index = 1; index < line.length; index++) {
-      const a = line[index - 1]!, b = line[index]!
-      // Project onto each recorded segment instead of choosing the nearest sample.
-      const scale = Math.cos((a.latitude + b.latitude) * radians / 2)
-      const dx = wrapLongitude(b.longitude - a.longitude) * scale, dy = b.latitude - a.latitude
-      const qx = wrapLongitude(query.longitude - a.longitude) * scale, qy = query.latitude - a.latitude
-      const length = dx * dx + dy * dy
-      const fraction = length ? Math.max(0, Math.min(1, (qx * dx + qy * dy) / length)) : 0
-      consider(interpolate(a, b, fraction), distances[index - 1]! + (distances[index]! - distances[index - 1]!) * fraction)
-    }
-  }
-  for (const point of data.waypoints) consider(point)
-  return closest
+// Used by the streaming selection worker. Keep the
+// recorded precision, antimeridian handling and metadata interpolation identical.
+export function projectGpxSegment(a: GpxPoint, b: GpxPoint, query: GeographicCoordinate, fromMeters: number, toMeters: number, display?: [number, number]): GpxLocation {
+  const scale = Math.cos((a.latitude + b.latitude) * radians / 2)
+  const dx = wrapLongitude(b.longitude - a.longitude) * scale, dy = b.latitude - a.latitude
+  const qx = wrapLongitude(query.longitude - a.longitude) * scale, qy = query.latitude - a.latitude
+  const length = dx * dx + dy * dy
+  const fraction = length ? Math.max(0, Math.min(1, (qx * dx + qy * dy) / length)) : 0
+  const point = interpolate(a, b, fraction)
+  return { point, offsetMeters: geographicDistance(query, point), distanceMeters: fromMeters + (toMeters - fromMeters) * fraction,
+    ...(display ? { displayLongitude: display[0] + (display[1] - display[0]) * fraction } : {}) }
 }
 
 export function getKilometerMarks(data: GpxData, minimumIntervalKm: number): KilometerMark[] {
@@ -83,6 +71,7 @@ export function* iterateKilometerMarks(data: GpxData, minimumIntervalKm: number,
   const intervalMeters = intervalKm * 1000
   let next = intervalMeters
   let work = 0
+  let pointOffset = 0
   for (let lineIndex = 0; lineIndex < data.lines.length; lineIndex++) {
     const line = data.lines[lineIndex]!, distances = metrics.distances[lineIndex]!
     for (let index = 1; index < line.length; index++) {
@@ -90,9 +79,13 @@ export function* iterateKilometerMarks(data: GpxData, minimumIntervalKm: number,
       const from = distances[index - 1]!, to = distances[index]!
       if (to <= from) continue
       while (next <= to) {
-        yield { point: interpolate(line[index - 1]!, line[index]!, (next - from) / (to - from)), kilometer: next / 1000 }
+        const fraction = (next - from) / (to - from)
+        const a = data.displayLongitudes?.[pointOffset + index - 1], b = data.displayLongitudes?.[pointOffset + index]
+        yield { point: interpolate(line[index - 1]!, line[index]!, fraction), kilometer: next / 1000,
+          ...(a === undefined || b === undefined ? {} : { displayLongitude: a + (b - a) * fraction }) }
         next += intervalMeters
       }
     }
+    pointOffset += line.length
   }
 }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 25 1000 1155" fill="none" role="img" aria-labelledby="dae-title dae-desc">
+  <title id="dae-title">DAE</title>
+  <desc id="dae-desc">Desfibrilador compacto verde con asa integrada, corazón blanco, rayo negro y un control circular. El exterior y el hueco del asa son transparentes.</desc>
+  <path id="lateral" fill="#299B58" stroke="#101010" stroke-width="22" stroke-linejoin="round" d="M974 263C1058 263 1127 334 1127 414V995C1127 1075 1066 1146 980 1146H964Z"/>
+  <path id="carcasa-y-asa" fill="#299B58" fill-rule="evenodd" stroke="#101010" stroke-width="22" stroke-linejoin="round" d="M314 264C335 258 337 237 349 198C374 117 437 59 513 59H793C875 59 933 98 953 218L960 242C965 260 972 261 982 264C1034 291 1068 344 1068 412V994C1068 1080 1021 1146 965 1146H337C252 1146 183 1079 183 994V433C183 350 236 284 314 264ZM469 259H824C848 259 862 245 860 222C857 174 827 138 784 138H511C473 138 444 171 435 207C422 235 432 259 469 259Z"/>
+  <path id="junta-superior" stroke="#101010" stroke-width="17" stroke-linecap="round" d="M194 379C225 363 255 360 291 360H967C1005 360 1036 364 1064 379"/>
+  <path id="corazon" fill="#FFFFFF" stroke="#101010" stroke-width="19" stroke-linejoin="round" d="M645 501C595 441 549 422 501 424C409 422 337 495 337 588C326 710 449 840 625 966Q638 978 651 966C769 877 942 720 941 590C946 493 879 423 792 424C733 421 681 452 645 501Z"/>
+  <path id="rayo" fill="#101010" d="M623 538H738L660 659H760L572 899L624 723H537Z"/>
+  <circle id="control" cx="638" cy="1053" r="43" fill="#101010"/>
+</svg>

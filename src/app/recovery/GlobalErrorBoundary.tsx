@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '../../components/ui/button'
 import { getDocumentStore } from '../../features/document/documentStore'
+import { getTimerStore } from '../../features/clock/timerStore'
 import { createBrowserFilePlatform } from '../../platform/files/fileAccess'
 import { ErrorBoundary } from './ErrorBoundary'
 import { createEmergencyCopy, listenForUnexpectedErrors } from './uiRecovery'
 import styles from './recovery.module.css'
-import { portableDocument } from '../../storage/imageResources'
 
 function RecoveryCopy() {
   const [message, setMessage] = useState<string | null>(null)
@@ -14,7 +14,8 @@ function RecoveryCopy() {
   async function download() {
     let text: string | undefined
     try {
-      const copy = createEmergencyCopy(await portableDocument(getDocumentStore().getSnapshot().document))
+      const snapshot = getDocumentStore().getSnapshot()
+      const copy = createEmergencyCopy(snapshot.document, snapshot.openModules)
       text = copy.text
       createBrowserFilePlatform().download(copy.text, copy.filename)
       setManualCopy(null)
@@ -31,13 +32,31 @@ function RecoveryCopy() {
   </>
 }
 
+function RecoveryAlarms() {
+  const store = getTimerStore()
+  const active = useSyncExternalStore(store.subscribe, () => store.getSnapshot().timers.some(timer => timer.alertActive))
+  const audioError = useSyncExternalStore(store.alarm.subscribe, () => store.alarm.getSnapshot().error)
+  return <section aria-label="Alarmas">
+    <p>El reloj sigue activo durante la recuperación.</p>
+    {active && <>
+      <p>Hay alarmas activas.</p>
+      <div className={styles.actions}><Button onClick={() => {
+        for (const timer of store.getSnapshot().timers) if (timer.alertActive) store.acknowledge(timer.id)
+      }}>Silenciar alarmas</Button>
+      {audioError && <Button onClick={() => { void store.activateSound() }}>Activar sonido</Button>}</div>
+      {audioError && <p role="status">{audioError}</p>}
+    </>}
+  </section>
+}
+
 function GlobalFailure({ retry }: { retry: () => void }) {
   return <main className={styles.global}>
     <section className={styles.panel} role="alert" aria-label="Recuperación de Angie">
       <h1>No se pudo mostrar Angie</h1>
       <p>El documento disponible sigue en memoria. Descarga una copia antes de cerrar esta página.</p>
-      <p>La copia no incluye archivos GPX externos, agenda ni temporizadores.</p>
+      <p>La copia contiene los datos del UIBoard, sin recursos, coordenadas, geometría, agenda ni temporizadores.</p>
       <div className={styles.actions}><RecoveryCopy /><Button onClick={retry}>Reintentar interfaz</Button></div>
+      <RecoveryAlarms />
     </section>
   </main>
 }
@@ -45,7 +64,7 @@ function GlobalFailure({ retry }: { retry: () => void }) {
 function UnexpectedErrorNotice() {
   const [visible, setVisible] = useState(false)
   useEffect(() => listenForUnexpectedErrors(window, error => {
-    console.error('Error no controlado al ejecutar una acción', error)
+    console.error(error instanceof Error ? error.message : 'Error no controlado al ejecutar una acción')
     setVisible(true)
   }), [])
   if (!visible) return null

@@ -32,6 +32,10 @@
     outline-offset: 2px;
   }
 
+  :is(input, textarea, select, [data-slot="select"]):focus-visible {
+    outline-color: var(--color-text-secondary);
+  }
+
   .technical-data {
     font-family: var(--font-interface);
     font-variant-numeric: tabular-nums;
