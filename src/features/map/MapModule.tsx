@@ -51,6 +51,8 @@ import styles from './map.module.css'
 
 interface MapSelection extends GeographicCoordinate { gpx?: { fileId: string; location: GpxLocation } }
 const GPX_COLORS = ['#D63A3A', '#3697DC', '#54B777', '#E69B37', '#A377D8']
+// The outer tip is (9, 26), matching the marker's geographic anchor.
+const SELECTION_PIN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="26" viewBox="0 0 18 26" aria-hidden="true" focusable="false"><path d="M9 26S0 15 0 9a9 9 0 0 1 18 0C18 15 9 26 9 26Z" fill="#FFFFFF"/><path d="M9 23.5S1.5 13.8 1.5 9a7.5 7.5 0 0 1 15 0C16.5 13.8 9 23.5 9 23.5Z" fill="#D63A3A"/><circle cx="9" cy="9" r="2.5" fill="#FFFFFF"/></svg>'
 const EMPTY_REFERENCES: MapGpxReference[] = []
 const EMPTY_MARKERS: MapMarker[] = []
 const kilometers = (meters: number) => (meters / 1000).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km'
@@ -101,7 +103,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
   const currentFiles = useRef(files)
   const publishFiles = useRef(onFilesChange)
   const currentFormat = useRef<CoordinateFormat>('DD')
-  const selection = useRef<L.CircleMarker | null>(null)
+  const selection = useRef<L.Marker | null>(null)
   const request = useRef<{ revision: number; reading: boolean; controller?: AbortController }>({ revision: 0, reading: false })
   const relinkTarget = useRef<string | null>(null)
   const touches = useRef(new Set<number>()), cancelledTouch = useRef(false), suppressSelection = useRef(false)
@@ -502,7 +504,10 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       const gpx = selected.gpx
       const point = L.latLng(gpxDisplayPoint(map, selected, gpx ? currentFiles.current.find(file => file.id === gpx.fileId) : undefined, gpx?.location.displayLongitude))
       if (selection.current) selection.current.setLatLng(point)
-      else selection.current = L.circleMarker(point, { radius: 7, color: '#D63A3A', weight: 2, fillColor: '#FFFFFF', fillOpacity: .8 }).addTo(map)
+      else selection.current = L.marker(point, {
+        icon: L.divIcon({ className: 'map-selection-pin', html: SELECTION_PIN_SVG, iconSize: [18, 26], iconAnchor: [9, 26] }),
+        interactive: false, keyboard: false, zIndexOffset: 1000,
+      }).addTo(map)
     }
     positionSelection()
     map.on('moveend', positionSelection)
@@ -530,7 +535,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
     const formatted = convertCoordinate(parsed.coordinate, format)
     setError(null); setInput(formatted.ok ? formatted.text : parsed.normalizedInput); selectCoordinate(coordinate); setSelectedGpxId(null); setSelectedMarkerId(null)
     if (!formatted.ok) setFormat(parsed.coordinate.format)
-    mapRef.current?.setView([coordinate.latitude, coordinate.longitude], 15, { animate: false })
+    mapRef.current?.panTo([coordinate.latitude, coordinate.longitude], { animate: false })
   }
   function searchMap() {
     if (blockedRef.current) return
@@ -549,7 +554,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
     if (formatted.ok) setInput(formatted.text)
     else { setFormat('DD'); setInput(`${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`) }
     selectCoordinate(point); setSelectedGpxId(null); setSelectedMarkerId(null)
-    mapRef.current?.setView([point.latitude, point.longitude], 15, { animate: false })
+    mapRef.current?.panTo([point.latitude, point.longitude], { animate: false })
     searchInput.current?.focus()
   }
   async function loadFiles(event: ChangeEvent<HTMLInputElement>) {

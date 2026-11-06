@@ -110,11 +110,12 @@ function TimelineContent({ store }: { store: DocumentStore }) {
     if (activePointers.current.size > 1) cancelHold()
   }}>
     <div className={`timeline-toolbar ${toolbarStyles.base}`} role="group" aria-label="Acciones de Registro">
+      {/* Distinct keys keep the opening click from submitting the newly mounted edit form. */}
       {editing ? <>
-        <Button type="submit" form={formId} aria-label="Guardar" disabled={blocked}><Save aria-hidden="true" /></Button>
+        <Button key="save" type="submit" form={formId} aria-label="Guardar" disabled={blocked}><Save aria-hidden="true" /></Button>
         <Button aria-label="Atrás" disabled={blocked} onClick={() => { if (!blockedRef.current) finishEditing() }}><ArrowLeft aria-hidden="true" /></Button>
       </> : <>
-        <Button ref={editControl} aria-label="Editar" disabled={blocked || !actionEntries.length} onClick={() => edit(actionEntries)}><PenLine aria-hidden="true" /></Button>
+        <Button key="edit" ref={editControl} aria-label="Editar" disabled={blocked || !actionEntries.length} onClick={() => edit(actionEntries)}><PenLine aria-hidden="true" /></Button>
         <Button aria-label="Eliminar" disabled={blocked || !actionEntries.length} onClick={() => {
           if (blockedRef.current || !actionEntries.length) return
           cancelHold()

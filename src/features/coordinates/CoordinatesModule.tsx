@@ -13,6 +13,8 @@ import { copyText } from '../../platform/clipboard'
 import { COORDINATE_INPUT_LENGTH_ERROR, MAX_COORDINATE_INPUT_LENGTH, parseCoordinate } from './parseCoordinate'
 import { convertCoordinate, toGeographic } from './convertCoordinate'
 import { createGoogleMapsLink } from './googleMapsLink'
+import { createOsmAndLink } from './osmandLink'
+import { createPlusCode } from './plusCode'
 import type { GeographicCoordinate } from './coordinateTypes'
 import styles from './coordinates.module.css'
 
@@ -43,7 +45,8 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     if (!parsed.ok) return null
     const dd = toGeographic(parsed.coordinate)
     return { coordinate: dd, conversions: (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => convertCoordinate(parsed.coordinate, format)),
-      link: createGoogleMapsLink(dd.latitude, dd.longitude) }
+      link: createGoogleMapsLink(dd.latitude, dd.longitude), plusCode: createPlusCode(dd.latitude, dd.longitude),
+      osmandLink: createOsmAndLink(dd.latitude, dd.longitude) }
   }, [input])
   // Selection changes and edits invalidate clipboard operations still in flight.
   useLayoutEffect(() => { revision.current++ }, [generation, automatic, receivedCoordinate, input])
@@ -144,13 +147,16 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     const current = ++revision.current
     const copied = await copyText(value)
     if (current !== revision.current) return
-    if (!(copied)) toast.error('No se pudo copiar.', { id: noticeId })
+    if (copied) toast.success('Copiado.', { id: noticeId })
+    else toast.error('No se pudo copiar.', { id: noticeId })
   }
-  const rows = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
+  const rows: { format: string; value: string | null; preview?: string }[] = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
     const conversion = result?.conversions.find(item => item.format === format)
-    return { format: format as string, value: conversion?.ok ? conversion.text : null }
+    return { format, value: conversion?.ok ? conversion.text : null }
   })
-  rows.push({ format: 'Maps', value: result?.link ?? null })
+  rows.push({ format: 'Plus Code', value: result?.plusCode ?? null },
+    { format: 'Maps', value: result?.link ?? null, preview: 'www.google.com/maps/...' },
+    { format: 'OsmAnd', value: result?.osmandLink ?? null, preview: 'osmand.net/map/...' })
   return <div data-slot="coordinates-module" className={`${styles.base} coordinates-module`}>
     <form onSubmit={event => { event.preventDefault(); convert() }}>
       <InputGroup>
@@ -180,7 +186,7 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
           }}>
           <dt>{row.format}</dt>
           <dd className="technical-data" aria-label={'Resultado ' + row.format}>
-            <span className="coordinates-value">{row.format === 'Maps' && row.value ? 'www.google.com/maps/...' : row.value ?? '—'}</span>
+            <span className="coordinates-value">{row.value !== null ? row.preview ?? row.value : '—'}</span>
           </dd>
         </div>
       })}

@@ -408,6 +408,7 @@ Estas secciones definen la composición y las excepciones locales. Las medidas c
 ### Coordenadas
 
 - El formulario y las filas de datos técnicos mantienen una distribución flexible y su altura mínima escalada. Las acciones de conversión, copia y radar conservan sus espacios propios junto a los campos.
+- Las etiquetas de DD, DMS, DMM, UTM, Plus Code, Maps y OsmAnd comparten una columna ajustada a la etiqueta más ancha, con un margen de `1ch` antes de los resultados alineados verticalmente. Los enlaces muestran una vista abreviada y copian la URL completa; una copia correcta muestra el aviso «Copiado.».
 
 ### Registro
 
@@ -454,6 +455,10 @@ Estas secciones definen la composición y las excepciones locales. Las medidas c
 - Al cambiar contenido o zoom, solo se amplían las dimensiones insuficientes para ese mínimo. Se conserva un tamaño manual mayor y no se activa el autoajuste continuo.
 
 ### Mapa y Plano operativo
+
+- La navegación sobre el fondo utiliza la mano con índice (`pointer`); al arrastrar pasa al puño cerrado (`grabbing`). Las herramientas de dibujo, borrado y redimensionado conservan sus cursores específicos.
+- La coordenada seleccionada se representa mediante un pin cartográfico SVG rojo con borde blanco y centro blanco, de 18 × 26 px. La punta inferior coincide con la coordenada y el cuerpo queda por encima; su tamaño se mantiene al cambiar el zoom geográfico. La marca deja pasar los clics y no recibe foco de teclado.
+- Las búsquedas por lugar o coordenadas centran y marcan el resultado conservando el zoom geográfico actual, tanto en Mapa como en Plano.
 
 1. Guía de estilo de la interfaz
    1. Propósito y estado
