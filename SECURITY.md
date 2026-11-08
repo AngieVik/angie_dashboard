@@ -26,7 +26,7 @@ No se ha identificado entrada de datos de la app hacia esa llamada ni se ha acre
 
 Se actualizaron `serialize-javascript` de `7.1.2` a `7.1.4`, `minimatch` de `10.2.6` a `11.0.4` y `glob` de `11.1.0` a `14.0.3`. El audit pasó de 20 registros iniciales (16 moderados y 4 bajos) a 18 tras la primera actualización y a los cuatro bajos actuales.
 
-Los overrides temporales de minimatch y glob y su acoplamiento se describen en [ARQUITECTURA.md](ARQUITECTURA.md). Queda pendiente retirarlos cuando los consumidores incorporen versiones corregidas en sus rangos oficiales, verificando de nuevo su compatibilidad.
+Los overrides temporales de minimatch y glob y su acoplamiento se describen en [ARQUITECTURA.md](docs/ARQUITECTURA.md). Queda pendiente retirarlos cuando los consumidores incorporen versiones corregidas en sus rangos oficiales, verificando de nuevo su compatibilidad.
 
 ### Revisión y criterio de cierre
 

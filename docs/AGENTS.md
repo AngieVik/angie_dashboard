@@ -3,7 +3,7 @@
 ## Referencias y contexto
 
 - [ARQUITECTURA.md](ARQUITECTURA.md)
-- [DISEÑO.md](DISEÑO.md)
+- [DISEÑO.md](../DISEÑO.md)
 - Los parámetros y comportamientos de la app se definen en su código propietario. Consérvalos salvo que la petición autorice explícitamente cambiarlos.
 - Lógica de dominio (Arquitectura híbrida): El App Shell (JS/CSS/iconos SVG), estado, temporizadores y checklists persisten en local (local-first) mediante el almacenamiento del navegador para resistir caídas de red. Los mapas (Leaflet) y teselas visuales son dependencias estrictamente online y no deben precachearse ni forzarse para uso offline.
 - No reconstruyas decisiones ausentes como si estuvieran confirmadas, ni confirmes decisiones puntuales; pregunta.

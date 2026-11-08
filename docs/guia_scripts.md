@@ -18,10 +18,10 @@ Todos los comandos y rutas siguientes parten de esa carpeta. No es necesario arr
 
 ## 2. Comando recomendado: todos los análisis juntos
 
-| Comando                 | Qué hace                                                                                                                | Resultado                                                                                   |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Comando                 | Qué hace                                                                                                                | Resultado                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `npm run diagnose`      | Inventario, código sin uso, arquitectura, dependencias, recursos públicos, estilos y coherencia visual. Perfil `quick`. | Informe general y datos por análisis en `output/diagnostic workflow/<ID>/`. |
-| `npm run diagnose:full` | Todo lo anterior y análisis del peso del bundle mediante compilación temporal.                                          | Mismo conjunto de informes, incluyendo la etapa `bundle`. Tarda más.                        |
+| `npm run diagnose:full` | Todo lo anterior y análisis del peso del bundle mediante compilación temporal.                                          | Mismo conjunto de informes, incluyendo la etapa `bundle`. Tarda más.        |
 
 Cada ejecución conserva su carpeta. La consola muestra la ruta del informe principal:
 
@@ -105,14 +105,14 @@ La eliminación de las ejecuciones antiguas ha sido una operación puntual solic
 
 ## 5. Cómo leer el resultado
 
-| Indicador  | Significado                                                                                                                                                 |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `complete` | Las etapas terminaron sin limitaciones explícitas detectadas. No acredita funcionamiento perfecto.                                                          |
-| `partial`  | Hay límites de cobertura, alguna etapa fallida o entradas que cambiaron durante el análisis. Revisar el detalle antes de confiar en la conclusión afectada. |
-| `failed`   | Fallaron todas las etapas. Un fallo de arranque/publicación también puede impedir generar el informe.                                                       |
-| Riesgo comprobado | La consecuencia descrita está acreditada por la evidencia, por ejemplo una etapa sin resultados. |
-| Riesgo posible | La consecuencia depende de las condiciones indicadas; no se afirma un fallo observado. |
-| Riesgo no acreditado | El dato no demuestra una consecuencia funcional, por ejemplo un componente reservado sin consumidores. |
+| Indicador            | Significado                                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `complete`           | Las etapas terminaron sin limitaciones explícitas detectadas. No acredita funcionamiento perfecto.                                                          |
+| `partial`            | Hay límites de cobertura, alguna etapa fallida o entradas que cambiaron durante el análisis. Revisar el detalle antes de confiar en la conclusión afectada. |
+| `failed`             | Fallaron todas las etapas. Un fallo de arranque/publicación también puede impedir generar el informe.                                                       |
+| Riesgo comprobado    | La consecuencia descrita está acreditada por la evidencia, por ejemplo una etapa sin resultados.                                                            |
+| Riesgo posible       | La consecuencia depende de las condiciones indicadas; no se afirma un fallo observado.                                                                      |
+| Riesgo no acreditado | El dato no demuestra una consecuencia funcional, por ejemplo un componente reservado sin consumidores.                                                      |
 
 En PowerShell, `$LASTEXITCODE` permite consultar la salida del comando:
 
