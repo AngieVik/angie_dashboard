@@ -165,7 +165,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
       resizeHandle.disabled = !enabled
       resizeHandle.setAttribute('aria-label', 'Redimensionar ' + element.name)
       content.append(resizeHandle)
-      // Keep the handle reachable when the geographic zoom makes the pin small.
+      // Mantén el tirador alcanzable cuando el zoom geográfico haga que el pin sea pequeño.
       resizeHandle.style.transform = `scale(${1 / mapScale})`
       const marker = L.marker([pin.latitude, pin.longitude], {
         icon: L.divIcon({ className: 'plan-pin', html: content, iconSize: [box.width * factor, box.height * factor], iconAnchor: [anchor.x * factor, anchor.y * factor] }),
@@ -176,7 +176,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
       if (!node) continue
       node.setAttribute('role', 'group')
       node.setAttribute('aria-label', element.name + (element.isUnit && element.operational.status ? ' · ' + element.operational.status : ''))
-      // Only the scaled content should receive hits, not the unscaled marker box.
+      // Solo el contenido escalado debería recibir clics, no el recuadro marcador sin escalar.
       node.style.pointerEvents = 'none'
       node.tabIndex = enabled ? 0 : -1
       L.DomEvent.disableClickPropagation(node)

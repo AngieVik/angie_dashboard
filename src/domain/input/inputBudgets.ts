@@ -1,13 +1,13 @@
 import type { ValidationIssue } from '../document/types'
 
-// Admission policy, shared by editing, imports, recovery and serialization.
-// Text lengths use UTF-16 units, as DOM inputs and the coordinate parser do.
-// 100k per field / 1M total keep ordinary text below the audit's 8M slow case.
-// The 2026-11-01 audit measured ten store edits at ~58 ms for 1M characters
-// versus ~465 ms for 8M, before the UI's additional multi-second work.
-// Preserve the existing 50 MiB image, 10 MiB GPX and 50k plan-stroke contracts.
-// JSON has a byte preflight; the data contract also bounds all text and collections.
-// These are capacity ceilings, not a latency guarantee on Android.
+// Política de admisión, compartida por las funciones de edición, importación, recuperación y serialización.
+// La longitud del texto se mide en unidades UTF-16, al igual que las entradas DOM y el analizador de coordenadas.
+// 100 000 por campo / 1 millón en total mantienen el texto ordinario por debajo del caso de lentitud de 8 millones de la auditoría.
+// La auditoría del 1 de noviembre de 2026 midió diez ediciones en la tienda en unos 58 ms para 1 millón de caracteres,
+// frente a unos 465 ms para 8 millones, antes del trabajo adicional de varios segundos de la interfaz de usuario.
+// Mantener los límites actuales de 50 MiB para imágenes, 10 MiB para GPX y 50k para los contratos de trazos de planos.
+// JSON cuenta con una comprobación previa de bytes; el contrato de datos también limita todo el texto y las colecciones.
+// Se trata de límites máximos de capacidad, no de una garantía de latencia en Android.
 export const INPUT_BUDGETS = Object.freeze({
   coordinateCharacters: 1024,
   textCharacters: 100_000,
@@ -24,8 +24,8 @@ export const INPUT_BUDGETS = Object.freeze({
   gpxBytes: 10 * 1024 * 1024,
   totalGpxBytes: 50 * 1024 * 1024,
   imageBytes: 50 * 1024 * 1024,
-  // Pre-decode admission: at most 64 MiB for one 8-bit RGBA surface.
-  // Decoder buffers, metadata and the resized bitmap can require more memory.
+  // Capacidad de admisión previa a la decodificación: como máximo 64 MiB para una superficie RGBA de 8-bits.
+  // Los búferes del decodificador, los metadatos y el mapa de bits redimensionado pueden requerir más memoria.
   imageDimension: 8192,
   imagePixels: 16_777_216,
   jsonBytes: 80 * 1024 * 1024,
@@ -69,10 +69,9 @@ export function checkGpxPointTotal(files: readonly { fingerprint: string; data: 
   }
 }
 
-// Count UTF-8 without allocating a second buffer the size of an imported file.
+// Contar UTF-8 sin asignar un segundo búfer del tamaño del archivo importado.
 export function checkTextBytes(text: string, kind: 'json' | 'gpx'): void {
-  // A UTF-16 unit encodes to at most three UTF-8 bytes (a surrogate pair to
-  // four). Small documents therefore need no encoding allocation at all.
+  // Una unidad UTF-16 se codifica en un máximo de tres bytes UTF-8 (un par sustituto, en cuatro). Por lo tanto, los documentos pequeños no necesitan asignación de codificación alguna.
   if (text.length * 3 <= INPUT_BUDGETS[`${kind}Bytes`]) return
   let bytes = 0
   const encoder = new TextEncoder()
@@ -85,7 +84,7 @@ export function checkTextBytes(text: string, kind: 'json' | 'gpx'): void {
   }
 }
 
-/** Bounded preflight before AJV, cloning or semantic cross-references. Never edits input. */
+/** Comprobación previa limitada antes de AJV, clonación o referencias cruzadas semánticas. Nunca modifica los datos de entrada. */
 export function checkDocumentBudget(input: unknown): ValidationIssue | null {
   let text = 0, items = 0, points = 0, objects = 0, properties = 0, gpxBytes = 0
   const seen = new WeakSet<object>()
@@ -117,8 +116,8 @@ export function checkDocumentBudget(input: unknown): ValidationIssue | null {
       if (!point && ++objects > INPUT_BUDGETS.objects) return budgetIssue('$', INPUT_BUDGETS.objects, 'objetos')
       for (const key in value) {
         if (!Object.hasOwn(value, key)) continue
-        // Point scalars already have a separate aggregate budget. Unknown
-        // point fields still count, so malformed objects cannot bypass this.
+        // Los escalares de puntos ya cuentan con un presupuesto agregado independiente. Desconocido
+        // Los campos de punto siguen contando, por lo que los objetos con formato incorrecto no pueden eludir esta restricción.
         if (!(point && ['x', 'y', 'latitude', 'longitude'].includes(key)) && ++properties > INPUT_BUDGETS.properties) {
           return budgetIssue('$', INPUT_BUDGETS.properties, 'propiedades')
         }
@@ -129,7 +128,7 @@ export function checkDocumentBudget(input: unknown): ValidationIssue | null {
           gpxBytes += child > 0 ? child : 0
           if (gpxBytes > INPUT_BUDGETS.totalGpxBytes) return budgetIssue('map.gpx', INPUT_BUDGETS.totalGpxBytes / (1024 * 1024), 'MiB en total')
         }
-        // Unknown keys are still bounded before schema rejection.
+        // Las claves desconocidas siguen estando restringidas antes del rechazo del esquema.
         if (key.length > INPUT_BUDGETS.textCharacters) return budgetIssue(path, INPUT_BUDGETS.textCharacters, 'caracteres por clave')
         const issue = visit(child, field, depth + 1)
         if (issue) return issue

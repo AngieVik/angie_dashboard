@@ -1,20 +1,40 @@
 # Manuales operativos
 
+## Scripts de Diagnóstico y Análisis
+
+La aplicación cuenta con una suite de scripts bajo `scripts/` para analizar el estado del código y el rendimiento. Los reportes se generan en el directorio `output/`.
+
+### Análisis de Paquete (Bundle)
+
+node scripts/analyze-bundle.mjs
+Propósito: Reconstruye el empaquetado y genera un reporte (report.md y report.json) detallando el peso por paquete/fuente. Diferencia entre dependencias estáticas iniciales, módulos diferidos (lazy) y web workers.
+
+### Medición de Rendimiento GPX
+
+node --experimental-transform-types scripts/measure-gpx.mjs
+Requisitos: Requiere Node 24.
+Propósito: Mide el rendimiento de CPU (tiempo de parseo y cálculo de envolventes) con casos sintéticos de 1.000, 50.000 y 150.000 puntos GPX.
+
+### Diagnóstico Completo
+
+npm run diagnose:full
+Propósito: Ejecuta el perfil completo de diagnósticos, incluyendo inventario de la app, consistencia de UI, código no usado, dependencias y análisis del bundle.
+
 ## Resolución de problemas
 
-Antes de recargar o cerrar por un fallo, guarda el UIBoard si la interfaz responde. El archivo no incluye todos los datos de sesión; consulta [Datos y persistencia](docs/ARQUITECTURA.md#datos-y-persistencia).
+Antes de recargar o cerrar por un fallo, guarda el UIBoard si la interfaz responde. El archivo no incluye todos los datos de sesión; consulta [Datos y persistencia](docs/architecture.md#datos-y-persistencia).
 
 | Problema                                       | Qué comprobar o hacer                                                                                                                                                                                                                                 |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Falla la instalación                           | Comprueba las versiones de Node.js y npm de [README.md](README.md), el acceso al registro y el primer error de `npm ci`. Si manifiesto y lock no coinciden, corrige esa discrepancia; no sustituyas la instalación por una actualización de paquetes. |
 | Falla lint, tipos o compilación                | Conserva el comando y el primer error con su archivo y línea. Corrige o identifica la causa antes de considerar válida la comprobación.                                                                                                               |
 | `npm start` indica que no existe el build      | Ejecuta `npm run build` desde la raíz y vuelve a iniciar el servidor cuando termine correctamente.                                                                                                                                                    |
-| El puerto está ocupado                         | Detén el servidor anterior si es tuyo o utiliza otro puerto. Para el servidor de la compilación, configura `PORT` según [OPERATIONS.md](OPERATIONS.md#servidor-node-incluido); en desarrollo, usa `npm run dev -- --port 5174`.                       |
+| El puerto está ocupado                         | Detén el servidor anterior si es tuyo o utiliza otro puerto. Para el servidor de la compilación, configura `PORT` según [operations.md](docs/operations.md#servidor-node-incluido); en desarrollo, usa `npm run dev -- --port 5174`.                  |
 | Guardar inicia una descarga                    | El navegador no ofrece el selector de guardado. Comprueba que el archivo se haya descargado; «Descarga iniciada» no confirma un archivo guardado. Conserva el archivo antes de cerrar.                                                                |
 | La copia local no está disponible              | Abre el centro de mensajes. Usa Guardar como para conservar el documento en un archivo y Reintentar recuperación local si aparece esa acción. Ante cambios de otra pestaña, conserva primero la copia de esta sesión.                                 |
 | No carga un módulo                             | Usa Reintentar módulo. Antes de Recargar página, guarda lo recuperable y ten en cuenta la pérdida de datos que solo estén en memoria. Ante un fallo global, utiliza Descargar copia recuperable si está disponible.                                   |
 | Faltan mapas, teselas o resultados de búsqueda | Comprueba la conexión y los mensajes de Mapa o Plano. Las fuentes cartográficas son externas y online; disponer de la PWA sin red no incluye las teselas.                                                                                             |
-| Sigue apareciendo la versión anterior          | Sigue [Actualizar o revertir](OPERATIONS.md#actualizar-o-revertir): tras conservar los datos necesarios, cierra todas las ventanas y pestañas de Angie y vuelve a abrirla. No borres el almacenamiento como primer intento.                           |
+| Sigue apareciendo la versión anterior          | Sigue [Actualizar o revertir](docs/operations.md#actualizar-o-revertir): tras conservar los datos necesarios, cierra todas las ventanas y pestañas de Angie y vuelve a abrirla. No borres el almacenamiento como primer intento.                      |
 
 Si el problema continúa, anota revisión de código, versiones de Node.js/npm o navegador, dispositivo, pasos para reproducirlo y el mensaje de error mínimo. Evita incluir datos operativos reales.
 
@@ -25,7 +45,7 @@ La app se publica como archivos estáticos. El repositorio incluye un servidor N
 ### Preparar la versión
 
 1. Instala las dependencias según [README.md](README.md).
-2. Completa las comprobaciones de [OPERATIONS.md](OPERATIONS.md), incluida la compilación con `npm run build`.
+2. Completa las comprobaciones de [operations.md](docs/operations.md), incluida la compilación con `npm run build`.
 3. Conserva la revisión de código y una copia completa de `dist/` como artefacto de esa versión.
 
 ### Servidor Node incluido

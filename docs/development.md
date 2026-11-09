@@ -35,27 +35,28 @@
 | Propiedad                                            | Regla                                                                                                                |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Fuente general                                       | Roboto Condensed.                                                                                                    |
+| Fuentes alternativas                                 | Si la fuente principal no está disponible, se utiliza la fuente del sistema del dispositivo.                         |
 | Texto general, etiquetas, controles y datos técnicos | Tamaño de fuente de 13.                                                                                              |
 | Títulos de contenido                                 | Tamaño de fuente de 16.                                                                                              |
-| Números del módulo Reloj                             | Rajdhani para horas y temporizadores; Hora principal se adaptan al contenedor.                                       |
-| Separación entre elementos                           | 4.                                                                                                                   |
-| Separación entre grupos de contenido                 | 6.                                                                                                                   |
-| Padding común de campos y botones de texto           | 2 por lado, aplicado una sola vez.                                                                                   |
-| Cabeceras de módulo y avisos Sonner                  | Tamaño de fuente de 13.                                                                                              |
+| Avisos Sonner                                        | Tamaño de fuente de 13.                                                                                              |
+| Números del módulo Reloj                             | Rajdhani para horas y temporizadores; Hora principal se adapta al contenedor.                                        |
+| Padding entre elementos                              | 4px                                                                                                                  |
+| Padding entre grupos de contenido                    | 6px                                                                                                                  |
+| Padding de campo                                     | 0px 2px                                                                                                              |
+| Padding de boton de texto                            | 0px 2px                                                                                                              |
 | Peso tipográfico y altura de línea                   | Se conservan los valores del CSS Module propietario de cada componente, salvo las excepciones expresas de esta guía. |
-| Fuentes alternativas                                 | Si la fuente principal no está disponible, se utiliza la fuente del sistema del dispositivo.                         |
 
 ## Colores y superficies
 
 | Función                        | Color o acabado                          |
 | ------------------------------ | ---------------------------------------- |
-| Fondo del escritorio           | #0C0C0C                                  |
+| Fondo de escritorio            | #0C0C0C                                  |
 | Fondo de ventana               | #181818                                  |
-| Fondo de campos                | #111111                                  |
+| Fondo de campo                 | #111111                                  |
 | Fondo de barra inferior        | #181818                                  |
 | Fondo de opción activa         | #303030                                  |
-| Botón en estado normal         | Degradado de #333333 a #252525           |
-| Botón al pasar el puntero      | Degradado de #404040 a #303030           |
+| Botón                          | Degradado de #333333 a #252525           |
+| Botón hover                    | Degradado de #404040 a #303030           |
 | Barra de título                | Degradado de #383838 a #2C2C2C a #222222 |
 | Barra de herramientas          | Degradado de #2E2E2E a #1D1D1D           |
 | Texto principal                | #F2F2F2                                  |
@@ -87,17 +88,17 @@
 
 ## Campos y controles
 
-| Elemento                       | Componente o selector                             | Ancho                    | Alto | Padding | Font Name        | Font Size | Fondo    | Borde | Radio |
-| ------------------------------ | ------------------------------------------------- | ------------------------ | ---- | ------- | ---------------- | --------- | -------- | ----- | ----- |
-| Casilla de selección           | Checkbox                                          | 15                       | 15   | 0       | No aplica        | No aplica | De campo | 1     | 3     |
-| Botón de solo icono            | Button con variant="icon";                        | 25                       | 25   | 0       | No aplica        | No aplica | No       | No    | 3     |
-| Botón de texto o icono y texto | Button con variant="text";                        | Según contenido          | 25   | 0px 2px | Roboto Condensed | 13        | De botón | 1     | 3     |
-| Campo de texto de una línea    | Input                                             | Según contenido previsto | 25   | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
-| Área de texto de varias líneas | Textarea                                          | Según contenido previsto | 25   | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
-| Campo numérico                 | Input con type="number"                           | Según contenido previsto | 25   | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
-| Campo de fecha, mes u hora     | Input con type="date", type="month" o type="time" | Según contenido          | 25   | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
-| Selector desplegable           | Select                                            | Según contenido          | 25   | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
-| Campo de duración              | DurationInput, construido sobre Input             | Según contenido          | 25   | 0px 2px | Rajdhani         | 13        | De campo | 1     | 3     |
+| Elemento                        | Componente o selector                             | Ancho                    | Alto | Padding | Font Name        | Font Size | Fondo    | Borde | Radio |
+| ------------------------------- | ------------------------------------------------- | ------------------------ | ---- | ------- | ---------------- | --------- | -------- | ----- | ----- |
+| Casilla de selección            | Checkbox                                          | 15px                     | 15px | 0       | No aplica        | No aplica | De campo | 1     | 3     |
+| Selector desplegable            | Select                                            | Según contenido          | 25px | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
+| Botón de solo icono             | Button con variant="icon";                        | 25px                     | 25px | 0       | No aplica        | No aplica | No       | No    | 3     |
+| Botón de texto o icono y texto  | Button con variant="text";                        | Según contenido          | 25px | 0px 2px | Roboto Condensed | 13        | De botón | 1     | 3     |
+| Campo de texto de una línea     | Input                                             | Según contenido previsto | 25px | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
+| Campo de duración               | DurationInput, construido sobre Input             | Según contenido          | 25px | 0px 2px | Rajdhani         | 13        | De campo | 1     | 3     |
+| Campo de texto de varias líneas | Textarea                                          | Según contenido previsto | 25px | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
+| Campo numérico                  | Input con type="number"                           | Según contenido previsto | 25px | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
+| Campo de fecha, mes u hora      | Input con type="date", type="month" o type="time" | Según contenido          | 25px | 0px 2px | Roboto Condensed | 13        | De campo | 1     | 3     |
 
 - Acabados de botón de solo icono:
     - **Normal:** transparente y sin marco visible en reposo; al pasar el puntero muestra el acabado común de interacción.
@@ -107,46 +108,46 @@
 
 | Elemento                           | Componente o selector                                      | Ancho              | Alto            | Padding | Font Name        | Font Size | Fondo    | Borde | Radio |
 | ---------------------------------- | ---------------------------------------------------------- | ------------------ | --------------- | ------- | ---------------- | --------- | -------- | ----- | ----- |
-| Icono visible                      | Componentes de lucide-react con clase .lucide              | 15                 | 15              | 0       | No aplica        | No aplica | No       | No    | No    |
-| Título de contenido                | h3, strong y equivalentes; token --font-size-title,        | Según contenido    | 15              | 0       | Roboto Condensed | 16        | No       | No    | No    |
-| Nombre de tarjeta de Información   | .information-name; token --font-size-title                 | Según contenido    | 15              | 0       | Roboto Condensed | 16        | No       | No    | No    |
-| Contenedor del texto               | `span` interior de otro contenedor; token --font-size-body | Según contenido    | 17              | 0       | Roboto Condensed | 13        | No       | No    | No    |
-| Dato técnico                       | .technical-data; token --font-size-technical               | Según contenido    | 17              | 0px 2px | Roboto Condensed | 13        | No       | No    | No    |
-| Indicador de estado de Información | Badge con clase .information-status                        | Según distribución | 17              | 0px 2px | Roboto Condensed | 13        | De botón | 1     | 3     |
-| Fila de estado operativo           | Button con clase .operations-state; .operations-custom-row | Según distribución | 17              | 0px 2px | Roboto Condensed | 13        | De botón | 1     | 3     |
-| Fila de contenido                  | .element-row en [elements.module.css]                      | Según contenido    | 17              | 0px 2px | Roboto Condensed | 13        | No       | No    | No    |
-| Tarjeta de contenido               | .information-card en [information.module.css]              | Según contenido    | 17              | 0px 2px | Roboto Condensed | 13        | No       | No    | No    |
+| Icono visible                      | Componentes de lucide-react con clase .lucide              | 15px               | 15px            | 0       | No aplica        | No aplica | No       | No    | No    |
+| Título de contenido                | h3, strong y equivalentes; token --font-size-title         | Según contenido    | 15px            | 0       | Roboto Condensed | 16        | No       | No    | No    |
+| Nombre de tarjeta de Información   | .information-name; token --font-size-title                 | Según contenido    | 15px            | 0       | Roboto Condensed | 16        | No       | No    | No    |
+| Contenedor del texto               | `span` interior de otro contenedor; token --font-size-body | Según contenido    | 17px            | 0       | Roboto Condensed | 13        | No       | No    | No    |
+| Dato técnico                       | .technical-data; token --font-size-technical               | Según contenido    | 17px            | 0px 2px | Roboto Condensed | 13        | No       | No    | No    |
+| Indicador de estado de Información | Badge con clase .information-status                        | Según distribución | 17px            | 0px 2px | Roboto Condensed | 13        | De botón | 1     | 3     |
+| Fila de estado operativo           | Button con clase .operations-state; .operations-custom-row | Según distribución | 17px            | 0px 2px | Roboto Condensed | 13        | De botón | 1     | 3     |
+| Fila de contenido                  | .element-row en [elements.module.css]                      | Según contenido    | 17px            | 0px 2px | Roboto Condensed | 13        | No       | No    | No    |
+| Tarjeta de contenido               | .information-card en [information.module.css]              | Según contenido    | 17px            | 0px 2px | Roboto Condensed | 13        | No       | No    | No    |
 | Hora principal                     | ClockModule; .clock-esp                                    | Según contenido    | Según contenido | 0px 2px | Rajdhani         | Adaptable | No       | No    | No    |
-| Temporizadores                     | TimerRow; .timer-value                                     | Según contenido    | 17              | 0px 2px | Rajdhani         | 13        | No       | No    | No    |
-| Hora Zulu                          | ClockModule; .clock-zulu output                            | Según contenido    | 17              | 0px 2px | Rajdhani         | 13        | No       | No    | No    |
+| Temporizadores                     | TimerRow; .timer-value                                     | Según contenido    | 17px            | 0px 2px | Rajdhani         | 13        | No       | No    | No    |
+| Hora Zulu                          | ClockModule; .clock-zulu output                            | Según contenido    | 17px            | 0px 2px | Rajdhani         | 13        | No       | No    | No    |
 
 ## Estructura de las ventanas
 
 | Elemento              | Componente o selector                                  | Ancho              | Alto   | Padding          | Font Name        | Font Size | Fondo                    | Borde                      | Radio |
 | --------------------- | ------------------------------------------------------ | ------------------ | ------ | ---------------- | ---------------- | --------- | ------------------------ | -------------------------- | ----- |
 | Marco de ventana      | ModuleFrame; clase y data-slot module-frame            | Modulo             | Modulo | No               | No aplica        | No aplica | Fondo de ventana         | 1                          | 3     |
-| Barra inferior        | div de ModuleFrame; clase y data-slot module-controls  | Según ventana      | 25     | 0px 27px 0px 2px | Roboto Condensed | 13        | Fondo de barra inferior  | No                         | Marco |
-| Barra de título       | header de ModuleFrame; clase y data-slot module-header | Según ventana      | 27     | 0px 2px          | Roboto Condensed | 13        | Fondo de barra de título | Separador de 1 a contenido | Marco |
-| Barra de herramientas | toolbarStyles.base en moduleToolbar.module.css         | Según distribución | 27     | 3px 5px          | Roboto Condensed | 13        | Fondo de herramientas    | Separador de 1 a contenido | Marco |
+| Barra inferior        | div de ModuleFrame; clase y data-slot module-controls  | Según ventana      | 25px   | 0px 27px 0px 2px | Roboto Condensed | 13        | Fondo de barra inferior  | No                         | Marco |
+| Barra de título       | header de ModuleFrame; clase y data-slot module-header | Según ventana      | 27px   | 0px 2px          | Roboto Condensed | 13        | Fondo de barra de título | Separador de 1 a contenido | Marco |
+| Barra de herramientas | toolbarStyles.base en moduleToolbar.module.css         | Según distribución | 27px   | 3px 5px          | Roboto Condensed | 13        | Fondo de herramientas    | Separador de 1 a contenido | Marco |
 
 ## Tamaños y comportamiento por módulo
 
-| Módulo          | Ancho | Alto            | Recogido | Max Auto. | Barra Herr. |
-| --------------- | ----- | --------------- | -------- | --------- | ----------- |
-| Pizarra         | 510   | 420             | 510 × 27 | No        | Sí          |
-| Mapa            | 510   | 420             | 510 × 27 | No        | Sí          |
-| Plano operativo | 510   | 420             | 510 × 27 | No        | Sí          |
-| Informes        | 240   | Según contenido | 240 × 27 | No        | Si          |
-| Calculadora     | 240   | Según contenido | 240 × 27 | No        | Sí          |
-| Elementos       | 240   | Según contenido | 240 × 27 | 500       | Sí          |
-| Dotaciones      | 240   | Según contenido | 240 × 27 | 500       | Sí          |
-| Registro        | 240   | Según contenido | 240 × 27 | 500       | Si          |
-| Cuaderno        | 240   | Según contenido | 240 × 27 | 500       | Sí          |
-| Información     | 240   | Según contenido | 240 × 27 | 500       | No          |
-| Reloj           | 240   | Según contenido | 240 × 27 | 500       | No          |
-| Coordenadas     | 240   | Según contenido | 240 × 27 | No        | No          |
-| Calendario      | 240   | Según contenido | 240 × 27 | No        | No          |
-| Operativo       | 150   | Según contenido | 150 × 27 | No        | No          |
+| Módulo          | Ancho | Alto            | Colapsado  | Contraido | Max Auto. | Barra Herr. |
+| --------------- | ----- | --------------- | ---------- | --------- | --------- | ----------- |
+| Pizarra         | 510px | 420px           | 510 × 27px | 27 x 27px | No        | Sí          |
+| Mapa            | 510px | 420px           | 510 × 27px | 27 x 27px | No        | Sí          |
+| Plano operativo | 510px | 420px           | 510 × 27px | 27 x 27px | No        | Sí          |
+| Informes        | 240px | Según contenido | 240 × 27px | 27 x 27px | No        | Si          |
+| Calculadora     | 240px | Según contenido | 240 × 27px | 27 x 27px | No        | Sí          |
+| Elementos       | 240px | Según contenido | 240 × 27px | 27 x 27px | 500px     | Sí          |
+| Dotaciones      | 240px | Según contenido | 240 × 27px | 27 x 27px | 500px     | Sí          |
+| Registro        | 240px | Según contenido | 240 × 27px | 27 x 27px | 500px     | Si          |
+| Cuaderno        | 240px | Según contenido | 240 × 27px | 27 x 27px | 500px     | Sí          |
+| Información     | 240px | Según contenido | 240 × 27px | 27 x 27px | 500px     | No          |
+| Reloj           | 240px | Según contenido | 240 × 27px | 27 x 27px | 500px     | No          |
+| Coordenadas     | 240px | Según contenido | 240 × 27px | 27 x 27px | No        | No          |
+| Calendario      | 240px | Según contenido | 240 × 27px | 27 x 27px | No        | No          |
+| Operativo       | 150px | Según contenido | 150 × 27px | 27 x 27px | No        | No          |
 
 ### Reglas de tamaño
 
@@ -163,6 +164,39 @@
 - **Redimensionado manual:** Permite superar la altura máxima automática y el ancho basico, desactiva el autoajuste hasta que el usuario lo reactive. Sus límites son independientes de los del crecimiento automático.
     - **Reducir:** Mantiene accesibles las herramientas y permite desplazar listas o textos, sin exigir que todo el contenido permanezca visible.
     - **Ampliar:** Las listas, áreas de texto, vistas y contenedores ampliables reciben el espacio según el reparto de cada módulo. Los controles de una línea conservan su altura.
+
+## Especificaciones de UI y Componentes
+
+### Sistema de Botones
+
+- **Altura base:** 17px.
+- **Composición:** Utilizan la variable CSS `--button-label-height` para mantener el alineamiento en textos multilínea sin romper el diseño. Los nodos de texto simples se agrupan en un `span` con `data-slot="button-label"`.
+
+### Dimensiones de Módulos (Grid Layout)
+
+- **Ancho básico estándar:**
+    - 150px para `Operativo`.
+    - 240px para `Informes`, `Calculadora`, `Elementos`, `Dotaciones`, `Registro`, `Cuaderno`, `Información`, `Reloj`, `Coordenadas`, `Calendario`.
+    - 510px para `Pizarra`, `Mapa`, `Plano operativo`.
+
+### Marcadores del Mapa (Leaflet)
+
+- **Iconos (SVG):** Se renderizan como `L.divIcon` con dimensiones de 18 × 26 px.
+- **Anclaje:** La punta inferior del marcador se ancla en las coordenadas `[9, 26]`.
+- **Interacción:** El umbral de ajuste de píxeles (snap) para la selección de rutas GPX es de 14 píxeles.
+
+## Límites de Entrada (InputBudgets)
+
+Para garantizar la estabilidad de la aplicación y el rendimiento en el navegador, se aplican los siguientes límites antes de admitir contenido:
+
+- **Gestos y Navegación:** El umbral para iniciar un arrastre (paneo) en el escritorio o mover pines es de 4px.
+- **Archivos de Imagen:**
+    - Límite de tamaño: 50 MiB [comprimidos].
+    - Límite de dimensiones: Máximo 8192 píxeles por lado y un total de 16.777.216 píxeles. Las imágenes admitidas se reducen a 4096 píxeles en su lado mayor.
+- **Archivos GPX:**
+    - Límite de sesión: Máximo 20 archivos GPX simultáneos.
+    - Límite de tamaño: Máximo 50 MiB en total.
+    - Procesamiento: Las tareas se envían al Web Worker en lotes de 512 elementos para no bloquear el hilo principal.
 
 ## Contributing
 
