@@ -12,7 +12,7 @@ export default tseslint.config(
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
-    // Compatibility signatures mark intentionally unused parameters with an underscore.
+    // Las firmas de compatibilidad marcan los parámetros que no se utilizan intencionadamente con un guión bajo.
     rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }] },
   },
   {

@@ -80,7 +80,7 @@ Los comandos individuales descritos a continuación admiten `--help` y escritura
 
 Para repetir el análisis en otro entorno con las dependencias del proyecto instaladas:
 node scripts/analyze-bundle.mjs
-El [analizador](D:/Proyectos/angie_dashboard/scripts/analyze-bundle.mjs) genera el informe y un [JSON detallado](D:/Proyectos/angie_dashboard/output/analize-app-scripts/08_bundle_analysis/report.json), sin modificar dist ni instalar dependencias.
+El [analizador](../scripts/analyze-bundle.mjs) genera el informe y un [JSON detallado](../output/analize-app-scripts/08_bundle_analysis/report.json), sin modificar dist ni instalar dependencias.
 
 El informe JSON V2 incluye `modules` por chunk de interfaz y worker, con identidad, `renderedExports`, `renderedLength` y `attributedBytes`. La pertenencia al chunk procede del empaquetador; `renderedLength` es una medida de una fase anterior a la minificación final y no se suma a los bytes reales ni se presenta como ahorro.
 
@@ -218,11 +218,20 @@ La política `scripts/config/ui-consistency.json` se valida con AJV, exige ident
 
 Las alertas inline sin base equivalente quedan visibles en `ungroupedSurfaces`; no se comparan dimensiones de alertas distintas solo por compartir `role="alert"`. Los grupos sin usos detectados también se muestran. Las medidas específicas de Mapa, Plano, Informes y las demás áreas siguen disponibles en el inventario y las reglas CSS, sin introducir una norma universal de tamaños o padding.
 
-La raíz del Reloj comparte Roboto Condensed con los demás módulos, según `DISEÑO.md` y su CSS propietario; no requiere una excepción de familia de fuente. Rajdhani se limita a sus cifras y al campo de duración inicial, que no son la raíz comparada. La política actual no declara excepciones. Cuando sean necesarias, incluyen grupo, módulo, propiedad, valor esperado, motivo y fuentes; no aceptan exclusiones globales ni identificadores/objetivos duplicados.
+La raíz del Reloj comparte Roboto Condensed con los demás módulos, según [design.md](design.md) y su CSS propietario; no requiere una excepción de familia de fuente. Rajdhani se limita a sus cifras y al campo de duración inicial, que no son la raíz comparada. La política actual no declara excepciones. Cuando sean necesarias, incluyen grupo, módulo, propiedad, valor esperado, motivo y fuentes; no aceptan exclusiones globales ni identificadores/objetivos duplicados.
 
 Una excepción solo retira esa entrada de la comparación cuando el valor coincide. Se conserva en `appliedExceptions`. Si el valor cambia, aparece en `exceptionViolations` y en los hallazgos de coherencia aunque el nuevo valor coincida con el resto de módulos. Si no se encuentra el módulo, la propiedad o un miembro explícito, aparece en `uncertainties` y el diagnóstico coordinado queda parcial. Una configuración inválida hace fallar la etapa; no se ignora silenciosamente.
 
-El informe muestra los grupos efectivos, sus miembros, propiedades, motivos, excepciones verificadas, discrepancias y superficies sin grupo. La política y su huella se guardan en el JSON; forman parte de la huella del motor. Cambiarla invalida la comparación automática con ejecuciones del motor anterior, evitando interpretar los avisos filtrados como problemas corregidos. `DISEÑO.md` y `ARQUITECTURA.md` también se incluyen entre las entradas inventariadas.
+El informe muestra los grupos efectivos, sus miembros, propiedades, motivos, excepciones verificadas, discrepancias y superficies sin grupo. La política y su huella se guardan en el JSON; forman parte de la huella del motor. Cambiarla invalida la comparación automática con ejecuciones del motor anterior, evitando interpretar los avisos filtrados como problemas corregidos. La cobertura documental de la huella se concreta a continuación.
+
+### Referencias documentales y cobertura
+
+La política y la huella comparten las ubicaciones documentales vigentes:
+
+- [ui-consistency.json](../scripts/config/ui-consistency.json) remite a `docs/development.md` para el objetivo tipográfico común y a `docs/design.md` para la integración compartida de los diálogos de Archivo. [ui-policy.mjs](../scripts/lib/ui-policy.mjs) valida la estructura y exige que las fuentes declaradas existan; los grupos, propiedades y excepciones comparados no cambian con esta corrección de rutas.
+- [snapshot.mjs](../scripts/lib/snapshot.mjs) incluye `AGENTS.md`, `docs/architecture.md`, `docs/design.md` y `docs/development.md`, además de las demás entradas técnicas descritas en esta guía. Esta lista no implica que todos los Markdown del repositorio formen parte de la huella.
+
+**Verificación acotada: 2026-11-14.** Se cargó la política con sus cinco grupos, se obtuvo una huella y se comprobó que las cuatro entradas documentales anteriores y todas las fuentes de la política estaban cubiertas. Se simularon cambios de hash en memoria para verificar que `changedInputs` identifica cada documento, sin modificar esos archivos ni escribir informes. No se ejecutaron los perfiles completos de diagnóstico ni se acreditó funcionamiento en navegador. La modificación de las herramientas cambia la huella del motor; una referencia anterior incompatible no debe utilizarse para atribuir diferencias a correcciones de la app.
 
 Las comparaciones siguen siendo textuales sobre declaraciones y expansiones conocidas: no resuelven toda la semántica o cascada CSS, ni acreditan que el estilo renderizado sea correcto. Modificar la política ajusta el análisis, no la interfaz de Angie. Para cambiar una decisión visual, primero debe acordarse ese cambio y actualizarse su fuente propietaria.
 

@@ -1,5 +1,7 @@
 # Manuales operativos
 
+Este documento es propietario de los procedimientos de validación, ejecución, publicación y resolución de incidencias. La política de trabajo y comprobaciones pertenece a [AGENTS.md](../AGENTS.md#responsabilidades-de-la-documentación); los contratos y recorridos técnicos, a [Arquitectura](architecture.md); las decisiones visuales, a [development.md](development.md).
+
 ## Scripts de Diagnóstico y Análisis
 
 La aplicación cuenta con una suite de scripts bajo `scripts/` para analizar el estado del código y el rendimiento. Los reportes se generan en el directorio `output/`.
@@ -22,31 +24,38 @@ Propósito: Ejecuta el perfil completo de diagnósticos, incluyendo inventario d
 
 ## Resolución de problemas
 
-Antes de recargar o cerrar por un fallo, guarda el UIBoard si la interfaz responde. El archivo no incluye todos los datos de sesión; consulta [Datos y persistencia](docs/architecture.md#datos-y-persistencia).
+Antes de recargar o cerrar por un fallo, guarda el UIBoard si la interfaz responde. El archivo no incluye todos los datos de sesión; consulta [Datos y persistencia](architecture.md#datos-y-persistencia).
 
 | Problema                                       | Qué comprobar o hacer                                                                                                                                                                                                                                 |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Falla la instalación                           | Comprueba las versiones de Node.js y npm de [README.md](README.md), el acceso al registro y el primer error de `npm ci`. Si manifiesto y lock no coinciden, corrige esa discrepancia; no sustituyas la instalación por una actualización de paquetes. |
+| Falla la instalación                           | Comprueba las versiones de Node.js y npm de [README.md](../README.md), el acceso al registro y el primer error de `npm ci`. Si manifiesto y lock no coinciden, corrige esa discrepancia; no sustituyas la instalación por una actualización de paquetes. |
 | Falla lint, tipos o compilación                | Conserva el comando y el primer error con su archivo y línea. Corrige o identifica la causa antes de considerar válida la comprobación.                                                                                                               |
 | `npm start` indica que no existe el build      | Ejecuta `npm run build` desde la raíz y vuelve a iniciar el servidor cuando termine correctamente.                                                                                                                                                    |
-| El puerto está ocupado                         | Detén el servidor anterior si es tuyo o utiliza otro puerto. Para el servidor de la compilación, configura `PORT` según [operations.md](docs/operations.md#servidor-node-incluido); en desarrollo, usa `npm run dev -- --port 5174`.                  |
+| El puerto está ocupado                         | Detén el servidor anterior si es tuyo o utiliza otro puerto. Para el servidor de la compilación, configura `PORT` según [OPERATIONS.md](OPERATIONS.md#servidor-node-incluido); en desarrollo, usa `npm run dev -- --port 5174`.                  |
 | Guardar inicia una descarga                    | El navegador no ofrece el selector de guardado. Comprueba que el archivo se haya descargado; «Descarga iniciada» no confirma un archivo guardado. Conserva el archivo antes de cerrar.                                                                |
 | La copia local no está disponible              | Abre el centro de mensajes. Usa Guardar como para conservar el documento en un archivo y Reintentar recuperación local si aparece esa acción. Ante cambios de otra pestaña, conserva primero la copia de esta sesión.                                 |
 | No carga un módulo                             | Usa Reintentar módulo. Antes de Recargar página, guarda lo recuperable y ten en cuenta la pérdida de datos que solo estén en memoria. Ante un fallo global, utiliza Descargar copia recuperable si está disponible.                                   |
 | Faltan mapas, teselas o resultados de búsqueda | Comprueba la conexión y los mensajes de Mapa o Plano. Las fuentes cartográficas son externas y online; disponer de la PWA sin red no incluye las teselas.                                                                                             |
-| Sigue apareciendo la versión anterior          | Sigue [Actualizar o revertir](docs/operations.md#actualizar-o-revertir): tras conservar los datos necesarios, cierra todas las ventanas y pestañas de Angie y vuelve a abrirla. No borres el almacenamiento como primer intento.                      |
+| Sigue apareciendo la versión anterior          | Sigue [Actualizar o revertir](OPERATIONS.md#actualizar-o-revertir): tras conservar los datos necesarios, cierra todas las ventanas y pestañas de Angie y vuelve a abrirla. No borres el almacenamiento como primer intento.                      |
 
 Si el problema continúa, anota revisión de código, versiones de Node.js/npm o navegador, dispositivo, pasos para reproducirlo y el mensaje de error mínimo. Evita incluir datos operativos reales.
 
 ## Compilación y despliegue
 
-La app se publica como archivos estáticos. El repositorio incluye un servidor Node para servirlos; no define un proveedor de alojamiento ni un pipeline CI/CD. El destino y el procedimiento de publicación de producción están pendientes de concretar.
+La app está publicada como sitio estático en [angie-dashboard.netlify.app](https://angie-dashboard.netlify.app/), en el proyecto Netlify [angie-dashboard](https://app.netlify.com/projects/angie-dashboard). El servidor Node incluido sirve la compilación local; Netlify sirve los archivos estáticos de producción.
+
+### Destino e identidad de la publicación
+
+**Consulta de Netlify: 2026-11-14.** El proyecto tiene el identificador `02a8f724-443d-447e-90e3-713b90ce7c95`. El despliegue publicado que devolvió la plataforma es `6ad2f68760940d77d153db53`, en estado `ready`, contexto `production` y rama `main`, asociado a la revisión `78e562a0be3f1da00ab0f3ad1f9c7ae5a011e951`.
+
+La identidad y fecha originales se registran en [CHANGELOG.md](../CHANGELOG.md#registro-de-publicaciones). El estado de la plataforma no acredita funcionamiento en navegador, recuperación de datos ni actualización PWA. La comprobación HTTP desde el entorno de revisión no pudo completarse por un fallo de autenticación TLS; queda pendiente la comprobación de acceso y funcionamiento en navegador.
 
 ### Preparar la versión
 
-1. Instala las dependencias según [README.md](README.md).
-2. Completa las comprobaciones de [operations.md](docs/operations.md), incluida la compilación con `npm run build`.
-3. Conserva la revisión de código y una copia completa de `dist/` como artefacto de esa versión.
+1. Instala las dependencias según [README.md](../README.md).
+2. Completa las comprobaciones de [OPERATIONS.md](OPERATIONS.md), incluida la compilación con `npm run build`.
+3. Identifica la versión, revisión exacta y cambios locales incluidos. Una compilación con cambios locales no se identifica únicamente con el commit de partida.
+4. Conserva una copia completa de `dist/` como artefacto de esa versión y el despliegue anterior que permitiría revertirla.
 
 ### Servidor Node incluido
 
@@ -74,17 +83,33 @@ Estas variables se leen del entorno del proceso; el servidor no carga archivos `
 
 ### Publicar los archivos
 
+El destino es el proyecto existente `angie-dashboard`; conserva su dirección HTTPS. Antes de cualquier publicación, completa la validación anterior y obtén autorización explícita para la revisión y el artefacto concretos.
+
+1. Abre el proyecto Netlify y revisa **Deploys** y **Project configuration > Developer settings > Continuous deployment**. Confirma el repositorio, la rama de producción y si está activa la publicación automática. La rama del despliegue consultado no demuestra por sí sola la configuración actual de automatización.
+2. Comprueba los ajustes de compilación para este repositorio: directorio base en la raíz, comando `npm run build` y directorio publicado `dist`. Son los ajustes esperados según el código local; la conexión consultada no expone sus valores actuales. Si se compila en Netlify, contrasta también las versiones de Node/npm con las de referencia de [README.md](../README.md).
+3. Para una publicación conectada a Git, utiliza la revisión validada mediante el flujo autorizado. Un push a la rama de producción puede activar la compilación y publicación; requiere autorización explícita. Para una carga manual, utiliza el proyecto existente y el contenido completo de `dist/` ya compilado, incluyendo assets, manifiesto y service worker. No publiques el repositorio, `src/` ni `node_modules/` como artefacto estático.
+4. Espera a que el despliegue termine correctamente y confirma que es el publicado en la dirección principal. Conserva su identificador, enlace permanente y revisión. Una URL de rama o una vista previa no acredita publicación en producción.
+5. Comprueba en la dirección principal los flujos de [Validación](#validación), incluida la PWA. Registra resultados y pendientes en [CHANGELOG.md](../CHANGELOG.md#registro-de-publicaciones).
+
+En cada publicación registra: fecha y hora con zona, versión declarada, revisión y cambios locales, ID de deploy, enlace permanente, dirección principal, modo de publicación, referencia del artefacto conservado, ID de la versión anterior, autorización y validación obtenida. Los campos no comprobados se marcan como pendientes.
+
+Referencia de ajustes: [Build configuration overview de Netlify](https://docs.netlify.com/build/configure-builds/overview/). Este procedimiento no instala una CLI ni cambia los ajustes del alojamiento.
+
 ### Actualizar o revertir
 
 Publica cada versión como un conjunto completo y conserva el artefacto anterior para poder restaurarlo en el mismo origen. La reversión del código no revierte los datos guardados por el usuario.
 
-El service worker mantiene la versión nueva en espera mientras existan ventanas o pestañas controladas por la anterior. Guarda el UIBoard y conserva por separado los datos de sesión necesarios antes de cerrar todas las ventanas de Angie y volver a abrirla. El alcance del guardado está en [Arquitectura](docs/ARQUITECTURA.md#datos-y-persistencia).
+Para revertir, identifica en **Deploys** un despliegue anterior correcto que siga disponible, comprueba su revisión y obtén autorización explícita. En el detalle de ese despliegue utiliza **Publish Deploy** y confirma que queda publicado. Se reutiliza el despliegue conservado: **Retry deploy** reconstruye desde la revisión actual de la rama y no garantiza recuperar el artefacto anterior.
+
+Si la publicación automática está activa, un nuevo despliegue de producción puede sustituir la reversión. Comprueba su estado antes de operar y acuerda cualquier cambio de bloqueo o automatización. Conserva también el artefacto local: la disponibilidad histórica en Netlify depende de su retención. Procedimiento de referencia: [Manage deploys de Netlify](https://docs.netlify.com/deploy/manage-deploys/manage-deploys-overview/#rollbacks).
+
+El service worker mantiene la versión nueva en espera mientras existan ventanas o pestañas controladas por la anterior. Guarda el UIBoard y conserva por separado los datos de sesión necesarios antes de cerrar todas las ventanas de Angie y volver a abrirla. El alcance del guardado está en [Arquitectura](architecture.md#datos-y-persistencia).
 
 Tras publicar o restaurar una versión, comprueba su carga y el comportamiento PWA. Este procedimiento no requiere borrar el almacenamiento del navegador.
 
 ## Validación
 
-Ejecuta los comandos desde la raíz, con las dependencias instaladas según [README.md](README.md).
+Ejecuta los comandos desde la raíz, con las dependencias instaladas según [README.md](../README.md).
 
 ### Comprobaciones estáticas
 
@@ -95,7 +120,7 @@ npm run build
 
 Ambos comandos deben terminar sin errores. `build` comprueba los tipos y genera `dist/`; `npm run typecheck` permite comprobar solo los tipos.
 
-No hay un script `npm test` ni una cobertura mínima configurada. Las pruebas E2E automatizadas están desactivadas; la validación funcional es manual, según [AGENTS.md](docs/AGENTS.md#pruebas-y-depuración).
+No hay un script `npm test` ni una cobertura mínima configurada. Las pruebas E2E automatizadas están desactivadas; la validación funcional es manual, según [AGENTS.md](../AGENTS.md#pruebas-y-depuración).
 
 ### Comprobación manual
 
@@ -108,7 +133,7 @@ npm start
 Abre la dirección que muestra la terminal, por defecto [http://127.0.0.1:4180](http://127.0.0.1:4180), y utiliza un UIBoard de prueba, sin datos reales. Comprueba el área modificada y sus consumidores; antes de publicar, recorre esta lista completa:
 
 - **Datos:** crear un UIBoard, añadir una dotación, cambiar su estado y comprobar Información y Registro. Crear y editar una nota y un checklist.
-- **Archivo:** guardar, confirmar el resultado y volver a abrirlo. Deben conservarse los datos portables y los módulos abiertos; el alcance exacto está en [Datos y persistencia](docs/ARQUITECTURA.md#datos-y-persistencia).
+- **Archivo:** guardar, confirmar el resultado y volver a abrirlo. Deben conservarse los datos portables y los módulos abiertos; el alcance exacto está en [Datos y persistencia](architecture.md#datos-y-persistencia).
 - **Copia local:** esperar a que Archivo indique guardado en el dispositivo, recargar y comprobar la recuperación de los datos portables. Hacer esta prueba sin recursos ni geometría que solo estén en memoria.
 - **Ventanas:** abrir, recoger, expandir, redimensionar y cambiar el zoom. Las herramientas y el contenido deben seguir accesibles. Comprobar también el foco y las acciones con teclado.
 - **Informes:** seleccionar campos, generar la vista previa, guardar HTML y abrir Imprimir/PDF. Comprobar que la salida contiene los campos seleccionados.
@@ -218,4 +243,4 @@ Usa temporizadores ficticios en dos pestañas del mismo origen y permite el audi
 - Con una escritura pendiente, provoca un fallo de almacenamiento y realiza otras órdenes. Deben conservarse en memoria sin iniciar audio nuevo. Si A cambia después la revisión guardada, el reintento de B debe mostrar conflicto, conservar su trabajo y bloquear nuevas alarmas hasta la recarga explícita. Silenciar debe funcionar durante el conflicto.
 - Provoca un fallo en la primera lectura, crea un temporizador en memoria y reintenta al recuperar acceso: debe conservarse junto a los registros guardados. Sin Web Locks, deben mostrarse los avisos de indisponibilidad y conservarse las órdenes en memoria sin iniciar alarmas automáticas.
 
-Los diagnósticos son análisis opcionales; sus comandos y límites están en [la guía de scripts](docs/guia_scripts.md). No sustituyen estas comprobaciones.
+Los diagnósticos son análisis opcionales; sus comandos y límites están en [la guía de scripts](guia_scripts.md). No sustituyen estas comprobaciones.

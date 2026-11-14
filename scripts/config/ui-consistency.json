@@ -7,7 +7,7 @@
       "target": "modules",
       "properties": ["font-family", "font-size"],
       "reason": "La interfaz comparte fuente y tokens de contenido de ModuleFrame; las especializaciones documentadas se comprueban mediante excepciones concretas.",
-      "sources": ["DISEÑO.md", "src/layout/moduleFrame.module.css", "src/styles/tokens.css"]
+      "sources": ["docs/development.md", "src/layout/moduleFrame.module.css", "src/styles/tokens.css"]
     },
     {
       "id": "element-lists",
@@ -24,7 +24,7 @@
       "target": "fileDialog",
       "properties": ["font-family", "font-size", "font-weight", "line-height", "padding", "padding-inline", "padding-block", "padding-top", "padding-right", "padding-bottom", "padding-left"],
       "reason": "Comparten FileDialogContent. Los anchos y altos iniciales y fitToContent corresponden a formularios distintos y se conservan en el inventario sin exigir igualdad.",
-      "sources": ["src/features/document/FileDialog.tsx", "src/features/document/fileDialog.module.css", "DISEÑO.md"]
+      "sources": ["src/features/document/FileDialog.tsx", "src/features/document/fileDialog.module.css", "docs/design.md"]
     },
     {
       "id": "alert-dialog-shell",

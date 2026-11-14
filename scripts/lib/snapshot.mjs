@@ -24,7 +24,8 @@ function installedManifests(directory = path.join(root, 'node_modules')) {
 export function snapshot() {
   const inputs = [...new Set([
     ...['src', 'scripts', 'server', 'public'].flatMap(filesIn),
-    'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'eslint.config.js', 'index.html', 'AGENTS.md', 'DISEÑO.md', 'ARQUITECTURA.md',
+    'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'eslint.config.js', 'index.html', 'AGENTS.md',
+    'docs/architecture.md', 'docs/design.md', 'docs/development.md',
     '.env', '.env.local', '.env.production', '.env.production.local', 'node_modules/.package-lock.json',
     ...installedManifests(),
   ])].filter(file => fs.existsSync(path.join(root, file))).sort()

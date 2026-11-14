@@ -1,5 +1,5 @@
 :root {
-  /* Primitive palette: values do not imply a component or state. */
+  /* Paleta primitiva: los valores no implican ningún componente ni estado. */
   --palette-gray-950: #0C0C0C;
   --palette-gray-925: #111111;
   --palette-gray-900: #181818;
@@ -32,7 +32,7 @@
   --palette-black-alpha-70: rgb(0 0 0 / 70%);
   --palette-white-alpha-2: rgb(255 255 255 / 2%);
 
-  /* Shared base measures; module zoom derives effective values below. */
+  /* Medidas de base compartidas; el zoom del módulo genera los valores efectivos que se indican a continuación. */
   --space-1: 4px;
   --space-2: 6px;
   --radius-2: 3px;
@@ -52,7 +52,7 @@
   --toolbar-padding-block-base: 3px;
   --toolbar-padding-inline-base: 5px;
 
-  /* Semantic colors and states. Future themes replace these assignments. */
+  /* Colores y estados semánticos. Los temas futuros sustituirán estas asignaciones. */
   --color-background: var(--palette-gray-950);
   --color-module: var(--palette-gray-900);
   --color-module-header: var(--palette-gray-775);
@@ -70,7 +70,7 @@
   --color-accent-red: var(--palette-red-alpha-50);
   --color-accent-yellow: var(--palette-yellow);
 
-  /* Surfaces and shadows retain the existing industrial finish. */
+  /* Las superficies y las sombras conservan el acabado industrial original. */
   --surface-header: linear-gradient(180deg, var(--palette-gray-650), var(--palette-gray-750) 40%, var(--palette-gray-825));
   --surface-button: linear-gradient(180deg, var(--palette-gray-675), var(--palette-gray-800));
   --surface-button-hover: linear-gradient(180deg, var(--palette-gray-600), var(--palette-gray-700));
@@ -82,7 +82,7 @@
   --shadow-panel: 0 8px 25px var(--palette-black-alpha-45), 0 1px 3px var(--palette-black-alpha-50), inset 0 1px var(--palette-white-alpha-2);
   --shadow-dialog: 0 10px 40px var(--palette-black-alpha-70);
 
-  /* Semantic measures and default typography. */
+  /* Medidas semánticas y tipografía predeterminada. */
   --control-gap: var(--space-1);
   --section-gap: var(--space-2);
   --radius-field: var(--radius-2);

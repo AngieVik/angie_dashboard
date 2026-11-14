@@ -4,9 +4,9 @@ Escritorio operativo con módulos de recursos, estados, registro, notas, cartogr
 
 ## Documentación
 
-- [operations.md](docs/operations.md): validar cambios y comprobar la app manualmente.
-- [operations.md](docs/operations.md): servir la compilación, publicar y revertir una versión.
-- [operations.md](docs/operations.md): resolver problemas habituales.
+- [AGENTS.md](AGENTS.md): reglas generales de trabajo en el repositorio.
+- [SECURITY.md](SECURITY.md): soporte y comunicación privada de vulnerabilidades; enlaza el registro histórico de auditorías.
+- [OPERATIONS.md](docs/OPERATIONS.md): validar cambios, comprobar la app manualmente, servir la compilación, publicar, revertir y resolver problemas habituales.
 - [architecture.md](docs/architecture.md): funcionamiento y datos que se conservan.
 - [development.md](docs/development.md): diseño objetivo de la interfaz.
 
@@ -37,8 +37,8 @@ npm run dev
 
 - `npm ci` instala las versiones de `package-lock.json`; necesita acceso al registro de paquetes si no están en caché. Conserva el lock y evita actualizar dependencias como parte de la instalación.
 - Abre la URL que muestra Vite. Mantén la terminal abierta mientras trabajas; Ctrl+C detiene el servidor.
-- El arranque actual no requiere un archivo `.env` ni claves de servicios. Las variables opcionales del servidor de la compilación se describen en [operations.md](docs/operations.md#servidor-node-incluido).
+- El arranque actual no requiere un archivo `.env` ni claves de servicios. Las variables opcionales del servidor de la compilación se describen en [OPERATIONS.md](docs/OPERATIONS.md#servidor-node-incluido).
 
 ## Siguiente paso
 
-Usa [operations.md](docs/operations.md) para validar cambios. Para probar la compilación y la PWA, sigue [operations.md](docs/operations.md); el servidor de desarrollo no sustituye esa comprobación.
+Usa [OPERATIONS.md](docs/OPERATIONS.md) para validar cambios. Para probar la compilación y la PWA, sigue [OPERATIONS.md](docs/OPERATIONS.md); el servidor de desarrollo no sustituye esa comprobación.

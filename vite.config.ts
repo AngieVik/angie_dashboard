@@ -14,15 +14,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       workbox: {
-        // Keep updates waiting until all clients of the active worker close.
+        // Aplaza las actualizaciones hasta que se cierren todos los clientes del trabajador activo.
         skipWaiting: false,
-        // Control the first installation too; claiming does not bypass waiting.
+        // Controla también la primera instalación; el hecho de reclamarla no elimina el tiempo de espera.
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html}', 'assets/*.{png,jpg,jpeg,svg,webp,avif,wasm}'],
-        // The offline geographic time-zone database is a separate 4.3 MB WASM asset.
+        // La base de datos geográfica de zonas horarias sin conexión es un recurso WASM independiente de 4,3 MB.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        // Public resources receive their revisions through includeAssets.
-        // Do not include the public font stylesheet a second time.
+        // Los recursos públicos reciben sus actualizaciones a través de includeAssets.
+        // No incluyas la hoja de estilo de fuentes pública por segunda vez.
         globIgnores: ['assets/fonts/**'],
       },
       includeAssets: ['assets/pwa/*.png', 'assets/fonts/roboto-condensed/*', 'assets/fonts/rajdhani/*', 'assets/pins/**/*.svg', 'assets/elements/icon_chincheta.png', 'assets/audio/alarm.mp3', 'assets/licenses/*'],

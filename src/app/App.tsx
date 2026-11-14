@@ -65,7 +65,7 @@ function presentedLayout(module: PresentedModule, saved: ModuleLayout, bounds: {
 }
 
 export function App() {
-  // Keep lazy identities above the window boundaries: only explicit recovery replaces one.
+  // Mantén las identidades perezosas por encima de los límites de la ventana: solo una recuperación explícita sustituye a una de ellas.
   const [moduleViews, setModuleViews] = useState(createModuleViews)
   const { board: BoardModule, elements: ElementsModule, dotations: DotationsModule, information: InformationModule,
     operations: OperationsModule, timeline: TimelineModule, clock: ClockModule, coordinates: CoordinatesModule,
@@ -222,7 +222,7 @@ export function App() {
       const size = { width: node.clientWidth, height: node.clientHeight }
       if (size.width <= 0 || size.height <= 0) return
       const header = node.parentElement?.querySelector<HTMLElement>('[data-slot="app-header"]')
-      // Header zoom changes the visible viewport, not the layout reference.
+      // El zoom del encabezado modifica el área de visualización, no la referencia de diseño.
       const layoutSize = { width: size.width, height: header ? (node.parentElement?.clientHeight || size.height + header.offsetHeight) - header.offsetHeight : size.height }
       setViewport(previous => {
         const nextBounds = getWorkspaceBounds(layoutSize, modules.map(module => module.id))
@@ -237,7 +237,7 @@ export function App() {
     observer.observe(node)
     return () => observer.disconnect()
   }, [modules, document.moduleLayouts, documentGeneration, extent])
-  // Visibility is recovered with the local session; the portable JSON contains geometry.
+  // La visibilidad se recupera con la sesión local; el archivo JSON portátil contiene la geometría.
   const open = useMemo(() => modules.map(module => ({ id: module.id, resetSizeOnMount: module.resetSizeOnMount,
     layout: presentedLayout(module, layoutSource(module, document.moduleLayouts[module.id], bounds, documentGeneration), bounds, documentGeneration),
   })), [modules, document.moduleLayouts, bounds, documentGeneration])
@@ -253,7 +253,7 @@ export function App() {
     if (!open.length) { setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } })); return }
     let scale = viewport.state.scale
     let placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
-    // Prefer a wider view to shrinking manual sizes by more than 20%.
+    // Es preferible adoptar una perspectiva más amplia que reducir el tamaño de los manuales en más de un 20 %.
     while (scale > .25 && placed.some(item => item.layout.width < open.find(module => module.id === item.id)!.layout.width * .8 ||
       item.layout.height < open.find(module => module.id === item.id)!.layout.height * .8)) {
       scale = Math.max(.25, scale * .9)
@@ -281,7 +281,7 @@ export function App() {
     if (!module) return
     setLocationHighlight(previous => active === id ? { id, sequence: (previous?.sequence ?? 0) + 1, generation: documentGeneration } : null)
     activate(id)
-    // Reveal the window with the smallest camera movement, keeping its geometry and zoom.
+    // Muestra la ventana con el menor movimiento posible de la cámara, manteniendo su geometría y el zoom.
     setViewport(previous => {
       const reveal = (offset: number, position: number, length: number, available: number) => {
         const start = position * previous.state.scale + offset
@@ -342,7 +342,7 @@ export function App() {
       if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
       if (request.ids.includes('coordinates')) rememberCoordinateInput('')
       if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
-      // Shared data can change other windows too; suppress automatic resizing until their next content interaction.
+      // Los datos compartidos también pueden modificar otras ventanas; desactiva el redimensionamiento automático hasta la siguiente interacción con el contenido.
       setSizePreservation(previous => {
         const revisions: Partial<Record<ModuleId, number>> = previous.generation === documentGeneration ? { ...previous.revisions } : {}
         for (const id of new Set([...open.map(module => module.id), ...request.ids])) revisions[id] = (revisions[id] ?? 0) + 1

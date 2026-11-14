@@ -16,6 +16,8 @@ cd D:\Proyectos\angie_dashboard
 
 Todos los comandos y rutas siguientes parten de esa carpeta. No es necesario arrancar la app.
 
+La política visual utiliza las referencias documentales vigentes y la huella incluye las instrucciones generales, Arquitectura, integración del diseño y diseño objetivo. Consulta [Referencias documentales y cobertura](info_scripts.md#referencias-documentales-y-cobertura) para conocer el alcance de la comprobación del 2026-11-14. Esta verificación acotada no constituye una ejecución completa de los diagnósticos.
+
 ## 2. Comando recomendado: todos los análisis juntos
 
 | Comando                 | Qué hace                                                                                                                | Resultado                                                                   |
@@ -144,4 +146,4 @@ node scripts/audit-unused-code.mjs --help
 4. Ejecuta `npm run diagnose:full` cuando necesites revisar peso y empaquetado.
 5. Usa los scripts individuales para repetir únicamente una consulta concreta.
 
-Los archivos de `scripts/lib/` son piezas internas compartidas; no son comandos independientes. Para cobertura, configuración y limitaciones detalladas, consulta `D:\Proyectos\angie_dashboard\docs\info_scripts.md`.
+Los archivos de `scripts/lib/` son piezas internas compartidas; no son comandos independientes. Para cobertura, configuración y limitaciones detalladas, consulta [info_scripts.md](info_scripts.md).

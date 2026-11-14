@@ -1,51 +1,25 @@
-# Security
+# Política de seguridad
 
-- Políticas de seguridad, versiones soportadas y el proceso para reportar vulnerabilidades de forma privada.
+Este documento define el alcance de soporte y cómo comunicar vulnerabilidades de Angie Dashboard. Los resultados y pendientes de revisiones concretas se conservan en el [registro de auditorías](docs/security-audits.md).
 
-## Deuda Técnica y Overrides Temporales
+## Versiones soportadas
 
-### Minimatch y Glob
+El soporte de seguridad se limita a la **última versión publicada** de Angie Dashboard. Las versiones anteriores requieren actualizar; no se mantienen correcciones de seguridad para ellas. Una revisión de desarrollo en main no se considera publicada por existir en la rama.
 
-Actualmente mantenemos un *override* en `package.json` para la resolución de paquetes:
+La versión y revisión efectivamente publicadas se identifican en el [registro de publicaciones](CHANGELOG.md#registro-de-publicaciones). La consulta del 2026-11-14 identifica un despliegue existente y la versión declarada en su revisión; el valor de package.json por sí solo no acredita una etiqueta de lanzamiento ni la versión del artefacto servido. Consulta de nuevo el despliegue publicado antes de aplicar el alcance de soporte a una revisión concreta.
 
-- **Regla:** Forzamos `minimatch@10 || 11` a resolver como `11.0.4`.
-- **Motivo:** Previene conflictos de deduplicación en npm entre `eslint`, `typescript-eslint` y `workbox-build` (que usa `glob@14.0.3` compatible con minimatch 11).
-- **Criterio de cierre:** Este override deberá eliminarse cuando las herramientas actualicen sus rangos oficiales e incluyan las versiones corregidas.
+## Comunicación privada de vulnerabilidades
 
-## L4. Deuda de actualización en herramientas
+El medio acordado es el archivo [security-reports.md](docs/security-reports.md), donde las personas con acceso al repositorio pueden registrar informes siguiendo su plantilla. Es un registro interno; no se ha definido un buzón externo ni se presupone que GitHub tenga habilitados los informes privados.
 
-**Estado: parcialmente mitigado; permanece abierto.** Última comprobación: 2026-11-05.
+La privacidad depende de los permisos del repositorio y de cualquier copia compartida. El archivo no añade controles de acceso. Si la información es sensible, debe mantenerse en un entorno de acceso restringido y no incorporarse a una copia pública del repositorio.
 
-### Aviso pendiente
+El informe debe seguir los campos de la plantilla, con pasos reproducibles y datos ficticios. Las conclusiones verificadas y su fecha se incorporan al [registro de auditorías](docs/security-audits.md), enlazando el identificador del informe.
 
-- **Dependencia:** `deepmerge@4.3.1`.
-- **Aviso:** [GHSA-gcqx-w48m-w2h4 / CVE-2026-93753](https://github.com/advisories/GHSA-gcqx-w48m-w2h4), contaminación del prototipo del objeto devuelto por `mergeObject()`.
-- **Severidad en npm audit:** baja.
-- **Cadena instalada:** `vite-plugin-pwa@1.3.0` → `workbox-build@7.4.1` → `@rollup/plugin-node-resolve@16.0.3` → `deepmerge@4.3.1`.
-- **Impedimento para corregirlo:** el aviso no publica una versión corregida y el consumidor instalado sigue dependiendo de deepmerge. No se ha encontrado una actualización oficial de esta cadena que elimine el aviso.
+No se incluyen pruebas de explotación, credenciales ni datos reales en issues o pull requests públicos. Los plazos de respuesta y corrección no están comprometidos en esta política.
 
-El audit actual devuelve **cuatro registros bajos derivados de este único aviso raíz**: `deepmerge`, `@rollup/plugin-node-resolve`, `workbox-build` y `vite-plugin-pwa`. `npm audit --omit=dev` devuelve cero. El registro continúa abierto; no representa una aceptación del riesgo ni una corrección de deepmerge.
+## Mantenimiento y evidencia
 
-### Evidencia y límites
-
-En `node_modules/@rollup/plugin-node-resolve/dist/es/index.js`, la única llamada a `deepMerge` es `deepMerge({}, defaults)`, al inicializar `DEFAULTS`. `defaults` contiene constantes internas; las opciones recibidas por `nodeResolve` se combinan después mediante spread.
-
-No se ha identificado entrada de datos de la app hacia esa llamada ni se ha acreditado explotación desde Angie. Esta evidencia corresponde al consumidor y las versiones examinados; deberá revisarse si cambia la cadena o sus entradas. El resultado de `--omit=dev` describe el árbol de dependencias declarado y no demuestra por sí solo ausencia de exposición en todos los entornos.
-
-### Correcciones aplicadas y mantenimiento pendiente
-
-Se actualizaron `serialize-javascript` de `7.1.2` a `7.1.4`, `minimatch` de `10.2.6` a `11.0.4` y `glob` de `11.1.0` a `14.0.3`. El audit pasó de 20 registros iniciales (16 moderados y 4 bajos) a 18 tras la primera actualización y a los cuatro bajos actuales.
-
-Los overrides temporales de minimatch y glob y su acoplamiento se describen en [architecture.md](docs/architecture.md). Queda pendiente retirarlos cuando los consumidores incorporen versiones corregidas en sus rangos oficiales, verificando de nuevo su compatibilidad.
-
-### Revisión y criterio de cierre
-
-Revisar este registro cuando se publique una corrección de deepmerge o una actualización de sus consumidores que lo sustituya o elimine, y al modificar la cadena de herramientas PWA. Si cambia la llamada o admite entradas externas, reevaluar la exposición aunque el aviso no cambie.
-
-Para cerrar el pendiente de deepmerge:
-
-1. Incorporar una solución compatible que retire la versión afectada del árbol instalado y del lockfile; una exclusión del informe de audit no constituye una corrección.
-2. Comprobar `npm ci`, `npm ls deepmerge --all`, lint, tipos y compilación, y repetir ambos audits. El aviso raíz debe desaparecer; cualquier aviso distinto se evaluará por separado.
-3. Comparar la selección y las revisiones de la precaché y completar la validación manual de instalación y actualización PWA, reapertura del App Shell sin red y mapas online.
-
-Tras el segundo paso se verificaron instalación reproducible, árbol de dependencias, lint, tipos, compilación y diff; la precaché generada conservó las mismas 127 URLs y revisiones. **La validación funcional en navegador o dispositivo sigue pendiente de realización manual por el desarrollador.**
+- Los cambios en dependencias o mitigaciones se tramitan dentro del alcance autorizado y se validan según [OPERATIONS.md](docs/OPERATIONS.md#validación).
+- Los overrides, su motivación y su criterio de retirada se documentan únicamente en [Arquitectura](docs/architecture.md#overrides-temporales-de-herramientas). La configuración ejecutable pertenece a package.json y package-lock.json.
+- El [registro de auditorías](docs/security-audits.md) conserva fechas, resultados, limitaciones, estado registrado y criterios de cierre de cada hallazgo. No sustituye una comprobación actual ni una aceptación de riesgo.
