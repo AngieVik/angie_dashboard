@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import { lookupMapElevation } from './terrainElevation'
+import { useSettings } from '../settings/useSettings'
+import { formatElevation } from '@/platform/formatting'
 
 type ElevationResult = { point: GeographicCoordinate } & (
   { status: 'ready'; elevation: number } | { status: 'empty' | 'error' }
 )
 
 export function MapElevation({ point }: { point: GeographicCoordinate }) {
+  const { settings } = useSettings()
   const [result, setResult] = useState<ElevationResult | null>(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -26,7 +29,7 @@ export function MapElevation({ point }: { point: GeographicCoordinate }) {
   // Hide the previous point's result immediately, before effect cleanup runs.
   const current = result?.point === point ? result : null
   const text = current === null ? 'Consultando…' : current.status === 'ready' ?
-    current.elevation.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' m' :
+    formatElevation(current.elevation, settings.formats.units) :
     current.status === 'empty' ? 'Sin datos' : 'Consulta no disponible'
   return <>
     <div><dt>Altitud del terreno</dt><dd role="status" aria-label="Altitud del terreno">{text}</dd></div>

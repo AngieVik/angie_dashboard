@@ -6,7 +6,6 @@
 - [design.md](docs/design.md)
 - [development.md](docs/development.md)
 - [guia_scripts.md](docs/guia_scripts.md)
-- [info_scripts.md](docs/info_scripts.md)
 - [OPERATIONS.md](docs/OPERATIONS.md)
 - [CHANGELOG.md](CHANGELOG.md)
 - [LICENSE.md](LICENSE.md)
@@ -14,7 +13,7 @@
 - [README.md](README.md)
 
 - Los parámetros y comportamientos de la app se definen en su código propietario. Consérvalos salvo que la petición autorice explícitamente cambiarlos.
-- Lógica de dominio (Arquitectura híbrida): El App Shell (JS/CSS/iconos SVG), estado, temporizadores y checklists persisten en local (local-first) mediante el almacenamiento del navegador para resistir caídas de red. Los mapas (Leaflet) y teselas visuales son dependencias estrictamente online y no deben precachearse ni forzarse para uso offline.
+- Consulta `docs/` de forma puntual por módulo: localiza primero el propietario y lee solo las secciones relacionadas con la tarea. Los documentos extensos son referencias bajo demanda; inicia el contexto con este archivo y las fuentes afectadas, evitando la carga conjunta por defecto de `docs/` o de informes de `output/`.
 - No reconstruyas decisiones ausentes como si estuvieran confirmadas, ni confirmes decisiones puntuales; pregunta.
 
 ## Responsabilidades de la documentación
@@ -22,12 +21,14 @@
 | Documento | Contenido propietario |
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | Reglas generales de trabajo, control de versiones, política de comprobaciones y entrega. |
-| [development.md](docs/development.md) | Diseño objetivo: medidas, acabados, composición visual y excepciones por módulo; propuestas y decisiones visuales pendientes. |
-| [design.md](docs/design.md) | Integración del diseño en componentes, tokens, CSS, medición y portales. Enlaza las especificaciones visuales sin duplicarlas. |
+| [development.md](docs/development.md) | Flujo de trabajo: delimitar, localizar, implementar y entregar. |
+| [design.md](docs/design.md) | Diseño objetivo e integración: medidas, acabados, composición, componentes, tokens, CSS y portales; decisiones visuales pendientes. |
 | [architecture.md](docs/architecture.md) | Implementación observada: propietarios, conexiones, contratos de datos, persistencia, procesamiento y límites técnicos. |
-| [OPERATIONS.md](docs/OPERATIONS.md) | Procedimientos y comandos para validar, servir, publicar, actualizar, revertir y resolver incidencias; registro de comprobaciones manuales. |
+| [OPERATIONS.md](docs/OPERATIONS.md) | Procedimientos para validar, servir, publicar, actualizar, revertir y resolver incidencias. |
+| [guia_scripts.md](docs/guia_scripts.md) | Comandos de diagnóstico y generación, salidas y límites de interpretación. |
+| [SECURITY.md](SECURITY.md) | Política activa de soporte, comunicación de vulnerabilidades y mantenimiento de seguridad. |
 
-- Actualiza cada materia en su documento propietario y enlázala desde los demás. Las guías de scripts conservan el detalle de los diagnósticos; `SECURITY.md`, la política de seguridad; `docs/security-reports.md`, la recepción y seguimiento de informes; `docs/security-audits.md`, las evidencias fechadas de auditorías. Los overrides técnicos se documentan únicamente en `docs/architecture.md`.
+- Actualiza cada materia en su documento propietario y enlázala desde los demás. Mantén las salidas generadas de diagnóstico en `output/` y la documentación activa en las referencias de esta tabla. Los overrides técnicos se documentan únicamente en `docs/architecture.md`.
 - Una implementación observada o una referencia histórica no confirma una decisión de diseño. Si no hay evidencia suficiente, marca la decisión como «Pendiente» en su sección propietaria.
 
 ## Proyecto y entorno
@@ -45,7 +46,7 @@
 - Superficie visual: Una tarea funcional conserva la apariencia actual; una petición visual puede evolucionarla según la dirección acordada.
 - Interfaz y UX: Usa etiquetas breves y directas. Incorpora ayudas o textos explicativos a la interfaz cuando se soliciten. Haz recomendaciones de incorporación si es necesario.
 - Documentación y estado: Actualiza las instrucciones en su lugar cuando formen parte de la tarea. Mantén los planes ordinarios en el chat; crea documentos de trabajo si se piden y elimina tus temporales al terminar. Conserva las copias de seguridad.
-- Mantenimiento documental: Si una modificación autorizada cambia propietarios, recorridos o contratos técnicos, actualiza `docs/architecture.md`; si cambia una decisión visual, actualiza `docs/development.md`; si cambia su integración en componentes y estilos, actualiza `docs/design.md`. Mantén los procedimientos en `docs/OPERATIONS.md` y este `AGENTS.md` cuando cambie una regla general de trabajo.
+- Mantenimiento documental: Si una modificación autorizada cambia propietarios, recorridos o contratos técnicos, actualiza `docs/architecture.md`; si cambia una decisión visual o su integración, actualiza `docs/design.md`; si cambia el flujo de desarrollo, actualiza `docs/development.md`. Mantén los procedimientos en `docs/OPERATIONS.md` y este `AGENTS.md` cuando cambie una regla general de trabajo.
 
 ## Pruebas y depuración
 

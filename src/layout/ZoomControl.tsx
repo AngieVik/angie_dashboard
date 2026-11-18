@@ -7,11 +7,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import styles from './zoomControl.module.css'
 import controlStyles from './controlButton.module.css'
 import labelStyles from './controlValueLabel.module.css'
+import { VIEWPORT_ZOOM_MAX, VIEWPORT_ZOOM_MIN, ZOOM_STEP_DEFAULT } from './viewportMath'
+import { useSettings } from '@/features/settings/useSettings'
 
 export function ZoomControl({ scale, onChange, label, disabled = false, side = 'bottom' }: {
   scale: number; onChange: (scale: number) => void; label: string; disabled?: boolean; side?: 'bottom' | 'right'
 }) {
   const inputId = useId()
+  const { settings } = useSettings()
+  const step = settings.zoomStep
   const percent = Math.round(scale * 100)
   const [draft, setDraft] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -48,17 +52,24 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
   }, [open, disabled, scale])
   function commit() {
     if (draft !== null && draft.trim() && Number.isFinite(Number(draft))) {
-      onChange(Math.min(200, Math.max(25, Number(draft))) / 100)
+      onChange(Math.min(VIEWPORT_ZOOM_MAX, Math.max(VIEWPORT_ZOOM_MIN, Number(draft) / 100)))
     }
     setDraft(null)
     replaceInput.current = true
   }
   const percentage = <>
-    <Input ref={input} id={inputId} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={25} max={200} step={1}
+    <Input ref={input} id={inputId} data-slot="zoom-input" className={styles.input} type="number" inputMode="decimal" aria-label={label} min={VIEWPORT_ZOOM_MIN * 100} max={VIEWPORT_ZOOM_MAX * 100} step={1}
       disabled={disabled} value={draft ?? percent}
       onFocus={() => { replaceInput.current = true }} onPointerDown={() => { replaceInput.current = true }}
       onChange={event => { replaceInput.current = false; setDraft(event.target.value) }} onBlur={commit}
       onKeyDown={event => {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          event.preventDefault()
+          const value = draft !== null && draft.trim() && Number.isFinite(Number(draft)) ? Number(draft) : percent
+          const next = value + (event.key === 'ArrowUp' ? step : -step)
+          setDraft(null); replaceInput.current = true
+          onChange(Math.min(VIEWPORT_ZOOM_MAX, Math.max(VIEWPORT_ZOOM_MIN, next / 100)))
+        }
         if (event.key === 'Enter') { event.preventDefault(); commit() }
         if (event.key === 'Escape') { event.preventDefault(); setDraft(null); replaceInput.current = true }
       }} /><span aria-hidden="true">%</span>
@@ -74,9 +85,9 @@ export function ZoomControl({ scale, onChange, label, disabled = false, side = '
         onPointerCancelCapture={() => { sliderPointer.current = false }}
         onKeyDownCapture={() => { sliderPointer.current = false }} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }}>
         <div className={labelStyles.base}><output>{percent}%</output></div>
-        <Slider label={label} value={percent} min={25} max={200} midpoint={100} disabled={disabled} onValueChange={value => {
+        <Slider label={label} value={percent} min={VIEWPORT_ZOOM_MIN * 100} max={VIEWPORT_ZOOM_MAX * 100} step={step} stepOrigin={100} midpoint={100} disabled={disabled} onValueChange={value => {
           const nearest = Math.round(value / 10) * 10
-          const percent = sliderPointer.current && Math.abs(value - nearest) <= 2 ? nearest : value
+          const percent = step === ZOOM_STEP_DEFAULT && sliderPointer.current && Math.abs(value - nearest) <= 2 ? nearest : value
           setDraft(null); onChange(percent / 100)
         }} />
       </PopoverContent>

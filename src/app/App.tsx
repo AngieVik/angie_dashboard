@@ -1,14 +1,18 @@
 import { lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toast, Toaster } from '@/components/ui/sonner'
+import { useSettings } from '@/features/settings/useSettings'
+import { useAccessibilityPreferences } from '@/features/settings/useAccessibilityPreferences'
+import { validateDesktopViewState } from '@/features/settings/savedDesktopViews'
+import type { DesktopViewState } from '@/features/settings/savedDesktopViews'
 import { AppHeader } from './AppHeader'
 import styles from './app.module.css'
 import type { ModuleActions } from '../layout/ModuleFrame'
-import { growWorkspaceExtent, reconstructWorkspaceExtent } from '../layout/workspaceExtent'
-import { repositionModules } from '../layout/repositionModules'
+import { measureWorkspaceExtent } from '../layout/workspaceExtent'
+import { collectModuleBars, repositionModules } from '../layout/repositionModules'
 
 import { getDocumentStore, useDocumentStore } from '../features/document/documentStore'
-import type { ViewArrangement } from '../features/view/ViewMenu'
-import type { CleanupRequest } from '../features/view/CleanupMenu'
+import { applyCleanupPlan, buildCleanupPlan, CLEANUP_CHANGED_ERROR, CLEANUP_MODULE_IDS } from '../features/view/cleanupPlan'
+import type { CleanupRequest } from '../features/view/cleanupPlan'
 import type { ReportsNotice } from '../features/document/ReportsModule'
 import type { GeographicCoordinate } from '../features/coordinates/coordinateTypes'
 import type { MapNotice } from '../features/map/MapModule'
@@ -19,13 +23,11 @@ import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
 import { MobileViewport } from '../layout/MobileViewport'
 import { findModulePlacement } from '../layout/findModulePlacement'
-import { adaptModuleLayout, getWorkspaceBounds } from '../layout/adaptiveLayout'
-import { moduleBaseSize, moduleCollapsedWidth, MODULE_REGISTRY } from '../layout/moduleRegistry'
+import { getWorkspaceBounds } from '../layout/adaptiveLayout'
 import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
-import { fit, resizeViewport, zoomAt } from '../layout/viewportMath'
-import { readNavigation, writeNavigation } from '../layout/navigationStorage'
+import { clamp, fit, resizeViewport, zoomAt } from '../layout/viewportMath'
+import { readNavigation, readReloadZoom, writeNavigation, writeReloadZoom } from '../layout/navigationStorage'
 import type { Position } from '../domain/document/types'
-import { clearDocumentModules, updateModuleLayouts } from '../features/document/documentEdits'
 
 const moduleFactories = {
   board: () => lazy(() => import('../features/board/BoardModule').then(module => ({ default: module.BoardModule }))),
@@ -49,21 +51,6 @@ function createModuleViews(): ModuleViews {
   return Object.fromEntries(Object.entries(moduleFactories).map(([id, create]) => [id, create()])) as ModuleViews
 }
 
-type PresentedModule = OpenModule & { presentation?: { size: { width: number; height: number }; generation: number; source: string } }
-
-function layoutSource(module: PresentedModule, saved: ModuleLayout | undefined, bounds: { width: number; height: number }, generation: number): ModuleLayout {
-  if (saved) return saved
-  if (module.presentation?.generation === generation) return module.layout
-  return findModulePlacement({ id: module.id }, [], bounds).layout
-}
-
-function presentedLayout(module: PresentedModule, saved: ModuleLayout, bounds: { width: number; height: number }, generation: number): ModuleLayout {
-  if (module.presentation?.generation === generation && module.presentation.size.width === bounds.width && module.presentation.size.height === bounds.height &&
-    JSON.stringify(saved) === module.presentation.source) return module.layout
-  const [width, height] = MODULE_REGISTRY[module.id].minimum
-  return adaptModuleLayout(saved, bounds, { width, height })
-}
-
 export function App() {
   // Mantén las identidades perezosas por encima de los límites de la ventana: solo una recuperación explícita sustituye a una de ellas.
   const [moduleViews, setModuleViews] = useState(createModuleViews)
@@ -79,7 +66,7 @@ export function App() {
   const calendar = getCalendarStore()
   const calendarError = useSyncExternalStore(calendar.subscribe, () => calendar.getSnapshot().error)
   useEffect(() => {
-    if (calendarError) toast.error(calendarError, { id: 'calendar-notice' })
+    if (calendarError) toast.error(calendarError, { notice: 'calendar', id: 'calendar-notice' })
     else toast.dismiss('calendar-notice')
   }, [calendarError])
   useEffect(() => { void calendar.initialize(); return calendar.connect() }, [calendar])
@@ -93,8 +80,8 @@ export function App() {
     const storageAdded = timerProblem && !clockNotified.current.storage
     const audioAdded = audioProblem && !clockNotified.current.audio
     clockNotified.current = { storage: Boolean(timerProblem), audio: Boolean(audioProblem) }
-    if (storageAdded) toast.error(timerProblem === 'conflict' ? 'Los temporizadores han cambiado en otra pestaña.' : 'Autoguardado de temporizadores no disponible.', { id: 'clock-notice' })
-    else if (audioAdded && audioProblem) toast.error(audioProblem, { id: 'clock-notice' })
+    if (storageAdded) toast.error(timerProblem === 'conflict' ? 'Los temporizadores han cambiado en otra pestaña.' : 'Autoguardado de temporizadores no disponible.', { notice: 'timerStorage', id: 'clock-notice' })
+    else if (audioAdded && audioProblem) toast.error(audioProblem, { notice: 'timerAudio', id: 'clock-notice' })
     if (!timerProblem && !audioProblem) toast.dismiss('clock-notice')
   }, [timerProblem, audioProblem])
   useEffect(() => () => { toast.dismiss('clock-notice') }, [])
@@ -125,39 +112,79 @@ export function App() {
   const updateBoardCenter = useCallback((center: Position) => {
     setBoardCenter(previous => previous?.generation === documentGeneration && previous.center.x === center.x && previous.center.y === center.y ? previous : { generation: documentGeneration, center })
   }, [documentGeneration])
+  const [initialModulesApplied, setInitialModulesApplied] = useState(false)
+  const [refreshRecovery] = useState(() => {
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+    return navigation?.type === 'reload'
+  })
+  const recoveredZoom = !initialModulesApplied && refreshRecovery && boardActive ? readReloadZoom(document.document.id) : null
   const [viewport, setViewport] = useState(() => {
     const size = { width: window.innerWidth, height: window.innerHeight }
     return { size, layoutSize: size, state: fit(size), measured: false }
   })
   const [navigationGeneration, setNavigationGeneration] = useState(-1)
   if (navigationGeneration !== documentGeneration) {
-    const state = readNavigation(document.document.id + '.dashboard')
+    const navigation = readNavigation(document.document.id + '.dashboard')
+    const state = recoveredZoom === null ? navigation : { ...navigation, scale: recoveredZoom }
     setViewport(previous => ({ ...previous, state, measured: true }))
     setNavigationGeneration(documentGeneration)
   }
   useEffect(() => {
-    if (boardActive && navigationGeneration === documentGeneration) writeNavigation(document.document.id + '.dashboard', viewport.state)
-  }, [boardActive, navigationGeneration, documentGeneration, document.document.id, viewport.state])
-  const [modules, setModules] = useState<PresentedModule[]>([])
-  const [modulesGeneration, setModulesGeneration] = useState(-1)
-  if (ready && modulesGeneration !== documentGeneration) {
-    const available = getWorkspaceBounds(viewport.layoutSize, savedOpenModules)
-    const restored: PresentedModule[] = []
-    for (const id of savedOpenModules) {
-      const layout = findModulePlacement({ id }, restored.map(module => module.layout), available).layout
-      restored.push({ id, layout, resetSizeOnMount: true,
-        presentation: { size: available, generation: documentGeneration, source: JSON.stringify(layout) } })
+    if (boardActive && navigationGeneration === documentGeneration) {
+      writeNavigation(document.document.id + '.dashboard', viewport.state)
+      writeReloadZoom(document.document.id, viewport.state.scale)
     }
-    setModules(restored)
+  }, [boardActive, navigationGeneration, documentGeneration, document.document.id, viewport.state])
+  const [modules, setModules] = useState<OpenModule[]>([])
+  const [modulesGeneration, setModulesGeneration] = useState(-1)
+  const preferences = useSettings()
+  useAccessibilityPreferences(preferences.settings.accessibility)
+  const [initialArrangementGeneration, setInitialArrangementGeneration] = useState<number | null>(null)
+  const [viewRestoreSequence, setViewRestoreSequence] = useState(0)
+  const initialPreferencesReady = preferences.ready || Boolean(preferences.error && !preferences.loading)
+  if (ready && modulesGeneration !== documentGeneration && (initialModulesApplied || initialPreferencesReady)) {
+    const applyInitialView = !initialModulesApplied && !(refreshRecovery && boardActive) && preferences.ready
+    const ids = applyInitialView && preferences.settings.initialModules !== null
+      ? preferences.settings.initialModules : savedOpenModules
+    const scale = applyInitialView ? preferences.settings.initialZoom : recoveredZoom ??
+      (navigationGeneration !== documentGeneration ? readNavigation(document.document.id + '.dashboard').scale : viewport.state.scale)
+    const available = getWorkspaceBounds({ width: Math.ceil(viewport.size.width / scale), height: Math.ceil(viewport.size.height / scale) }, ids)
+    const restored: OpenModule[] = []
+    for (const id of ids) {
+      const layout = findModulePlacement({ id }, restored.map(module => module.layout), available).layout
+      restored.push({ id, layout, resetSizeOnMount: true })
+    }
+    if (applyInitialView) {
+      setViewport(previous => ({ ...previous, measured: true, state: { scale, offsetX: 0, offsetY: 0 } }))
+      if (preferences.settings.initialArrangement === 'bars') setModules(collectModuleBars(restored, available))
+      else {
+        setModules(repositionModules(restored, available))
+        setInitialArrangementGeneration(documentGeneration)
+      }
+    } else setModules(restored)
     setModulesGeneration(documentGeneration)
+    setInitialModulesApplied(true)
+  }
+  // Expanded opening heights are measured after lazy module content mounts.
+  if (initialArrangementGeneration !== null && (initialArrangementGeneration !== documentGeneration ||
+    (modulesGeneration === documentGeneration && modules.every(module => !module.resetSizeOnMount)))) {
+    if (initialArrangementGeneration === documentGeneration) {
+      setModules(repositionModules(modules, { width: Math.ceil(viewport.size.width / viewport.state.scale), height: Math.ceil(viewport.size.height / viewport.state.scale) }))
+    }
+    setInitialArrangementGeneration(null)
   }
   useEffect(() => {
     if (ready && modulesGeneration === documentGeneration) store.setOpenModules(modules.map(module => module.id), documentGeneration)
   }, [ready, modulesGeneration, documentGeneration, modules, store])
-  const [magnet, setMagnet] = useState(false)
+  const [magnet, setMagnet] = useState<boolean | null>(null)
+  if (preferences.ready && magnet === null) setMagnet(preferences.settings.magnetByDefault)
   const [moduleRevisions, setModuleRevisions] = useState<Partial<Record<ModuleId, number>>>({})
   const [sizePreservation, setSizePreservation] = useState<{ generation: number; revisions: Partial<Record<ModuleId, number>> }>({ generation: documentGeneration, revisions: {} })
   const [cleanupRequest, setCleanupRequest] = useState<CleanupRequest | null>(null)
+  const cleanupTimerCount = useSyncExternalStore(timers.subscribe, () => timers.getSnapshot().timers.length)
+  const cleanupPlan = useMemo(() => cleanupRequest?.generation === documentGeneration
+    ? buildCleanupPlan(document, cleanupRequest.ids, cleanupTimerCount) : null,
+  [cleanupRequest, documentGeneration, document, cleanupTimerCount])
   const [cleanupError, setCleanupError] = useState<string | null>(null)
   const [cleanupBusy, setCleanupBusy] = useState(false)
   const cleanupInFlight = useRef(false)
@@ -167,7 +194,7 @@ export function App() {
   const [active, setActive] = useState<ModuleId | null>(null)
   const [locationHighlight, setLocationHighlight] = useState<{ id: ModuleId; sequence: number; generation: number } | null>(null)
   const setModulesError = (message: string | null) => {
-    if (message) toast.error(message, { id: 'module-arrangement' })
+    if (message) toast.error(message, { notice: 'arrangement', id: 'module-arrangement' })
     else toast.dismiss('module-arrangement')
   }
   const moduleActions = useRef<Partial<Record<ModuleId, ModuleActions>>>({})
@@ -179,10 +206,8 @@ export function App() {
     } else delete moduleActions.current[id]
   }, [])
   const [layers, setLayers] = useState<ModuleId[]>([])
-  const bounds = useMemo(() => getWorkspaceBounds(viewport.layoutSize, modules.map(module => module.id)), [viewport.layoutSize, modules])
   const visibleBounds = { width: Math.max(1, Math.ceil(viewport.size.width / viewport.state.scale)), height: Math.max(1, Math.ceil(viewport.size.height / viewport.state.scale)) }
-  const requiredBounds = { width: Math.max(visibleBounds.width, Math.ceil((viewport.size.width - viewport.state.offsetX) / viewport.state.scale)), height: Math.max(visibleBounds.height, Math.ceil((viewport.size.height - viewport.state.offsetY) / viewport.state.scale)) }
-  const [extent, setExtent] = useState(() => ({ generation: documentGeneration, size: reconstructWorkspaceExtent(requiredBounds, document.moduleLayouts) }))
+  const [growth, setGrowth] = useState<{ generation: number; size: { width: number; height: number } } | null>(null)
   const [selection, setSelection] = useState<{ generation: number; id: string | null }>({ generation: documentGeneration, id: null })
   const selectedId = selection.generation === documentGeneration && document.elements.some(element => element.id === selection.id) ? selection.id : null
   const [coordinateSelection, setCoordinateSelection] = useState<{ generation: number; point: GeographicCoordinate } | null>(null)
@@ -225,53 +250,34 @@ export function App() {
       // El zoom del encabezado modifica el área de visualización, no la referencia de diseño.
       const layoutSize = { width: size.width, height: header ? (node.parentElement?.clientHeight || size.height + header.offsetHeight) - header.offsetHeight : size.height }
       setViewport(previous => {
-        const nextBounds = getWorkspaceBounds(layoutSize, modules.map(module => module.id))
-        const measuredExtent = modules.reduce((extent, module) => {
-          const layout = presentedLayout(module, layoutSource(module, document.moduleLayouts[module.id], nextBounds, documentGeneration), nextBounds, documentGeneration)
-          return { width: Math.max(extent.width, layout.x + layout.width), height: Math.max(extent.height, layout.y + layout.height) }
-        },
-          { width: Math.max(nextBounds.width, extent.generation === documentGeneration ? extent.size.width : 0, Math.ceil((size.width - previous.state.offsetX) / previous.state.scale)), height: Math.max(nextBounds.height, extent.generation === documentGeneration ? extent.size.height : 0, Math.ceil((size.height - previous.state.offsetY) / previous.state.scale)) })
+        const measuredExtent = measureWorkspaceExtent({ width: size.width / previous.state.scale, height: size.height / previous.state.scale }, modules.map(module => module.layout))
         return { size, layoutSize, measured: true, state: !previous.measured ? fit(size, measuredExtent) : resizeViewport(previous.state, previous.size, size, measuredExtent) }
       })
     })
     observer.observe(node)
     return () => observer.disconnect()
-  }, [modules, document.moduleLayouts, documentGeneration, extent])
-  // La visibilidad se recupera con la sesión local; el archivo JSON portátil contiene la geometría.
-  const open = useMemo(() => modules.map(module => ({ id: module.id, resetSizeOnMount: module.resetSizeOnMount,
-    layout: presentedLayout(module, layoutSource(module, document.moduleLayouts[module.id], bounds, documentGeneration), bounds, documentGeneration),
-  })), [modules, document.moduleLayouts, bounds, documentGeneration])
-  const previousExtent = extent.generation === documentGeneration ? extent.size : reconstructWorkspaceExtent(requiredBounds, document.moduleLayouts)
-  const sceneBounds = growWorkspaceExtent(previousExtent, requiredBounds, open.map(module => module.layout))
-  if (extent.generation !== documentGeneration || extent.size.width !== sceneBounds.width || extent.size.height !== sceneBounds.height) {
-    setExtent({ generation: documentGeneration, size: sceneBounds })
+  }, [modules])
+  // Window geometry belongs to mounted windows, never to document data.
+  const open = modules
+  const contentBounds = measureWorkspaceExtent(visibleBounds, open.map(module => module.layout))
+  const sceneBounds = growth?.generation === documentGeneration
+    ? { width: Math.max(contentBounds.width, growth.size.width), height: Math.max(contentBounds.height, growth.size.height) }
+    : contentBounds
+  const clampedViewport = clamp(viewport.state, viewport.size, sceneBounds)
+  if (clampedViewport.offsetX !== viewport.state.offsetX || clampedViewport.offsetY !== viewport.state.offsetY) {
+    setViewport({ ...viewport, state: clampedViewport })
   }
+  const endGrowth = useCallback(() => setGrowth(null), [setGrowth])
   function grow(candidate: ModuleLayout) {
-    setExtent(previous => ({ generation: documentGeneration, size: growWorkspaceExtent(previous.size, requiredBounds, [candidate]) }))
+    setGrowth({ generation: documentGeneration, size: measureWorkspaceExtent(visibleBounds, [...open.map(module => module.layout), candidate]) })
   }
   function recolocate() {
-    if (!open.length) { setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } })); return }
-    let scale = viewport.state.scale
-    let placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
-    // Es preferible adoptar una perspectiva más amplia que reducir el tamaño de los manuales en más de un 20 %.
-    while (scale > .25 && placed.some(item => item.layout.width < open.find(module => module.id === item.id)!.layout.width * .8 ||
-      item.layout.height < open.find(module => module.id === item.id)!.layout.height * .8)) {
-      scale = Math.max(.25, scale * .9)
-      placed = repositionModules(open, { width: viewport.size.width / scale, height: viewport.size.height / scale })
-    }
-    const saved = placed
-    try {
-      if (!store.applyDocumentCommand(document => updateModuleLayouts(document, saved))) {
-        setModulesError(store.getSnapshot().fileMessage ?? 'No se pudieron recolocar los módulos.'); return
-      }
-    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron recolocar los módulos.'); return }
-    setModules(previous => previous.map(module => {
-      const shown = placed.find(item => item.id === module.id)!, source = saved.find(item => item.id === module.id)!
-      return { ...module, layout: shown.layout, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(source.layout) } }
-    }))
-    setExtent({ generation: documentGeneration, size: growWorkspaceExtent(reconstructWorkspaceExtent(requiredBounds, store.getSnapshot().document.moduleLayouts), requiredBounds, placed.map(item => item.layout)) })
-    setViewport(previous => ({ ...previous, state: { scale, offsetX: 0, offsetY: 0 } }))
+    setInitialArrangementGeneration(null)
+    setModules(repositionModules(open, visibleBounds))
+    setGrowth(null)
+    setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))
   }
+
   function activate(id: ModuleId) {
     setActive(id)
     setLayers(previous => previous.at(-1) === id ? previous : [...previous.filter(other => other !== id), id])
@@ -297,19 +303,28 @@ export function App() {
   function fitActiveModule() {
     if (active && open.some(module => module.id === active)) moduleActions.current[active]?.('fit')
   }
-  function saveLayout(id: ModuleId, layout: ModuleLayout, kind: 'move' | 'resize' = 'resize') {
-    const manual = kind === 'move' ? document.moduleLayouts[id] ?? { width: MODULE_REGISTRY[id].initial[0], height: MODULE_REGISTRY[id].initial[1] } : layout
-    const saved = { ...layout, width: manual.width, height: manual.height, referenceSize: {
-      width: Math.ceil(Math.max(bounds.width, layout.x + manual.width + 12, layout.x + layout.width + 12)), height: Math.ceil(Math.max(bounds.height, layout.y + manual.height + 12, layout.y + layout.height + 12)),
-    } }
-    try {
-      if (!store.applyDocumentCommand(document => updateModuleLayouts(document, [{ id, layout: saved }]))) {
-        setModulesError(store.getSnapshot().fileMessage ?? 'No se pudo modificar la ventana.'); return
-      }
-    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudo modificar la ventana.'); return }
-    setModules(previous => previous.map(module => module.id === id ? { ...module, layout, resetSizeOnMount: false, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(saved) } } : module))
+  function saveLayout(id: ModuleId, layout: ModuleLayout) {
+    if (!modules.find(module => module.id === id)?.resetSizeOnMount) setInitialArrangementGeneration(null)
+    setModules(previous => {
+      const opening = previous.find(module => module.id === id)?.resetSizeOnMount
+      if (!opening) return previous.map(module => module.id === id ? { ...module, layout, resetSizeOnMount: false } : module)
+      const origin = { x: Math.max(0, Math.ceil(-viewport.state.offsetX / viewport.state.scale)), y: Math.max(0, Math.ceil(-viewport.state.offsetY / viewport.state.scale)) }
+      const settled = previous.filter(module => module.id !== id && !module.resetSizeOnMount)
+      const placed = findModulePlacement({ id, size: layout, origin }, settled.map(module => module.layout), visibleBounds).layout
+      const occupied = [...settled.map(module => module.layout), placed]
+      return previous.map(module => {
+        if (module.id === id) return { ...module, layout: placed, resetSizeOnMount: false }
+        if (!module.resetSizeOnMount) return module
+        const pending = findModulePlacement({ id: module.id, size: module.layout, origin }, occupied, visibleBounds).layout
+        occupied.push(pending)
+        return { ...module, layout: pending }
+      })
+    })
+    setGrowth(null)
   }
+
   function close(id: ModuleId) {
+    setGrowth(null)
     if (locationHighlight?.id === id) setLocationHighlight(null)
     if (id === 'elements' || id === 'dotations') { setEditRequest(null); pendingEditModule.current = null }
     if (id === 'board') setBoardCenter(null)
@@ -318,43 +333,50 @@ export function App() {
     setLayers(previous => previous.filter(other => other !== id))
     if (active === id) setActive(null)
   }
-  function requestCleanup(id: ModuleId | null, close: boolean) {
+  function requestCleanup(id: ModuleId | null) {
     if (cleanupInFlight.current) return
     setCleanupError(null)
-    setCleanupRequest({ ids: id ? [id] : Object.keys(MODULE_REGISTRY) as ModuleId[], close, generation: documentGeneration })
+    setCleanupRequest({ ids: id ? [id] : [...CLEANUP_MODULE_IDS], generation: documentGeneration })
+  }
+  function selectCleanupModules(ids: readonly ModuleId[]) {
+    if (cleanupInFlight.current) return
+    setCleanupError(null)
+    setCleanupRequest(request => request?.generation === documentGeneration ? { ...request, ids: [...ids] } : request)
   }
   async function confirmCleanup() {
-    const request = cleanupRequest, snapshot = store.getSnapshot()
-    if (cleanupInFlight.current || !request || request.generation !== snapshot.documentGeneration || !snapshot.ready || snapshot.replacing) return
+    const request = cleanupRequest, plan = cleanupPlan, snapshot = store.getSnapshot()
+    if (cleanupInFlight.current || !request || !plan || !plan.ids.length || request.generation !== snapshot.documentGeneration || !snapshot.ready || !snapshot.active || snapshot.replacing) return
+    const ids = plan.ids
     cleanupInFlight.current = true
     setCleanupBusy(true)
     setCleanupError(null)
     let otherModulesCleaned = false
     try {
       const timerSnapshot = timers.getSnapshot()
-      if (request.ids.includes('clock') && (!timerSnapshot.ready || timerSnapshot.storageUnavailable || timerSnapshot.storageConflict)) {
+      if (plan.source !== snapshot.document || (plan.runtime.has('timers') && plan.timerCount !== timerSnapshot.timers.length)) throw new Error(CLEANUP_CHANGED_ERROR)
+      if (plan.runtime.has('timers') && (!timerSnapshot.ready || timerSnapshot.storageUnavailable || timerSnapshot.storageConflict)) {
         throw new Error('Espera a que estén disponibles los temporizadores antes de limpiarlos.')
       }
       // Validate all document changes together before changing independent timers.
-      if (!store.applyDocumentCommand(document => clearDocumentModules(document, request.ids))) {
+      if (!store.applyDocumentCommand(document => applyCleanupPlan(document, plan))) {
         setCleanupError(store.getSnapshot().fileMessage ?? 'No se pudieron limpiar los módulos.'); return
       }
-      if (request.ids.includes('board')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
-      if (request.ids.includes('coordinates')) rememberCoordinateInput('')
-      if (request.ids.some(id => id === 'elements' || id === 'dotations' || id === 'information' || id === 'operations')) selectElement(null)
+      if (plan.runtime.has('board-image')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
+      if (plan.runtime.has('coordinate-input')) rememberCoordinateInput('')
+      if (plan.runtime.has('element-selection')) selectElement(null)
       // Los datos compartidos también pueden modificar otras ventanas; desactiva el redimensionamiento automático hasta la siguiente interacción con el contenido.
       setSizePreservation(previous => {
         const revisions: Partial<Record<ModuleId, number>> = previous.generation === documentGeneration ? { ...previous.revisions } : {}
-        for (const id of new Set([...open.map(module => module.id), ...request.ids])) revisions[id] = (revisions[id] ?? 0) + 1
+        for (const id of new Set([...open.map(module => module.id), ...ids])) revisions[id] = (revisions[id] ?? 0) + 1
         return { generation: documentGeneration, revisions }
       })
       setModuleRevisions(previous => {
         const next = { ...previous }
-        for (const id of request.ids) next[id] = (next[id] ?? 0) + 1
+        for (const id of ids) next[id] = (next[id] ?? 0) + 1
         return next
       })
-      otherModulesCleaned = request.ids.some(id => id !== 'clock')
-      if (request.ids.includes('clock')) {
+      otherModulesCleaned = ids.some(id => id !== 'clock')
+      if (plan.runtime.has('timers')) {
         const result = await timers.clearAll()
         const current = store.getSnapshot()
         if (request.generation !== current.documentGeneration || current.replacing) return
@@ -364,7 +386,6 @@ export function App() {
             : 'No se guardó la limpieza del reloj. Reintenta el guardado desde el aviso del reloj antes de confirmar de nuevo.')
         }
       }
-      if (request.close) for (const id of request.ids) close(id)
       setCleanupRequest(null); setCleanupError(null); setModulesError(null)
     } catch (error) {
       if (request.generation !== store.getSnapshot().documentGeneration) return
@@ -375,77 +396,63 @@ export function App() {
       setCleanupBusy(false)
     }
   }
-  function arrangeOpen(mode: ViewArrangement, columns: number) {
-    if (!open.length) return
-    try {
-      setModulesError(null)
-      const collapsed = mode !== 'columns'
-      const placed: OpenModule[] = []
-      const origin = { x: Math.max(0, Math.ceil(-viewport.state.offsetX / viewport.state.scale)), y: Math.max(0, Math.ceil(-viewport.state.offsetY / viewport.state.scale)) }
-      const collapsedHeight = 27
-      const gap = 8, count = Math.min(columns, open.length)
-      const expanded = open.map(module => {
-        const expanding = !collapsed && module.layout.height <= 29
-        const size = expanding ? moduleActions.current[module.id]?.('expand') ?? moduleBaseSize(module.id) : module.layout
-        return { ...module, resetSizeOnMount: expanding || module.resetSizeOnMount, layout: { ...module.layout, width: size.width, height: size.height } }
-      })
-      const widths = Array.from({ length: count }, (_, column) => Math.max(...expanded.filter((_module, index) => index % count === column).map(module => module.layout.width)))
-      const tops = Array<number>(count).fill(origin.y)
-      let collapsedX = origin.x, collapsedY = origin.y, collapsedColumnWidth = 0
-      for (const [index, module] of expanded.entries()) {
-        let layout = { ...module.layout }
-        if (collapsed) {
-          const width = moduleCollapsedWidth(module.id)
-          if (mode === 'collapsed-rows') {
-            if (collapsedX > origin.x && collapsedX + width > origin.x + visibleBounds.width) {
-              collapsedX = origin.x; collapsedY += collapsedHeight
-            }
-            layout = { ...layout, width, height: collapsedHeight, x: collapsedX, y: collapsedY }
-            collapsedX += width
-          } else {
-            if (collapsedY > origin.y && collapsedY + collapsedHeight > origin.y + visibleBounds.height) {
-              collapsedX += collapsedColumnWidth; collapsedY = origin.y; collapsedColumnWidth = 0
-            }
-            layout = { ...layout, width, height: collapsedHeight, x: collapsedX, y: collapsedY }
-            collapsedY += collapsedHeight
-            collapsedColumnWidth = Math.max(collapsedColumnWidth, width)
-          }
-        } else {
-          const column = index % count
-          layout = { ...layout, x: origin.x + widths.slice(0, column).reduce((sum, width) => sum + width + gap, 0), y: tops[column]! }
-          tops[column] = tops[column]! + layout.height + gap
-        }
-        layout = { ...layout, referenceSize: { width: Math.max(bounds.width, layout.x + layout.width), height: Math.max(bounds.height, layout.y + layout.height) } }
-        placed.push({ ...module, layout })
-      }
-      if (!store.applyDocumentCommand(document => updateModuleLayouts(document, placed))) {
-        setModulesError(store.getSnapshot().fileMessage ?? 'No se pudieron distribuir los módulos.'); return
-      }
-      setModules(placed.map(module => ({ ...module, presentation: { size: bounds, generation: documentGeneration, source: JSON.stringify(module.layout) } })))
-    } catch (error) { setModulesError(error instanceof Error ? error.message : 'No se pudieron distribuir los módulos.') }
+  function collapseAll() {
+    setInitialArrangementGeneration(null)
+    setModules(collectModuleBars(open, visibleBounds))
+    setGrowth(null)
+    setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))
   }
   function toggle(id: ModuleId) {
     if (open.some(module => module.id === id)) { activate(id); return }
-    const nextBounds = getWorkspaceBounds(visibleBounds, [...modules.map(module => module.id), id])
-    const placement = findModulePlacement({ id, saved: document.moduleLayouts[id] }, open.map(module => module.layout), nextBounds)
-    const source = JSON.stringify(document.moduleLayouts[id] ?? placement.layout)
-    const layout = { ...placement.layout, ...moduleBaseSize(id) }
-    setModules(previous => [...previous, { id, layout, resetSizeOnMount: true, presentation: { size: bounds, generation: documentGeneration, source } }])
+    const origin = { x: Math.max(0, Math.ceil(-viewport.state.offsetX / viewport.state.scale)), y: Math.max(0, Math.ceil(-viewport.state.offsetY / viewport.state.scale)) }
+    const layout = findModulePlacement({ id, origin }, open.map(module => module.layout), visibleBounds).layout
+    setModules(previous => [...previous, { id, layout, resetSizeOnMount: true }])
     activate(id)
+  }
+  const canRestoreView = ready && !replacing && growth?.generation !== documentGeneration && modulesGeneration === documentGeneration
+  const canCaptureView = canRestoreView && modules.every(module => !module.resetSizeOnMount)
+  function captureDesktopView(): DesktopViewState | null {
+    if (!canCaptureView || store.getSnapshot().replacing) return null
+    return {
+      modules: [...modules].sort((a, b) => layers.indexOf(a.id) - layers.indexOf(b.id)).map(({ id, layout }) => ({
+        id, x: layout.x, y: layout.y, width: layout.width, height: layout.height,
+      })),
+      viewport: { ...viewport.state },
+      active: active && modules.some(module => module.id === active) ? active : null,
+    }
+  }
+  function restoreDesktopView(candidate: DesktopViewState) {
+    if (!canRestoreView || store.getSnapshot().replacing) return false
+    try {
+      const desktop = validateDesktopViewState(candidate)
+      const visible = { width: Math.ceil(viewport.size.width / desktop.viewport.scale), height: Math.ceil(viewport.size.height / desktop.viewport.scale) }
+      const restored: OpenModule[] = desktop.modules.map(({ id, ...geometry }) => ({
+        id, layout: { ...geometry, referenceSize: { ...visible } }, resetSizeOnMount: false, restoreRevision: viewRestoreSequence + 1,
+      }))
+      const extent = measureWorkspaceExtent(visible, restored.map(module => module.layout))
+      setInitialArrangementGeneration(null); setGrowth(null); setLocationHighlight(null)
+      setViewRestoreSequence(value => value + 1)
+      setModules(restored); setLayers(restored.map(module => module.id)); setActive(desktop.active)
+      setViewport(previous => ({ ...previous, measured: true, state: clamp(desktop.viewport, previous.size, extent) }))
+      return true
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo recuperar la vista.', { notice: 'viewRestoreError' })
+      return false
+    }
   }
   return (
     <><div data-slot="app-shell" className={`${styles.shell} app-shell`}>
-      <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store }} reportNotices={reportNotices.generation === documentGeneration ? reportNotices.value : null} mapNotices={mapNotices.generation === documentGeneration ? mapNotices.value : {}}
+      <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store, desktopViews: { canCapture: canCaptureView, canRestore: canRestoreView, capture: captureDesktopView, restore: restoreDesktopView } }} reportNotices={reportNotices.generation === documentGeneration ? reportNotices.value : null} mapNotices={mapNotices.generation === documentGeneration ? mapNotices.value : {}}
         boardNotice={boardImage.resourceError && open.some(module => module.id === 'board') ? { message: boardImage.resourceError, busy: boardImage.busy, onChoose: () => boardImageInput.current?.click() } : null}
         clockNotice={timerProblem || audioProblem ? { storage: timerProblem, audio: audioProblem, onRetry: () => { void timers.retryPersistence() }, onActivate: () => { void timers.activateSound() } } : null}
         modulesMenu={{ trigger: modulesTrigger, modules, disabled: !ready || !boardActive || replacing, onToggle: toggle }}
         viewMenu={{ disabled: !ready || !boardActive || replacing || !open.length, active: open.some(module => module.id === active),
-          onArrange: arrangeOpen, onAutoArrange: recolocate, onFitActive: fitActiveModule }}
+          onCollapseAll: collapseAll, onAutoArrange: recolocate, onFitActive: fitActiveModule }}
         cleanupMenu={{ active: open.some(module => module.id === active) ? active : null, disabled: !ready || !boardActive || replacing,
-          request: cleanupRequest?.generation === documentGeneration ? cleanupRequest : null, error: cleanupRequest?.generation === documentGeneration ? cleanupError : null, busy: cleanupBusy,
+          request: cleanupRequest?.generation === documentGeneration ? cleanupRequest : null, plan: cleanupPlan, onSelection: selectCleanupModules, error: cleanupRequest?.generation === documentGeneration ? cleanupError : null, busy: cleanupBusy,
           onRequest: requestCleanup, onCancel: () => { if (cleanupInFlight.current) return; setCleanupRequest(null); setCleanupError(null) }, onConfirm: confirmCleanup }}
         moduleShortcuts={{ modules: open, active, disabled: !ready || replacing, onSelect: selectOpenModule }}
-        magnet={{ active: magnet, onToggle: () => setMagnet(value => !value) }}
+        magnet={{ active: magnet ?? false, onToggle: () => setMagnet(value => !(value ?? false)) }}
         radar={{ active: radarActive, onToggle: toggleRadar, disabled: !ready || !boardActive || replacing }}
         onOrigin={() => setViewport(previous => ({ ...previous, state: { ...previous.state, offsetX: 0, offsetY: 0 } }))}
         onZoom={scale => setViewport(previous => ({ ...previous,
@@ -466,7 +473,8 @@ export function App() {
 
         <div data-slot="app-workspace-content" className={styles.content} inert={replacing}>
         <MobileViewport state={viewport.state} size={viewport.size} bounds={sceneBounds} headerHeight={36} onChange={state => setViewport(previous => ({ ...previous, state }))}>
-          <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow}
+          <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet ?? false}
+            magnetOptions={{ distance: preferences.settings.magnetDistance, alignEdges: preferences.settings.magnetAlignEdges }} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow} onGrowEnd={endGrowth}
             onRetry={retryModule} renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
               onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
               onEditElement={elementId => {

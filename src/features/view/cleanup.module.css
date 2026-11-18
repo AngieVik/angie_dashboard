@@ -1,0 +1,20 @@
+@layer components {
+  .dialog { display: flex; flex-direction: column; gap: var(--section-gap); width: min(760px, calc(100% - 32px)); overflow: hidden; }
+  .dialog > :not(.body) { flex: none; }
+  .dialog .description { margin: 0; }
+  .body { display: flex; flex-direction: column; gap: var(--section-gap); min-height: 0; overflow: auto; }
+  .selection { flex: none; min-width: 0; margin: 0; padding: var(--section-gap); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+  .selection legend { padding-inline: var(--control-gap); }
+  .modules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--section-gap); margin-top: var(--section-gap); }
+  .option { display: flex; align-items: center; gap: var(--control-gap); min-width: 0; overflow-wrap: anywhere; }
+  .option [data-slot="checkbox"] { flex: none; }
+  .preview { display: flex; flex-direction: column; gap: var(--section-gap); }
+  .preview h3, .preview h4, .preview p { margin: 0; font-size: inherit; }
+  .preview h3, .preview h4 { font-weight: 600; }
+  .effects { display: flex; flex-direction: column; gap: var(--section-gap); margin: 0; padding: 0; list-style: none; }
+  .effects > li { display: flex; flex-direction: column; gap: var(--control-gap); padding: var(--section-gap); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+  .preserved { color: var(--color-text-secondary); }
+  .shared { padding: var(--section-gap); border: 1px solid var(--color-selection-border); border-radius: var(--radius-control); }
+  .shared ul { margin: var(--control-gap) 0 0; padding-left: 1.5em; }
+  @media (max-width: 600px) { .modules { grid-template-columns: minmax(0, 1fr); } }
+}

@@ -15,10 +15,10 @@
     border-radius: 50%;
   }
 
-  .base[data-icon="🟢"] { background-color: #16c60c; }
-  .base[data-icon="🟡"] { background-color: #fff100; }
-  .base[data-icon="🔵"] { background-color: #0078d7; }
-  .base[data-icon="🔴"] { background-color: #e81224; }
-  .base[data-icon="🟠"] { background-color: #f7630c; }
-  .base[data-icon="⚫"] { background-color: #383838; }
+  .base[data-icon="🟢"] { background-color: var(--color-status-available); }
+  .base[data-icon="🟡"] { background-color: var(--color-status-activated); }
+  .base[data-icon="🔵"] { background-color: var(--color-status-approaching); }
+  .base[data-icon="🔴"] { background-color: var(--color-status-intervening); }
+  .base[data-icon="🟠"] { background-color: var(--color-status-transferring); }
+  .base[data-icon="⚫"] { background-color: var(--color-status-inoperative); }
 }

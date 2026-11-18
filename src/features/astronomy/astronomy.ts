@@ -2,6 +2,8 @@ import { TZDate } from '@date-fns/tz'
 import { getMoonIllumination, getTimes } from 'suncalc'
 import { isCalendarDate } from '../calendar/calendarEvents'
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
+import type { FormatPreferences } from '../settings/formatPreferences'
+import { formatClockTime } from '@/platform/formatting'
 
 export const SOLAR_EVENTS = ['sunrise', 'sunset', 'dawn', 'dusk', 'nauticalDawn', 'nauticalDusk', 'nightEnd', 'night'] as const
 export type SolarEvent = typeof SOLAR_EVENTS[number]
@@ -41,9 +43,9 @@ export function moonPhase(day: string, timeZone: string) {
   return { ...illumination, name: moonNames[Math.round(illumination.phase * 8) % 8] }
 }
 
-export function formatSolarTime(date: Date | null, timeZone: string, day?: string) {
+export function formatSolarTime(date: Date | null, timeZone: string, day?: string, timeFormat: FormatPreferences['time'] = '24h') {
   if (!date) return '—'
   const time = new Intl.DateTimeFormat('es-ES', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
   const offset = day ? Math.round((Date.parse(zonedDateKey(date, timeZone)) - Date.parse(day)) / 86_400_000) : 0
-  return time + (offset ? ` (${offset > 0 ? '+' : ''}${offset})` : '')
+  return formatClockTime(time, timeFormat) + (offset ? ` (${offset > 0 ? '+' : ''}${offset})` : '')
 }

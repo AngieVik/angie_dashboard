@@ -92,7 +92,7 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
       if (frame.current !== node || node.contentDocument !== doc) return
       previewDocument.current = null
       setPreviewReady(false)
-      if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo preparar la vista previa del informe.', { id: noticeId })
+      if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo preparar la vista previa del informe.', { notice: 'reportPreview', id: noticeId })
     }
   }
   const any = Object.values(selection).some(fields => fields && fields.length)
@@ -111,7 +111,7 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
       setPreviewReady(false); setPreview(generated); setSaveError(null)
       setPreviewSettings({ selection, pageOptions })
     } catch (error) {
-      if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo generar el informe.', { id: noticeId })
+      if (isCurrent()) toast.error(error instanceof Error ? error.message : 'No se pudo generar el informe.', { notice: 'reportGenerate', id: noticeId })
     }
     finally { generationRequest.current = false; setGenerating(false) }
   }, [any, store, isCurrent, selection, pageOptions, getTimerRecords, noticeId])
@@ -132,7 +132,7 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
       await store.saveGeneratedReport(preview.report)
       if (isCurrent()) setSaveError(null)
     } catch (error) {
-      if (isCurrent()) { setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el informe.'); toast.error('No se pudo guardar el informe.', { id: noticeId }) }
+      if (isCurrent()) { setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el informe.'); toast.error('No se pudo guardar el informe.', { notice: 'reportSave', id: noticeId }) }
     }
     finally { saveRequest.current = false; setSaving(false) }
   }, [preview, previewCurrent, store, isCurrent, noticeId])
@@ -150,7 +150,7 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
           const target = frame.current?.contentWindow
           if (!target) throw new Error('Vista previa no disponible.')
           target.print()
-        } catch { toast.error('No se pudo abrir la impresión.', { id: noticeId }) }
+        } catch { toast.error('No se pudo abrir la impresión.', { notice: 'reportPrint', id: noticeId }) }
       }}><Printer aria-hidden="true" /></Button>
       <Select aria-label="Tamaño de la vista previa" value={previewScale} onValueChange={value => {
         if (value === 'fit' || value === 'actual') setPreviewScale(value)

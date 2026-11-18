@@ -13,9 +13,10 @@ import { applyDocumentCommands } from '../../domain/document/documentCommand'
 import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { ElementEditor } from './ElementEditor'
-import { ICON_CATALOG } from './iconCatalog'
+import { PinThumbnail } from './PinThumbnail'
 import { pinNameLines } from './pinPresentation'
 import styles from './elements.module.css'
+import pinSummaryStyles from './pinSummary.module.css'
 import toolbarStyles from '@/layout/moduleToolbar.module.css'
 export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void; placementPosition?: Position; editRequest?: { id: string } }
 type Props = ElementsModuleProps & { isUnit?: boolean }
@@ -215,7 +216,7 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
                   const checked = nextChecked
                   setCheckedIds(ids => checked ? [...ids.filter(id => id !== element.id), element.id] : ids.filter(id => id !== element.id))
                 }} />}
-              <Button className="element-select" aria-label={`Seleccionar ${element.name}`} aria-pressed={element.id === selectedId} disabled={blocked}
+              <Button className={`${pinSummaryStyles.layout} element-select`} aria-label={`Seleccionar ${element.name}`} aria-pressed={element.id === selectedId} disabled={blocked}
                 onClick={() => { if (!blockedRef.current) onSelect(element.id) }}
                 onDoubleClick={() => { if (!longPressed.current) edit(element.id) }} onContextMenu={event => event.preventDefault()}
                 onPointerDown={event => {
@@ -252,8 +253,8 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
                     event.preventDefault(); edit(element.id)
                   } else lastCardTap.current = { id: element.id, time, x: event.clientX, y: event.clientY }
                 }} onPointerCancel={cancelHold} onPointerLeave={() => { if (cardPointer.current?.elementId === element.id) cancelHold() }}>
-                {element.visual.type === 'asset' ? <img className="element-row-visual" src={ICON_CATALOG[element.visual.assetId].path} alt="" draggable={false} /> : <span className="element-row-visual element-row-emoji" aria-hidden="true">{element.visual.value}</span>}
-                <span className="element-row-text"><strong>{pinNameLines(element.name).map((line, index) => <span key={index}>{line}</span>)}</strong></span>
+                <span className="element-row-visual"><PinThumbnail visual={element.visual} /></span>
+                <span className={`${pinSummaryStyles.name} element-row-text`}><strong>{pinNameLines(element.name).map((line, index) => <span key={index}>{line}</span>)}</strong></span>
               </Button>
             </div>
           })}</div>

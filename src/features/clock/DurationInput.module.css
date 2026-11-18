@@ -1,8 +1,0 @@
-@layer overrides {
-  .base {
-    width: 100%;
-    max-width: 100%;
-    font-family: var(--font-clock);
-    text-align: left;
-  }
-}

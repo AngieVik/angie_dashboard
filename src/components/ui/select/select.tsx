@@ -6,8 +6,8 @@ import styles from './select.module.css'
 export type SelectOption = { value: string; label: string; disabled?: boolean }
 
 // DropdownMenu owns choice navigation; local styles specialize the selector list.
-export function Select({ value, onValueChange, options, className = '', disabled, ...props }: Omit<ComponentProps<'button'>, 'value' | 'onChange' | 'children' | 'ref'> & {
-  value: string; onValueChange: (value: string) => void; options: readonly SelectOption[]
+export function Select({ value, onValueChange, options, className = '', disabled, sizeToOptions = false, style, ...props }: Omit<ComponentProps<'button'>, 'value' | 'onChange' | 'children' | 'ref'> & {
+  value: string; onValueChange: (value: string) => void; options: readonly SelectOption[]; sizeToOptions?: boolean
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -21,7 +21,8 @@ export function Select({ value, onValueChange, options, className = '', disabled
     }
     setOpen(next)
   }}>
-    <DropdownMenuTrigger asChild><button ref={trigger} data-slot="select" type="button" disabled={disabled} className={`${styles.base} ${className}`.trim()} {...props}>
+    <DropdownMenuTrigger asChild><button ref={trigger} data-slot="select" type="button" disabled={disabled} className={`${styles.base} ${sizeToOptions ? styles.sized : ''} ${className}`.trim()}
+      style={{ ...(sizeToOptions ? { '--select-option-width': `${Math.max(0, ...options.map(option => option.label.length))}ch` } : {}), ...style } as CSSProperties} {...props}>
       <span className={styles.value}>{options.find(option => option.value === value)?.label ?? value}</span>
       <svg className={styles.arrow} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button></DropdownMenuTrigger>

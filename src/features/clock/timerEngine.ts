@@ -1,3 +1,6 @@
+import { formatInstant } from '@/platform/formatting'
+import { defaultFormatPreferences } from '../settings/formatPreferences'
+import type { FormatPreferences } from '../settings/formatPreferences'
 import type { TimerKind, TimerRecord, TimerSnapshot } from './timerTypes'
 export const MAX_TIMER_SECONDS = 86399
 export function normalizeDuration(hours: string, minutes: string, seconds: string): number {
@@ -45,11 +48,7 @@ export function resetTimer(timer: TimerRecord): TimerRecord {
 }
 export function deactivateTimer(timer: TimerRecord): TimerRecord { return timer.kind === 'advisory' ? resetTimer(timer) : timer }
 export function acknowledgeTimer(timer: TimerRecord): TimerRecord { return timer.alertActive ? { ...timer, alertActive: false } : timer }
-const clockOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' } as const
-const clockFormatters = new Map<string, Intl.DateTimeFormat>()
-const utcFormatter = new Intl.DateTimeFormat('en-GB', { ...clockOptions, timeZone: 'UTC' })
-export function referenceClock(now: number, timeZone: string) {
-  let formatter = clockFormatters.get(timeZone)
-  if (!formatter) { formatter = new Intl.DateTimeFormat('en-GB', { ...clockOptions, timeZone }); clockFormatters.set(timeZone, formatter) }
-  return { local: formatter.format(now), zulu: utcFormatter.format(now) }
+export function referenceClock(now: number, timeZone: string, time: FormatPreferences['time'] = '24h') {
+  const formats = { ...defaultFormatPreferences(), time }
+  return { local: formatInstant(now, formats, { timeZone, date: false }), zulu: formatInstant(now, { ...formats, time: '24h' }, { timeZone: 'UTC', date: false }) }
 }

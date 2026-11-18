@@ -18,7 +18,7 @@ export function ClockModule({ store }: { store: TimerStore }) {
   const alarm = useSyncExternalStore(store.alarm.subscribe, store.alarm.getSnapshot)
   const { settings } = useSettings()
   const timeZone = settings.location?.timeZone ?? DEFAULT_TIME_ZONE
-  const clock = referenceClock(now, timeZone), offset = utcOffsetLabel(now, timeZone)
+  const clock = referenceClock(now, timeZone, settings.formats.time), offset = utcOffsetLabel(now, timeZone)
   const expandPending = useRef(false)
   const previousCount = useRef(timers.length)
   const requestSpace = useContext(ModuleSizeContext)
@@ -30,20 +30,20 @@ export function ClockModule({ store }: { store: TimerStore }) {
     if (expand || collect) requestSpace()
   }, [timers.length, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])
-  return <div data-slot="clock-module" className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
+  return <div data-slot="clock-module" data-time-format={settings.formats.time} className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
     <div className="clock-display">
       <div className="clock-reference"><span className="clock-season-active" aria-label={offset}><span className="clock-label-full" aria-hidden="true">{offset}</span><span className="clock-label-short" aria-hidden="true">{offset.replace('UTC', '')}</span></span><span aria-label={timeZone}>{timeZoneCity(timeZone)}</span></div>
       <div className="clock-top">
         <div className="clock-face technical-data">
           <output className="clock-esp" aria-label="Hora de referencia">
-            <span>{clock.local.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.local.slice(3, 5)}</span><span className="clock-separator">:</span><span>{clock.local.slice(6, 8)}</span>
+            <span>{clock.local.slice(0, 2)}</span><span className="clock-separator">:</span><span>{clock.local.slice(3, 5)}</span><span className="clock-separator">:</span><span>{clock.local.slice(6, 8)}</span>{clock.local.length > 8 && <span className="clock-period">{clock.local.slice(9)}</span>}
           </output>
         </div>
       </div>
       <div className="clock-add-controls">
         <Button appearance="integrated" aria-label="T-Zero" disabled={!ready || storageConflict} onClick={() => addTimer('tzero')}><Watch aria-hidden="true" /></Button>
         <Button appearance="integrated" aria-label="T-Minus" disabled={!ready || storageConflict} onClick={() => addTimer('tminus')}><RotateCcwClock aria-hidden="true" /></Button>
-        <div className="clock-zulu technical-data"><span className="clock-zulu-label" aria-label="Zulu Time"><span className="clock-label-full" aria-hidden="true">Zulu Time</span><span className="clock-label-short" aria-hidden="true">ZT</span></span>{' '}
+        <div className="clock-zulu technical-data"><span className="clock-zulu-label" aria-label="Zulu Time"><span className="clock-label-full" aria-hidden="true">ZULU TIME</span><span className="clock-label-short" aria-hidden="true">ZT</span></span>
           <output aria-label="Hora Zulu">{clock.zulu}</output>
         </div>
         <Button appearance="integrated" aria-label="Advisories" disabled={!ready || storageConflict} onClick={() => addTimer('advisory')}><AlarmClock aria-hidden="true" /></Button>

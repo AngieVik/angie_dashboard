@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { ComponentProps, CSSProperties } from 'react'
 import * as Primitive from '@radix-ui/react-alert-dialog'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { AlertDialogOverlay, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import type { LucideIcon } from 'lucide-react'
 import GridLayout from 'react-grid-layout'
@@ -37,8 +38,11 @@ function constrain(box: Box, bounds: Size): Box {
   return { width, height, x: Math.max(0, Math.min(box.x, bounds.width - width)), y: Math.max(0, Math.min(box.y, bounds.height - height)) }
 }
 
-export function FileDialogContent({ title, icon, onClose, width = 460, height = 180, fitToContent = false, children, onOpenAutoFocus, className = '', ...props }:
-  Omit<ComponentProps<typeof Primitive.Content>, 'title'> & { title: string; icon?: LucideIcon; onClose: () => void; width?: number; height?: number; fitToContent?: boolean }) {
+export function FileDialogContent({ title, icon, onClose, width = 460, height = 180, fitToContent = false, dismissOnOutside = true, modal = true, children, onOpenAutoFocus, className = '', ...props }:
+  Omit<ComponentProps<typeof Primitive.Content>, 'title'> & { title: string; icon?: LucideIcon; onClose: () => void; width?: number; height?: number; fitToContent?: boolean; dismissOnOutside?: boolean; modal?: boolean }) {
+  const Portal = modal ? Primitive.Portal : DialogPrimitive.Portal
+  const Content = modal ? Primitive.Content : DialogPrimitive.Content
+  const Title = modal ? AlertDialogTitle : DialogPrimitive.Title
   const [area, setArea] = useState(visibleArea)
   const content = useRef<HTMLDivElement>(null)
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
@@ -60,9 +64,10 @@ export function FileDialogContent({ title, icon, onClose, width = 460, height = 
       window.visualViewport?.removeEventListener('scroll', update)
     }
   }, [])
-  return <Primitive.Portal>
-    <AlertDialogOverlay appearance="transparent" />
-    <Primitive.Content {...props} ref={attachContent} data-slot="file-dialog-content" className={`${styles.surface} ${className}`.trim()} aria-describedby={undefined}
+  return <Portal>
+    {modal && <AlertDialogOverlay appearance="transparent" />}
+    <Content {...props} ref={attachContent} data-slot="file-dialog-content" data-modal={modal} className={`${styles.surface} ${className}`.trim()} aria-describedby={undefined}
+      onInteractOutside={event => { if (!dismissOnOutside) event.preventDefault() }}
       style={area.viewport}
       onPointerDownCapture={event => {
         props.onPointerDownCapture?.(event)
@@ -78,7 +83,7 @@ export function FileDialogContent({ title, icon, onClose, width = 460, height = 
         props.onClick?.(event)
         const outside = outsidePointer.current !== null
         outsidePointer.current = null
-        if (outside && !event.defaultPrevented) onClose()
+        if (dismissOnOutside && outside && !event.defaultPrevented) onClose()
       }}
       onEscapeKeyDown={event => { event.preventDefault(); onClose() }}
       onOpenAutoFocus={event => {
@@ -88,12 +93,12 @@ export function FileDialogContent({ title, icon, onClose, width = 460, height = 
           content.current?.focus()
         }
       }}>
-      <AlertDialogTitle className="visually-hidden">{title}</AlertDialogTitle>
+      <Title className="visually-hidden">{title}</Title>
       <OverlayPortalContext value={portalContainer}>
         <FileDialogFrame title={title} icon={icon} onClose={onClose} bounds={area.workspace} initial={{ width, height }} fitToContent={fitToContent}>{children}</FileDialogFrame>
       </OverlayPortalContext>
-    </Primitive.Content>
-  </Primitive.Portal>
+    </Content>
+  </Portal>
 }
 
 function FileDialogFrame({ title, icon, onClose, bounds, initial, fitToContent, children }: { title: string; icon?: LucideIcon; onClose: () => void; bounds: Area; initial: Size; fitToContent: boolean; children: ComponentProps<typeof ModuleFrame>['children'] }) {

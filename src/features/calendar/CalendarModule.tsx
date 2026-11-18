@@ -18,6 +18,8 @@ import type { CalendarEvent, CalendarEventInput } from './calendarEvents'
 import type { CalendarStore } from './calendarStore'
 import styles from './calendar.module.css'
 import { MoonPhase } from '../astronomy/MoonPhase'
+import { useSettings } from '../settings/useSettings'
+import { formatClockTime, formatDateKey } from '@/platform/formatting'
 
 const EventsContext = createContext<readonly CalendarEvent[]>([])
 const dayLabel = (date: Date) => format(date, 'EEEE d MMMM', { locale: es })
@@ -32,6 +34,7 @@ function EventDayButton(props: DayButtonProps) {
 
 export function CalendarModule({ store }: { store: CalendarStore }) {
   const { events, selectedDate, ready, busy, error } = useSyncExternalStore(store.subscribe, store.getSnapshot)
+  const { settings } = useSettings()
   const { blocked, blockedRef } = useViewportInteraction()
   const requestSpace = useContext(ModuleSizeContext)
   const { scale } = useContext(ModuleZoomContext)
@@ -80,9 +83,14 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
   }
   const week = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(selected, { weekStartsOn: 1 }), index))
   return <div ref={calendarRef} className={styles.base} data-slot="calendar-module">
-    <div className={styles.layout} data-slot="calendar-layout" data-events-open={showEvents}>
+    <div className={styles.layout} data-slot="calendar-layout" data-minimum-scroll-content data-events-open={showEvents}>
       <header className={styles.toolbar}>
-        <Input type="month" className={styles.month} aria-label="Mes y año" value={format(month, 'yyyy-MM')} disabled={disabled} onChange={event => { if (/^\d{4}-\d{2}$/.test(event.target.value)) choose(parseISO(event.target.value + '-01')) }} />
+        <div className={styles.selectedDate}>
+          <Input type="date" aria-label="Fecha seleccionada" value={selectedKey} disabled={disabled}
+            onClick={event => { if (!disabled && !blockedRef.current && typeof event.currentTarget.showPicker === 'function') { event.preventDefault(); event.currentTarget.showPicker() } }}
+            onChange={event => { if (/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) choose(parseISO(event.target.value)) }} />
+          <span aria-hidden="true" data-disabled={disabled}>{formatDateKey(selectedDate, settings.formats.date)}</span>
+        </div>
         <Button disabled={blocked} aria-label={showEvents ? 'Ocultar eventos' : 'Mostrar eventos'} aria-expanded={showEvents} aria-pressed={showEvents} onClick={() => { if (!blockedRef.current) setShowEvents(value => !value) }}><CalendarHeart aria-hidden="true" /></Button>
         {error && <Button disabled={busy} aria-label="Recargar agenda" onClick={() => { void store.reload() }}><RefreshCw aria-hidden="true" /></Button>}
       </header>
@@ -128,7 +136,7 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
           {!daily.length && <p className={styles.empty}>Sin eventos</p>}
           <ol className={styles.events}>{daily.map(event => <li key={event.id} className={styles.event} style={{ borderLeftColor: event.color }}>
             <div className={styles.eventText}><span className={styles.eventTitle}>{event.title}</span>
-              <span className={styles.eventTime}>{event.time ?? 'Sin hora'}{event.endDate !== event.startDate && ` · ${format(parseISO(event.startDate), 'dd/MM')}–${format(parseISO(event.endDate), 'dd/MM')}`}</span>
+              <span className={styles.eventTime}>{event.time ? formatClockTime(event.time, settings.formats.time) : 'Sin hora'}{event.endDate !== event.startDate && ` · ${formatDateKey(event.startDate, settings.formats.date)}–${formatDateKey(event.endDate, settings.formats.date)}`}</span>
             </div>
             {deleting === event.id ? <div className={styles.actions}><Button disabled={disabled || Boolean(error)} aria-label={'Confirmar eliminación de ' + event.title} onClick={() => { if (!blockedRef.current) void store.remove(event.id).then(removed => { if (removed) setDeleting(null) }) }}><Check aria-hidden="true" /></Button><Button disabled={disabled} aria-label="Cancelar eliminación" onClick={() => setDeleting(null)}><X aria-hidden="true" /></Button></div> : <div className={styles.actions}>
               <Button disabled={disabled || Boolean(error)} aria-label={'Editar ' + event.title} onClick={() => edit(event)}><PenLine aria-hidden="true" /></Button>

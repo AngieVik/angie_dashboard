@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
-import styles from './DurationInput.module.css'
 
 const digitPositions = [0, 1, 3, 4, 6, 7] as const
 type DurationEdit = { value: string; caret: number }
@@ -28,8 +27,8 @@ function editDuration(value: string, start: number, end: number, text: string, d
   return { value: maskedDuration(digits.join('')), caret: digitPositions[slot] ?? 8 }
 }
 
-export function DurationInput({ value, disabled, onChange, onBlur }: {
-  value: string; disabled: boolean; onChange: (value: string) => void; onBlur: () => void
+export function DurationInput({ value, disabled, onChange, onBlur, className }: {
+  value: string; disabled: boolean; onChange: (value: string) => void; onBlur: () => void; className: string
 }) {
   const input = useRef<HTMLInputElement>(null)
   const [selection, setSelection] = useState<{ caret: number } | null>(null)
@@ -61,7 +60,7 @@ export function DurationInput({ value, disabled, onChange, onBlur }: {
     return () => node.removeEventListener('beforeinput', beforeInput)
   }, [value, commit])
   return <Input ref={input} aria-label="Duración inicial"
-    className={`${styles.base} technical-data`} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
+    className={className} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder="00:00:00"
     disabled={disabled} value={value} onBlur={onBlur}
     onKeyDown={event => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return

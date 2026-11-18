@@ -27,9 +27,9 @@ export type ModuleActions = (action: ModuleAction) => Size | undefined
 
 interface ScrollAxis { element: HTMLElement; offset: number; ratio: number; maximum: number }
 
-export function ModuleFrame({ id, title, icon, active, onClose, onFit, children, generation = 0, contentSizeRevision = 0, locateToken = 0, height, width, navigationKey, resetSizeOnMount = false, onFront, onPark, onReset, onActions }: {
+export function ModuleFrame({ id, title, icon, active, onClose, onFit, children, generation = 0, contentSizeRevision = 0, locateToken = 0, height, width, navigationKey, resetSizeOnMount = false, restoreRevision = 0, onFront, onPark, onReset, onActions }: {
   id?: ModuleId; title?: string; icon?: LucideIcon; active: boolean; onClose: () => void; onFit?: (size: Size) => void; children?: ReactNode
-  generation?: number; contentSizeRevision?: number; locateToken?: number; height?: number; width?: number; navigationKey?: string; resetSizeOnMount?: boolean
+  generation?: number; contentSizeRevision?: number; locateToken?: number; height?: number; width?: number; navigationKey?: string; resetSizeOnMount?: boolean; restoreRevision?: number
   onFront?: () => void; onPark?: (size: Size) => void; onReset?: () => void
   onActions?: (id: ModuleId, actions: ModuleActions | null) => void
 }) {
@@ -56,6 +56,12 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
   const preserveManualSize = useRef(false)
   const savedScrolls = useRef(initialNavigation.scrolls ?? {})
   const previousScale = useRef(scale)
+  useLayoutEffect(() => {
+    if (!restoreRevision) return
+    initialSizePending.current = false
+    preserveManualSize.current = true
+    restoringSize.current = true
+  }, [restoreRevision])
   const collapsed = height === undefined ? iconCollapsed || collapsedGeneration === generation : height <= 29
   const collapseLabel = (collapsed ? 'Expandir ' : 'Colapsar ') + name
   const content = useRef<HTMLDivElement>(null), frame = useRef<HTMLElement>(null)

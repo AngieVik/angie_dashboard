@@ -1,5 +1,10 @@
 import type { Size, ViewportState } from './layoutTypes'
 
+export const VIEWPORT_ZOOM_MIN = 0.25
+export const VIEWPORT_ZOOM_MAX = 2
+export const ZOOM_STEP_DEFAULT = 1
+export const ZOOM_STEP_MAX = (VIEWPORT_ZOOM_MAX - VIEWPORT_ZOOM_MIN) * 100
+
 export function fit(size: Size, bounds: Size = size): ViewportState {
   return clamp({ scale: 1, offsetX: 0, offsetY: 0 }, size, bounds)
 }
@@ -14,7 +19,7 @@ export function pan(state: ViewportState, dx: number, dy: number, size: Size, bo
   return clamp({ ...state, offsetX: state.offsetX + dx, offsetY: state.offsetY + dy }, size, bounds)
 }
 export function zoomAt(state: ViewportState, requestedScale: number, _point: { x: number; y: number }, _size: Size, _bounds: Size = _size): ViewportState {
-  const scale = Number.isFinite(requestedScale) ? Math.min(2, Math.max(0.25, requestedScale)) : state.scale
+  const scale = Number.isFinite(requestedScale) ? Math.min(VIEWPORT_ZOOM_MAX, Math.max(VIEWPORT_ZOOM_MIN, requestedScale)) : state.scale
   const ratio = scale / state.scale
   // Extent grows around the visible corner; zoom must not clamp it back to an old edge.
   return { scale, offsetX: Math.min(0, state.offsetX * ratio), offsetY: Math.min(0, state.offsetY * ratio) }

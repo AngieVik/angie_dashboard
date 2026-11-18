@@ -1,5 +1,4 @@
-import { MODULE_REGISTRY } from './moduleRegistry'
-import { adaptModuleLayout } from './adaptiveLayout'
+import { moduleBaseSize } from './moduleRegistry'
 import type { ModuleLayout, PlacementRequest, PlacementResult, Size } from './layoutTypes'
 
 export function overlaps(a: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>, b: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>): boolean {
@@ -7,34 +6,28 @@ export function overlaps(a: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>, 
 }
 
 export function findModulePlacement(request: PlacementRequest, occupied: readonly ModuleLayout[], bounds: Size): PlacementResult {
-  const definition = MODULE_REGISTRY[request.id]
-  const minimum = { width: definition.minimum[0], height: definition.minimum[1] }
-  if (request.saved) return { layout: adaptModuleLayout(request.saved, bounds, minimum) }
-  const initial = { x: 0, y: 0, width: Math.max(minimum.width, Math.min(definition.initial[0], bounds.width)), height: Math.max(minimum.height, Math.min(definition.initial[1], bounds.height)), referenceSize: { ...bounds } }
-  const { width, height, referenceSize } = initial
-  bounds = referenceSize
-  const origin = { x: 0, y: 0 }
-  // A first or closest free rectangle touches a boundary, an occupied edge,
-  // or the requested coordinate. These candidates preserve a one-unit grid
-  // without scanning every one of the 1.6 million logical points.
-  const xs = new Set([0, bounds.width - width, origin.x])
-  const ys = new Set([0, bounds.height - height, origin.y])
-  for (const item of occupied) {
-    xs.add(item.x - width); xs.add(item.x + item.width)
-    ys.add(item.y - height); ys.add(item.y + item.height)
+  const { width, height } = request.size ?? moduleBaseSize(request.id)
+  const origin = request.origin ?? { x: 0, y: 0 }
+  const right = origin.x + Math.max(bounds.width, width)
+  const bottom = origin.y + bounds.height
+  const xs = new Set([origin.x, ...occupied.map(item => item.x + item.width)])
+  const ys = new Set([origin.y, ...occupied.map(item => item.y + item.height)])
+  // Keep equal widths together while the complete window still fits on screen.
+  const columns = [...new Set(occupied.filter(item => item.width === width).map(item => item.x))].sort((a, b) => a - b)
+  for (const x of columns) {
+    const y = Math.max(origin.y, ...occupied.filter(item => item.x === x && item.width === width).map(item => item.y + item.height))
+    if (x < origin.x || x + width > right || y + height > bottom) continue
+    const layout = { x, y, width, height, referenceSize: { width: right, height: Math.max(origin.y + bounds.height, y + height) } }
+    if (!occupied.some(item => overlaps(layout, item))) return { layout }
   }
-  const candidates: ModuleLayout[] = []
-  for (const y of ys) for (const x of xs) {
-    const layout = { x, y, width, height, referenceSize: { ...bounds } }
-    if (x >= 0 && y >= 0 && x + width <= bounds.width && y + height <= bounds.height && !occupied.some(item => overlaps(layout, item))) {
-      candidates.push(layout)
+  // Fill visible space before extending the desktop below it.
+  for (const visibleOnly of [true, false]) {
+    for (const y of [...ys].sort((a, b) => a - b)) for (const x of [...xs].sort((a, b) => a - b)) {
+      if (x < origin.x || y < origin.y || x + width > right || (visibleOnly && y + height > bottom)) continue
+      const layout = { x, y, width, height, referenceSize: { width: right, height: Math.max(bottom, y + height) } }
+      if (!occupied.some(item => overlaps(layout, item))) return { layout }
     }
   }
-  candidates.sort((a, b) => {
-    return a.y - b.y || a.x - b.x
-  })
-  if (candidates[0]) return { layout: candidates[0] }
-  return {
-    layout: { x: Math.floor((bounds.width - width) / 2), y: Math.floor((bounds.height - height) / 2), width, height, referenceSize: { ...bounds } },
-  }
+  const y = Math.max(origin.y, ...occupied.map(item => item.y + item.height))
+  return { layout: { ...origin, y, width, height, referenceSize: { width: right, height: Math.max(origin.y + bounds.height, y + height) } } }
 }

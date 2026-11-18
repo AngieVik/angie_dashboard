@@ -8,6 +8,5 @@ export function createEmptyDocument(title = ''): AngieDocument {
     elements: [],
     notebook: [],
     timeline: [],
-    moduleLayouts: {},
   }
 }

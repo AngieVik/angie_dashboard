@@ -64,10 +64,10 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
     if (blockedRef.current || !snapshot.ready || snapshot.replacing || snapshot.documentGeneration !== documentGeneration) return false
     try {
       const accepted = store.applyDocumentCommand(update)
-      if (!accepted) toast.error(store.getSnapshot().fileMessage ?? 'No se pudo actualizar el plano.', { id: noticeId })
+      if (!accepted) toast.error(store.getSnapshot().fileMessage ?? 'No se pudo actualizar el plano.', { notice: 'planEdit', id: noticeId })
       return accepted
     }
-    catch (failure) { toast.error(failure instanceof Error ? failure.message : 'No se pudo actualizar el plano.', { id: noticeId }); return false }
+    catch (failure) { toast.error(failure instanceof Error ? failure.message : 'No se pudo actualizar el plano.', { notice: 'planEdit', id: noticeId }); return false }
   }
   return <div className={`plan-module ${styles.base}`} data-mode={mode}>
     <div className={`plan-toolbar ${toolbarStyles.base}`} role="toolbar" aria-label="Herramientas del Plano operativo">
@@ -111,7 +111,7 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
           return updateElement(document, id, { visual: { ...element.visual, scale } })
         })} />
       <PlanDrawing navigationKey={navigationKey} mode={mode} color={color} width={width} strokes={strokes} placeId={selected?.id ?? null}
-        onReject={message => toast.error(message, { id: noticeId })}
+        onReject={message => toast.error(message, { notice: 'planInput', id: noticeId })}
         onStroke={stroke => apply(document => addPlanStroke(document, stroke))} onErase={id => apply(document => removePlanStroke(document, id))}
         onPlace={(id, point) => { if (apply(document => placePlanPin(document, id, point))) { setMode('select'); onCoordinateSelect?.(point) } }} />
     </>} />
@@ -123,7 +123,7 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
         if (!pin || blockedRef.current) return
         const copied = await copyText(`${pin.latitude.toFixed(6)}, ${pin.longitude.toFixed(6)}`)
         if (!mounted.current || store.getSnapshot().documentGeneration !== documentGeneration) return
-        if (!copied) toast.error('No se pudieron copiar las coordenadas.', { id: noticeId })
+        if (!copied) toast.error('No se pudieron copiar las coordenadas.', { notice: 'planCopy', id: noticeId })
       }}><Copy aria-hidden="true" /></Button>
     </div>}
     <AlertDialog open={clearOpen && !blocked} onOpenChange={setClearOpen}>

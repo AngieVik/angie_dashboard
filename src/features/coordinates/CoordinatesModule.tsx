@@ -74,7 +74,7 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
       } catch {
         if (!cancelled) {
           unavailable = true
-          if (current === revision.current) toast.error('No se pudo leer el portapapeles.', { id: noticeId })
+          if (current === revision.current) toast.error('No se pudo leer el portapapeles.', { notice: 'clipboardRead', id: noticeId })
         }
       } finally { reading = false }
     }
@@ -124,7 +124,7 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     if (!parsed.ok) { setError(input.length > MAX_COORDINATE_INPUT_LENGTH ? parsed.error : 'No se reconoce la latitud y longitud'); return }
     setInput(parsed.normalizedInput)
     const unavailable = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => convertCoordinate(parsed.coordinate, format)).find(result => !result.ok)
-    if (unavailable && !unavailable.ok) toast.error(unavailable.error, { id: noticeId })
+    if (unavailable && !unavailable.ok) toast.error(unavailable.error, { notice: 'coordinateUnavailable', id: noticeId })
   }
   function clear() {
     if (blockedRef.current) return
@@ -139,7 +139,7 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
       if (blockedRef.current || current !== revision.current) return
       setInput(value)
     } catch {
-      if (!blockedRef.current && current === revision.current) toast.error('No se pudo pegar. Pega las coordenadas manualmente.', { id: noticeId })
+      if (!blockedRef.current && current === revision.current) toast.error('No se pudo pegar. Pega las coordenadas manualmente.', { notice: 'clipboardPaste', id: noticeId })
     }
   }
   async function copyRow(value: string | null) {
@@ -147,8 +147,8 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
     const current = ++revision.current
     const copied = await copyText(value)
     if (current !== revision.current) return
-    if (copied) toast.success('Copiado.', { id: noticeId })
-    else toast.error('No se pudo copiar.', { id: noticeId })
+    if (copied) toast.success('Copiado.', { notice: 'copied', id: noticeId })
+    else toast.error('No se pudo copiar.', { notice: 'copyError', id: noticeId })
   }
   const rows: { format: string; value: string | null; preview?: string }[] = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
     const conversion = result?.conversions.find(item => item.format === format)

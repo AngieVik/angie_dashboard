@@ -45,7 +45,7 @@
   .text {
     height: var(--control-height);
     min-height: var(--control-height);
-    padding: calc(var(--button-padding-base) * var(--module-zoom, 1));
+    padding: 0 calc(var(--button-padding-base) * var(--module-zoom, 1));
     line-height: 18px;
   }
 

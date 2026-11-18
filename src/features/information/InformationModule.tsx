@@ -6,10 +6,12 @@ import { useDocumentStore } from '../document/documentStore'
 import { OPERATIONAL_STATUSES } from '../../domain/operations/statuses'
 import { getTimelineIndex } from '../../domain/operations/operationIndexes'
 import { OperationalStatusIcon } from '../operations/OperationalStatusIcon'
+import statusStyles from '../operations/operationalStatus.module.css'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useViewportInteraction } from '../../layout/ViewportContext'
-import { ICON_CATALOG } from '../elements/iconCatalog'
+import { PinThumbnail } from '../elements/PinThumbnail'
+import pinSummaryStyles from '../elements/pinSummary.module.css'
 import { ListChevronsUpDown, ListChevronsDownUp, Eye, EyeOff } from 'lucide-react'
 import styles from './information.module.css'
 
@@ -41,15 +43,15 @@ function InformationCard({ element, planPin, currentEntry, selected, onSelect, e
     onSelect(element.id)
   }}>
     <div className="information-heading">
-    <div className="information-summary">
+    <div className={`${pinSummaryStyles.layout} information-summary`}>
       <Button appearance="integrated" className="information-select" aria-label={'Seleccionar ' + element.name} aria-pressed={selected} disabled={blocked} onClick={() => { if (!blockedRef.current) onSelect(element.id) }}>
-        {element.visual.type === 'asset' ? <img src={ICON_CATALOG[element.visual.assetId].path} alt="" /> : <span className="information-emoji" aria-hidden="true">{element.visual.value}</span>}
+        <PinThumbnail visual={element.visual} />
       </Button>
-      <strong className="information-name">{element.name}</strong>
+      <strong className={`${pinSummaryStyles.name} information-name`}>{element.name}</strong>
       <span className="information-pin" aria-label={element.pinVisible ? 'Pin visible' : 'Pin oculto'}>{element.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</span>
-      <div className="information-operative"><Badge className="information-status" aria-label="Estado operativo">
+      <Badge className={`${statusStyles.control} information-status`} aria-label="Estado operativo">
         {custom ? <><OperationalStatusIcon color={custom.customColor ?? 'transparent'} /><span className="information-status-name">{custom.customLabel || 'Personalizado'}</span></> : status ? <><OperationalStatusIcon icon={status.icon} /><span className="information-status-name">{status.status}</span></> : <><OperationalStatusIcon /><span className="information-status-name">Sin estado</span></>}
-      </Badge></div>
+      </Badge>
       {hasDetails && <Button className="information-expand" aria-label={(expanded ? 'Contraer ' : 'Expandir ') + element.name} aria-expanded={expanded} aria-controls={'information-details-' + element.id} disabled={blocked} onClick={() => { if (!blockedRef.current) { onSelect(element.id); onToggle() } }}>
         {expanded ? <ListChevronsDownUp aria-hidden="true" /> : <ListChevronsUpDown aria-hidden="true" />}
       </Button>}

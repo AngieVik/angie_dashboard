@@ -9,10 +9,9 @@ import type { GpxLocation } from './gpxMetrics'
 import { getGpxProfile, nearestProfileSample } from './gpxProfile'
 import type { GpxProfileSample } from './gpxProfile'
 import { buildGpxProfilePaths } from './gpxProfilePaths'
+import { useSettings } from '../settings/useSettings'
+import { distanceInUnits, elevationInUnits, formatDistance, formatElevation } from '@/platform/formatting'
 import styles from './GpxElevationProfile.module.css'
-
-const meters = (value: number | undefined) => value === undefined ? 'Sin datos' : value.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' m'
-const kilometers = (value: number) => (value / 1000).toLocaleString('es-ES', { maximumFractionDigits: 3 }) + ' km'
 
 export function GpxElevationProfile({ file, selected, disabled, controlsHost, onSelect }: {
   file: LoadedGpx
@@ -42,6 +41,11 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
   onSelect: (sample: GpxProfileSample) => void
 }) {
   const { scale } = useModuleZoom()
+  const { settings } = useSettings()
+  const units = settings.formats.units
+  const positionLabel = units === 'metric' ? 'PK' : 'Distancia'
+  const elevationText = (value: number | undefined) => value === undefined ? 'Sin datos' : formatElevation(value, units)
+  const distanceText = (value: number) => formatDistance(value, units)
   const profile = useMemo(() => measureWork('gpx.profile-read', () => getGpxProfile(file.data), { points: file.data.pointCount }), [file.data])
   const chart = useRef<SVGSVGElement>(null)
   const tap = useRef<{ id: number; x: number; y: number } | null>(null)
@@ -74,16 +78,16 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
   { samples: profile.samples.length, segments: profile.segments.length, gaps: profile.gaps.length, cuts: profile.cuts.length, width, height }),
   [profile, left, top, bottom, width, height, low, high])
   const patternId = useId()
-  const valueText = sample ? `PK ${kilometers(sample.distanceMeters)} · Altitud GPX ${meters(sample.point.elevation)} · Segmento ${sample.segmentIndex + 1}` : 'Sin posición seleccionada'
+  const valueText = sample ? `${positionLabel} ${distanceText(sample.distanceMeters)} · Altitud GPX ${elevationText(sample.point.elevation)} · Segmento ${sample.segmentIndex + 1}` : 'Sin posición seleccionada'
   const xTicks = profile.totalMeters > 0 ? [0, profile.totalMeters / 2, profile.totalMeters] : [0]
   const yTicks = profile.minimum !== undefined ? [low, (low + high) / 2, high] : []
   return <>
     <dl className="map-profile-summary">
-      <div><dt>Total</dt><dd>{kilometers(profile.totalMeters)}</dd></div>
-      <div><dt>Mínima</dt><dd>{meters(profile.minimum)}</dd></div>
-      <div><dt>Máxima</dt><dd>{meters(profile.maximum)}</dd></div>
-      <div><dt>D+</dt><dd>{meters(profile.ascent)}</dd></div>
-      <div><dt>D−</dt><dd>{meters(profile.descent)}</dd></div>
+      <div><dt>Total</dt><dd>{distanceText(profile.totalMeters)}</dd></div>
+      <div><dt>Mínima</dt><dd>{elevationText(profile.minimum)}</dd></div>
+      <div><dt>Máxima</dt><dd>{elevationText(profile.maximum)}</dd></div>
+      <div><dt>D+</dt><dd>{elevationText(profile.ascent)}</dd></div>
+      <div><dt>D−</dt><dd>{elevationText(profile.descent)}</dd></div>
     </dl>
     {(profile.missingPoints > 0 || profile.cuts.length > 0) && <p className="map-profile-legend">
       {profile.missingPoints > 0 && <span className="map-profile-missing">Tramos sin altura · {profile.ascent === undefined ? 'Sin datos de desnivel' : 'Desniveles parciales'}</span>}
@@ -130,12 +134,12 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
       <path d={paths.gaps} fill={`url(#${patternId})`} />
       {yTicks.map((tick, index) => <g key={index}>
         <path d={`M${left} ${y(tick)}H${right}`} className="map-profile-gridline" />
-        <text x={left - 5 * scale} y={y(tick)} textAnchor="end" dominantBaseline="middle">{tick.toLocaleString('es-ES', { maximumFractionDigits: 1 })}</text>
+        <text x={left - 5 * scale} y={y(tick)} textAnchor="end" dominantBaseline="middle">{elevationInUnits(tick, units).toLocaleString('es-ES', { maximumFractionDigits: 1 })}</text>
       </g>)}
       <path d={`M${left} ${top}V${bottom}H${right}`} className="map-profile-axis" />
-      <text x={left} y={13 * scale}>Altitud GPX (m)</text>
-      {xTicks.map((tick, index) => <text key={index} x={x(tick)} y={bottom + 14 * scale} textAnchor="middle">{(tick / 1000).toLocaleString('es-ES', { maximumFractionDigits: 2 })}</text>)}
-      <text x={left + width / 2} y={size.height - 3 * scale} textAnchor="middle">Distancia (km)</text>
+      <text x={left} y={13 * scale}>Altitud GPX ({units === 'metric' ? 'm' : 'ft'})</text>
+      {xTicks.map((tick, index) => <text key={index} x={x(tick)} y={bottom + 14 * scale} textAnchor="middle">{distanceInUnits(tick, units).toLocaleString('es-ES', { maximumFractionDigits: 2 })}</text>)}
+      <text x={left + width / 2} y={size.height - 3 * scale} textAnchor="middle">Distancia ({units === 'metric' ? 'km' : 'mi'})</text>
       <path d={paths.cuts} className="map-profile-cut" />
       <path d={paths.trace} className="map-profile-trace" stroke={file.color} />
       {profile.minimum === undefined && <text x={left + width / 2} y={top + height / 2} textAnchor="middle">Sin alturas GPX</text>}
@@ -145,8 +149,8 @@ function ProfileContent({ file, selected, disabled, onSelect }: {
       </g>}
     </svg>
     <p className="map-profile-position" role="status">{sample ? <>
-      <span>PK <strong>{kilometers(sample.distanceMeters)}</strong></span>
-      <span>Altitud GPX <strong>{meters(sample.point.elevation)}</strong></span>
+      <span>{positionLabel} <strong>{distanceText(sample.distanceMeters)}</strong></span>
+      <span>Altitud GPX <strong>{elevationText(sample.point.elevation)}</strong></span>
       <span>Segmento {sample.segmentIndex + 1}</span>
     </> : 'Sin posición seleccionada'}</p>
   </>

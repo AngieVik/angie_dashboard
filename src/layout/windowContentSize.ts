@@ -72,7 +72,7 @@ function holdCalendarLayout(frame: HTMLElement, content: HTMLElement) {
 
 export function measureModuleBaseSize(frame: HTMLElement | null, id: ModuleId): Size {
   const size = moduleBaseSize(id)
-  if (!frame) return size
+  if (!frame || MODULE_REGISTRY[id].baseHeight === 'fixed') return size
   const content = frame.querySelector<HTMLElement>('.module-content')
   const body = frame.querySelector<HTMLElement>('.module-scaled-content')
   const controls = frame.querySelector<HTMLElement>('.module-controls')
@@ -148,7 +148,7 @@ export function constrainWindowContentSize(frame: HTMLElement | null | undefined
       + (frame.querySelector<HTMLElement>('.module-controls')?.offsetHeight ?? 25) + 2
     calendar?.update({ width: w, height: h })
     let minimumHeight = timeline.contentHeight()
-    // Long forms can scroll; their first control block defines the minimum viewport.
+    // Forms and the calendar can scroll; their first control block defines the minimum viewport.
     const scrollContent = content.querySelector<HTMLElement>('[data-minimum-scroll-content]')
     const firstBlock = scrollContent?.firstElementChild
     if (scrollContent && firstBlock instanceof HTMLElement) {
@@ -158,9 +158,9 @@ export function constrainWindowContentSize(frame: HTMLElement | null | undefined
         + (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0)
       minimumHeight += firstBlockHeight - scrollContent.offsetHeight
     }
-    if (!Number.isFinite(heightLimit) && (sizeMode === 'editable' || sizeMode === 'feed')) {
-      const viewport = content.querySelector<HTMLElement>('.elements-list,.information-module,.timeline-entries,.notebook-list,.timer-list')
-      const row = viewport?.querySelector<HTMLElement>('.element-row,.information-card,.timeline-entries li,.notebook-block,.timer-row')
+    if (!Number.isFinite(heightLimit) && (sizeMode === 'editable' || sizeMode === 'feed' || content.querySelector('.operations-cards'))) {
+      const viewport = content.querySelector<HTMLElement>('.elements-list,.information-module,.timeline-entries,.notebook-list,.timer-list,.operations-cards')
+      const row = viewport?.querySelector<HTMLElement>('.element-row,.information-card,.timeline-entries li,.notebook-block,.timer-row,.operations-state')
       if (viewport && row && !clock) {
         const style = getComputedStyle(viewport), rowStyle = getComputedStyle(row)
         const firstRowHeight = row.offsetHeight + (parseFloat(rowStyle.marginTop) || 0) + (parseFloat(rowStyle.marginBottom) || 0)

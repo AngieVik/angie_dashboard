@@ -3,6 +3,9 @@ import type { ChangeEvent, PointerEvent, ReactNode } from 'react'
 import { Copy, Crosshair, Eye, EyeOff, Flag, Focus, FolderOpen, Layers, Minus, Palette, Plus, Route, Search, Trash, X } from 'lucide-react'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import * as L from 'leaflet'
+import { useSettings } from '../settings/useSettings'
+import { useReducedMotion } from '../settings/useAccessibilityPreferences'
+import { formatDistance, formatElevation, formatInstant } from '@/platform/formatting'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -56,7 +59,6 @@ const GPX_COLORS = ['#D63A3A', '#3697DC', '#54B777', '#E69B37', '#A377D8']
 const SELECTION_PIN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="26" viewBox="0 0 18 26" aria-hidden="true" focusable="false"><path d="M9 26S0 15 0 9a9 9 0 0 1 18 0C18 15 9 26 9 26Z" fill="#FFFFFF"/><path d="M9 23.5S1.5 13.8 1.5 9a7.5 7.5 0 0 1 15 0C16.5 13.8 9 23.5 9 23.5Z" fill="#D63A3A"/><circle cx="9" cy="9" r="2.5" fill="#FFFFFF"/></svg>'
 const EMPTY_REFERENCES: MapGpxReference[] = []
 const EMPTY_MARKERS: MapMarker[] = []
-const kilometers = (meters: number) => (meters / 1000).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km'
 
 function fitGpxFiles(map: L.Map | null, files: readonly LoadedGpx[]) {
   if (!map) return
@@ -103,6 +105,10 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
   const gpxTrigger = useRef<HTMLButtonElement>(null), gpxColorInput = useRef<HTMLInputElement>(null)
   const gpxMenuId = useId()
   const mapRef = useRef<L.Map | null>(null), gpxLayers = useRef<GpxLayers | null>(null)
+  const preferences = useSettings()
+  const formats = preferences.settings.formats
+  const distanceText = (meters: number) => formatDistance(meters, formats.units, 3, 3)
+  const reducedMotion = useReducedMotion(preferences.settings.accessibility.motion)
   const currentFiles = useRef(files)
   const publishFiles = useRef(onFilesChange)
   const currentFormat = useRef<CoordinateFormat>('DD')
@@ -157,8 +163,8 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
   const selectionRevision = useRef(0)
   const { state: searchState, search: searchPlaces, reset: resetSearch } = useMapSearch(navigationKey)
   useEffect(() => {
-    if (searchState.status === 'error') toast.error(searchState.message, { id: noticeId })
-    else if (searchState.status === 'empty') toast('No se encontraron lugares.', { id: noticeId })
+    if (searchState.status === 'error') toast.error(searchState.message, { notice: 'mapSearch', id: noticeId })
+    else if (searchState.status === 'empty') toast('No se encontraron lugares.', { notice: 'mapSearchEmpty', id: noticeId })
   }, [searchState, noticeId])
   useEffect(() => () => { selectionRevision.current++; toast.dismiss(noticeId) }, [noticeId])
 
@@ -170,7 +176,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       setError(null)
       return true
     } catch (failure) {
-      toast.error(failure instanceof Error ? failure.message : 'No se pudieron guardar los cambios del mapa.', { id: noticeId })
+      toast.error(failure instanceof Error ? failure.message : 'No se pudieron guardar los cambios del mapa.', { notice: 'mapSave', id: noticeId })
       return false
     }
   }
@@ -259,7 +265,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       if (isCurrent()) {
         if (!(failure instanceof DOMException && failure.name === 'AbortError')) {
           setUseFileInput(true)
-          toast.error('No se pudo abrir el selector GPX. Vuelve a seleccionar el archivo.', { id: noticeId })
+          toast.error('No se pudo abrir el selector GPX. Vuelve a seleccionar el archivo.', { notice: 'gpxPicker', id: noticeId })
         }
         setBusy(false); request.current.reading = false
       }
@@ -311,7 +317,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
         fitGpxFiles(mapRef.current, added.filter(file => file.visible))
       }
       setImportErrors(errors)
-      if (errors.length) toast.error('No se pudieron cargar algunos archivos GPX.', { id: noticeId })
+      if (errors.length) toast.error('No se pudieron cargar algunos archivos GPX.', { notice: 'gpxLoad', id: noticeId })
       setBusy(false); request.current.reading = false
     } finally {
       if (isCurrent()) { request.current.reading = false; request.current.controller = undefined; setBusy(false) }
@@ -382,7 +388,6 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
     const renderedGpx = new GpxLayers(map)
     gpxLayers.current = renderedGpx
     map.attributionControl.addAttribution('Búsqueda: <a href="https://nominatim.org">Nominatim</a> · &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>')
-    L.control.scale({ imperial: false }).addTo(map)
     map.on('click', event => {
       if (blockedRef.current || suppressSelection.current) return
       cancelGpxSelection()
@@ -408,7 +413,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
         if (formatted.ok) setInput(formatted.text)
         else { currentFormat.current = 'DD'; setFormat('DD'); setInput(`${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`) }
       }).catch((failure: unknown) => {
-        if (isCurrent()) toast.error(failure instanceof Error ? failure.message : 'No se pudo seleccionar el punto GPX.', { id: noticeId })
+        if (isCurrent()) toast.error(failure instanceof Error ? failure.message : 'No se pudo seleccionar el punto GPX.', { notice: 'gpxPoint', id: noticeId })
       }).finally(() => { if (gpxSelection.current === controller) gpxSelection.current = null })
     })
     map.on('movestart zoomstart', cancelGpxSelection)
@@ -432,6 +437,20 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       map.remove(); mapRef.current = null; selection.current = null
     }
   }, [navigationKey, blockedRef, resetSearch, store, documentGeneration, cancelGpxSelection, noticeId])
+
+  useLayoutEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.options.inertia = !reducedMotion
+    if (reducedMotion) map.stop()
+  }, [reducedMotion, navigationKey, documentGeneration])
+
+  useLayoutEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const control = L.control.scale({ metric: formats.units === 'metric', imperial: formats.units === 'imperial' }).addTo(map)
+    return () => { control.remove() }
+  }, [formats.units, navigationKey, documentGeneration])
 
   useLayoutEffect(() => {
     const map = mapRef.current
@@ -590,7 +609,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
     const result = await copyText(input.trim())
     if (current !== selectionRevision.current) return
     if (store.getSnapshot().documentGeneration !== documentGeneration) return
-    if (!result) { toast.error('No se pudo copiar la coordenada.', { id: noticeId }); return }
+    if (!result) { toast.error('No se pudo copiar la coordenada.', { notice: 'mapCopy', id: noticeId }); return }
 
   }
   function touchStart(event: PointerEvent<HTMLDivElement>) {
@@ -749,14 +768,14 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
     {(selected || (selectedFile && selectedMetrics)) && <div className="map-track-info" aria-label={selectedLocation ? 'Información del punto GPX' : selected ? 'Información del punto' : 'Información del GPX'}>
       <dl>
         {selectedLocation?.distanceMeters !== undefined && selectedMetrics && <>
-          <div><dt>PK</dt><dd>{kilometers(selectedLocation.distanceMeters)}</dd></div>
-          <div><dt>Restan</dt><dd>{kilometers(Math.max(0, selectedMetrics.totalMeters - selectedLocation.distanceMeters))}</dd></div>
+          <div><dt>{formats.units === 'metric' ? 'PK' : 'Distancia'}</dt><dd>{distanceText(selectedLocation.distanceMeters)}</dd></div>
+          <div><dt>Restan</dt><dd>{distanceText(Math.max(0, selectedMetrics.totalMeters - selectedLocation.distanceMeters))}</dd></div>
         </>}
-        {selectedMetrics && <div><dt>Total</dt><dd>{kilometers(selectedMetrics.totalMeters)}</dd></div>}
-        {selectedLocation?.point.elevation !== undefined && <div><dt>Altitud GPX</dt><dd>{selectedLocation.point.elevation.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' m'}</dd></div>}
+        {selectedMetrics && <div><dt>Total</dt><dd>{distanceText(selectedMetrics.totalMeters)}</dd></div>}
+        {selectedLocation?.point.elevation !== undefined && <div><dt>Altitud GPX</dt><dd>{formatElevation(selectedLocation.point.elevation, formats.units)}</dd></div>}
         {selected && <MapElevation point={selected} />}
         {selectedLocation?.point.name && <div><dt>Punto</dt><dd>{selectedLocation.point.name}</dd></div>}
-        {selectedLocation?.point.time && <div><dt>Hora GPX</dt><dd><time dateTime={selectedLocation.point.time}>{new Date(selectedLocation.point.time).toLocaleString('es-ES')}</time></dd></div>}
+        {selectedLocation?.point.time && <div><dt>Hora GPX</dt><dd><time dateTime={selectedLocation.point.time}>{formatInstant(selectedLocation.point.time, formats)}</time></dd></div>}
       </dl>
     </div>}
     {selectedFile && selectedFile.data.lines.length > 0 && <GpxElevationProfile key={selectedFile.id} file={selectedFile} disabled={blocked} controlsHost={profileControls}

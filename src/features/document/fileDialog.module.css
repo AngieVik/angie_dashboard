@@ -6,6 +6,10 @@
 }
 
 @layer overrides {
+  .surface[data-modal="false"] { pointer-events: none; }
+  .surface[data-modal="false"] > * { pointer-events: auto; }
+  .surface[data-modal="false"] .workspace { pointer-events: none; }
+  .surface[data-modal="false"] .workspace [data-module] { pointer-events: auto; }
   .workspace { position: fixed; }
   .surface :focus-visible { outline: none; }
   .body button:focus-visible { border-color: var(--color-hover-border); }

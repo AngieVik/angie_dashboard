@@ -1,0 +1,42 @@
+/* Root preferences also reach dialogs, menus and notices rendered in portals. */
+:root[data-text-size]:not([data-text-size="100"]) {
+  --text-container-height-base: calc(var(--font-size-body-base) * 1.4);
+}
+
+:root[data-high-contrast="true"] {
+  --color-text-secondary: var(--palette-gray-50);
+  --color-border: var(--palette-gray-300);
+  --color-frame-border: var(--palette-gray-300);
+  --color-field-border: var(--palette-gray-200);
+  --color-accent-red: var(--palette-red);
+  --color-selection-border: var(--palette-yellow);
+  --color-hover-border: var(--palette-yellow);
+  --surface-header: var(--palette-gray-900);
+  --surface-button: var(--palette-gray-900);
+  --surface-button-hover: var(--palette-gray-700);
+  --surface-overlay: var(--palette-gray-900);
+  --surface-toolbar: var(--palette-gray-900);
+  --surface-inset: var(--palette-gray-925);
+}
+
+@layer overrides {
+  :root[data-text-size]:not([data-text-size="100"]) :is([data-slot="button"], [data-slot="menubar-trigger"]) { line-height: 1.4; }
+  :root[data-text-size]:not([data-text-size="100"]) .module-header { --control-height: 25px; }
+  :root[data-text-size]:not([data-text-size="100"]) .module-header h2 { line-height: 1; }
+  :root[data-high-contrast="true"] :focus-visible {
+    outline: 2px solid var(--color-selection-border) !important;
+    outline-offset: -2px;
+  }
+
+  /* Short durations preserve completion events used by animated components. */
+  :root[data-reduced-motion="true"] *,
+  :root[data-reduced-motion="true"] *::before,
+  :root[data-reduced-motion="true"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

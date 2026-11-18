@@ -9,7 +9,7 @@ import type { StorageCapacity } from '@/platform/storageCapacity'
 import { StorageUsage } from './StorageUsage'
 
 const labels: Record<PermissionStatus, string> = {
-  granted: 'Autorizado', pending: 'Pendiente', denied: 'No autorizado', unavailable: 'No disponible', error: 'Error',
+  granted: 'Autorizado', pending: 'No concedido', denied: 'No concedido', unavailable: 'No disponible', error: 'Error',
 }
 
 export function StoragePermissionsPanel() {
@@ -30,23 +30,37 @@ export function StoragePermissionsPanel() {
   }, [])
 
   async function requestStorage() {
+    if (loading || busy) return
     setBusy(true)
     try {
       const next = await requestPersistentStorage()
-      if (!dismissed.current && next.status !== 'granted') toast.error(next.message ?? 'No se pudo autorizar el almacenamiento.', { id: 'storage-permission' })
-      if (!dismissed.current) setStorage(next)
+      if (!dismissed.current) {
+        setStorage(next)
+        if (next.status === 'denied') toast.warning('En Chrome o Edge puedes instalar Angie o añadirla a favoritos y volver a solicitarlo. Esto puede favorecer la concesión, pero no la garantiza.', { notice: 'storagePermission', id: 'storage-permission' })
+        else toast.dismiss('storage-permission')
+      }
     } finally { if (!dismissed.current) setBusy(false) }
+  }
+
+  async function updateCapacity() {
+    const next = await readStorageCapacity()
+    if (dismissed.current) return
+    setCapacity(next)
+    if (next.estimateError || next.usage === undefined || next.quota === undefined) {
+      toast.error(next.estimateError ?? 'Estimación de espacio no disponible.', { notice: 'storageEstimateError', id: 'storage-capacity' })
+    } else toast.success('Estimación de espacio actualizada.', { notice: 'storageEstimated', id: 'storage-capacity' })
   }
 
   return <div className="permissions-list" aria-busy={loading || busy}>
     <section className="permission-section" aria-labelledby="storage-permission-title">
       <div className="permission-heading">
         <h3 id="storage-permission-title">Almacenamiento persistente</h3>
-        <span role="status">{loading ? 'Consultando…' : labels[storage.status]}</span>
+        <span role="status">{loading ? 'Consultando…' : busy ? 'Solicitando…' : labels[storage.status]}</span>
       </div>
-      <Button disabled={loading || busy || storage.status === 'unavailable' || storage.status === 'granted'} onClick={() => { void requestStorage() }}>Autorizar</Button>
+      <Button disabled={loading || busy || storage.status === 'unavailable' || storage.status === 'granted'} onClick={() => { void requestStorage() }}>{busy ? 'Solicitando…' : 'Solicitar permiso'}</Button>
+      {storage.message && <p role={storage.status === 'error' ? 'alert' : 'status'}>{storage.message}</p>}
       <StorageUsage capacity={capacity} />
-      <Button disabled={busy} onClick={() => { void readStorageCapacity().then(value => { if (!dismissed.current) setCapacity(value) }) }}>Actualizar espacio</Button>
+      <Button disabled={busy} onClick={() => { void updateCapacity() }}>Actualizar</Button>
     </section>
   </div>
 }

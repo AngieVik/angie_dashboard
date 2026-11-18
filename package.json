@@ -4,12 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/collect-notice-messages.mjs",
     "dev": "vite",
     "start": "node server/server.mjs",
     "diagnose": "node scripts/diagnose.mjs",
     "diagnose:full": "node scripts/diagnose.mjs --profile full",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
+    "notices:catalog": "node scripts/collect-notice-messages.mjs",
+    "prebuild": "node scripts/collect-notice-messages.mjs",
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {

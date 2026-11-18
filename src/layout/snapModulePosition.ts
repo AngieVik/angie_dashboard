@@ -1,12 +1,14 @@
 import type { ModuleLayout } from './layoutTypes'
+import { DEFAULT_MAGNET_OPTIONS } from './magnetSettings'
+import type { MagnetOptions } from './magnetSettings'
 
-export function snapModulePosition(layout: ModuleLayout, others: readonly ModuleLayout[], scale: number): ModuleLayout {
-  const threshold = 18 / scale
+export function snapModulePosition(layout: ModuleLayout, others: readonly ModuleLayout[], scale: number, options: Readonly<MagnetOptions> = DEFAULT_MAGNET_OPTIONS): ModuleLayout {
+  const threshold = options.distance / scale
   const overlaps = (candidate: ModuleLayout) => others.some(other => candidate.x < other.x + other.width && candidate.x + candidate.width > other.x && candidate.y < other.y + other.height && candidate.y + candidate.height > other.y)
-  const horizontal = [0], vertical = [0]
+  const horizontal: number[] = options.alignEdges ? [0] : [], vertical: number[] = options.alignEdges ? [0] : []
   const isTitleBar = (item: ModuleLayout) => item.height <= 29 && item.width > 29
-  const row = isTitleBar(layout) ? others.filter(other => isTitleBar(other) && Math.abs(layout.y - other.y) <= threshold) : []
-  for (const other of others) {
+  const row = options.alignEdges && isTitleBar(layout) ? others.filter(other => isTitleBar(other) && Math.abs(layout.y - other.y) <= threshold) : []
+  for (const other of options.alignEdges ? others : []) {
     if (layout.y <= other.y + other.height + threshold && layout.y + layout.height >= other.y - threshold) {
       horizontal.push(other.x - layout.width, other.x + other.width, other.x, other.x + other.width - layout.width)
     }
@@ -16,8 +18,12 @@ export function snapModulePosition(layout: ModuleLayout, others: readonly Module
   }
   // Center axes also attract across gaps between modules.
   for (const other of others) {
-    horizontal.push(other.x, other.x + other.width - layout.width, other.x + (other.width - layout.width) / 2)
-    vertical.push(other.y, other.y + other.height - layout.height, other.y + (other.height - layout.height) / 2)
+    if (options.alignEdges) {
+      horizontal.push(other.x, other.x + other.width - layout.width)
+      vertical.push(other.y, other.y + other.height - layout.height)
+    }
+    horizontal.push(other.x + (other.width - layout.width) / 2)
+    vertical.push(other.y + (other.height - layout.height) / 2)
   }
   const nearest = (axis: 'x' | 'y', candidates: readonly number[]) => [...new Set(candidates)]
     .filter(value => value >= 0 && Math.abs(value - layout[axis]) <= threshold)
@@ -37,10 +43,10 @@ export function snapModulePosition(layout: ModuleLayout, others: readonly Module
   return layout
 }
 
-export function snapModuleSize(layout: ModuleLayout, others: readonly ModuleLayout[], scale: number): ModuleLayout {
-  const threshold = 18 / scale
-  const horizontal = others.flatMap(other => [other.x, other.x + other.width / 2, other.x + other.width])
-  const vertical = others.flatMap(other => [other.y, other.y + other.height / 2, other.y + other.height])
+export function snapModuleSize(layout: ModuleLayout, others: readonly ModuleLayout[], scale: number, options: Readonly<MagnetOptions> = DEFAULT_MAGNET_OPTIONS): ModuleLayout {
+  const threshold = options.distance / scale
+  const horizontal = others.flatMap(other => options.alignEdges ? [other.x, other.x + other.width / 2, other.x + other.width] : [other.x + other.width / 2])
+  const vertical = others.flatMap(other => options.alignEdges ? [other.y, other.y + other.height / 2, other.y + other.height] : [other.y + other.height / 2])
   const nearest = (edge: number, origin: number, candidates: number[]) => candidates
     .filter(value => value > origin && Math.abs(value - edge) <= threshold)
     .sort((a, b) => Math.abs(a - edge) - Math.abs(b - edge))[0] ?? edge

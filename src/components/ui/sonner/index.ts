@@ -1,2 +1,2 @@
 export { Toaster } from './sonner'
-export { toast } from 'sonner'
+export { toast } from './toast'

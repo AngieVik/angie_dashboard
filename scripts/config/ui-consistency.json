@@ -7,7 +7,7 @@
       "target": "modules",
       "properties": ["font-family", "font-size"],
       "reason": "La interfaz comparte fuente y tokens de contenido de ModuleFrame; las especializaciones documentadas se comprueban mediante excepciones concretas.",
-      "sources": ["docs/development.md", "src/layout/moduleFrame.module.css", "src/styles/tokens.css"]
+      "sources": ["docs/design.md", "src/layout/moduleFrame.module.css", "src/styles/tokens.css"]
     },
     {
       "id": "element-lists",

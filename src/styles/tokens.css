@@ -23,6 +23,8 @@
   --palette-gray-750-alpha-85: rgb(44 44 44 / 85%);
   --palette-gray-900-alpha-85: rgb(24 24 24 / 85%);
   --palette-red-alpha-50: rgb(214 58 58 / 50%);
+  --palette-red: #D63A3A;
+  --palette-neutral-alpha-50: #D6D6D280;
   --palette-red-alpha-7: rgb(214 58 58 / 7%);
   --palette-yellow: #E3B52F;
   --palette-black-alpha-45: rgb(0 0 0 / 45%);
@@ -37,18 +39,25 @@
   --space-2: 6px;
   --radius-2: 3px;
   --duration-fast: 110ms;
-  --control-height-base: 25px;
+  --accessibility-text-scale: 1;
+  --control-height-base: max(25px, calc(var(--field-font-size-base) * 1.4 + 4px));
   --button-padding-base: 2px;
   --field-padding-base: 2px;
   --icon-size-base: 15px;
+  --pin-thumbnail-width-base: 80px;
+  --pin-thumbnail-height-base: 40px;
+  --operational-status-width-base: 120px;
   --checkbox-size-base: 15px;
-  --control-font-size-base: 13px;
-  --field-font-size-base: 13px;
-  --font-size-body-base: 13px;
-  --font-size-title-base: 16px;
-  --font-size-technical-base: 13px;
+  --slider-track-height-base: 4px;
+  --slider-thumb-size-base: 15px;
+  --control-font-size-base: calc(13px * var(--accessibility-text-scale));
+  --field-font-size-base: calc(13px * var(--accessibility-text-scale));
+  --font-size-body-base: calc(13px * var(--accessibility-text-scale));
+  --font-size-title-base: calc(16px * var(--accessibility-text-scale));
+  --font-size-technical-base: calc(13px * var(--accessibility-text-scale));
   --text-container-height-base: 17px;
-  --toolbar-height-base: 32px;
+  --toolbar-height-base: max(32px, calc(var(--control-height-base) + 7px));
+  --app-header-height: max(36px, calc(var(--control-height-base) + 7px));
   --toolbar-padding-block-base: 3px;
   --toolbar-padding-inline-base: 5px;
 
@@ -68,7 +77,14 @@
   --color-text: var(--palette-gray-50);
   --color-text-secondary: var(--palette-gray-300);
   --color-accent-red: var(--palette-red-alpha-50);
+  --color-accent-neutral: var(--palette-neutral-alpha-50);
   --color-accent-yellow: var(--palette-yellow);
+  --color-status-available: #16c60c;
+  --color-status-activated: #fff100;
+  --color-status-approaching: #0078d7;
+  --color-status-intervening: #e81224;
+  --color-status-transferring: #f7630c;
+  --color-status-inoperative: var(--palette-gray-650);
 
   /* Las superficies y las sombras conservan el acabado industrial original. */
   --surface-header: linear-gradient(180deg, var(--palette-gray-650), var(--palette-gray-750) 40%, var(--palette-gray-825));
@@ -94,8 +110,8 @@
   --checkbox-size: var(--checkbox-size-base);
   --field-font-size: var(--field-font-size-base);
   --field-height: var(--control-height);
-  --module-header-font-size: 13px;
-  --notice-font-size: 13px;
+  --module-header-font-size: var(--font-size-body-base);
+  --notice-font-size: var(--font-size-body-base);
   --font-interface-default: "Roboto Condensed", system-ui, sans-serif;
   --font-interface: var(--font-interface-default);
   --font-clock: "Rajdhani", system-ui, sans-serif;

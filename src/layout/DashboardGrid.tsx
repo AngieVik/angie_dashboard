@@ -6,16 +6,18 @@ import type { EventCallback, LayoutItem } from 'react-grid-layout'
 import { transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/core'
 import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
 import { snapModulePosition, snapModuleSize } from './snapModulePosition'
+import { DEFAULT_MAGNET_OPTIONS } from './magnetSettings'
+import type { MagnetOptions } from './magnetSettings'
 import { ModuleFrame } from './ModuleFrame'
 import { ModuleErrorBoundary } from '../app/recovery/ModuleErrorBoundary'
 import type { ModuleActions } from './ModuleFrame'
-import { MODULE_REGISTRY, moduleAutoHeightLimit, moduleCollapsedWidth, moduleExpandedMinimumSize } from './moduleRegistry'
+import { MODULE_REGISTRY, moduleCollapsedWidth, moduleExpandedMinimumSize } from './moduleRegistry'
 import { constrainWindowContentSize } from './windowContentSize'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
 import { useViewportInteraction } from './ViewportContext'
 import { HandleBottomRight } from './HandleBottomRight'
 
-export interface OpenModule { id: ModuleId; layout: ModuleLayout; resetSizeOnMount?: boolean }
+export interface OpenModule { id: ModuleId; layout: ModuleLayout; resetSizeOnMount?: boolean; restoreRevision?: number }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
 
 // Invoke the renderer below the boundary, including failures while assembling JSX.
@@ -23,14 +25,14 @@ function ModuleContent({ id, renderModule }: { id: ModuleId; renderModule?: (id:
   return renderModule?.(id)
 }
 
-export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onRetry, onLayout, onGrow, renderModule, generation = 0, magnet = false, navigationKey, viewOrigin = { x: 0, y: 0 }, revisions = {}, contentSizeRevisions = {}, locationHighlight, onReset, onActions }: {
+export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale, active, onActive, onClose, onRetry, onLayout, onGrow, onGrowEnd, renderModule, generation = 0, magnet = false, magnetOptions = DEFAULT_MAGNET_OPTIONS, navigationKey, viewOrigin = { x: 0, y: 0 }, revisions = {}, contentSizeRevisions = {}, locationHighlight, onReset, onActions }: {
   modules: readonly OpenModule[]; bounds: Size; visible?: Size; layers: readonly ModuleId[]; scale: number; active: ModuleId | null; onActive: (id: ModuleId) => void
   onClose: (id: ModuleId) => void; onLayout: (id: ModuleId, layout: ModuleLayout, kind?: 'move' | 'resize') => void
   onRetry: (id: ModuleId) => void
   onActions?: (id: ModuleId, actions: ModuleActions | null) => void
   locationHighlight?: { id: ModuleId; sequence: number }
   viewOrigin?: { x: number; y: number }; revisions?: Partial<Record<ModuleId, number>>; contentSizeRevisions?: Partial<Record<ModuleId, number>>; onReset?: (id: ModuleId) => void
-  onGrow?: (candidate: ModuleLayout) => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number; magnet?: boolean; navigationKey?: string
+  onGrow?: (candidate: ModuleLayout) => void; onGrowEnd?: () => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number; magnet?: boolean; magnetOptions?: Readonly<MagnetOptions>; navigationKey?: string
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const activeLayout = useRef<Layout>([])
@@ -65,7 +67,10 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
         flushSync(() => onGrow(reserve))
       }
     }
-    function end() { gesture.current = null }
+    function end() {
+      if (gesture.current) onGrowEnd?.()
+      gesture.current = null
+    }
     document.addEventListener('pointermove', prepare, true)
     document.addEventListener('pointerup', end, true)
     document.addEventListener('pointercancel', end, true)
@@ -74,7 +79,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
       document.removeEventListener('pointerup', end, true)
       document.removeEventListener('pointercancel', end, true)
     }
-  }, [bounds, visible, scale, onGrow, blockedRef])
+  }, [bounds, visible, scale, onGrow, onGrowEnd, blockedRef])
   const layout = modules.map(({ id, layout }) => {
     const minimum = layout.height <= 29
       ? { width: MODULE_REGISTRY[id].minimum[0], height: MODULE_REGISTRY[id].minimum[1] }
@@ -86,7 +91,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
   const origin: LayoutConstraint = { name: 'workspace-origin', constrainPosition: (_item, x, y) => ({ x: Math.max(viewOrigin.x, x), y: Math.max(viewOrigin.y, y) }) }
   const magneticEdges: LayoutConstraint = { name: 'magnetic-edges', constrainPosition: (item, x, y) => {
     if (!magnet || blockedRef.current) return { x, y }
-    const next = snapModulePosition({ ...unpack(item, bounds), x, y }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale)
+    const next = snapModulePosition({ ...unpack(item, bounds), x, y }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale, magnetOptions)
     return { x: next.x, y: next.y }
   }, constrainSize: (item, w, h) => {
     if (blockedRef.current) return { w, h }
@@ -94,7 +99,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     const iconOnly = module && module.layout.height <= 29 && module.layout.width <= 29
     const collapsed = module && module.layout.height <= 29 && !iconOnly
     const threshold = 8 / scale
-    const next = magnet ? snapModuleSize({ ...unpack(item, bounds), width: w, height: h }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale)
+    const next = magnet ? snapModuleSize({ ...unpack(item, bounds), width: w, height: h }, modules.filter(module => module.id !== item.i).map(module => module.layout), scale, magnetOptions)
       : { width: w, height: h }
     // Use the requested size so nearby module edges cannot pull a compact bar off its detents.
     const collapsedWidth = moduleCollapsedWidth(item.i as ModuleId)
@@ -109,8 +114,8 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     if (!module || module.layout.height <= 29) return { w, h }
     const frame = grid.current?.querySelector<HTMLElement>('[data-module="' + item.i + '"] .module-frame')
     const minimum = moduleExpandedMinimumSize(id)
-    const heightLimit = moduleAutoHeightLimit(id)
-    const size = constrainWindowContentSize(frame, { width: Math.max(w, minimum.width), height: Math.max(h, minimum.height) }, definition.sizeMode, heightLimit)
+    // Manual resizing uses the scrollable content minimum, independently of the automatic cap.
+    const size = constrainWindowContentSize(frame, { width: Math.max(w, minimum.width), height: Math.max(h, minimum.height) }, definition.sizeMode)
     return { w: size.width, h: size.height }
   } }
   function park(id: ModuleId, size: Size) {
@@ -188,7 +193,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
         }
         showDrag(...args)
       }} onDrag={showDrag} onDragStop={commit('move')} onResizeStart={showResize} onResize={showResize} onResizeStop={commit('resize')}>
-      {modules.map(({ id, layout, resetSizeOnMount }) => (
+      {modules.map(({ id, layout, resetSizeOnMount, restoreRevision }) => (
         // RGL enters its pending drag state on press, before onDragStart runs.
         // Keep the current position available until constrained drag coordinates exist.
         <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
@@ -204,7 +209,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
           <ModuleErrorBoundary key={`${navigationKey}.${generation}`} name={MODULE_REGISTRY[id].name} onRetry={() => onRetry(id)} onClose={() => onClose(id)}>
           {/* Mount the frame with its loaded content so size and scroll restore together. */}
           <Suspense fallback={null}>
-          <ModuleFrame onActions={onActions} id={id} width={layout.width} navigationKey={navigationKey ? navigationKey + '.' + id : undefined} resetSizeOnMount={resetSizeOnMount} height={layout.height} generation={generation} contentSizeRevision={contentSizeRevisions[id]} locateToken={locationHighlight?.id === id ? locationHighlight.sequence : 0} active={active === id} onFront={() => onActive(id)} onPark={size => park(id, size)} onReset={onReset ? () => onReset(id) : undefined} onClose={() => onClose(id)} onFit={size => {
+          <ModuleFrame onActions={onActions} id={id} width={layout.width} navigationKey={navigationKey ? navigationKey + '.' + id : undefined} resetSizeOnMount={resetSizeOnMount} restoreRevision={restoreRevision} height={layout.height} generation={generation} contentSizeRevision={contentSizeRevisions[id]} locateToken={locationHighlight?.id === id ? locationHighlight.sequence : 0} active={active === id} onFront={() => onActive(id)} onPark={size => park(id, size)} onReset={onReset ? () => onReset(id) : undefined} onClose={() => onClose(id)} onFit={size => {
             if (!blockedRef.current) { const next = { ...layout, ...size }; onGrow?.(next); onLayout(id, next, 'resize') }
           }}><Fragment key={revisions[id] ?? 0}><ModuleContent id={id} renderModule={renderModule} /></Fragment></ModuleFrame>
           </Suspense>

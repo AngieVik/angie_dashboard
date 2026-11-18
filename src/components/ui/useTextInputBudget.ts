@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import type { ChangeEventHandler, ClipboardEventHandler } from 'react'
-import { toast } from 'sonner'
+import { toast } from './sonner/toast'
 import { budgetIssue, INPUT_BUDGETS } from '../../domain/input/inputBudgets'
 
 export interface TextInputBudget { limit: number; path: string; onReject?: (message: string) => void }
@@ -18,7 +18,7 @@ export function useTextInputBudget<T extends Field>({ value, defaultValue, maxLe
     if (length <= limit) return false
     const message = budgetIssue(inputBudget?.path ?? 'Texto', limit, 'caracteres').message
     if (inputBudget?.onReject) inputBudget.onReject(message)
-    else toast.error(message, { id: 'input-budget' })
+    else toast.error(message, { notice: 'inputBudget', id: 'input-budget' })
     return true
   }
   return {

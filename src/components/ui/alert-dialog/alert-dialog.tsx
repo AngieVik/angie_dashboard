@@ -15,10 +15,10 @@ export function AlertDialogOverlay({ className = '', appearance = 'dimmed', ...p
     className={`${styles.overlay} ${className}`.trim()} {...props} />
 }
 
-export function AlertDialogContent({ className = '', children, ...props }: ComponentProps<typeof AlertDialogPrimitive.Content>) {
+export function AlertDialogContent({ className = '', overlayClassName, children, ...props }: ComponentProps<typeof AlertDialogPrimitive.Content> & { overlayClassName?: string }) {
   return (
     <AlertDialogPrimitive.Portal>
-      <AlertDialogOverlay />
+      <AlertDialogOverlay className={overlayClassName} />
       <AlertDialogPrimitive.Content data-slot="alert-dialog-content" className={`${styles.base} ${className}`.trim()} {...props}>
         {children}<WindowResize label="Redimensionar diálogo" />
       </AlertDialogPrimitive.Content>
@@ -46,6 +46,6 @@ export function AlertDialogForm({ className = '', onInvalidCapture, ...props }: 
     if (event.defaultPrevented) return
     event.preventDefault()
     const field = event.target
-    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) toast.error(field.validationMessage, { id: noticeId })
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) toast.error(field.validationMessage, { notice: 'formValidation', id: noticeId })
   }} />
 }

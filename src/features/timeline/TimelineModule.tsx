@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useSettings } from '../settings/useSettings'
 import type { TimelineEntry } from '../../domain/document/types'
 import { applyDocumentCommands } from '../../domain/document/documentCommand'
 import type { DocumentStore } from '../document/documentStore'
@@ -24,6 +25,7 @@ export function TimelineModule({ store }: { store: DocumentStore }) {
 
 function TimelineContent({ store }: { store: DocumentStore }) {
   const { document } = useDocumentStore(store)
+  const { settings } = useSettings()
   const { scale } = useModuleZoom()
   const { blocked, blockedRef } = useViewportInteraction()
   const formId = useId()
@@ -165,7 +167,7 @@ function TimelineContent({ store }: { store: DocumentStore }) {
             cancelHold()
             if (longPressed.current && event.pointerType === 'touch') event.preventDefault()
           }} onPointerCancel={cancelHold} onPointerLeave={() => { if (rowPointer.current?.entryId === entry.id) cancelHold() }}>
-          <time className="technical-data" dateTime={entry.occurredAt}>{formatTimelineTime(entry.occurredAt)}</time>
+          <time className="technical-data" dateTime={entry.occurredAt}>{formatTimelineTime(entry.occurredAt, settings.formats)}</time>
           <span className="timeline-text">{getTimelineEntryLabel(entry)}{entry.type === 'status-change' && entry.nextStatus === 'Personalizada' && <span className="timeline-custom-color" aria-hidden="true" style={{ backgroundColor: entry.customColor ?? 'transparent' }} />}</span>
           {isTimelineEntryCorrected(entry) && <Badge variant="outline">Corregida</Badge>}
         </Button>
@@ -178,7 +180,7 @@ function TimelineContent({ store }: { store: DocumentStore }) {
       if (attempt(() => store.applyDocumentCommand(document => applyDocumentCommands(document, editing.map(({ entry, text }) => document => reviseTimelineText(document, entry.id, text, now)))), 'edit')) finishEditing()
     }}>
       {editing.map(({ entry, text }, index) => <div className="timeline-edit-field" key={entry.id}>
-        <label htmlFor={`${formId}-${entry.id}`}><time className="technical-data" dateTime={entry.occurredAt}>{formatTimelineTime(entry.occurredAt)}</time>{entry.type === 'status-change' && <span>{entry.unitName} · {entry.nextStatus === 'Personalizada' ? entry.customLabel : entry.nextStatus}</span>}</label>
+        <label htmlFor={`${formId}-${entry.id}`}><time className="technical-data" dateTime={entry.occurredAt}>{formatTimelineTime(entry.occurredAt, settings.formats)}</time>{entry.type === 'status-change' && <span>{entry.unitName} · {entry.nextStatus === 'Personalizada' ? entry.customLabel : entry.nextStatus}</span>}</label>
         <Textarea id={`${formId}-${entry.id}`} aria-label={`Texto del registro ${index + 1}`} aria-invalid={Boolean(error && errorField === 'edit')} autoFocus={index === 0} value={text} disabled={blocked} onChange={event => {
           if (!blockedRef.current) setEditing(current => current?.map(draft => draft.entry.id === entry.id ? { ...draft, text: event.target.value } : draft) ?? null)
         }} />

@@ -6,7 +6,7 @@ export function useValidationNotice(initial: string | null = null, generation = 
   const id = useId()
   const show = useCallback((value: string | null) => {
     setNotice({ value, generation })
-    if (value) toast.error(value, { id, duration: durationMs ?? undefined })
+    if (value) toast.error(value, { notice: 'validation', id, duration: durationMs ?? undefined })
     else toast.dismiss(id)
   }, [generation, id, durationMs])
   useEffect(() => () => { toast.dismiss(id) }, [id, generation])

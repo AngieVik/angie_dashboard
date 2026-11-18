@@ -77,7 +77,6 @@ export interface AngieDocument {
   elements: DocumentElement[]
   notebook: NotebookBlock[]
   timeline: TimelineEntry[]
-  moduleLayouts: Partial<Record<DocumentModuleId, ModuleLayout>>
   map?: MapDocument
   plan?: OperationalPlanDocument
 }

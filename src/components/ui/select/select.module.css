@@ -6,7 +6,7 @@
     min-width: 0;
     height: var(--field-height);
     min-height: var(--field-height);
-    padding: calc(var(--field-padding-base) * var(--module-zoom, 1));
+    padding: 0 calc(var(--field-padding-base) * var(--module-zoom, 1));
     border: 1px solid var(--color-field-border);
     border-radius: var(--radius-field);
     background: var(--color-field);
@@ -21,6 +21,7 @@
   }
 
   .base:disabled { opacity: .5; cursor: default; }
+  .sized { flex: none; width: calc(var(--select-option-width) + (var(--field-padding-base) * 2 + var(--icon-size-base)) * var(--module-zoom, 1) + var(--control-gap) * 2 + 3px); max-width: 100%; }
   .base:is(:hover, [data-state="open"]):not(:disabled) { border-color: var(--color-text-secondary); }
   .base:focus-visible { outline: 1px solid var(--color-text-secondary); outline-offset: 1px; }
   .base[hidden] { display: none; }

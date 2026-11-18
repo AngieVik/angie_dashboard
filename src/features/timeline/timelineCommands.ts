@@ -1,3 +1,6 @@
+import { formatInstant } from '@/platform/formatting'
+import { defaultFormatPreferences } from '../settings/formatPreferences'
+import type { FormatPreferences } from '../settings/formatPreferences'
 import type { AngieDocument, TimelineEntry, TimelineRevision } from '../../domain/document/types'
 import { commandResult } from '../../domain/document/documentCommand'
 import { latestDocumentTime } from '../../domain/document/documentTime'
@@ -35,14 +38,5 @@ export function deleteTimelineEntry(document: AngieDocument, id: string, now = n
   }
   return commandResult(document, next)
 }
-const spanishTime = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
-const spanishDate = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
-function formatSpanishInstant(time: string, formatter: Intl.DateTimeFormat) {
-  // JSON Schema accepts leap seconds, which Date cannot represent. Use the
-  // preceding second for the timezone/date, preserving 60 in the display.
-  const leapSecond = time.slice(17, 19) === '60'
-  const instant = new Date(leapSecond ? `${time.slice(0, 17)}59${time.slice(19)}` : time)
-  return leapSecond ? formatter.formatToParts(instant).map(part => part.type === 'second' ? '60' : part.value).join('') : formatter.format(instant)
-}
-export function formatTimelineTime(time: string) { return formatSpanishInstant(time, spanishTime) }
-export function formatTimelineDate(time: string) { return formatSpanishInstant(time, spanishDate) }
+export function formatTimelineTime(time: string, formats: FormatPreferences = defaultFormatPreferences()) { return formatInstant(time, formats, { date: false, timeZone: 'Europe/Madrid' }) }
+export function formatTimelineDate(time: string, formats: FormatPreferences = defaultFormatPreferences()) { return formatInstant(time, formats, { timeZone: 'Europe/Madrid' }) }

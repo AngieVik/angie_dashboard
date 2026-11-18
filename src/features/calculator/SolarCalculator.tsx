@@ -10,6 +10,7 @@ import type { SolarEvent } from '../astronomy/astronomy'
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import { useCoordinateTimeZone } from '../coordinates/useCoordinateTimeZone'
 import { useSettings } from '../settings/useSettings'
+import { formatDateKey } from '@/platform/formatting'
 import styles from './solarCalculator.module.css'
 
 const rows: readonly [string, SolarEvent, SolarEvent][] = [
@@ -42,7 +43,7 @@ export function SolarCalculator({ radarActive, radarPoint, selectedDay: day, zon
   const manualZone = receiving && zoneOverride && zoneOverride.latitude === latitude && zoneOverride.longitude === longitude ? zoneOverride.timeZone : null
   const timeZone = receiving ? manualZone ?? automaticZone.timeZone : settings.location?.timeZone ?? DEFAULT_TIME_ZONE
   const today = timeZone ? zonedDateKey(now, timeZone) : null
-  const dateLabel = day.split('-').reverse().join('/')
+  const dateLabel = formatDateKey(day, settings.formats.date)
   const zoneOptions = useMemo(() => [{ value: 'auto', label: 'Automática' }, ...timeZoneOptions(timeZone ?? undefined)], [timeZone])
   const offset = useMemo(() => day && timeZone ? utcOffsetLabel(zonedNoon(day, timeZone), timeZone) : null, [day, timeZone])
   const zoneEditorVisible = receiving && (editingZone || Boolean(automaticZone.error && !manualZone))
@@ -74,7 +75,7 @@ export function SolarCalculator({ radarActive, radarPoint, selectedDay: day, zon
       }} />}
     </div>
     {sun && timeZone && day && <>
-      <table className={styles.times} aria-label="Horarios solares"><thead><tr><th scope="col">Sol / Crepúsculo</th><th scope="col">Mañana</th><th scope="col">Tarde</th></tr></thead><tbody>{rows.map(([name, morning, evening]) => <tr key={name}><th scope="row">{name}</th><td>{formatSolarTime(sun.events[morning], timeZone, day)}</td><td>{formatSolarTime(sun.events[evening], timeZone, day)}</td></tr>)}</tbody></table>
+      <table className={styles.times} aria-label="Horarios solares"><thead><tr><th scope="col">Sol / Crepúsculo</th><th scope="col">Mañana</th><th scope="col">Tarde</th></tr></thead><tbody>{rows.map(([name, morning, evening]) => <tr key={name}><th scope="row">{name}</th><td>{formatSolarTime(sun.events[morning], timeZone, day, settings.formats.time)}</td><td>{formatSolarTime(sun.events[evening], timeZone, day, settings.formats.time)}</td></tr>)}</tbody></table>
       {day === today && <p className={styles.status} role="status">{status}</p>}
     </>}
     </section>

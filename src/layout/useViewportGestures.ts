@@ -198,6 +198,12 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
       settings.onChange(current.current)
     }
     function blur() { for (const pointerId of pointers.current.keys()) cancelPointer(pointerId) }
+    function releaseOutside(event: globalThis.PointerEvent) {
+      // Module handles do not capture to the viewport. A release outside it never
+      // reaches React's capture handlers, so finish the pointer and native drag here.
+      if (!pointers.current.has(event.pointerId) || (event.target instanceof Node && node!.contains(event.target))) return
+      cancelPointer(event.pointerId)
+    }
     function release(event: globalThis.PointerEvent) {
       // The first movement after a release outside the browser can target any surface.
       // Releasing one mouse button can emit pointermove while another stays down.
@@ -208,10 +214,14 @@ export function useViewportGestures(state: ViewportState, size: Size, bounds: Si
     node.addEventListener('wheel', wheel, { capture: true, passive: false })
     window.addEventListener('blur', blur)
     node.ownerDocument.addEventListener('pointermove', release, true)
+    node.ownerDocument.addEventListener('pointerup', releaseOutside, true)
+    node.ownerDocument.addEventListener('pointercancel', releaseOutside, true)
     return () => {
       node.removeEventListener('wheel', wheel, true)
       window.removeEventListener('blur', blur)
       node.ownerDocument.removeEventListener('pointermove', release, true)
+      node.ownerDocument.removeEventListener('pointerup', releaseOutside, true)
+      node.ownerDocument.removeEventListener('pointercancel', releaseOutside, true)
     }
   }, [element])
   return {

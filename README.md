@@ -5,10 +5,12 @@ Escritorio operativo con módulos de recursos, estados, registro, notas, cartogr
 ## Documentación
 
 - [AGENTS.md](AGENTS.md): reglas generales de trabajo en el repositorio.
-- [SECURITY.md](SECURITY.md): soporte y comunicación privada de vulnerabilidades; enlaza el registro histórico de auditorías.
+- [SECURITY.md](SECURITY.md): política activa de seguridad y comunicación de vulnerabilidades.
 - [OPERATIONS.md](docs/OPERATIONS.md): validar cambios, comprobar la app manualmente, servir la compilación, publicar, revertir y resolver problemas habituales.
 - [architecture.md](docs/architecture.md): funcionamiento y datos que se conservan.
-- [development.md](docs/development.md): diseño objetivo de la interfaz.
+- [design.md](docs/design.md): diseño objetivo e integración de la interfaz.
+- [development.md](docs/development.md): flujo de desarrollo.
+- [guia_scripts.md](docs/guia_scripts.md): comandos y resultados de diagnóstico.
 
 La copia local del navegador y el archivo guardado son independientes. Consulta el alcance del UIBoard en [Datos y persistencia](docs/architecture.md#datos-y-persistencia). Los mapas y las teselas necesitan conexión.
 

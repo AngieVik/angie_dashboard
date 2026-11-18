@@ -47,7 +47,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   useEffect(() => {
     if (imageSession.error && shownRevision.current !== imageSession.noticeRevision) {
       shownRevision.current = imageSession.noticeRevision
-      toast.error(imageSession.error, { id: noticeId })
+      toast.error(imageSession.error, { notice: 'boardImage', id: noticeId })
     }
   }, [imageSession.error, imageSession.noticeRevision, noticeId])
   useEffect(() => () => { dismissImageError(); toast.dismiss(noticeId) }, [dismissImageError, noticeId])
@@ -122,16 +122,16 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     if (store.getSnapshot().documentGeneration !== documentGeneration) return false
     try {
       if (!store.applyDocumentCommand(command)) {
-        toast.error(store.getSnapshot().fileMessage ?? 'No se pudo modificar la Pizarra.'); return false
+        toast.error(store.getSnapshot().fileMessage ?? 'No se pudo modificar la Pizarra.', { notice: 'boardEdit' }); return false
       }
       return true
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo modificar la Pizarra.'); return false }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo modificar la Pizarra.', { notice: 'boardEdit' }); return false }
   }, [store, documentGeneration])
   const dispatch = useCallback((action: BoardAction) => {
     if (store.getSnapshot().documentGeneration !== documentGeneration) return false
     const board = store.getSnapshot().document.board
     if (action.type === 'point' && (interaction.current.draft?.points.length ?? 0) >= INPUT_BUDGETS.strokePoints) {
-      toast.error(budgetIssue(`board.strokes[${board.strokes.length}].points`, INPUT_BUDGETS.strokePoints, 'puntos').message)
+      toast.error(budgetIssue(`board.strokes[${board.strokes.length}].points`, INPUT_BUDGETS.strokePoints, 'puntos').message, { notice: 'boardPoints' })
       action = { type: 'cancel' }
     }
     const next = boardReducer({ ...interaction.current, board }, action)

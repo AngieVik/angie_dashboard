@@ -1,14 +1,16 @@
 import * as Primitive from '@radix-ui/react-slider'
 import styles from './slider.module.css'
 
-export function Slider({ value, onValueChange, min, max, step = 1, label, disabled = false, midpoint, valueText, className = '' }: {
-  value: number; onValueChange: (value: number) => void; min: number; max: number; step?: number; label: string; disabled?: boolean; midpoint?: number; valueText?: string; className?: string
+export function Slider({ value, onValueChange, min, max, step = 1, stepOrigin = min, label, disabled = false, midpoint, valueText, className = '' }: {
+  value: number; onValueChange: (value: number) => void; min: number; max: number; step?: number; stepOrigin?: number; label: string; disabled?: boolean; midpoint?: number; valueText?: string; className?: string
 }) {
   const centered = midpoint !== undefined && midpoint > min && midpoint < max
   const position = centered ? value <= midpoint ? (value - min) / (midpoint - min) * 50 : 50 + (value - midpoint) / (max - midpoint) * 50 : value
   function change(position: number) {
     const value = centered ? position <= 50 ? min + position / 50 * (midpoint - min) : midpoint + (position - 50) / 50 * (max - midpoint) : position
-    onValueChange(centered ? Math.min(max, Math.max(min, min + Math.round((value - min) / step) * step)) : value)
+    if (!centered) { onValueChange(value); return }
+    const snapped = value <= min ? min : value >= max ? max : stepOrigin + Math.round((value - stepOrigin) / step) * step
+    onValueChange(Math.min(max, Math.max(min, snapped)))
   }
   return <Primitive.Root data-slot="slider" className={`${styles.base} ${className}`.trim()} value={[position]} onValueChange={values => change(values[0]!)}
     min={centered ? 0 : min} max={centered ? 100 : max} step={centered ? .01 : step} disabled={disabled}

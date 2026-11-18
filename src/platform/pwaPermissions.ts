@@ -8,10 +8,10 @@ export async function readPersistentStorage(): Promise<PermissionSnapshot> {
 }
 
 export async function requestPersistentStorage(): Promise<PermissionSnapshot> {
-  if (!navigator.storage?.persist) return { status: 'unavailable' }
+  if (!navigator.storage?.persist) return { status: 'unavailable', message: 'Este navegador no permite solicitar almacenamiento persistente en este contexto.' }
   try {
     return await navigator.storage.persist() ? { status: 'granted' } : {
-      status: 'pending', message: 'El navegador no ha concedido el almacenamiento persistente.',
+      status: 'denied',
     }
   } catch { return { status: 'error', message: 'No se pudo solicitar el almacenamiento persistente.' } }
 }

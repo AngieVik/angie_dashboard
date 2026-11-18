@@ -1,4 +1,4 @@
-import type { AngieDocument, DocumentModuleId, MapDocument, ModuleLayout, UnitOperational } from '../../domain/document/types'
+import type { AngieDocument, DocumentModuleId, MapDocument, UnitOperational } from '../../domain/document/types'
 import { commandResult, sameRecord } from '../../domain/document/documentCommand'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
 
@@ -36,18 +36,6 @@ export function replaceMap(document: AngieDocument, map: MapDocument) {
   return commandResult(document, sameRecord(previous, next) ? document : { ...document, map: next })
 }
 
-export function updateModuleLayouts(document: AngieDocument, updates: readonly { id: DocumentModuleId; layout: ModuleLayout }[]) {
-  let layouts = document.moduleLayouts
-  for (const { id, layout } of updates) {
-    const previous = layouts[id]
-    const next = { ...layout, referenceSize: sameRecord(previous?.referenceSize, layout.referenceSize) ? previous!.referenceSize : layout.referenceSize }
-    if (sameRecord(previous, next)) continue
-    if (layouts === document.moduleLayouts) layouts = { ...layouts }
-    layouts[id] = next
-  }
-  return commandResult(document, layouts === document.moduleLayouts ? document : { ...document, moduleLayouts: layouts })
-}
-
 function resetOperations(document: AngieDocument, all: boolean) {
   let changed = false
   const elements = document.elements.map(element => {
@@ -62,23 +50,101 @@ function resetOperations(document: AngieDocument, all: boolean) {
   return changed ? { ...document, elements } : document
 }
 
+export type CleanupRuntimeEffect = 'board-image' | 'coordinate-input' | 'element-selection' | 'timers'
+export interface CleanupSharedEffect { module: DocumentModuleId; text: string }
+export interface ModuleCleanupDefinition {
+  clear: (document: AngieDocument) => AngieDocument
+  summary: (document: AngieDocument, timers: number) => string
+  preserves: readonly { text: string; unless?: readonly DocumentModuleId[] }[]
+  runtime?: readonly CleanupRuntimeEffect[]
+  shared?: (before: AngieDocument, after: AngieDocument) => CleanupSharedEffect[]
+}
+const unchanged = (document: AngieDocument) => document
+const unitsIn = (document: AngieDocument) => document.elements.filter(element => element.isUnit).length
+function resourceEffects(before: AngieDocument, after: AngieDocument): CleanupSharedEffect[] {
+  const effects: CleanupSharedEffect[] = []
+  const pins = (before.plan?.pins.length ?? 0) - (after.plan?.pins.length ?? 0)
+  if (pins > 0) effects.push({ module: 'plan', text: `${pins} ubicaciones vinculadas a los recursos eliminados se retiran del Plano operativo.` })
+  const units = unitsIn(before) - unitsIn(after)
+  if (units > 0) for (const module of ['information', 'operations'] as const) {
+    effects.push({ module, text: `${units} dotaciones eliminadas dejan de aparecer en Información y Operativo.` })
+  }
+  return effects
+}
+function operationalEffects(before: AngieDocument, after: AngieDocument): CleanupSharedEffect[] {
+  const remaining = new Map(after.elements.map(element => [element.id, element]))
+  const changed = before.elements.filter(element => {
+    const next = remaining.get(element.id)
+    return element.isUnit && next?.isUnit && element.operational !== next.operational
+  }).length
+  return changed ? (['information', 'operations'] as const).map(module => ({ module,
+    text: `Se restablecen datos operativos compartidos de ${changed} dotaciones en Información y Operativo.` })) : []
+}
+
+// One definition per module owns its command, preview and session effects.
+export const MODULE_CLEANUP: Readonly<Record<DocumentModuleId, ModuleCleanupDefinition>> = {
+  board: {
+    clear: document => replaceBoard(document, createEmptyDocument().board).document,
+    summary: document => `${document.board.strokes.length} trazos, ${document.board.quickNotes.length} notas y ${document.board.backgroundImage ? 1 : 0} imágenes de fondo. Se restablece el fondo de la pizarra.`,
+    preserves: [], runtime: ['board-image'],
+  },
+  elements: {
+    clear: document => {
+      const elements = document.elements.filter(element => element.isUnit)
+      return elements.length === document.elements.length ? document : { ...document, elements }
+    },
+    summary: document => `${document.elements.length - unitsIn(document)} elementos y sus pines.`,
+    preserves: [{ text: 'Dotaciones.', unless: ['dotations'] }], runtime: ['element-selection'], shared: resourceEffects,
+  },
+  dotations: {
+    clear: document => {
+      const elements = document.elements.filter(element => !element.isUnit)
+      return elements.length === document.elements.length ? document : { ...document, elements }
+    },
+    summary: document => `${unitsIn(document)} dotaciones, sus datos operativos y sus pines.`,
+    preserves: [{ text: 'Registro.', unless: ['timeline'] }, { text: 'Elementos.', unless: ['elements'] }],
+    runtime: ['element-selection'], shared: resourceEffects,
+  },
+  information: {
+    clear: document => resetOperations(document, true),
+    summary: document => `Estados, anotaciones y etiquetas de ${unitsIn(document)} dotaciones.`,
+    preserves: [{ text: 'Registro.', unless: ['timeline'] }], runtime: ['element-selection'], shared: operationalEffects,
+  },
+  operations: {
+    clear: document => resetOperations(document, true),
+    summary: document => `Estados, anotaciones y etiquetas de ${unitsIn(document)} dotaciones.`,
+    preserves: [{ text: 'Registro.', unless: ['timeline'] }], runtime: ['element-selection'], shared: operationalEffects,
+  },
+  coordinates: { clear: unchanged, summary: () => 'Entrada y resultados de coordenadas.', preserves: [], runtime: ['coordinate-input'] },
+  map: {
+    clear: document => { if (!document.map) return document; const next = { ...document }; delete next.map; return next },
+    summary: document => `${document.map?.gpx.length ?? 0} GPX vinculados, ${document.map?.markers.length ?? 0} marcadores y la selección del mapa.`,
+    preserves: [{ text: 'Archivos GPX originales.' }],
+  },
+  plan: {
+    clear: document => { if (!document.plan) return document; const next = { ...document }; delete next.plan; return next },
+    summary: document => `${document.plan?.strokes.length ?? 0} trazos y ${document.plan?.pins.length ?? 0} ubicaciones del plano.`,
+    preserves: [{ text: 'Elementos.', unless: ['elements'] }, { text: 'Dotaciones.', unless: ['dotations'] }, { text: 'GPX del Mapa.', unless: ['map'] }],
+  },
+  clock: { clear: unchanged, summary: (_document, timers) => `${timers} temporizadores guardados y sus alarmas.`, preserves: [], runtime: ['timers'] },
+  calendar: { clear: unchanged, summary: () => 'Se restablece la vista del calendario.', preserves: [{ text: 'Eventos de la agenda transversal.' }] },
+  calculator: { clear: unchanged, summary: () => 'Operación y resultado de la calculadora.', preserves: [] },
+  notebook: {
+    clear: document => document.notebook.length ? { ...document, notebook: [] } : document,
+    summary: document => `${document.notebook.filter(block => block.type === 'note').length} notas y ${document.notebook.filter(block => block.type === 'checklist').length} listas del cuaderno.`,
+    preserves: [],
+  },
+  timeline: {
+    clear: document => resetOperations(document.timeline.length ? { ...document, timeline: [] } : document, false),
+    summary: document => `${document.timeline.length} entradas del Registro y los estados actuales de las dotaciones.`,
+    preserves: [{ text: 'Anotaciones y etiquetas operativas.', unless: ['information', 'operations', 'dotations'] }], shared: operationalEffects,
+  },
+  reports: { clear: unchanged, summary: () => 'Selección y vista previa de informes.', preserves: [{ text: 'Informes guardados.' }] },
+}
+
 export function clearDocumentModules(document: AngieDocument, ids: readonly DocumentModuleId[]) {
   let next = document
-  for (const id of ids) {
-    if (id === 'board') next = replaceBoard(next, createEmptyDocument().board).document
-    else if ((id === 'map' && next.map) || (id === 'plan' && next.plan)) {
-      next = { ...next }
-      if (id === 'map') delete next.map
-      else delete next.plan
-    } else if (id === 'elements' || id === 'dotations') {
-      const elements = next.elements.filter(element => element.isUnit === (id === 'elements'))
-      if (elements.length !== next.elements.length) next = { ...next, elements }
-    } else if (id === 'notebook' && next.notebook.length) next = { ...next, notebook: [] }
-    else if (id === 'timeline') {
-      if (next.timeline.length) next = { ...next, timeline: [] }
-      next = resetOperations(next, false)
-    } else if (id === 'information' || id === 'operations') next = resetOperations(next, true)
-  }
+  for (const id of new Set(ids)) next = MODULE_CLEANUP[id].clear(next)
   if (next.plan && next.elements !== document.elements) {
     const remaining = new Set(next.elements.map(element => element.id.toLowerCase()))
     const pins = next.plan.pins.filter(pin => remaining.has(pin.elementId.toLowerCase()))
