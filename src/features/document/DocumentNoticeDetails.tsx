@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Bell, ClipboardPlus, Clock, FileText, HardDrive, Image, Map, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -10,6 +11,7 @@ import styles from './FileMenu.module.css'
 import { useSettings } from '../settings/useSettings'
 import { noticeEnabled, noticeText } from '../notices/noticePreferences'
 import { localStorageNoticeMessages, timerStorageNoticeMessage } from './documentNoticeMessages'
+import { createBrowserFilePlatform } from '../../platform/files/fileAccess'
 
 interface DocumentNoticeDetailsProps extends Required<DocumentNoticesProps> {
   store: DocumentStore
@@ -23,6 +25,45 @@ function NoticeCard({ title, icon: Icon, children }: { title: string; icon: Luci
     <h3><Icon aria-hidden="true" /><span>{title}</span></h3>
     {children}
   </section>
+}
+
+function TimerStorageActions({ clock }: { clock: NonNullable<DocumentNoticesProps['clock']> }) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const pending = useRef(false)
+  async function run(operation: () => Promise<void>) {
+    if (pending.current) return
+    pending.current = true
+    setBusy(true); setFeedback(null)
+    try { await operation() }
+    catch (error) { setFeedback(error instanceof Error ? error.message : 'No se pudo completar la recuperación de temporizadores.') }
+    finally { pending.current = false; setBusy(false) }
+  }
+  return <>
+    <div className={styles.noticeActions}>
+      <Button disabled={busy} onClick={clock.onRetry}>{clock.storage === 'conflict' ? 'Recargar temporizadores' : 'Reintentar'}</Button>
+      {clock.storage === 'corrupt' && <>
+        <Button disabled={busy} onClick={() => { void run(async () => {
+          const text = await clock.onRescue()
+          createBrowserFilePlatform().download(text, 'temporizadores-rescate.json')
+          setFeedback('Descarga del registro iniciada. Comprueba el archivo recibido.')
+        }) }}>Descargar registro</Button>
+        <Button disabled={busy || confirming} onClick={() => { setFeedback(null); setConfirming(true) }}>Restablecer almacén…</Button>
+      </>}
+    </div>
+    {clock.storage === 'corrupt' && confirming && <div>
+      <p>¿Rescatar y restablecer los temporizadores? El registro dañado quedará archivado en este dispositivo. Se conservarán los temporizadores de esta sesión.</p>
+      <div className={styles.noticeActions}>
+        <Button disabled={busy} onClick={() => { void run(async () => {
+          if (await clock.onReset()) setConfirming(false)
+          else setFeedback('No se pudo restablecer el almacén. Reintenta la carga para comprobar su estado.')
+        }) }}>Rescatar y restablecer</Button>
+        <Button disabled={busy} onClick={() => setConfirming(false)}>Cancelar</Button>
+      </div>
+    </div>}
+    {feedback && <p role="status">{feedback}</p>}
+  </>
 }
 
 export function DocumentNoticeDetails({ store, snapshot, status, reports, maps, board, clock, onClose }: DocumentNoticeDetailsProps) {
@@ -55,7 +96,7 @@ export function DocumentNoticeDetails({ store, snapshot, status, reports, maps, 
           </section>}
           {clock.storage && <section>
             <p>{noticeText(preferences, 'centerClock', timerStorageNoticeMessage(clock.storage))}</p>
-            <div className={styles.noticeActions}><Button onClick={clock.onRetry}>{clock.storage === 'conflict' ? 'Recargar temporizadores' : 'Reintentar'}</Button></div>
+            <TimerStorageActions clock={clock} />
           </section>}
         </NoticeCard>}
         {board && <NoticeCard icon={Image} title="Pizarra · Imagen de fondo">

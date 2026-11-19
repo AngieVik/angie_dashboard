@@ -3,6 +3,7 @@ import { defaultFormatPreferences } from '../settings/formatPreferences'
 import type { FormatPreferences } from '../settings/formatPreferences'
 import type { TimerKind, TimerRecord, TimerSnapshot } from './timerTypes'
 export const MAX_TIMER_SECONDS = 86399
+export const MAX_TIMER_COUNT = 10
 export function normalizeDuration(hours: string, minutes: string, seconds: string): number {
   const total = Number(hours || 0) * 3600 + Number(minutes || 0) * 60 + Number(seconds || 0)
   return Math.max(0, Math.min(MAX_TIMER_SECONDS, Math.floor(total)))

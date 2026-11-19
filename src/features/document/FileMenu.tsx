@@ -159,7 +159,8 @@ export interface DocumentNoticesProps {
   reports?: ReportsNotice | null
   maps?: Partial<Record<'map' | 'plan', MapNotice>>
   board?: { message: string; busy: boolean; onChoose: () => void } | null
-  clock?: { storage: 'conflict' | 'unavailable' | null; audio: string | null; onRetry: () => void; onActivate: () => void } | null
+  clock?: { storage: 'conflict' | 'corrupt' | 'unavailable' | null; audio: string | null; onRetry: () => void; onActivate: () => void
+    onRescue: () => Promise<string>; onReset: () => Promise<boolean> } | null
 }
 
 export function DocumentNotices({ store = getDocumentStore(), reports = null, maps = {}, board = null, clock = null }: DocumentNoticesProps) {

@@ -1,9 +1,9 @@
-import { Fragment, Suspense, useEffect, useRef } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { Fragment, Suspense, useEffect, useRef, useState } from 'react'
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import GridLayout from 'react-grid-layout'
 import type { EventCallback, LayoutItem } from 'react-grid-layout'
-import { transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/core'
+import { applySizeConstraints, transformStrategy, minMaxSize, noCompactor } from 'react-grid-layout/core'
 import type { LayoutConstraint, Layout } from 'react-grid-layout/core'
 import { snapModulePosition, snapModuleSize } from './snapModulePosition'
 import { DEFAULT_MAGNET_OPTIONS } from './magnetSettings'
@@ -16,6 +16,7 @@ import { constrainWindowContentSize } from './windowContentSize'
 import type { ModuleId, ModuleLayout, Size } from './layoutTypes'
 import { useViewportInteraction } from './ViewportContext'
 import { HandleBottomRight } from './HandleBottomRight'
+import { keyboardResizeDelta, RESIZE_INSTRUCTIONS, resizeAnnouncement } from './keyboardResize'
 
 export interface OpenModule { id: ModuleId; layout: ModuleLayout; resetSizeOnMount?: boolean; restoreRevision?: number }
 const unpack = (item: LayoutItem, bounds: Size): ModuleLayout => ({ x: item.x, y: item.y, width: item.w, height: item.h, referenceSize: { ...bounds } })
@@ -35,6 +36,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
   onGrow?: (candidate: ModuleLayout) => void; onGrowEnd?: () => void; renderModule?: (id: ModuleId) => ReactNode; generation?: number; magnet?: boolean; magnetOptions?: Readonly<MagnetOptions>; navigationKey?: string
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
+  const [announcement, setAnnouncement] = useState('')
   const activeLayout = useRef<Layout>([])
   const grid = useRef<HTMLDivElement>(null)
   const draggedModule = useRef<ModuleId | null>(null)
@@ -118,6 +120,27 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
     const size = constrainWindowContentSize(frame, { width: Math.max(w, minimum.width), height: Math.max(h, minimum.height) }, definition.sizeMode)
     return { w: size.width, h: size.height }
   } }
+  function resizeWithKeyboard(event: KeyboardEvent<HTMLButtonElement>) {
+    const delta = keyboardResizeDelta(event)
+    const id = event.currentTarget.closest<HTMLElement>('[data-module]')?.dataset.module
+    const item = layout.find(candidate => candidate.i === id)
+    if (!delta || !item || !item.isResizable || blockedRef.current || gesture.current) return
+    event.preventDefault(); event.stopPropagation()
+    const w = item.w + delta.width, h = item.h + delta.height
+    // Committed layouts grow the desktop directly; no transient gesture reserve is needed.
+    const maximum = onGrow ? { width: Math.max(bounds.width, w), height: Math.max(bounds.height, h) } : bounds
+    const candidate = { ...item, maxW: maximum.width, maxH: maximum.height }
+    // Keep the pointer's content and registry limits, without magnets swallowing small key steps.
+    const size = applySizeConstraints([contentMinimum, minMaxSize], candidate, w, h, 'se', {
+      cols: maximum.width, maxRows: maximum.height, containerWidth: maximum.width,
+      containerHeight: maximum.height, rowHeight: 1, margin: [0, 0], layout,
+    })
+    if (size.w !== item.w || size.h !== item.h) {
+      onLayout(item.i as ModuleId, unpack({ ...item, ...size }, bounds), 'resize')
+    }
+    onActive(item.i as ModuleId)
+    setAnnouncement(`${MODULE_REGISTRY[item.i as ModuleId].name}. ${resizeAnnouncement({ width: size.w, height: size.h })}`)
+  }
   function park(id: ModuleId, size: Size) {
     if (blockedRef.current) return
     const module = modules.find(module => module.id === id)
@@ -163,7 +186,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
       draggedModule.current = null
       iconTap.current = null
       const target = event.target as Element, container = target.closest<HTMLElement>('[data-module]')
-      if (!container || target.closest('button:not(.module-icon),input,textarea,select')) return
+      if (!container || target.closest('button:not(.module-icon, .react-resizable-handle),input,textarea,select')) return
       const icon = target.closest<HTMLButtonElement>('.module-header .module-icon')
       if (icon && event.pointerType === 'touch') iconTap.current = { pointerId: event.pointerId, icon }
       const resize = Boolean(target.closest('.react-resizable-handle'))
@@ -185,7 +208,12 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
       constraints={[magneticEdges, contentMinimum, origin, minMaxSize]}
       positionStrategy={{ ...transformStrategy, scale }}
       dragConfig={{ enabled: !blocked, bounded: false, handle: '.module-header', cancel: 'button:not(.module-icon),input,textarea,select' }}
-      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <span ref={ref} className={'react-resizable-handle react-resizable-handle-' + axis}><HandleBottomRight aria-hidden="true" /></span> }}
+      resizeConfig={{ enabled: !blocked, handles: ['se'], handleComponent: (axis, ref) => <button type="button" ref={node => {
+        if (typeof ref === 'function') ref(node)
+        else if (ref) ref.current = node
+      }} className={'react-resizable-handle react-resizable-handle-' + axis} disabled={blocked}
+        aria-label="Redimensionar módulo" aria-description={RESIZE_INSTRUCTIONS} title={RESIZE_INSTRUCTIONS}
+        onKeyDown={resizeWithKeyboard}><HandleBottomRight aria-hidden="true" /></button> }}
       onDragStart={(...args) => {
         if (!blockedRef.current && args[2]) {
           draggedModule.current = args[2].i as ModuleId
@@ -196,7 +224,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
       {modules.map(({ id, layout, resetSizeOnMount, restoreRevision }) => (
         // RGL enters its pending drag state on press, before onDragStart runs.
         // Keep the current position available until constrained drag coordinates exist.
-        <div key={id} data-module={id} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
+        <div key={id} data-module={id} role="group" aria-label={MODULE_REGISTRY[id].name} data-x={layout.x} data-y={layout.y} data-width={layout.width} data-height={layout.height}
           style={{ zIndex: layers.indexOf(id) + 1, '--module-x': layout.x + 'px', '--module-y': layout.y + 'px' } as CSSProperties}
           onPointerDown={() => {
             if (blockedRef.current) return
@@ -217,6 +245,7 @@ export function DashboardGrid({ modules, bounds, visible = bounds, layers, scale
         </div>
       ))}
     </GridLayout>
+    <span className="visually-hidden" role="status">{announcement}</span>
     </div>
   )
 }

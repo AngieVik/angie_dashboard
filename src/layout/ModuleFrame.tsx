@@ -14,6 +14,7 @@ import { useViewportInteraction } from './ViewportContext'
 import type { ModuleGesture } from './ViewportContext'
 import { readNavigation, writeNavigation } from './navigationStorage'
 import { constrainWindowContentSize, measureModuleAutoSize, measureModuleBaseSize } from './windowContentSize'
+import { keyboardResizeDelta } from './keyboardResize'
 import styles from './moduleFrame.module.css'
 import controlStyles from './controlButton.module.css'
 
@@ -227,8 +228,9 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
   useEffect(() => {
     const container = frame.current?.parentElement
     if (!container || !supportsAutoResize) return
-    const preserve = (event: globalThis.PointerEvent) => {
-      if (event.button === 0 && !blockedRef.current && event.target instanceof Element && event.target.closest('.react-resizable-handle')) {
+    const preserve = (event: globalThis.PointerEvent | globalThis.KeyboardEvent) => {
+      const resizing = 'key' in event ? keyboardResizeDelta(event) !== null : event.button === 0
+      if (resizing && !blockedRef.current && event.target instanceof Element && event.target.closest('.react-resizable-handle')) {
         preserveManualSize.current = true
         currentAutoResize.current = false
         setAutoResize(false)
@@ -236,7 +238,11 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
       }
     }
     container.addEventListener('pointerdown', preserve, true)
-    return () => container.removeEventListener('pointerdown', preserve, true)
+    container.addEventListener('keydown', preserve, true)
+    return () => {
+      container.removeEventListener('pointerdown', preserve, true)
+      container.removeEventListener('keydown', preserve, true)
+    }
   }, [supportsAutoResize, blockedRef, persist])
   useLayoutEffect(() => {
     const controls = frame.current?.querySelector<HTMLElement>('.module-controls')

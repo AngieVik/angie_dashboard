@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { memo, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/button'
 import { X, Play, Pause, Square } from 'lucide-react'
 import { DurationInput } from './DurationInput'
@@ -9,8 +9,20 @@ import styles from './TimerRow.module.css'
 
 const TIMER_LABELS = { tzero: 'T-Zero', tminus: 'T-Minus', advisory: 'Advisory' }
 const STATUS_LABELS = { idle: 'Inactivo', running: 'En marcha', paused: 'Pausado', completed: 'Finalizado' }
+const subscribeToNothing = () => () => {}
 
-export function TimerRow({ timer, index, now, store, disabled = false }: { timer: TimerRecord; index: number; now: number; store: TimerStore; disabled?: boolean }) {
+export const TimerRow = memo(function TimerRow({ timer, index, store, disabled = false }: { timer: TimerRecord; index: number; store: TimerStore; disabled?: boolean }) {
+  // Keep the snapshot stable between visible seconds and state transitions.
+  // Idle, paused and completed rows do not subscribe to the engine's pulse.
+  const getSnapshot = useMemo(() => {
+    let snapshot = calculateTimerValue(timer, store.getTimeSnapshot().monotonic)
+    return () => {
+      const next = calculateTimerValue(timer, store.getTimeSnapshot().monotonic)
+      if (next.valueSeconds !== snapshot.valueSeconds || next.status !== snapshot.status || next.alertActive !== snapshot.alertActive) snapshot = next
+      return snapshot
+    }
+  }, [timer, store])
+  const snapshot = useSyncExternalStore(timer.status === 'running' ? store.subscribeTime : subscribeToNothing, getSnapshot)
   const row = useRef<HTMLDivElement>(null)
   const resetControl = useRef<HTMLButtonElement>(null)
   const savedDuration = formatDuration(timer.kind === 'tzero' ? 0 : timer.durationSeconds)
@@ -21,7 +33,7 @@ export function TimerRow({ timer, index, now, store, disabled = false }: { timer
   }
   const durationText = durationDraft.text
   function setDurationText(text: string) { setDurationDraft({ saved: savedDuration, text }) }
-  const snapshot = calculateTimerValue(timer, now), name = `${TIMER_LABELS[timer.kind]} ${index}`
+  const name = `${TIMER_LABELS[timer.kind]} ${index}`
   function enteredDuration() {
     const fields = durationText.includes(':') ? durationText.split(':') : durationText.padStart(6, '0').match(/.{2}/g)!
     return normalizeDuration(fields[0] ?? '', fields[1] ?? '', fields[2] ?? '')
@@ -69,4 +81,4 @@ export function TimerRow({ timer, index, now, store, disabled = false }: { timer
       </div>
     </div>
   </div>
-}
+})

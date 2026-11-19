@@ -17,6 +17,17 @@
   --surface-overlay: var(--palette-gray-900);
   --surface-toolbar: var(--palette-gray-900);
   --surface-inset: var(--palette-gray-925);
+  --surface-field-focus: none;
+  --shadow-field-focus: none;
+  --color-map-background: var(--color-module);
+  --surface-map-attribution: var(--color-module);
+  --surface-map-scale: var(--color-module);
+  --shadow-button: none;
+  --shadow-button-hover: none;
+  --shadow-button-active: none;
+  --shadow-map-kilometer: none;
+  --filter-map-selection-pin: none;
+  --filter-map-marker-flag: none;
 }
 
 @layer overrides {
@@ -26,6 +37,16 @@
   :root[data-high-contrast="true"] :focus-visible {
     outline: 2px solid var(--color-selection-border) !important;
     outline-offset: -2px;
+  }
+
+  /* Forced colors suppress shadows; retain a system-colored focus indicator. */
+  @media (forced-colors: active) {
+    :is([data-slot="input"], [data-slot="textarea"]):focus-visible:not(:disabled) {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+      background-image: none;
+      box-shadow: none;
+    }
   }
 
   /* Short durations preserve completion events used by animated components. */

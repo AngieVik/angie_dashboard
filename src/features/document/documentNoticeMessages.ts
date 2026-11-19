@@ -9,8 +9,9 @@ export function localStorageNoticeMessages(snapshot: DocumentSnapshot): string[]
 }
 
 /** @notice-level warning */
-export function timerStorageNoticeMessage(storage: 'conflict' | 'unavailable'): string {
+export function timerStorageNoticeMessage(storage: 'conflict' | 'corrupt' | 'unavailable'): string {
   return storage === 'conflict'
     ? 'Otra pestaña ha cambiado los temporizadores. Recargar sustituirá los cambios locales pendientes.'
-    : 'Autoguardado no disponible'
+    : storage === 'corrupt' ? 'El registro guardado de temporizadores está dañado. Las alarmas automáticas están bloqueadas hasta recuperar el almacén.'
+      : 'Autoguardado no disponible'
 }

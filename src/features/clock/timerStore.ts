@@ -1,6 +1,6 @@
-import { acknowledgeTimer, createTimer, deactivateTimer, pauseTimer, resetTimer, settleTimer, startTimer } from './timerEngine'
+import { acknowledgeTimer, createTimer, deactivateTimer, MAX_TIMER_COUNT, pauseTimer, resetTimer, settleTimer, startTimer } from './timerEngine'
 import { AlarmController } from './alarmController'
-import { TimerConflictError, TimerRepository } from './timerRepository'
+import { TimerConflictError, TimerCorruptionError, TimerRepository } from './timerRepository'
 import type { InternalTimerRepository } from './timerRepository'
 import type { TimerKind, TimerRecord } from './timerTypes'
 import { TimerClock } from './timerClock'
@@ -11,7 +11,8 @@ type TimerMutationResult = 'saved' | 'conflict' | 'unavailable' | 'not-ready'
 
 export function createTimerStore(repository: InternalTimerRepository, alarm: AlarmController) {
   const clock = new TimerClock(), initial = clock.read()
-  let state = { timers: [] as TimerRecord[], now: initial.civil, timerNow: initial.monotonic, ready: false, storageUnavailable: false, storageConflict: false, recoveryGeneration: 0 }
+  let state = { timers: [] as TimerRecord[], ready: false, storageUnavailable: false, storageConflict: false, storageCorrupt: false, recoveryGeneration: 0 }
+  let time = initial
   let civilOffset = initial.civil - initial.monotonic
   let observedOffset = civilOffset
   let clockNeedsSave = false, resumePending = false
@@ -28,10 +29,16 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   const sounding = new Set<string>()
   const silenced = new Set<string>()
   const listeners = new Set<() => void>()
+  const timeListeners = new Set<() => void>()
 
   function update(patch: Partial<typeof state>) {
+    if (!(Object.keys(patch) as (keyof typeof state)[]).some(key => patch[key] !== state[key])) return
     state = { ...state, ...patch }
     listeners.forEach(listener => listener())
+  }
+  function updateTime(now: TimerInstant) {
+    time = now
+    timeListeners.forEach(listener => listener())
   }
   function silence(id: string) {
     sounding.delete(id)
@@ -51,8 +58,20 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
     return now
   }
   function replace(timers: TimerRecord[], now: TimerInstant = readTime()) {
+    // Repository reads clone records. Retain unchanged identities so a refresh
+    // or a command on one timer does not render every other row again.
+    const previous = new Map(state.timers.map(timer => [timer.id, timer]))
+    timers = timers.map(timer => {
+      const saved = previous.get(timer.id)
+      return saved && saved.kind === timer.kind && saved.note === timer.note && saved.status === timer.status
+        && saved.elapsedMs === timer.elapsedMs && saved.startedAt === timer.startedAt && saved.alertActive === timer.alertActive
+        && (saved.kind === 'tzero' || timer.kind !== 'tzero' && saved.durationSeconds === timer.durationSeconds) ? saved : timer
+    })
+    if (timers.length === state.timers.length && timers.every((timer, index) => timer === state.timers[index])) timers = state.timers
     clock.retain(timers, now)
-    update({ timers, now: now.civil, timerNow: now.monotonic })
+    time = now
+    update({ timers })
+    updateTime(now)
     // Stopping is always safe; starting requires a confirmed repository state.
     for (const id of sounding) if (!timers.some(timer => timer.id === id && timer.alertActive)) silence(id)
   }
@@ -74,7 +93,10 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   }
   function failed(error: unknown) {
     invalidate()
-    update({ storageUnavailable: true, storageConflict: state.storageConflict || error instanceof TimerConflictError })
+    const corrupt = error instanceof TimerCorruptionError
+    if (corrupt) recoveryNeeded = true
+    update({ storageUnavailable: true, storageConflict: !corrupt && (state.storageConflict || error instanceof TimerConflictError),
+      storageCorrupt: state.storageCorrupt || corrupt })
   }
   function enqueue(operation: () => Promise<void>) {
     operations = operations.then(operation).catch(failed)
@@ -93,7 +115,7 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
     clock.committed(runtime, stored)
     dirty = false
     invalidated = false
-    update({ storageUnavailable: false, storageConflict: false })
+    update({ storageUnavailable: false, storageConflict: false, storageCorrupt: false })
     announceChange()
     syncAlarms(generation, retrySound)
   }
@@ -111,7 +133,7 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
     recoveryNeeded = false
     if (discard) silenced.clear()
     replace(settled, now)
-    update({ ready: true, storageConflict: false, recoveryGeneration: state.recoveryGeneration + (discard ? 1 : 0) })
+    update({ ready: true, storageConflict: false, storageCorrupt: false, recoveryGeneration: state.recoveryGeneration + (discard ? 1 : 0) })
     dirty = merge || clockNeedsSave || settled.some((timer, index) => timer !== combined[index])
     if (dirty) await save(generation, retrySound)
     else {
@@ -185,7 +207,7 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   }
   function tick() {
     const now = readTime()
-    update({ now: now.civil, timerNow: now.monotonic })
+    updateTime(now)
     if (!state.ready || state.storageConflict || state.storageUnavailable || recoveryNeeded || dirty || invalidated) return
     // Validate even without a channel message: another tab may have committed
     // before its notification arrived, or while this tab was suspended.
@@ -202,8 +224,11 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
   return {
     alarm,
     getSnapshot: () => state,
+    getTimeSnapshot: () => time,
+    getReferenceSecond: () => Math.floor(time.civil / 1000) * 1000,
     getReportRecords: () => state.ready ? clock.serialize(state.timers, readTime()) : null,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
+    subscribeTime(listener: () => void) { timeListeners.add(listener); return () => { timeListeners.delete(listener) } },
     initialize() { initialization ??= refresh(); return initialization },
     connect() {
       connected = true
@@ -249,7 +274,12 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
       }
     },
     tick,
-    add(kind: TimerKind) { void mutate(timers => [...timers, createTimer(kind)]) },
+    add(kind: TimerKind) {
+      if (state.timers.length >= MAX_TIMER_COUNT) return
+      // Recheck after the queued command reloads under the repository lock:
+      // rapid clicks and other tabs must share the same admission limit.
+      void mutate(timers => timers.length < MAX_TIMER_COUNT ? [...timers, createTimer(kind)] : timers)
+    },
     start(id: string) { void change(id, startTimer) },
     pause(id: string) { void change(id, pauseTimer) },
     reset(id: string) { silenceLocally(id); void change(id, resetTimer) },
@@ -287,6 +317,34 @@ export function createTimerStore(repository: InternalTimerRepository, alarm: Ala
           else await save(generation)
         })
       })
+    },
+    exportRecoveryRecord: () => repository.withLock(() => repository.exportRecoveryRecord()),
+    async resetCorruptStorage() {
+      let reset = false
+      await enqueue(async () => {
+        if (!state.storageCorrupt || state.storageConflict) return
+        const generation = connectionGeneration
+        await repository.withLock(async () => {
+          const now = readTime()
+          resumeIfNeeded(now)
+          const runtime = state.timers.map(timer => settleTimer(timer, now.monotonic))
+          const stored = clock.serialize(runtime, now)
+          // The repository archives and replaces only a still-corrupt record in
+          // one transaction. A failed backup leaves storage and memory intact.
+          await repository.resetCorruptTimers(stored)
+          replace(runtime, now)
+          clock.committed(runtime, stored)
+          recoveryNeeded = false
+          dirty = false
+          invalidated = false
+          clockNeedsSave = false
+          update({ ready: true, storageUnavailable: false, storageConflict: false, storageCorrupt: false })
+          announceChange()
+          syncAlarms(generation)
+          reset = true
+        })
+      })
+      return reset
     },
     flush: () => operations,
   }

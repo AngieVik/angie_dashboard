@@ -25,3 +25,7 @@
   .base svg { width: 15px; height: 15px; pointer-events: none; }
   .base:hover:not(:disabled) { border-color: transparent; background: transparent; box-shadow: none; color: var(--color-text); }
 }
+
+@layer overrides {
+  .base[data-slot="window-resize"]:focus-visible { outline: 2px solid var(--color-text-secondary); outline-offset: -2px; }
+}

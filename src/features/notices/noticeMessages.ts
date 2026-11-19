@@ -261,6 +261,24 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
     ]
   },
   {
+    "text": "El registro de temporizadores ya no está disponible. Reintenta la carga.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "El registro guardado de temporizadores está dañado. Las alarmas automáticas están bloqueadas hasta recuperar el almacén.",
+    "levels": [
+      "warning"
+    ]
+  },
+  {
+    "text": "El registro no se puede descargar como JSON dentro de los límites de entrada. El rescate local sigue disponible al restablecer.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
     "text": "El servicio de búsqueda debe usar HTTPS.",
     "levels": [
       "error"
@@ -1048,12 +1066,6 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
   },
   {
     "text": "Revisión de evento inválida.",
-    "levels": [
-      "error"
-    ]
-  },
-  {
-    "text": "Revisión interna de temporizadores inválida",
     "levels": [
       "error"
     ]

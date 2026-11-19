@@ -1,7 +1,6 @@
 import { lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toast, Toaster } from '@/components/ui/sonner'
 import { useSettings } from '@/features/settings/useSettings'
-import { useAccessibilityPreferences } from '@/features/settings/useAccessibilityPreferences'
 import { validateDesktopViewState } from '@/features/settings/savedDesktopViews'
 import type { DesktopViewState } from '@/features/settings/savedDesktopViews'
 import { AppHeader } from './AppHeader'
@@ -70,9 +69,9 @@ export function App() {
     else toast.dismiss('calendar-notice')
   }, [calendarError])
   useEffect(() => { void calendar.initialize(); return calendar.connect() }, [calendar])
-  const timerProblem = useSyncExternalStore<'conflict' | 'unavailable' | null>(timers.subscribe, () => {
+  const timerProblem = useSyncExternalStore<'conflict' | 'corrupt' | 'unavailable' | null>(timers.subscribe, () => {
     const snapshot = timers.getSnapshot()
-    return snapshot.storageConflict ? 'conflict' : snapshot.storageUnavailable ? 'unavailable' : null
+    return snapshot.storageConflict ? 'conflict' : snapshot.storageCorrupt ? 'corrupt' : snapshot.storageUnavailable ? 'unavailable' : null
   })
   const audioProblem = useSyncExternalStore(timers.alarm.subscribe, () => timers.alarm.getSnapshot().error)
   const clockNotified = useRef({ storage: false, audio: false })
@@ -138,7 +137,6 @@ export function App() {
   const [modules, setModules] = useState<OpenModule[]>([])
   const [modulesGeneration, setModulesGeneration] = useState(-1)
   const preferences = useSettings()
-  useAccessibilityPreferences(preferences.settings.accessibility)
   const [initialArrangementGeneration, setInitialArrangementGeneration] = useState<number | null>(null)
   const [viewRestoreSequence, setViewRestoreSequence] = useState(0)
   const initialPreferencesReady = preferences.ready || Boolean(preferences.error && !preferences.loading)
@@ -444,7 +442,8 @@ export function App() {
     <><div data-slot="app-shell" className={`${styles.shell} app-shell`}>
       <AppHeader scale={viewport.state.scale} documentGeneration={documentGeneration} fileMenu={{ store, desktopViews: { canCapture: canCaptureView, canRestore: canRestoreView, capture: captureDesktopView, restore: restoreDesktopView } }} reportNotices={reportNotices.generation === documentGeneration ? reportNotices.value : null} mapNotices={mapNotices.generation === documentGeneration ? mapNotices.value : {}}
         boardNotice={boardImage.resourceError && open.some(module => module.id === 'board') ? { message: boardImage.resourceError, busy: boardImage.busy, onChoose: () => boardImageInput.current?.click() } : null}
-        clockNotice={timerProblem || audioProblem ? { storage: timerProblem, audio: audioProblem, onRetry: () => { void timers.retryPersistence() }, onActivate: () => { void timers.activateSound() } } : null}
+        clockNotice={timerProblem || audioProblem ? { storage: timerProblem, audio: audioProblem, onRetry: () => { void timers.retryPersistence() },
+          onActivate: () => { void timers.activateSound() }, onRescue: () => timers.exportRecoveryRecord(), onReset: () => timers.resetCorruptStorage() } : null}
         modulesMenu={{ trigger: modulesTrigger, modules, disabled: !ready || !boardActive || replacing, onToggle: toggle }}
         viewMenu={{ disabled: !ready || !boardActive || replacing || !open.length, active: open.some(module => module.id === active),
           onCollapseAll: collapseAll, onAutoArrange: recolocate, onFitActive: fitActiveModule }}

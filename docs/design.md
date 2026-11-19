@@ -6,6 +6,8 @@ Este documento reúne el diseño objetivo y su integración visual. Las medidas 
 
 Usa las variables de `src/styles/tokens.css` según su función. Conserva el peso (300, 500, 700 o 900) y el interlineado del CSS propietario; una nueva regla transversal de interlineado está pendiente.
 
+Button centraliza sus sombras de reposo, interacción y pulsación en `--shadow-button`, `--shadow-button-hover` y `--shadow-button-active`. Leaflet reutiliza los colores semánticos de texto, texto secundario y módulo; el fondo del mapa, las superficies de atribución/escala y las sombras de marcadores tienen tokens propios. El modo normal conserva sus valores originales. En alto contraste, las superficies del mapa son opacas y se desactivan las sombras decorativas de estas dos áreas; la sombra que refuerza la selección del pin se conserva.
+
 | Uso | Especificación |
 | --- | --- |
 | Texto general / secundario | Roboto Condensed, 13px; `#F2F2F2` / `#ADADAD`. Reserva con fuente del sistema. |
@@ -19,7 +21,7 @@ Usa las variables de `src/styles/tokens.css` según su función. Conserva el pes
 | Borde campo / botón / separador | `#555555` / `#3D3D3D` / `#3D3D3D`. |
 | Acento rojo / neutro | `#D63A3A80` / `#D6D6D280`; asigna el neutro a consumidores con especificación propia. |
 
-El foco de Input/Textarea se gestiona mediante tokens. Archivo y Configuración conservan su acabado normal sin contorno de foco; el modo de alto contraste aplica la excepción de [Accesibilidad](#accesibilidad). Los indicadores operativos usan `--color-status-*`, con significado en [Arquitectura](architecture.md#estados-operativos).
+El foco visible de Input/Textarea usa una iluminación translúcida del fondo y un halo corto gris azulado, incluidos Archivo y Configuración. Los tokens `--surface-field-focus` y `--shadow-field-focus` conservan la superficie original bajo el efecto, sin borde rojo, animación ni cambio de tamaño. La iluminación interior permite reconocer el foco aunque el halo exterior se recorte. El modo de alto contraste sustituye el efecto por el contorno de [Accesibilidad](#accesibilidad). Los indicadores operativos usan `--color-status-*`, con significado en [Arquitectura](architecture.md#estados-operativos).
 
 ## Controles e indicadores
 
@@ -49,6 +51,8 @@ Base de campos y botones de texto: altura 25px, padding `0 2px`, borde 1px y rad
 `button.module.css` separa altura de botón y etiqueta mediante `--button-label-height`, con reserva en `--text-container-height`. El texto común ocupa una línea. El consumidor que necesite multilínea ajusta localmente salto de texto, altura de etiqueta y espacio del botón. Ejemplos observados: paleta de Pizarra y teclado de Calculadora; mantienen su alcance local.
 
 ## Ventanas
+
+Los tiradores de módulos y diálogos son botones accesibles por Tab. Con el foco en el tirador, izquierda/derecha reducen/amplían el ancho y arriba/abajo reducen/amplían el alto, en pasos de 10px lógicos; Mayús aumenta el paso a 50px. El nombre identifica la acción, las instrucciones están disponibles como descripción accesible y tooltip, y un estado accesible anuncia el tamaño resultante. El foco usa un contorno neutro interior y conserva la excepción de alto contraste. Las ventanas recogidas no muestran el tirador. Los límites y la confirmación se describen en [Ventanas y navegación](architecture.md#ventanas-y-navegación).
 
 | Zona | Medidas y acabado |
 | --- | --- |
@@ -148,7 +152,7 @@ La confirmación de Limpieza usa AlertDialog y Checkbox, casilla Todos con estad
 
 `tokens.css` deriva tipografía y alturas desde `--accessibility-text-scale`; `accessibility.css` aplica contraste/foco y movimiento. La escala se añade al zoom existente y alcanza portales. Campos, controles, herramientas y cabecera principal ganan altura según el texto; las cabeceras de módulos mantienen geometría compacta. Sonner usa la altura adaptable de cabecera para su posición.
 
-Alto contraste: superficies planas oscuras, texto secundario claro, bordes reforzados y foco amarillo visible. Movimiento reducido: minimiza transiciones/animaciones y usa desplazamiento inmediato; el comportamiento del mapa se describe en [Arquitectura](architecture.md#formatos-y-accesibilidad).
+Alto contraste: superficies planas oscuras, texto secundario claro, bordes reforzados y foco amarillo visible. Los campos prescinden de iluminación y halo en este modo; con colores forzados del sistema muestran un contorno del sistema, salvo que el alto contraste de la app ya aplique el amarillo. Movimiento reducido: minimiza transiciones/animaciones y usa desplazamiento inmediato; el comportamiento del mapa se describe en [Arquitectura](architecture.md#formatos-y-accesibilidad).
 
 ## Integración compartida
 

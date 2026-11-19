@@ -3,6 +3,7 @@ import type { Table } from 'dexie'
 import { validateDocument } from '../domain/document/validateDocument'
 import type { UIBoardData } from '../domain/document/types'
 import type { SaveFileHandle } from '../platform/files/fileHandleTypes'
+import { INPUT_BUDGETS } from '../domain/input/inputBudgets'
 
 export interface RecoverySnapshot {
   data: UIBoardData
@@ -14,6 +15,25 @@ export interface RecoverySnapshot {
   fileDirty: boolean
 }
 interface RecoveryRecord extends RecoverySnapshot { key: 'active'; token: string }
+
+function isTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value
+}
+
+function isFileName(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= INPUT_BUDGETS.textCharacters && value.trim().length > 0
+}
+
+function isFileHandle(value: unknown): value is SaveFileHandle {
+  if (!value || typeof value !== 'object') return false
+  const handle = value as Partial<SaveFileHandle>
+  return (!('kind' in value) || value.kind === 'file')
+    && (handle.name === undefined || isFileName(handle.name))
+    && typeof handle.getFile === 'function' && typeof handle.createWritable === 'function' && typeof handle.queryPermission === 'function'
+    && (handle.requestPermission === undefined || typeof handle.requestPermission === 'function')
+    && (handle.isSameEntry === undefined || typeof handle.isSameEntry === 'function')
+}
 
 export class RecoveryConflictError extends Error {
   constructor() { super('Otra pestaña ha actualizado la copia local. Guarda tus datos en un archivo antes de recargar.'); this.name = 'RecoveryConflictError' }
@@ -43,11 +63,21 @@ export class UIBoardRecoveryRepository implements UIBoardRecovery {
     if (!record) return null
     const result = validateDocument(record.data)
     if (!result.success) throw new Error('La copia local no contiene datos válidos de UIBoard.')
-    if (typeof record.token !== 'string' || typeof record.fileDirty !== 'boolean' || !Number.isFinite(Date.parse(record.savedAt))) {
+    if (record.key !== 'active' || typeof record.token !== 'string' || !record.token || typeof record.fileDirty !== 'boolean' || !isTimestamp(record.savedAt)) {
       throw new Error('No se pudo comprobar la copia local.')
     }
-    return { data: result.document, savedAt: record.savedAt, fileHandle: record.fileHandle,
-      fileFingerprint: record.fileFingerprint, fileName: record.fileName, fileSavedAt: record.fileSavedAt, fileDirty: record.fileDirty }
+    const fileNameValid = record.fileName === null || isFileName(record.fileName)
+    const fileSavedAtValid = record.fileSavedAt === null || isTimestamp(record.fileSavedAt)
+    const fingerprintValid = record.fileFingerprint === null || typeof record.fileFingerprint === 'string' && /^[0-9a-f]{64}$/.test(record.fileFingerprint)
+    const accessValid = fingerprintValid && (record.fileHandle === undefined || isFileHandle(record.fileHandle) && record.fileFingerprint !== null)
+    // Losing the fingerprint must also detach the handle: otherwise the next
+    // save could overwrite external changes without a comparison.
+    return { data: result.document, savedAt: record.savedAt,
+      fileHandle: accessValid ? record.fileHandle : undefined,
+      fileFingerprint: accessValid ? record.fileFingerprint : null,
+      fileName: fileNameValid ? record.fileName : null,
+      fileSavedAt: fileSavedAtValid ? record.fileSavedAt : null,
+      fileDirty: record.fileDirty || !fileNameValid || !fileSavedAtValid || !accessValid }
   }
 
   async save(snapshot: RecoverySnapshot): Promise<void> {

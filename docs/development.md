@@ -1,15 +1,16 @@
 # Flujo de desarrollo
 
-## Delimitar y localizar
+## Delimitar, localizar y evaluar
 
 1. Lee `AGENTS.md`, la petición y el estado local con `git status --short` y el diff del área afectada.
 2. Localiza el propietario en `src/app`, `src/features`, `src/domain`, `src/layout`, `src/platform` o `src/storage`; sigue sus consumidores y datos.
 3. Consulta únicamente la sección necesaria de [Arquitectura](architecture.md) para contratos y persistencia, o de [Diseño](design.md) para decisiones visuales e integración.
-4. Para tareas complejas, concreta en el chat el resultado y los pasos; identifica las decisiones que necesitan respuesta antes de implementarlas.
+4. Evalúa el enfoque técnico antes de editar: si la petición contradice un contrato existente, introduce deuda técnica, omite casos borde o tiene una solución más limpia reutilizando piezas actuales, adviértelo brevemente en el chat y propón la mejor alternativa antes de implementar.
+5. Si el enfoque es sólido pero la tarea es compleja o tiene decisiones abiertas, concreta los pasos y pregunta lo necesario antes de escribir código.
 
 ## Implementar
 
-Trabaja sobre la base compartida del área y conserva el trabajo local existente. Resuelve cada responsabilidad en su propietario y retira los restos de la implementación sustituida dentro del alcance autorizado.
+Trabaja sobre la base compartida del área y conserva el trabajo local existente. Resuelve cada responsabilidad en su propietario y retira los restos de la implementación sustituida dentro del alcance acordado.
 
 Al cambiar una interfaz, recorre componente, estilos, medición, zoom y portales. Al cambiar datos, recorre edición, validación, guardado, recuperación y consumidores. Para diagnósticos puntuales, elige el comando específico de [la guía de scripts](guia_scripts.md).
 

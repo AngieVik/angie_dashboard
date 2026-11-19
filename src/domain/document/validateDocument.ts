@@ -7,6 +7,7 @@ import { compareUtcDates } from './documentTime'
 import { checkDocumentBudget } from '../input/inputBudgets'
 import { isTimelineEntryDeleted, isTimelineEntryCorrected, projectUnitStatus } from '../operations/timelineProjection'
 import { buildTimelineIndex, currentEntryIds } from '../operations/operationIndexes'
+import { customStatusLabelError } from '../operations/customStatusLabel'
 
 const ajv = new Ajv2020({
   strict: true,
@@ -110,6 +111,10 @@ export function validateDocument(input: unknown): ValidationResult<UIBoardData> 
   }
   for (const [index, entry] of document.timeline.entries()) {
     if (identify(entry.id, `timeline[${index}].id`)) return invalid()
+    if (entry.type === 'status-change' && entry.customLabel !== undefined) {
+      const error = customStatusLabelError(entry.customLabel)
+      if (error && add(`timeline[${index}].customLabel`, error)) return invalid()
+    }
     const previous = document.timeline[index - 1]
     if (previous && compareUtcDates(entry.occurredAt, previous.occurredAt) < 0) {
       if (add(`timeline[${index}].occurredAt`, 'debe mantener el orden cronológico ascendente')) return invalid()

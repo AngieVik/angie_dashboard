@@ -11,6 +11,15 @@
   }
 }
 
+@layer overrides {
+  /* Overlay the existing surface, including transparent fields in shared frames. */
+  :is([data-slot="input"], [data-slot="textarea"]):focus-visible:not(:disabled) {
+    outline: none;
+    background-image: var(--surface-field-focus);
+    box-shadow: var(--shadow-field-focus);
+  }
+}
+
 @layer base {
   :root {
     color-scheme: dark;
