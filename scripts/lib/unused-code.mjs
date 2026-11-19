@@ -1,4 +1,4 @@
-import { renderAnalysis, markdownTable as table, sourceReference, entryReference } from './findings.mjs'
+import { renderAnalysis, reportSection, entryReference, sourceReference } from './findings.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
@@ -218,16 +218,19 @@ export function collectUnusedCode(project = createProjectContext()) {
 
 export function renderUnusedCode(report, options = {}) {
   const { sourceRoot } = options
-  return renderAnalysis('unused',report,[
-    '## Datos de referencia · cobertura',
-    table(['Archivos de src','Conectados desde entradas','Archivos sin recorrido','Relaciones del grafo'],[[report.coverage.sourceFiles,report.coverage.connectedFiles,report.detachedFiles.length,report.coverage.edges]]),
-    'Las familias de archivos, declaraciones y clases detectadas se reúnen en los hallazgos anteriores, con sus consumidores y ubicaciones. Los bytes de fuente no son bytes del bundle ni memoria de ejecución.',
-    '## Datos de referencia · accesos computados a CSS resueltos',
-    'Son alternativas estáticas posibles, no clases observadas simultáneamente en navegador. Los accesos no acotados se identifican como limitaciones.',
-    table(['Ubicación','Hoja','Expresión','Clases posibles','Base de la resolución'],(report.resolvedCssAccesses??[]).map(item=>[entryReference(item,sourceRoot),sourceReference(item.stylesheet,1,sourceRoot),item.expression,item.classes.join(', '),item.basis.join('; ')])),
-    '## Datos de referencia · entradas del recorrido',
-    table(['Entrada protegida'],report.entries.map(file=>[sourceReference(file,1,sourceRoot)])),
-    'HTML/configuraciones conocidas, herramientas, servidor y declaraciones ambientales son entradas. Los originales públicos y los datos guardados del usuario quedan fuera de este análisis. No se reconstruye la intención de componentes reservados ni se acredita ausencia de todos los usos dinámicos.',
-  ],options)
+  return renderAnalysis('unused', report, [
+    reportSection('Cobertura', [
+      `${report.coverage.sourceFiles} archivos · ${report.coverage.connectedFiles} conectados · ${report.detachedFiles.length} sin recorrido · ${report.coverage.edges} relaciones`,
+    ]),
+    report.resolvedCssAccesses?.length ? reportSection('Accesos CSS calculados', [
+      'La resolución enumera alternativas estáticas de la expresión.',
+      ...report.resolvedCssAccesses.map(item => [
+        `- ${entryReference(item, sourceRoot, path.posix.basename(item.file) + ':' + item.line)} · \`${item.expression}\``,
+        `  - ${sourceReference(item.stylesheet, 1, sourceRoot, path.posix.basename(item.stylesheet))} → ${item.classes.join(', ')}`,
+        `  - Base: ${item.basis.join(' · ')}`,
+      ].join('\n')),
+    ]) : '',
+    reportSection('Entradas protegidas del recorrido', report.entries.map(file => `- ${sourceReference(file, 1, sourceRoot, file)}`)),
+  ], options)
 }
 

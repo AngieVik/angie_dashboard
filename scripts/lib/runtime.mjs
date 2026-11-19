@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { root, createProjectContext } from './project.mjs'
 import { diagnosticReport } from './findings.mjs'
+import { renderStageStatus } from './report-format.mjs'
 
 export const isMain = url => Boolean(process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(url))
 
@@ -24,7 +25,7 @@ export function individualReportPaths(analysis) {
   const name = individualDirectories[analysis]
   if (!name) throw new Error(`Análisis individual no reconocido: ${analysis}`)
   const directory = `output/analize-app-scripts/${name}`
-  return { jsonFile: `${directory}/report.json`, markdownFile: `${directory}/report.md` }
+  return { markdownFile: `${directory}/report.md` }
 }
 
 export function atomicWrite(file, text) {
@@ -34,26 +35,25 @@ export function atomicWrite(file, text) {
   finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary) }
 }
 
-export function writeReport(report, markdown, jsonFile, markdownFile) {
-  atomicWrite(path.resolve(root, jsonFile), JSON.stringify(report, null, 2) + '\n')
-  atomicWrite(path.resolve(root, markdownFile), markdown)
-}
-
-export function runCli(url, { name, analysis, collect, render, jsonFile, markdownFile, summary }) {
+export function runCli(url, { name, analysis, collect, render, markdownFile, summary }) {
   if (!isMain(url)) return
   const main = async () => {
     const args = process.argv.slice(2)
     if (args.length) {
       if (args.length !== 1 || !['--help', '-h'].includes(args[0])) throw new Error('Argumentos no reconocidos. Usa --help.')
-      console.log(`Uso: node scripts/${name}\nGenera ${jsonFile} y ${markdownFile}. No modifica código de la app.`)
+      console.log(`Uso: node scripts/${name}\nSobrescribe ${markdownFile}. No modifica código de la app.`)
       return
     }
-    const context = createProjectContext()
+    let context
     try {
+      context = createProjectContext()
       const report = diagnosticReport(analysis, await collect(context))
-      writeReport(report, render(report), jsonFile, markdownFile)
-      console.log(`${summary(report)}\nHallazgos/observaciones: ${report.findings.length}.\nInformes: ${jsonFile} y ${markdownFile}`)
-    } finally { context.dispose() }
+      atomicWrite(path.resolve(root, markdownFile), render(report))
+      console.log(`${summary(report)}\nHallazgos: ${report.findings.length}.\nInforme: ${markdownFile}`)
+    } catch (error) {
+      atomicWrite(path.resolve(root, markdownFile), renderStageStatus(analysis, 'failed', error.message))
+      throw error
+    } finally { context?.dispose() }
   }
   main().catch(error => { console.error(`${name}: ${error.message}`); process.exitCode = 1 })
 }

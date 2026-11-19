@@ -1,4 +1,4 @@
-import { renderAnalysis, markdownTable as table, sourceReference } from './findings.mjs'
+import { renderAnalysis, reportSection, sourceReference } from './findings.mjs'
 import { createProjectContext, isCode } from './project.mjs'
 import { collectUnusedCode } from './unused-code.mjs'
 
@@ -159,22 +159,39 @@ export function collectArchitecture(project = createProjectContext(), unused = c
 
 export function renderArchitecture(report, options = {}) {
   const { sourceRoot } = options
-  const files = report.fileMetrics.filter(item=>item.fanIn>0 || item.fanOut>0).toSorted((a,b)=>b.fanIn-a.fanIn || b.fanOut-a.fanOut || a.file.localeCompare(b.file,'en'))
-  const metrics = items => table(['Archivo','Conectado desde entradas','Consumidores / dependencias','De valores: consumidores / dependencias'],items.map(item=>[sourceReference(item.file,1,sourceRoot),item.connected,`${item.fanIn} / ${item.fanOut}`,`${item.runtimeFanIn} / ${item.runtimeFanOut}`]))
-  return renderAnalysis('architecture',report,[
-    '## Datos de referencia · alcance del grafo',
-    table(['Archivos','Relaciones locales','Áreas','Relaciones excluidas del grafo de código'],[[report.coverage.files,report.coverage.edges,report.coverage.areas,report.coverage.excludedGraphEdges]]),
-    'Los ciclos y relaciones entre funcionalidades aparecen una sola vez en los hallazgos anteriores. Los grupos cíclicos son componentes de archivos, no el número de todos los circuitos posibles.',
-    '## Datos de referencia · áreas',
-    table(['Área','Archivos','Áreas consumidoras / importadas','Imports salientes de valores / tipos'],report.areaMetrics.map(item=>[item.area,item.files,`${item.fanIn} / ${item.fanOut}`,`${item.outgoing.runtime} / ${item.outgoing.type}`])),
-    '## Datos de referencia · proyección circular entre áreas',
-    'Una proyección por carpetas puede formar un círculo con archivos independientes. Estos datos no prueban un ciclo entre archivos.',
-    table(['Áreas','Relaciones de valores'],report.areaCycles.map(item=>[item.members.join('; '),item.relations.map(edge=>`${edge.from} → ${edge.to} (${edge.imports})`).join('; ')])),
-    '## Datos de referencia · consumidores y dependencias por archivo',metrics(files),
-    'Los recuentos incluyen tipos y referencias no ejecutables. Las columnas de valores aíslan imports estáticos; no son medidas de tamaño del bundle o coste de ejecución.',
-    '## Datos de referencia · workers, URL y resolución',
-    table(['Origen','Destino','Tipo','Declaración'],report.edges.filter(edge=>['worker','url','resolution'].includes(edge.dependencyType)).map(edge=>[sourceReference(edge.from,edge.line,sourceRoot),sourceReference(edge.to,1,sourceRoot),edge.dependencyType,`${edge.kind}: ${edge.specifier}`])),
-    'Workers tienen contextos de ejecución separados. Una URL o resolución de nombre no acredita ejecución. No se incluyen paquetes externos, CSS, JSON o scripts como nodos del grafo de arquitectura.',
-  ],options)
+  const link = (file, line = 1) => sourceReference(file, line, sourceRoot, file.replace(/^src\//, ''))
+  const filesByArea = new Map()
+  const files = report.fileMetrics.filter(item => item.fanIn || item.fanOut)
+    .toSorted((a, b) => a.area.localeCompare(b.area, 'en') || b.fanIn - a.fanIn || b.fanOut - a.fanOut || a.file.localeCompare(b.file, 'en'))
+  for (const item of files) {
+    if (!filesByArea.has(item.area)) filesByArea.set(item.area, [])
+    filesByArea.get(item.area).push(item)
+  }
+  return renderAnalysis('architecture', report, [
+    reportSection('Cobertura', [
+      `${report.coverage.files} archivos · ${report.coverage.edges} relaciones locales · ${report.coverage.areas} áreas`,
+      `${report.coverage.excludedGraphEdges} relaciones excluidas del grafo de código. Los ciclos se agrupan por archivos conectados entre sí.`,
+    ]),
+    reportSection('Áreas', [
+      'Por área: archivos · áreas consumidoras / importadas · imports salientes de valores / tipos.',
+      ...report.areaMetrics.map(item => `- ${item.area} · ${item.files} · ${item.fanIn} / ${item.fanOut} · ${item.outgoing.runtime} / ${item.outgoing.type}`),
+    ]),
+    report.areaCycles.length ? reportSection('Círculos entre áreas', [
+      'Una proyección por carpetas puede cerrar un círculo con archivos independientes.',
+      ...report.areaCycles.map(item => [
+        '- ' + item.members.join(' · '),
+        ...item.relations.map(edge => `  - ${edge.from} → ${edge.to} (${edge.imports} imports de valores)`),
+      ].join('\n')),
+    ]) : '',
+    reportSection('Consumidores y dependencias por archivo', [
+      'Se incluyen archivos con relaciones. Cada pareja indica consumidores / dependencias, primero todos y luego solo imports estáticos de valores.',
+      ...[...filesByArea].flatMap(([area, entries]) => [
+        `\n### ${area}\n`,
+        ...entries.map(item => `- ${sourceReference(item.file, 1, sourceRoot, item.file.replace(/^.*\//, ''))} · ${item.fanIn} / ${item.fanOut} · valores ${item.runtimeFanIn} / ${item.runtimeFanOut}${item.connected ? '' : ' · sin recorrido'}`),
+      ]),
+    ]),
+    reportSection('Workers y referencias no ejecutables', report.edges.filter(edge => ['worker', 'url', 'resolution'].includes(edge.dependencyType))
+      .map(edge => `- ${link(edge.from, edge.line)} → ${link(edge.to)} · ${edge.dependencyType}, ${edge.kind} \`${edge.specifier}\``)),
+  ], options)
 }
 

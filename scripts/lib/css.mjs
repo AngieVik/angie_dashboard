@@ -1,3 +1,5 @@
+import { isPaintProperty } from './css-paint.mjs'
+
 export const measures = /^(?:(?:min-|max-)?(?:width|height|inline-size|block-size)|font(?:-.+)?|line-height|letter-spacing|padding(?:-.+)?|gap|row-gap|column-gap|box-sizing|flex-basis)$/
 
 export function parseCssText(file, text, { allDeclarations = false } = {}) {
@@ -22,7 +24,7 @@ export function parseCssText(file, text, { allDeclarations = false } = {}) {
     const chunk = clean.slice(start, end).trim(), colon = chunk.indexOf(':')
     if (!stack.length || colon < 1) return
     const property = chunk.slice(0, colon).trim(), value = chunk.slice(colon + 1).trim()
-    if (allDeclarations || property.startsWith('--') || measures.test(property) || (property === 'src' && stack.at(-1).selector === '@font-face')) stack.at(-1).declarations.push({ property, value, file, line: line(start + clean.slice(start, end).search(/\S/)) })
+    if (allDeclarations || property.startsWith('--') || measures.test(property) || isPaintProperty(property) || (property === 'src' && stack.at(-1).selector === '@font-face')) stack.at(-1).declarations.push({ property, value, file, line: line(start + clean.slice(start, end).search(/\S/)) })
   }
   for (let i = 0; i < clean.length; i++) {
     const char = clean[i]

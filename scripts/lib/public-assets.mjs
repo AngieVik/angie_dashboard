@@ -1,4 +1,4 @@
-import { renderAnalysis, markdownTable as table, sourceReference, entryReference, readableBytes } from './findings.mjs'
+import { renderAnalysis, reportSection, entryReference, sourceReference, readableBytes } from './findings.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
@@ -225,15 +225,33 @@ export function collectPublicAssets(project = createProjectContext(), inputFiles
 
 export function renderPublicAssets(report, options = {}) {
   const { sourceRoot } = options
-  return renderAnalysis('assets',report,[
-    '## Datos de referencia · inventario público',
-    table(['Archivos','Tamaño total','Solo configuración declarada','Sin referencia reconocida'],[[report.coverage.files,readableBytes(report.coverage.totalBytes),report.configurationOnly.length,report.unreferenced.length]]),
-    table(['Recurso','Tamaño','Situación','Referencias declaradas','Configuración coincidente','Licencia / original protegido'],report.assets.map(item=>[sourceReference(item.file,1,sourceRoot),readableBytes(item.bytes),item.status,item.references.map(entry=>`${entryReference(entry,sourceRoot)} (${entry.kind})`).join('; ')||'Ninguna',item.configuredBy.map(entry=>`${entry.kind}: ${entry.pattern}`).join('; ')||'Ninguna',`${item.license} / ${item.protectedOriginal}`])),
-    '## Datos de referencia · configuración PWA declarada',
-    table(['Ubicación','Opción','Patrón','Coincidencias públicas'],report.patterns.map(item=>[entryReference(item,sourceRoot),item.kind,item.pattern,item.matchedFiles.length])),
-    'Los globs se contrastan con archivos de public/. globIgnores no cancela includeAssets; globPatterns puede cubrir archivos generados por el build. No se infieren opciones predeterminadas, límites de caché ni recursos efectivamente precacheados.',
-    '## Datos de referencia · directorios reconocidos',
-    table(['Ubicación','Referencia','Directorio'],report.directoryReferences.map(item=>[entryReference(item,sourceRoot),item.value,item.target])),
-    'Las referencias pueden proceder de código o CSS sin carga comprobada. No se consultan URLs externas, no se descargan teselas y no se leen documentos del usuario. Las ausencias, diferencias de mayúsculas, duplicados y limitaciones se reúnen una sola vez en los hallazgos anteriores.',
-  ],options)
+  const ref = item => entryReference(item, sourceRoot, path.posix.basename(item.file ?? item.source) + ':' + item.line)
+  const directories = new Map()
+  for (const item of report.assets) {
+    const directory = path.posix.dirname(item.file)
+    if (!directories.has(directory)) directories.set(directory, [])
+    directories.get(directory).push(item)
+  }
+  return renderAnalysis('assets', report, [
+    reportSection('Cobertura', [
+      '- ' + report.coverage.files + ' archivos; ' + readableBytes(report.coverage.totalBytes) + '; ' + report.references.length + ' referencias.',
+      '- Solo configuración: ' + report.configurationOnly.length + '; sin referencia reconocida: ' + report.unreferenced.length + '.',
+    ]),
+    reportSection('Configuración PWA', [
+      'Coincidencias con archivos de public/. El precaché del build se mide en bundle.',
+      ...report.patterns.map(item => `- ${item.kind} \`${item.pattern}\` → ${item.matchedFiles.length} archivos · ${ref(item)}`),
+    ]),
+    reportSection('Directorios referenciados', report.directoryReferences.map(item => `- \`${item.value}\` → ${item.target} · ${ref(item)}`)),
+    reportSection('Inventario por directorio', [
+      'Los recursos son originales protegidos salvo indicación. Los archivos de licencia están marcados.',
+      ...[...directories].flatMap(([directory, items]) => [
+        `\n### ${directory}\n`,
+        ...items.map(item => [
+          `- ${sourceReference(item.file, 1, sourceRoot, path.posix.basename(item.file))} · ${readableBytes(item.bytes)} · ${item.status}${item.license ? ' · licencia' : ''}${item.protectedOriginal ? '' : ' · sin protección'}`,
+          ...item.references.map(entry => `  - ${entry.kind} · ${ref(entry)}`),
+          ...item.configuredBy.map(entry => `  - ${entry.kind} \`${entry.pattern}\``),
+        ].join('\n')),
+      ]),
+    ]),
+  ], options)
 }

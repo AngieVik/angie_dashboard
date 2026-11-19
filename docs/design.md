@@ -8,18 +8,18 @@ Usa las variables de `src/styles/tokens.css` según su función. Conserva el pes
 
 Button centraliza sus sombras de reposo, interacción y pulsación en `--shadow-button`, `--shadow-button-hover` y `--shadow-button-active`. Leaflet reutiliza los colores semánticos de texto, texto secundario y módulo; el fondo del mapa, las superficies de atribución/escala y las sombras de marcadores tienen tokens propios. El modo normal conserva sus valores originales. En alto contraste, las superficies del mapa son opacas y se desactivan las sombras decorativas de estas dos áreas; la sombra que refuerza la selección del pin se conserva.
 
-| Uso | Especificación |
-| --- | --- |
-| Texto general / secundario | Roboto Condensed, 13px; `#F2F2F2` / `#ADADAD`. Reserva con fuente del sistema. |
-| Títulos | Roboto Condensed, 16px. |
-| Cifras críticas de Reloj y temporizadores | Rajdhani, con cifras tabulares donde corresponda. |
-| Sonner | Tamaño del texto general. |
-| Espacios | 4px entre controles y 6px entre grupos; padding interior aplicado una vez. |
-| Capitalización | Sentence case; acrónimos y `ZULU TIME` conservan mayúsculas. |
-| Escritorio / ventana / campo / opción activa | `#0C0C0C` / `#181818` / `#111111` / `#303030`. |
-| Botón / hover | Degradado `#333333 → #252525` / `#404040 → #303030`. |
-| Borde campo / botón / separador | `#555555` / `#3D3D3D` / `#3D3D3D`. |
-| Acento rojo / neutro | `#D63A3A80` / `#D6D6D280`; asigna el neutro a consumidores con especificación propia. |
+| Uso                                          | Especificación                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Texto general / secundario                   | Roboto Condensed, 13px; `#F2F2F2` / `#ADADAD`. Reserva con fuente del sistema.        |
+| Títulos                                      | Roboto Condensed, 16px.                                                               |
+| Cifras críticas de Reloj y temporizadores    | Rajdhani, con cifras tabulares donde corresponda.                                     |
+| Sonner                                       | Tamaño del texto general.                                                             |
+| Espacios                                     | 4px entre controles y 6px entre grupos; padding interior aplicado una vez.            |
+| Capitalización                               | Sentence case; acrónimos y `ZULU TIME` conservan mayúsculas.                          |
+| Escritorio / ventana / campo / opción activa | `#0C0C0C` / `#181818` / `#111111` / `#303030`.                                        |
+| Botón / hover                                | Degradado `#333333 → #252525` / `#404040 → #303030`.                                  |
+| Borde campo / botón / separador              | `#555555` / `#3D3D3D` / `#3D3D3D`.                                                    |
+| Acento rojo / neutro                         | `#D63A3A80` / `#D6D6D280`; asigna el neutro a consumidores con especificación propia. |
 
 El foco visible de Input/Textarea usa una iluminación translúcida del fondo y un halo corto gris azulado, incluidos Archivo y Configuración. Los tokens `--surface-field-focus` y `--shadow-field-focus` conservan la superficie original bajo el efecto, sin borde rojo, animación ni cambio de tamaño. La iluminación interior permite reconocer el foco aunque el halo exterior se recorte. El modo de alto contraste sustituye el efecto por el contorno de [Accesibilidad](#accesibilidad). Los indicadores operativos usan `--color-status-*`, con significado en [Arquitectura](architecture.md#estados-operativos).
 
@@ -27,22 +27,22 @@ El foco visible de Input/Textarea usa una iluminación translúcida del fondo y 
 
 Base de campos y botones de texto: altura 25px, padding `0 2px`, borde 1px y radio 3px, con ancho según contenido previsto. Campos usan superficie de campo; botones usan el acabado de botón. Textarea parte de esta base y el consumidor resuelve el crecimiento multilínea.
 
-| Elemento | Especialización de la base |
-| --- | --- |
-| InputGroup | Un marco compartido para entrada y acciones; descuenta sus bordes de la altura interior. |
-| Checkbox | 15 × 15px, padding 0, superficie de campo. |
-| RadioGroup | Casilla y marca de Checkbox, con selección única y teclado Radix; distribución de opciones sin marco adicional. El tamaño interior del indicador queda pendiente. |
-| Select | Disparador sobre DropdownMenu; `sizeToOptions` estima ancho estable según opción más larga, padding e icono, limitado al disponible. |
-| Button de solo icono | 25 × 25px, padding 0; transparente y sin marco en reposo, acabado de interacción al pasar el puntero. La variante integrada conserva transparencia y cambia el icono. |
-| Icono Lucide visible | 15 × 15px, distinto de la superficie accionable. |
-| Slider | Altura de control común; pista de 4px y tirador de 15 × 15px centrados verticalmente. Ancho, padding y demás acabados quedan pendientes. |
-| Texto de una línea / dato técnico | Contenedor de 17px; dato técnico con padding `0 2px`. |
-| Título de contenido | Contenedor de 15px, padding 0. |
-| Estado de Información | 120 × 25px, limitado al ancho disponible, padding 2px, acabado de botón, margen vertical 1px y horizontal 0; reserva total vertical 27px, incluido «Sin estado». |
-| Estado de Operativo | Las medidas del estado de Información son mínimos de columna y fila; reparte espacio en ambas direcciones y crece con ventana/contenido. Los botones interiores se estiran; el editor visible conserva altura común. |
-| Miniatura de pin en listas | 80 × 40px, padding 0, dibujo completo centrado y proporcional. |
-| Fila de Elementos/Dotaciones | Altura por contenido, padding 0, borde de selección y radio 2px. Reserva pin/nombre y conserva desplazamiento de lista. |
-| Tarjeta de Información | Altura por contenido, padding 2px, separador inferior y reserva de pin, nombre, estado y márgenes. |
+| Elemento                          | Especialización de la base                                                                                                                                                                                           |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| InputGroup                        | Un marco compartido para entrada y acciones; descuenta sus bordes de la altura interior.                                                                                                                             |
+| Checkbox                          | 15 × 15px, padding 0, superficie de campo.                                                                                                                                                                           |
+| RadioGroup                        | Casilla y marca de Checkbox, con selección única y teclado Radix; distribución de opciones sin marco adicional. El tamaño interior del indicador queda pendiente.                                                    |
+| Select                            | Disparador sobre DropdownMenu; `sizeToOptions` estima ancho estable según opción más larga, padding e icono, limitado al disponible.                                                                                 |
+| Button de solo icono              | 25 × 25px, padding 0; transparente y sin marco en reposo, acabado de interacción al pasar el puntero. La variante integrada conserva transparencia y cambia el icono.                                                |
+| Icono Lucide visible              | 15 × 15px, distinto de la superficie accionable.                                                                                                                                                                     |
+| Slider                            | Altura de control común; pista de 4px y tirador de 15 × 15px centrados verticalmente. Ancho, padding y demás acabados quedan pendientes.                                                                             |
+| Texto de una línea / dato técnico | Contenedor de 17px; dato técnico con padding `0 2px`.                                                                                                                                                                |
+| Título de contenido               | Contenedor de 15px, padding 0.                                                                                                                                                                                       |
+| Estado de Información             | 120 × 25px, limitado al ancho disponible, padding 2px, acabado de botón, margen vertical 1px y horizontal 0; reserva total vertical 27px, incluido «Sin estado».                                                     |
+| Estado de Operativo               | Las medidas del estado de Información son mínimos de columna y fila; reparte espacio en ambas direcciones y crece con ventana/contenido. Los botones interiores se estiran; el editor visible conserva altura común. |
+| Miniatura de pin en listas        | 80 × 40px, padding 0, dibujo completo centrado y proporcional.                                                                                                                                                       |
+| Fila de Elementos/Dotaciones      | Altura por contenido, padding 0, borde de selección y radio 2px. Reserva pin/nombre y conserva desplazamiento de lista.                                                                                              |
+| Tarjeta de Información            | Altura por contenido, padding 2px, separador inferior y reserva de pin, nombre, estado y márgenes.                                                                                                                   |
 
 ### Etiquetas de Button
 
@@ -54,21 +54,21 @@ Base de campos y botones de texto: altura 25px, padding `0 2px`, borde 1px y rad
 
 Los tiradores de módulos y diálogos son botones accesibles por Tab. Con el foco en el tirador, izquierda/derecha reducen/amplían el ancho y arriba/abajo reducen/amplían el alto, en pasos de 10px lógicos; Mayús aumenta el paso a 50px. El nombre identifica la acción, las instrucciones están disponibles como descripción accesible y tooltip, y un estado accesible anuncia el tamaño resultante. El foco usa un contorno neutro interior y conserva la excepción de alto contraste. Las ventanas recogidas no muestran el tirador. Los límites y la confirmación se describen en [Ventanas y navegación](architecture.md#ventanas-y-navegación).
 
-| Zona | Medidas y acabado |
-| --- | --- |
-| Marco (`ModuleFrame`) | Borde 1px `#484848`, radio 3px, padding 0. |
-| Título | 27px alto, padding `0 2px`, degradado `#383838 → #2C2C2C → #222222`, separador 1px `#080808`. |
-| Herramientas | 32px alto, padding `3px 5px`, degradado `#2E2E2E → #1D1D1D`, separador 1px hacia contenido. |
-| Barra inferior | 25px alto y fondo de ventana. Padding `0 54px 0 2px` con Autoajuste o `0 27px 0 2px` sin él; reserva derecha para acciones y tirador. |
+| Zona                  | Medidas y acabado                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Marco (`ModuleFrame`) | Borde 1px `#484848`, radio 3px, padding 0.                                                                                            |
+| Título                | 27px alto, padding `0 2px`, degradado `#383838 → #2C2C2C → #222222`, separador 1px `#080808`.                                         |
+| Herramientas          | 32px alto, padding `3px 5px`, degradado `#2E2E2E → #1D1D1D`, separador 1px hacia contenido.                                           |
+| Barra inferior        | 25px alto y fondo de ventana. Padding `0 54px 0 2px` con Autoajuste o `0 27px 0 2px` sin él; reserva derecha para acciones y tirador. |
 
-| Módulos | Apertura | Autoajuste de altura | Herramientas |
-| --- | --- | --- | --- |
-| Pizarra, Mapa, Plano operativo, Informes | 510 × 420 | Según capacidad actual: sin autoajuste continuo. | Sí |
-| Calculadora | 240 × contenido | Sin autoajuste continuo. | Sí |
-| Elementos, Dotaciones, Registro, Cuaderno | 240 × contenido | Hasta 500px. | Sí |
-| Información, Reloj | 240 × contenido | Hasta 500px. | Sin barra propia. |
-| Coordenadas, Calendario | 240 × contenido | Sin autoajuste continuo. | Sin barra propia. |
-| Operativo | 150 × contenido | Sin autoajuste continuo. | Sin barra propia. |
+| Módulos                                   | Apertura        | Autoajuste de altura                             | Herramientas      |
+| ----------------------------------------- | --------------- | ------------------------------------------------ | ----------------- |
+| Pizarra, Mapa, Plano operativo, Informes  | 510 × 420       | Según capacidad actual: sin autoajuste continuo. | Sí                |
+| Calculadora                               | 240 × contenido | Sin autoajuste continuo.                         | Sí                |
+| Elementos, Dotaciones, Registro, Cuaderno | 240 × contenido | Hasta 500px.                                     | Sí                |
+| Información, Reloj                        | 240 × contenido | Hasta 500px.                                     | Sin barra propia. |
+| Coordenadas, Calendario                   | 240 × contenido | Sin autoajuste continuo.                         | Sin barra propia. |
+| Operativo                                 | 150 × contenido | Sin autoajuste continuo.                         | Sin barra propia. |
 
 Crear, reabrir o expandir desde barra/icono recupera el tamaño de apertura. La altura por contenido incluye estructura, herramientas y datos presentes; vacío conserva estructura/herramientas. Es independiente del autoajuste continuo. Colapsar conserva ancho de apertura y altura de título; contraer usa 27 × 27px.
 
@@ -76,12 +76,12 @@ El ajuste manual puede superar ancho base y máximo automático; desactiva Autoa
 
 Recoger todos usa columnas contiguas, omitiendo módulos cerrados y columnas vacías, desde el origen y con el zoom actual. Una columna que no cabe a la derecha continúa debajo de la fila previa:
 
-| Columna | Orden superior a inferior |
-| --- | --- |
-| Ancha | Pizarra, Mapa, Plano operativo, Informes. |
-| Listas | Elementos, Dotaciones, Información, Registro. |
+| Columna    | Orden superior a inferior                              |
+| ---------- | ------------------------------------------------------ |
+| Ancha      | Pizarra, Mapa, Plano operativo, Informes.              |
+| Listas     | Elementos, Dotaciones, Información, Registro.          |
 | Utilidades | Reloj, Calculadora, Calendario, Cuaderno, Coordenadas. |
-| Operativo | Operativo. |
+| Operativo  | Operativo.                                             |
 
 Cada columna toma el ancho de apertura de sus módulos. Mantén las ventanas contiguas, con cuadrícula sin márgenes ni padding.
 
@@ -89,17 +89,17 @@ Cada columna toma el ancho de apertura de sus módulos. Mantén las ventanas con
 
 Usa la técnica CSS adecuada al contenido. Asigna el desplazamiento a la zona que desborda y conserva controles, selección y acciones accesibles.
 
-| Módulo | Composición |
-| --- | --- |
-| Elementos/Dotaciones | Herramientas arriba y lista debajo; filas sin contracción que superponga pines. Nombre multilínea arriba a la derecha del pin, con tipografía de título. |
-| Información | Tarjetas apiladas con reparto flexible. Pin, nombre arriba y estado debajo con inicio/ancho común; acciones en columna independiente. |
-| Operativo | Filas y columnas flexibles; una columna cuando solo cabe una. Conserva acceso a estados y edición. |
-| Cuaderno | Herramientas arriba; notas/checklists apilados en su orden, cada nuevo bloque bajo el último. Crecen con contenido; el espacio sobrante queda al final. Lista flexible con scroll y bloques `flex: none`. |
-| Registro | Herramientas arriba, contenido desplazable y acciones con espacio propio. |
-| Calculadora | Operación/resultado arriba, teclado que aprovecha su zona e historial desplegable consultable. |
-| Coordenadas | Entradas y acciones agrupadas, resultados debajo con espacio flexible para valores largos. |
-| Pizarra/Mapa/Plano | Herramientas propias y superficie de trabajo ocupando el resto. |
-| Informes | Selección y vista previa con desplazamiento propio y separador existente. |
+| Módulo               | Composición                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Elementos/Dotaciones | Herramientas arriba y lista debajo; filas sin contracción que superponga pines. Nombre multilínea arriba a la derecha del pin, con tipografía de título.                                                  |
+| Información          | Tarjetas apiladas con reparto flexible. Pin, nombre arriba y estado debajo con inicio/ancho común; acciones en columna independiente.                                                                     |
+| Operativo            | Filas y columnas flexibles; una columna cuando solo cabe una. Conserva acceso a estados y edición.                                                                                                        |
+| Cuaderno             | Herramientas arriba; notas/checklists apilados en su orden, cada nuevo bloque bajo el último. Crecen con contenido; el espacio sobrante queda al final. Lista flexible con scroll y bloques `flex: none`. |
+| Registro             | Herramientas arriba, contenido desplazable y acciones con espacio propio.                                                                                                                                 |
+| Calculadora          | Operación/resultado arriba, teclado que aprovecha su zona e historial desplegable consultable.                                                                                                            |
+| Coordenadas          | Entradas y acciones agrupadas, resultados debajo con espacio flexible para valores largos.                                                                                                                |
+| Pizarra/Mapa/Plano   | Herramientas propias y superficie de trabajo ocupando el resto.                                                                                                                                           |
+| Informes             | Selección y vista previa con desplazamiento propio y separador existente.                                                                                                                                 |
 
 `PinThumbnail.tsx` y `pinSummary.module.css` comparten miniatura y cuadrícula pin/contenido/acciones para las listas. Usa `--pin-thumbnail-*-base`, `minmax(0, 1fr)` y `object-fit: contain`, liberando mínimos intrínsecos de imagen. Las reglas de lista conservan transformaciones de pines en superficies de trabajo. `operationalStatus.module.css` dimensiona Información y reserva márgenes en la segunda fila de la cuadrícula. Operativo consume ancho como mínimo con máximo `1fr`; la medición mínima libera contención y usa una columna.
 
@@ -131,18 +131,18 @@ Configuración reutiliza `FileDialogContent` y `Dialog` no modal (`modal={false}
 
 Orden lateral: General, Avisos, Pizarra, Mapa, Plano operativo, Informes, Calculadora, Elementos, Dotaciones, Registro, Cuaderno, Información, Reloj, Coordenadas, Calendario, Operativo, Zoom, Vistas, Iman, Accesibilidad, Ubicación, Almacenamiento y permisos.
 
-| Panel o acción | Presentación |
-| --- | --- |
-| General | Formatos y Limpieza más Restablecer los valores predeterminados. Limpieza mantiene el grupo vacío; la selección se realiza en su confirmación. |
-| Formatos / Accesibilidad | Tres Select en columna, con ancho estable según opciones. Los valores pertenecen a [Arquitectura](architecture.md#formatos-y-accesibilidad). |
-| Zoom | Zoom inicial únicamente aquí y paso porcentual; inputs compactos para tres dígitos, flechas nativas y padding, independientes del ancho de etiqueta. |
-| Vistas | Grupo Vista inicial con casilla por módulo en orden lateral y Select de disposición con ancho por opción más larga. Grupo Disposiciones guardadas con Nombre/Vista guardada de igual ancho fijo estimado de 24ch, limitado al disponible; Guardar alineado con Nombre, Cargar/Eliminar con Vista guardada. |
-| Iman | Casilla de activación inicial, distancia compacta de tres dígitos y casilla de alineación, en columna. |
-| Avisos | Visibilidad con selección única y aspecto de casilla; Registro separado igual que el padding izquierdo/inferior del grupo. Duración numérica, niveles con casillas y salto de línea; mensajes como casilla más texto completo de lectura multilínea. Los grupos parciales usan marca horizontal mediante `CheckboxMark`. |
-| Registro de avisos | Fecha, hora y texto, recientes arriba. `NoticeHistoryDialog` usa AlertDialog sobre Configuración, con retorno del foco al botón Registro y apilado local con `overlayClassName`. |
-| Menú de avisos vacío | «No hay avisos pendientes». |
-| Ubicación | Lupa dentro de Localidad (32ch estimados); Coordenadas 30ch; Zona horaria por opción más larga. Campos limitados al ancho disponible, nombre único en Localidad y acciones comunes en footer. |
-| Almacenamiento y permisos | «Solicitar permiso», «Solicitando…» durante petición; rechazo «No concedido» conserva botón y orientación en Sonner. «Actualizar» muestra «Estimación de espacio actualizada.» o error. Usa el cierre exterior común. |
+| Panel o acción            | Presentación                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| General                   | Formatos y Limpieza más Restablecer los valores predeterminados. Limpieza mantiene el grupo vacío; la selección se realiza en su confirmación.                                                                                                                                                                           |
+| Formatos / Accesibilidad  | Tres Select en columna, con ancho estable según opciones. Los valores pertenecen a [Arquitectura](architecture.md#formatos-y-accesibilidad).                                                                                                                                                                             |
+| Zoom                      | Zoom inicial únicamente aquí y paso porcentual; inputs compactos para tres dígitos, flechas nativas y padding, independientes del ancho de etiqueta.                                                                                                                                                                     |
+| Vistas                    | Grupo Vista inicial con casilla por módulo en orden lateral y Select de disposición con ancho por opción más larga. Grupo Disposiciones guardadas con Nombre/Vista guardada de igual ancho fijo estimado de 24ch, limitado al disponible; Guardar alineado con Nombre, Cargar/Eliminar con Vista guardada.               |
+| Iman                      | Casilla de activación inicial, distancia compacta de tres dígitos y casilla de alineación, en columna.                                                                                                                                                                                                                   |
+| Avisos                    | Visibilidad con selección única y aspecto de casilla; Registro separado igual que el padding izquierdo/inferior del grupo. Duración numérica, niveles con casillas y salto de línea; mensajes como casilla más texto completo de lectura multilínea. Los grupos parciales usan marca horizontal mediante `CheckboxMark`. |
+| Registro de avisos        | Fecha, hora y texto, recientes arriba. `NoticeHistoryDialog` usa AlertDialog sobre Configuración, con retorno del foco al botón Registro y apilado local con `overlayClassName`.                                                                                                                                         |
+| Menú de avisos vacío      | «No hay avisos pendientes».                                                                                                                                                                                                                                                                                              |
+| Ubicación                 | Lupa dentro de Localidad (32ch estimados); Coordenadas 30ch; Zona horaria por opción más larga. Campos limitados al ancho disponible, nombre único en Localidad y acciones comunes en footer.                                                                                                                            |
+| Almacenamiento y permisos | «Solicitar permiso», «Solicitando…» durante petición; rechazo «No concedido» conserva botón y orientación en Sonner. «Actualizar» muestra «Estimación de espacio actualizada.» o error. Usa el cierre exterior común.                                                                                                    |
 
 Guardar se desactiva sin cambios efectivos o con campos numéricos incompletos; vuelve a desactivarse tras éxito o recuperar valores originales. El guardado ordinario conserva la ventana y muestra Sonner. Al cerrar con cambios: «Actualmente hay cambios sin guardar.» con Guardar/Cerrar; `SettingsExitActions` dispone acciones con salto de línea. El contrato del borrador y las acciones inmediatas están en [Arquitectura](architecture.md#configuración).
 
@@ -156,17 +156,17 @@ Alto contraste: superficies planas oscuras, texto secundario claro, bordes refor
 
 ## Integración compartida
 
-| Propietario | Uso |
-| --- | --- |
-| `src/styles/layers.css` | Orden `reset, vendor, base, components, overrides, utilities`; se importa primero en `main.tsx`. |
+| Propietario                                             | Uso                                                                                                                                                                                                                                    |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/styles/layers.css`                                 | Orden `reset, vendor, base, components, overrides, utilities`; se importa primero en `main.tsx`.                                                                                                                                       |
 | `global.css`, `fonts.css`, `utilities.css`, `print.css` | Reset/base, fuentes, utilidades y estilos de impresión respectivamente. Fuentes/licencias locales en `public/assets/fonts/`; informes autónomos en [Arquitectura](architecture.md#cartografía-informes-y-funcionamiento-sin-conexión). |
-| `src/styles/integrations/` | CSS externo en `vendor`, con adaptaciones acotadas. |
-| `tokens.css` | Primitivos y semánticos; usa `--space-1`, `--space-2`, `--control-gap`, `--section-gap` según función y medidas derivadas con una aplicación del zoom. |
-| `src/components/ui/` | Base de componentes compartidos, nombres React PascalCase y carpetas/archivos kebab-case, CSS Module e índices explícitos. Consumidores especializan por variante/clase local. |
-| `layout/moduleToolbar.module.css` | Base de herramientas; Mapa integra tokens en su composición propia. |
-| `OverlayPortalContext` | Contenedor de menús, popovers, Select, ContextMenu y Sheet; conserva viewport, scroll y foco aunque esté fuera de `app-shell`. |
-| `FileDialog` / `AlertDialog` / `Sheet` | Marco y movimiento sobre ModuleFrame, confirmaciones y paneles modales/no modales. Archivo conserva tamaño expandido durante su apertura; Informes usa Sheet no modal. |
-| `ResizablePanel*` | Adaptadores de react-resizable-panels: porcentajes explícitos (`defaultSize="50%"`); valores numéricos son píxeles. |
+| `src/styles/integrations/`                              | CSS externo en `vendor`, con adaptaciones acotadas.                                                                                                                                                                                    |
+| `tokens.css`                                            | Primitivos y semánticos; usa `--space-1`, `--space-2`, `--control-gap`, `--section-gap` según función y medidas derivadas con una aplicación del zoom.                                                                                 |
+| `src/components/ui/`                                    | Base de componentes compartidos, nombres React PascalCase y carpetas/archivos kebab-case, CSS Module e índices explícitos. Consumidores especializan por variante/clase local.                                                         |
+| `layout/moduleToolbar.module.css`                       | Base de herramientas; Mapa integra tokens en su composición propia.                                                                                                                                                                    |
+| `OverlayPortalContext`                                  | Contenedor de menús, popovers, Select, ContextMenu y Sheet; conserva viewport, scroll y foco aunque esté fuera de `app-shell`.                                                                                                         |
+| `FileDialog` / `AlertDialog` / `Sheet`                  | Marco y movimiento sobre ModuleFrame, confirmaciones y paneles modales/no modales. Archivo conserva tamaño expandido durante su apertura; Informes usa Sheet no modal.                                                                 |
+| `ResizablePanel*`                                       | Adaptadores de react-resizable-panels: porcentajes explícitos (`defaultSize="50%"`); valores numéricos son píxeles.                                                                                                                    |
 
 Conserva `data-slot`, clases funcionales y estados accesibles de consumidores, medición y gestos. Reserva inline para posiciones, dimensiones, colores elegidos y zoom dinámicos. Mantén reglas funcionales sin capa y prioridades de medición/movimiento al ajustar estilos; la prioridad CSS depende de cascada/especificidad. Una especialización local conserva la base y los tokens globales.
 

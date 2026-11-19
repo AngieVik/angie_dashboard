@@ -1,7 +1,9 @@
-import { renderAnalysis, markdownTable as table, markdownText, sourceReference, entryReference } from './findings.mjs'
+import { renderAnalysis, reportSection, sourceReference, entryReference, markdownText } from './findings.mjs'
+import path from 'node:path'
 import ts from 'typescript'
 import { relative, createProjectContext } from './project.mjs'
 import { measures } from './css.mjs'
+import { isPaintProperty } from './css-paint.mjs'
 
 const bases = {
   module: { file: 'src/layout/moduleFrame.module.css', classes: ['base', 'module-scaled-content'] },
@@ -61,12 +63,11 @@ export function collectUiStyles(project = createProjectContext()) {
   const sources = new Map(files.filter(file => /\.[cm]?[jt]sx?$/.test(file)).map(file => [file, project.source(file)]))
   for (const [file, source] of sources) if (source.parseDiagnostics.length) throw new Error(`${file}: ${ts.flattenDiagnosticMessageText(source.parseDiagnostics[0].messageText, ' ')}`)
   const stylesheets = new Map(files.filter(file => file.endsWith('.css')).map(file => [file, project.css(file)]))
-  const usedCss = new Set(['src/styles/tokens.css', 'src/styles/global.css', 'src/styles/fonts.css', ...Object.values(bases).map(base => base.file)])
   const rootRules = stylesheets.get('src/styles/tokens.css').filter(rule => rule.selector === ':root')
   const rootVariables = Object.fromEntries(rootRules.flatMap(rule => rule.declarations.filter(item => item.property.startsWith('--')).map(item => [item.property, item.value])))
   const simpleRules = (file, name) => (stylesheets.get(file) ?? []).filter(rule => rule.context.every(context => context.startsWith('@layer')) && rule.selector.split(',').some(selector => (name === 'body' ? ['body'] : [`.${name}`, `:where(.${name})`, `:global(.${name})`]).includes(selector.trim())))
   const refsOfBase = name => bases[name].classes.map(className => ({ file: bases[name].file, className }))
-  const rulesOfRefs = refs => refs.flatMap(ref => { usedCss.add(ref.file); return simpleRules(ref.file, ref.className) })
+  const rulesOfRefs = refs => refs.flatMap(ref => simpleRules(ref.file, ref.className))
   const variablesOf = rules => Object.fromEntries(rules.flatMap(rule => rule.declarations.filter(item => item.property.startsWith('--')).map(item => [item.property, item.value])))
   const bodyRules = simpleRules('src/styles/global.css', 'body')
   const scaledRules = stylesheets.get(bases.module.file).filter(rule => rule.selector === ':where(.base) :global(.module-scaled-content)')
@@ -75,7 +76,7 @@ export function collectUiStyles(project = createProjectContext()) {
     const rules = rulesOfRefs(refs)
     const variables = { ...(moduleContext ? moduleVariables : rootVariables), ...variablesOf(rules) }
     const properties = {}
-    for (const rule of rules) for (const item of rule.declarations) if (measures.test(item.property)) properties[item.property] = { ...item, baseExpansion: expand(item.value, variables) }
+    for (const rule of rules) for (const item of rule.declarations) if (measures.test(item.property) || isPaintProperty(item.property)) properties[item.property] = { ...item, baseExpansion: expand(item.value, variables) }
     const inheritedTypography = Object.fromEntries(bodyRules.flatMap(rule => rule.declarations.filter(item => item.property.startsWith('font') || item.property === 'line-height').map(item => [item.property, { ...item, baseExpansion: expand(item.value, variables) }])))
     if (moduleContext) inheritedTypography['font-size'] = { value: 'var(--font-size-body)', baseExpansion: expand('var(--font-size-body)', variables), file: bases.module.file, line: scaledRules[0]?.line, note: 'Referencia de herencia del contenido escalado; zoom base 1.' }
     return { refs, properties, inheritedTypography }
@@ -165,7 +166,6 @@ export function collectUiStyles(project = createProjectContext()) {
     const definition = [...definitions.values()].find(item => item.name.text === name)
     const location = definition ? at(definition) : null
     const component = definition ? componentRoot(location.file, name) : { refs: [], delegated: [], stylesheets: [] }
-    component.stylesheets.forEach(file => usedCss.add(file))
     return { id, name: settings.name, component: name, definition: location, registry: at(registryNode), settings, ...component, style: profile(component.refs, true), minimumNote: 'minimum es el suelo del registro, incluido colapsado; el mínimo expandido depende de constrainWindowContentSize y del contenido.' }
   })
   const surfaces = [], notices = []
@@ -184,7 +184,6 @@ export function collectUiStyles(project = createProjectContext()) {
       const refs = [...(base ? refsOfBase(base) : []), ...classRefs(node, file)]
       const props = Object.fromEntries(['width', 'height', 'fitToContent', 'side', 'style'].map(name => [name, attributeValue(node, name)]).filter(([, value]) => value !== undefined))
       const initial = base === 'fileDialog' ? Object.fromEntries(['width', 'height', 'fitToContent'].map(name => [name, { value: props[name] ?? dialogDefaults[name]?.value ?? null, source: props[name] === undefined ? dialogDefaults[name] : at(node) }])) : null
-      cssIn(file).forEach(css => usedCss.add(css))
       surfaces.push({ kind: base === 'sheet' ? 'panel modal' : role === 'alert' ? 'alerta inline' : 'diálogo/modal', owner: ownerOf(node), title: title ?? canonical, tag, base, role: role ?? null, ...at(node), props, initial, minimumConstraints: base === 'fileDialog' ? dialogMinimum : [], style: profile(refs), localStylesheets: cssIn(file) })
     }
     if (ts.isCallExpression(node)) {
@@ -201,7 +200,7 @@ export function collectUiStyles(project = createProjectContext()) {
   const sizingSources = ['src/layout/windowContentSize.ts', 'src/layout/ModuleFrame.tsx', 'src/layout/DashboardGrid.tsx', 'src/features/document/FileDialog.tsx', 'src/layout/WindowResize.tsx']
   const sizingEvidence = sizingSources.flatMap(file => project.read(file).split(/\r?\n/).flatMap((text, index) => /constrainWindowContentSize|minimum\[|minW:|minH:|Math\.(?:min|max)\(27|minimumHeight|headerWidth|content\.scrollWidth/.test(text) ? [{ file, line: index + 1, expression: text.trim() }] : []))
   const baseProfiles = Object.fromEntries(Object.keys(bases).map(name => [name, profile(refsOfBase(name), name === 'module')]))
-  const css = [...usedCss].sort().map(file => ({ file, rules: stylesheets.get(file).map(rule => ({ ...rule, declarations: rule.declarations.map(item => ({ ...item, rootTokenExpansion: expand(item.value, rootVariables) })) })) }))
+  const css = [...stylesheets.keys()].sort().map(file => ({ file, rules: stylesheets.get(file).map(rule => ({ ...rule, declarations: rule.declarations.map(item => ({ ...item, rootTokenExpansion: expand(item.value, rootVariables) })) })) }))
   return { schemaVersion: 1, generatedAt: new Date().toISOString(), analysis: 'static', baseZoom: 1, moduleRegistry: at(registryNode), modules, surfaces, notices, dialogDefaults, dialogMinimum, baseProfiles, sizingEvidence, css }
 }
 
@@ -211,40 +210,73 @@ function formatValue(value) {
 
 export function renderUiStyles(report, options = {}) {
   const { sourceRoot } = options
-  const styleRows = style => Object.entries({...style.inheritedTypography,...style.properties}).map(([name,item])=>[
-    name,item.value,item.baseExpansion,style.properties[name]?'Declaración de raíz':'Referencia heredada; contexto completo no calculado',entryReference(item,sourceRoot),
+  const ref = item => entryReference(item, sourceRoot, `${path.posix.basename(item.file)}:${item.line ?? 1}`)
+  const expanded = (value, expansion) => `\`${value}\`${expansion != null && expansion !== value ? ` → \`${expansion}\`` : ''}`
+  const profiles = profile => ({ ...profile?.inheritedTypography, ...profile?.properties })
+  const styleRows = (style, base) => {
+    const shared = profiles(base)
+    return Object.entries(profiles(style)).flatMap(([name, item]) => {
+      const origin = shared[name]
+      const inherited = !Object.hasOwn(style.properties, name)
+      const sameOrigin = origin && origin.file === item.file && origin.line === item.line
+      if (sameOrigin && origin.value === item.value && origin.baseExpansion === item.baseExpansion
+          && inherited === !Object.hasOwn(base.properties, name)) return []
+      return [`  - ${name}: ${expanded(item.value, item.baseExpansion)} · ${ref(item)}${inherited ? ' · herencia de referencia' : ''}`]
+    })
+  }
+  const referenceSheets = new Set([
+    'src/styles/tokens.css', 'src/styles/global.css', 'src/styles/fonts.css',
+    ...Object.values(report.baseProfiles).flatMap(item => item.refs.map(ref => ref.file)),
+    ...report.modules.flatMap(item => [...item.stylesheets, ...item.style.refs.map(ref => ref.file)]),
+    ...report.surfaces.flatMap(item => [...item.localStylesheets, ...item.style.refs.map(ref => ref.file)]),
   ])
-  const styleTable = style => table(['Propiedad','Declarado','Expansión a zoom de referencia','Procedencia','Fuente'],styleRows(style))
-  return renderAnalysis('styles',report,[
-    '## Datos de referencia · módulos',
-    ...report.modules.map(item=>[
-      `### Módulo: ${markdownText(item.name)} · ${item.component}`,
-      table(['Configuración','Valor','Fuente'],[
-        ['Tamaño inicial',`${item.settings.initial.join(' × ')} px`,entryReference(item.registry,sourceRoot)],
-        ['Mínimo numérico del registro',`${item.settings.minimum.join(' × ')} px`,entryReference(item.registry,sourceRoot)],
-        ['Componente propietario',item.component,entryReference(item.definition??item.registry,sourceRoot)],
+  const sheets = report.css.filter(sheet => referenceSheets.has(sheet.file))
+  return renderAnalysis('styles', report, [
+    reportSection('Cobertura', [
+      `${report.modules.length} módulos · ${report.surfaces.length} superficies · ${report.notices.length} llamadas de aviso`,
+      `${sheets.length} hojas de estilos vinculadas a estas superficies, de ${report.css.length} leídas. Registro en ${ref(report.moduleRegistry)}.`,
+      'La flecha indica expansión de variables a zoom de referencia. Los resultados describen el código y conservan las expresiones de layout.',
+    ]),
+    reportSection('Bases compartidas', [
+      ...Object.entries(report.baseProfiles).map(([name, style]) => [
+        `- **${name}** · ${style.refs.map(item => sourceReference(item.file, 1, sourceRoot, item.className)).join(', ')}`,
+        ...styleRows(style),
+      ].join('\n')),
+      '- Apertura por defecto de FileDialog',
+      ...Object.entries(report.dialogDefaults).map(([property, item]) => `  - ${property}: \`${formatValue(item.value)}\` · ${ref(item)}`),
+      '- Restricciones de FileDialog',
+      ...report.dialogMinimum.map(item => `  - ${item.property}: \`${formatValue(item.value)}\` · ${ref(item)}`),
+    ]),
+    reportSection('Módulos', [
+      `${report.modules[0]?.minimumNote ?? ''} Cada módulo usa la base module y muestra sus especializaciones.`,
+      ...report.modules.map(item => [
+        `- **${markdownText(item.name)}** · ${item.settings.initial.join(' × ')} px de apertura · mínimo ${item.settings.minimum.join(' × ')} px`,
+        `  - ${entryReference(item.definition ?? item.registry, sourceRoot, item.component)}`,
+        item.delegated.length ? '  - Raíz delegada: ' + item.delegated.map(part => sourceReference(part.file, 1, sourceRoot, part.name)).join(' → ') : '',
+        ...styleRows(item.style, report.baseProfiles.module),
+      ].filter(Boolean).join('\n')),
+    ]),
+    reportSection('Superficies', report.surfaces.map(item => [
+      `- **${markdownText(formatValue(item.title))}** · ${entryReference(item, sourceRoot, item.owner)} · ${item.kind} · base ${item.base ?? item.tag}`,
+      ...(item.initial ? Object.entries(item.initial).filter(([key, part]) => {
+        const shared = report.dialogDefaults[key]
+        return !shared || part.source?.file !== shared.file || part.source?.line !== shared.line
+      }).map(([key, part]) => `  - ${key}: \`${formatValue(part.value)}\`${part.source ? ` · ${ref(part.source)}` : ''}`)
+        : ['  - Apertura según CSS y contenido.']),
+      ...styleRows(item.style, report.baseProfiles[item.base]),
+    ].join('\n'))),
+    reportSection('Llamadas de aviso', report.notices.map(item =>
+      `- ${entryReference(item, sourceRoot, item.owner)} · ${item.kind}.${item.method} · \`${formatValue(item.message)}\` (${item.base ?? 'navegador'})`)),
+    reportSection('Mínimos dinámicos', report.sizingEvidence.map(item => `- ${ref(item)} · \`${item.expression}\``)),
+    reportSection('Declaraciones CSS por hoja', [
+      'Se muestran los selectores y sus condiciones. Las expansiones de esta sección usan las variables globales.',
+      ...sheets.flatMap(sheet => [
+        `\n### ${sourceReference(sheet.file, 1, sourceRoot, sheet.file.replace(/^src\//, ''))}\n`,
+        ...sheet.rules.filter(rule => rule.declarations.length).map(rule => [
+          '- ' + [...rule.context, rule.selector].map(part => `\`${part}\``).join(' → '),
+          ...rule.declarations.map(item => `  - L${item.line} · ${item.property}: ${expanded(item.value, item.rootTokenExpansion)}`),
+        ].join('\n')),
       ]),
-      item.delegated.length?`Raíz delegada: ${item.delegated.map(part=>`${part.name} (${sourceReference(part.file,1,sourceRoot)})`).join(' → ')}.`:'',
-      styleTable(item.style),item.minimumNote,
-    ].filter(Boolean).join('\n\n')),
-    '## Datos de referencia · diálogos, paneles y alertas',
-    ...report.surfaces.map(item=>[
-      `### ${markdownText(item.owner)}: ${markdownText(formatValue(item.title))}`,
-      `${item.kind}; base ${item.base??item.tag}; ${entryReference(item,sourceRoot)}.`,
-      item.initial?table(['Configuración inicial','Valor declarado o expresión','Fuente'],Object.entries(item.initial).map(([name,part])=>[name,formatValue(part.value),part.source?entryReference(part.source,sourceRoot):'Sin fuente localizada'])):'Tamaño inicial dependiente de CSS y contenido.',
-      table(['Restricción numérica de layout','Valor o expresión','Fuente'],item.minimumConstraints.map(part=>[part.property,formatValue(part.value),entryReference(part,sourceRoot)])),
-      styleTable(item.style),
-    ].join('\n\n')),
-    '## Datos de referencia · llamadas de aviso',
-    table(['Tipo / método','Propietario','Mensaje o expresión','Base','Ubicación'],report.notices.map(item=>[`${item.kind}.${item.method}`,item.owner,formatValue(item.message),item.base??'Navegador',entryReference(item,sourceRoot)])),
-    'Las llamadas se cuentan en el código; no son avisos observados durante una sesión.',
-    '## Datos de referencia · bases compartidas',
-    ...Object.entries(report.baseProfiles).map(([name,style])=>`### Base: ${name}\n\n${styleTable(style)}`),
-    '## Datos de referencia · código que condiciona mínimos',
-    table(['Ubicación','Expresión'],report.sizingEvidence.map(item=>[entryReference(item,sourceRoot),item.expression])),
-    '## Datos de referencia · declaraciones CSS por hoja',
-    'Se mantienen selectores, condiciones y valores originales. Los tokens de esta sección se expanden solo con variables globales; no es una cascada calculada ni una medida final. calc(), clamp(), porcentajes, unidades relativas y expresiones de props conservan su condición de expresiones.',
-    ...report.css.map(sheet=>`### ${sheet.file}\n\n${table(['Selector / contexto','Propiedad','Declarado','Expansión de tokens globales','Fuente'],sheet.rules.flatMap(rule=>rule.declarations.map(item=>[[...rule.context,rule.selector].join(' → '),item.property,item.value,item.rootTokenExpansion,entryReference(item,sourceRoot)])))}`),
-    '«Sin declarar» no significa cero. Las comparaciones entre superficies y restricciones numéricas se diagnostican en consistency; los usos de clases se diagnostican en unused.',
-  ],options)
+    ]),
+  ], options)
 }

@@ -2,7 +2,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { createHash } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
 import { root, filesIn } from './project.mjs'
 
 export const digest = value => createHash('sha256').update(value).digest('hex')
@@ -34,22 +33,7 @@ export function snapshot() {
     return { file, bytes: bytes.length, hash: digest(bytes) }
   })
   const environment = Object.fromEntries(Object.keys(process.env).filter(key => /^(?:VITE_|NODE_ENV$|TZ$)/.test(key)).sort().map(key => [key, digest(process.env[key] ?? '')]))
-  const engines = Object.fromEntries(['typescript', 'vite', 'ajv'].map(name => {
-    const manifest = path.join(root, 'node_modules', name, 'package.json')
-    return [name, fs.existsSync(manifest) ? JSON.parse(fs.readFileSync(manifest, 'utf8')).version : null]
-  }))
-  const git = args => {
-    try { return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() }
-    catch { return null }
-  }
-  const head = git(['rev-parse', 'HEAD'])
-  const status = git(['-c', 'core.excludesfile=', 'status', '--porcelain=v1', '--untracked-files=normal'])
-  return {
-    hash: digest(JSON.stringify({ files, environment })),
-    engineHash: digest(JSON.stringify({ files: files.filter(item => item.file.startsWith('scripts/')), engines, node: process.version })),
-    git: { head, dirty: status === null ? null : Boolean(status), changedEntries: status ? status.split('\n').length : 0 },
-    environment, engines, node: process.version, files,
-  }
+  return { environment, files }
 }
 
 export function changedInputs(before, after) {

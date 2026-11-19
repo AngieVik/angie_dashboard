@@ -12,6 +12,8 @@
     "diagnose:full": "node scripts/diagnose.mjs --profile full",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run build",
+    "check:server": "node scripts/check-server.mjs",
     "notices:catalog": "node scripts/collect-notice-messages.mjs",
     "prebuild": "node scripts/collect-notice-messages.mjs",
     "build": "tsc --noEmit && vite build"

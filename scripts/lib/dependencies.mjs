@@ -1,4 +1,4 @@
-import { renderAnalysis, markdownTable as table, sourceReference, entryReference, collectFindings } from './findings.mjs'
+import { renderAnalysis, reportSection, entryReference, sourceReference, collectFindings } from './findings.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -208,19 +208,34 @@ export function collectDependencies(project = createProjectContext(), unused = c
 
 export function renderDependencies(report, options = {}) {
   const { sourceRoot } = options
-  const findings = report.findings ?? collectFindings({ dependencies:report })
-  const reportedPackages = new Set(findings.filter(item=>item.element.kind==='Paquete').map(item=>item.element.name))
-  return renderAnalysis('dependencies',{...report,findings},[
-    '## Datos de referencia · comprobación de npm',
-    report.npm.available ? `npm ${report.npm.version}; código de salida ${report.npm.exitCode}. Comando: ${report.npm.command}.` : 'El árbol instalado no pudo comprobarse con npm; la limitación consta en los hallazgos.',
-    '## Datos de referencia · dependencias directas',
-    table(['Paquete','Declaración','Lock / instalado','Situación','Usos reconocidos por clase'],report.direct.map(item=>[item.name,item.declarations.map(entry=>`${entry.section}: ${entry.range}`).join('; '),`${item.lockedVersion??'sin dato'} / ${item.installedVersion??'sin dato'}`,item.status,[...new Set(item.uses.map(use=>`${use.kind} (${use.scope})`))].join('; ')||'Ninguno reconocido'])),
-    'Los usos separan importaciones de JavaScript, CSS, tipos y herramientas según lo reconocido en el código. Un import CSS no acredita que se utilice el componente JavaScript del paquete. Los requisitos peer/transitivos se conservan como relaciones propias.',
-    '## Datos de referencia · consumidores de paquetes sin hallazgo propio',
-    table(['Paquete','Ubicación','Uso / requisito'],report.direct.filter(item=>!reportedPackages.has(item.name)).flatMap(item=>[
-      ...item.uses.map(use=>[item.name,entryReference(use,sourceRoot),`${use.kind}: ${use.specifier}; ${use.scope}`]),
-      ...item.requiredBy.map(entry=>[item.name,sourceReference(`${entry.from}/package.json`,1,sourceRoot),`${entry.kind} ${entry.range}; opcional ${entry.optional}; resolución ${entry.target??'sin resolver'} (${entry.version??'sin versión'})`]),
-    ])),
-    'Los paquetes con hallazgo propio reúnen sus consumidores en la ficha correspondiente. Las versiones instaladas son datos de instalación; las versiones y bytes emitidos pertenecen al análisis bundle.',
-  ],options)
+  const findings = report.findings ?? collectFindings({ dependencies: report })
+  const packagesWith = rule => new Set(findings.filter(item => item.rule === rule).map(item => item.element.name))
+  const consumerFindings = packagesWith('review-consumers')
+  const versionFindings = packagesWith('installed-multiple-versions')
+  return renderAnalysis('dependencies', { ...report, findings }, [
+    reportSection('Cobertura', [
+      `${report.coverage.direct} directas · ${report.coverage.lockedLocations} ubicaciones en lock · ${report.coverage.installedLocations} instaladas`,
+      `${report.coverage.references} referencias del proyecto · ${report.coverage.requirements} requisitos de paquetes`,
+      report.npm.available ? `npm ${report.npm.version} · salida ${report.npm.exitCode} · \`${report.npm.command}\`.` : 'Árbol instalado sin comprobación de npm.',
+    ]),
+    reportSection('Dependencias directas', [
+      'Versiones en orden lock / instalada. Los usos indican la clase y el ámbito reconocidos.',
+      ...report.direct.map(item => {
+        const declared = item.declarations.map(entry => `${entry.section} \`${entry.range}\``).join(', ')
+        const classes = [...new Set(item.uses.map(use => `${use.kind} (${use.scope})`))]
+        const uses = consumerFindings.has(item.name) ? [] : item.uses.map(use =>
+          `  - ${entryReference(use, sourceRoot, path.posix.basename(use.file) + ':' + use.line)} · ${use.kind} · \`${use.specifier}\` · ${use.scope}`)
+        const required = consumerFindings.has(item.name) || versionFindings.has(item.name) ? [] : item.requiredBy.map(entry => {
+          const label = entry.from.replace(/^node_modules\//, '')
+          const from = sourceReference(`${entry.from}/package.json`, 1, sourceRoot, label)
+          return `  - ${from} · ${entry.kind} \`${entry.range}\`${entry.optional ? ' · opcional' : ''} → ${entry.target ?? 'sin resolver'} (${entry.version ?? 'sin versión'})`
+        })
+        return [
+          `- **${item.name}** · ${declared} · ${item.lockedVersion ?? 'sin dato'} / ${item.installedVersion ?? 'sin dato'}`,
+          `  - ${item.status} · ${classes.join(', ') || 'sin clases de uso'}`,
+          ...uses, ...required,
+        ].join('\n')
+      }),
+    ]),
+  ], options)
 }

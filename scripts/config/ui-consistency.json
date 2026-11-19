@@ -30,7 +30,7 @@
       "id": "alert-dialog-shell",
       "name": "Confirmaciones: base AlertDialog",
       "target": "alertDialog",
-      "properties": ["font-family", "font-size", "font-weight", "line-height", "padding", "width", "min-width", "max-width", "height", "min-height", "max-height"],
+      "properties": ["font-family", "font-size", "font-weight", "line-height", "padding", "width", "min-width", "max-width", "height", "min-height", "max-height", "color", "background", "border", "border-top", "box-shadow"],
       "reason": "Estas superficies reutilizan AlertDialogContent y su misma base CSS. La altura que resulte del contenido no se mide estáticamente.",
       "sources": ["src/components/ui/alert-dialog/alert-dialog.tsx", "src/components/ui/alert-dialog/alert-dialog.module.css"]
     },
@@ -38,10 +38,52 @@
       "id": "sheet-shell",
       "name": "Paneles Sheet: tipografía y espacio comunes",
       "target": "sheet",
-      "properties": ["font-family", "font-size", "padding"],
-      "reason": "SheetContent comparte tipografía y padding; sus medidas dependen del lado del panel y no se comparan como dimensiones equivalentes.",
+      "properties": ["font-family", "font-size", "padding", "color", "background", "border", "box-shadow"],
+      "reason": "SheetContent comparte tipografía, padding, colores, borde y sombra; sus medidas dependen del lado del panel y no se comparan como dimensiones equivalentes.",
       "sources": ["src/components/ui/sheet/sheet.tsx", "src/components/ui/sheet/sheet.module.css"]
     }
   ],
-  "exceptions": []
+  "exceptions": [],
+  "paintExceptions": [
+    {
+      "id": "standalone-report-paper",
+      "file": "src/features/document/documentReport.css",
+      "reason": "El informe HTML autónomo conserva su paleta de papel y estilos de impresión, independientes del tema de la aplicación.",
+      "sources": ["src/features/document/documentReport.ts", "src/features/document/documentReport.css", "docs/architecture.md"]
+    },
+    {
+      "id": "report-preview-paper",
+      "file": "src/features/document/reports.module.css",
+      "selectors": [".preview iframe"],
+      "properties": ["background"],
+      "reason": "El fondo blanco de la vista previa representa el papel del informe autónomo.",
+      "sources": ["src/features/document/ReportsModule.tsx", "src/features/document/reports.module.css"]
+    },
+    {
+      "id": "map-legend-samples",
+      "file": "src/features/map/MapLegend.module.css",
+      "selectors": [
+        ":where(.base) :global(.map-legend-image)",
+        ":where(.base) :global(.map-legend-image-viewport)",
+        ":where(.base) :global(.map-legend-image-viewport) > p",
+        ":where(.base) :global(.map-legend-sample)",
+        ":where(.base) :global(.map-legend-sample) p"
+      ],
+      "properties": ["background", "color"],
+      "reason": "Las muestras cartográficas conservan fondo blanco y texto oscuro para acompañar las imágenes y símbolos de la leyenda; los controles exteriores siguen sujetos al análisis.",
+      "sources": ["src/features/map/MapLegend.tsx", "src/features/map/MapLegend.module.css"]
+    },
+    {
+      "id": "board-image-contrast",
+      "file": "src/features/board/board.module.css",
+      "selectors": [
+        ":where(.base) :global(.board-tool-cursor)",
+        ":where(.base) :global(.board-image-editor)",
+        ":where(.base) :global(.board-image-resize)"
+      ],
+      "properties": ["box-shadow", "outline", "border", "background"],
+      "reason": "El cursor y los controles superpuestos a imágenes usan contraste blanco/negro independiente de los colores de la imagen y del tema.",
+      "sources": ["src/features/board/board.module.css", "docs/design.md"]
+    }
+  ]
 }

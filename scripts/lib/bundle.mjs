@@ -1,20 +1,18 @@
-import { renderAnalysis, markdownTable as table, sourceReference } from './findings.mjs'
+import { renderAnalysis, reportSection, sourceReference, markdownText } from './findings.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { build } from 'vite'
 import ts from 'typescript'
 
 import { root, relative, absoluteFilesIn as filesIn } from './project.mjs'
+import { checkNoticeCatalog } from '../collect-notice-messages.mjs'
 
 const packageVersions = new Map()
 const slash = value => value.replaceAll('\\', '/')
-const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const kb = bytes => (bytes / 1000).toFixed(2)
-const percent = (part, whole) => whole ? (100 * part / whole).toFixed(1) + '%' : '0%'
 
 function staticImports(source) {
   return source.statements.flatMap(statement => {
@@ -135,46 +133,74 @@ function aggregate(chunks, key) {
 
 export function renderBundle(report, options = {}) {
   const { sourceRoot } = options
-  const main=report.chunks.find(chunk=>chunk.entry)
-  const initial=report.chunks.filter(chunk=>chunk.initial)
-  const mainGroups=main?aggregate([main],'group'):[]
-  const modules=report.chunks.flatMap(chunk=>(chunk.modules??[]).map(module=>({...module,chunk:chunk.file})))
-  const sourceLabel=item=>fs.existsSync(path.resolve(root,item.source))?sourceReference(item.source,1,sourceRoot):item.source
-  return renderAnalysis('bundle',report,[
-    '## Datos de referencia · medidas del empaquetado',
-    table(['Medida','Resultado'],[
-      ['Principal',main?`${main.file}: ${kb(main.bytes)} kB; gzip ${kb(main.gzipBytes)} kB`:'Sin principal reconocido'],
-      ['JavaScript de carga inicial',`${initial.length} archivos; ${kb(initial.reduce((sum,item)=>sum+item.bytes,0))} kB; gzip ${kb(initial.reduce((sum,item)=>sum+item.gzipBytes,0))} kB`],
-      ['Todo el JavaScript emitido',`${kb(report.chunks.reduce((sum,item)=>sum+item.bytes,0))} kB, incluidos diferidos y workers`],
-      ['Precaché PWA',`${report.precache.files} archivos; ${(report.precache.bytes/1_000_000).toFixed(2)} MB sin compresión`],
-      ['Principal sin atribución fiable',main?`${kb(main.unmappedBytes)} kB; ${kb(main.unreliableBytes)} kB descartados al cruzar límites sintácticos`:'Sin principal'],
-      ['Comparación del principal con dist',main?.matchesCurrentDist===true?'Idéntico byte a byte':main?.matchesCurrentDist===false?'Distinto; dist puede corresponder a otro build':'Sin archivo equivalente'],
+  const main = report.chunks.find(chunk => chunk.entry)
+  const initial = report.chunks.filter(chunk => chunk.initial)
+  const mainGroups = main ? aggregate([main], 'group') : []
+  const share = size => main.bytes ? `${(size / main.bytes * 100).toFixed(1)} %` : '0 %'
+  const amount = bytes => `${kb(bytes)} kB`
+  const sourcesByOwner = new Map()
+  for (const item of report.sources) {
+    const owner = item.group ?? item.package ?? item.kind
+    if (!sourcesByOwner.has(owner)) sourcesByOwner.set(owner, [])
+    sourcesByOwner.get(owner).push(item)
+  }
+  const source = (file, label = file) => fs.existsSync(path.resolve(root, file))
+    ? sourceReference(file, 1, sourceRoot, markdownText(label)) : `\`${file}\``
+  const split = item => `${kb(item.bytes)} / ${kb(item.initialBytes)} / ${kb(item.workerBytes)}`
+  const withoutAttribution = report.chunks.flatMap(chunk => {
+    const modules = (chunk.modules ?? []).filter(item => item.renderedLength > 0 && !item.attributedBytes)
+    return modules.length ? [
+      `- \`${chunk.file}\``,
+      ...modules.map(item => `  - ${source(item.source)} · ${item.group} · longitud ${item.renderedLength}`),
+    ].join('\n') : []
+  })
+  return renderAnalysis('bundle', report, [
+    reportSection('Medidas', [
+      main ? `- Principal: \`${main.file}\` · ${amount(main.bytes)} · ${amount(main.gzipBytes)} gzip.` : '- Principal sin identificar.',
+      `- JS inicial: ${initial.length} archivos · ${amount(initial.reduce((sum, item) => sum + item.bytes, 0))} · ${amount(initial.reduce((sum, item) => sum + item.gzipBytes, 0))} gzip.`,
+      `- JS emitido: ${amount(report.chunks.reduce((sum, item) => sum + item.bytes, 0))}, incluidos diferidos y workers.`,
+      `- Precaché: ${report.precache.files} archivos · ${amount(report.precache.bytes)} sin compresión.`,
+      main ? `- Principal sin atribución: ${amount(main.unmappedBytes)}. Cruzan límites sintácticos ${amount(main.unreliableBytes)}.` : '',
+      main ? `- Principal en dist: ${main.matchesCurrentDist === true ? 'idéntico byte a byte' : main.matchesCurrentDist === false ? 'mismo nombre, distinto contenido' : 'sin archivo equivalente'}.` : '',
+      'Método: segmentos de source map v3 acotados por sintaxis, pertenencia de módulos según el empaquetador y gzip nivel 6. kB decimales.',
     ]),
-    `Método: ${report.method}. kB y MB decimales. Los tamaños y gzip de archivos completos son mediciones; la atribución por fuente es aproximada. El gzip de paquetes no es sumable. No se acredita latencia ni consumo de RAM.`,
-    '## Datos de referencia · precaché por clase',
-    table(['Clase','Archivos','Tamaño sin compresión (MB)'],report.precache.groups.map(item=>[item.kind,item.files,(item.bytes/1_000_000).toFixed(2)])),
-    'Estas cifras corresponden a los archivos nombrados en el service worker generado, incluidos públicos de includeAssets. No son tráfico medido ni tamaño físico garantizado en Cache Storage.',
-    '## Datos de referencia · composición del principal',
-    table(['Propietario','kB atribuidos','Porcentaje del principal'],mainGroups.map(item=>[item.name,kb(item.bytes),percent(item.bytes,main.bytes)]).concat(main?[['Sin atribución de fuente',kb(main.unmappedBytes),percent(main.unmappedBytes,main.bytes)]]:[])),
-    '## Datos de referencia · paquetes y propietarios emitidos',
-    table(['Propietario','Total kB atribuidos','Inicial kB atribuidos','Workers kB atribuidos'],report.groups.map(item=>[item.name,kb(item.bytes),kb(item.initialBytes),kb(item.workerBytes)])),
-    '## Datos de referencia · fuentes emitidas',
-    table(['Fuente','Propietario','Total kB atribuidos','Inicial kB','Workers kB'],report.sources.map(item=>[sourceLabel({source:item.name}),item.group??item.package??item.kind,kb(item.bytes),kb(item.initialBytes),kb(item.workerBytes)])),
-    '## Datos de referencia · archivos JavaScript',
-    table(['Archivo emitido','Carga','kB reales','gzip kB','kB sin atribución'],report.chunks.map(item=>[item.file,item.initial?'Inicial':item.worker?'Worker':'Diferida / compartida',kb(item.bytes),kb(item.gzipBytes),kb(item.unmappedBytes)])),
-    '## Datos de referencia · recursos no JavaScript',
-    table(['Archivo emitido','kB reales','En precaché PWA'],report.assets.map(item=>[item.file,kb(item.bytes),item.precached?'Sí':'No'])),
-    'Las imágenes pueden estar publicadas sin descargarse al arrancar. Las rutas emitidas describen el build temporal analizado, que se retira al terminar.',
-    '## Datos de referencia · módulos con código sin bytes atribuibles',
-    table(['Archivo emitido','Módulo','Propietario','Longitud anterior a minificación'],modules.filter(item=>item.renderedLength>0&&!item.attributedBytes).map(item=>[item.chunk,sourceLabel(item),item.group,item.renderedLength])),
-    'El empaquetador acredita la inclusión de estos módulos. renderedLength no es tamaño final y no se suma a los bytes reales. La ausencia de atribución no acredita ausencia de uso.',
-    '## Datos de referencia · declaraciones sin JavaScript atribuible',
-    table(['Paquete declarado'],report.dependenciesWithoutMappedJavaScript.map(name=>[name])),
-    'Esta lista solo describe la atribución del build. Un paquete puede aportar CSS, tipos, requisitos peer u otro consumo; las declaraciones y consumidores se diagnostican en dependencies. El JSON conserva todos los módulos, exports renderizados y detalles por chunk.',
-  ],options)
+    reportSection('Precaché por clase', report.precache.groups.map(item => `- ${item.kind} · ${item.files} archivos · ${amount(item.bytes)}`)),
+    main ? reportSection('Composición del principal', [
+      ...mainGroups.map(item => `- ${item.name} · ${amount(item.bytes)} · ${share(item.bytes)}`),
+      `- Sin atribución · ${amount(main.unmappedBytes)} · ${share(main.unmappedBytes)}`,
+    ]) : '',
+    reportSection('JavaScript emitido', [
+      'Por archivo: tipo de carga · kB reales / gzip / sin atribución.',
+      ...report.chunks.map(item => `- \`${item.file}\` · ${item.initial ? 'inicial' : item.worker ? 'worker' : 'diferida o compartida'} · ${kb(item.bytes)} / ${kb(item.gzipBytes)} / ${kb(item.unmappedBytes)}`),
+    ]),
+    reportSection('Recursos emitidos', report.assets.map(item => `- \`${item.file}\` · ${amount(item.bytes)}${item.precached ? ' · precaché' : ''}`)),
+    reportSection('Atribución por propietario', [
+      'Cada terna indica kB atribuidos al total / carga inicial / workers. Los totales por fuente son aproximados.',
+      ...report.groups.map(item => `- ${item.name} · ${split(item)}`),
+    ]),
+    reportSection('Fuentes emitidas', [
+      'kB atribuidos al total / carga inicial / workers.',
+      ...[...sourcesByOwner].flatMap(([owner, items]) => [
+        `\n### ${owner}\n`,
+        ...items.map(item => {
+          const label = item.name.replace(/^src\//, '').replace(/^node_modules\/(?:@[^/]+\/)?[^/]+\//, '')
+          return `- ${source(item.name, label)} · ${split(item)}`
+        }),
+      ]),
+    ]),
+    withoutAttribution.length ? reportSection('Módulos incluidos sin bytes atribuibles', [
+      'La longitud informada por el empaquetador precede a la minificación.', ...withoutAttribution,
+    ]) : '',
+    report.dependenciesWithoutMappedJavaScript.length ? reportSection('Dependencias declaradas sin JavaScript atribuible', [
+      'Pueden aportar CSS, tipos o requisitos de otros paquetes.',
+      ...report.dependenciesWithoutMappedJavaScript.map(name => `- ${name}`),
+    ]) : '',
+  ], options)
 }
 
 export async function collectBundle() {
+  // Match prebuild's catalog without mutating sources during a diagnostic run.
+  checkNoticeCatalog()
   const temporaryBase = path.join(os.tmpdir(), 'angie-bundle-')
   const temporary = fs.mkdtempSync(temporaryBase)
   if (path.dirname(temporary) !== path.dirname(temporaryBase) || !temporary.startsWith(temporaryBase)) throw new Error('Directorio temporal fuera del destino previsto.')
@@ -205,11 +231,13 @@ export async function collectBundle() {
       const syntax = ts.createSourceFile(name, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
       const mapFile = file + '.map'
       const attribution = fs.existsSync(mapFile) ? attribute(code, JSON.parse(fs.readFileSync(mapFile, 'utf8')), mapFile, syntax) : { sources: [], unmappedBytes: bytes.length, unreliableBytes: 0 }
+      const currentDist = path.join(root, 'dist', name)
       records.set(name, { file: name, bytes: bytes.length, gzipBytes: gzipSync(bytes).length, worker: /\.worker-/.test(name),
         entry: entryFiles.includes(name), initial: false, ...attribution,
         modules: (chunkModules.get(name) ?? []).map(module => ({ ...module, attributedBytes: attribution.sources.find(source => source.source === module.source)?.bytes ?? 0 })),
         imports: staticImports(syntax).filter(specifier => specifier.startsWith('.')).map(specifier => path.posix.normalize(path.posix.join(path.posix.dirname(name), specifier))),
-        matchesCurrentDist: fs.existsSync(path.join(root, 'dist', name)) ? hash(bytes) === hash(fs.readFileSync(path.join(root, 'dist', name))) : null })
+        matchesCurrentDist: fs.existsSync(currentDist) ? bytes.equals(fs.readFileSync(currentDist)) : null,
+      })
     }
     function initial(name) { const record = records.get(name); if (!record || record.initial) return; record.initial = true; record.imports.forEach(initial) }
     entryFiles.forEach(initial)

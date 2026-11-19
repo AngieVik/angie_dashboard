@@ -1,81 +1,94 @@
 # Guía de scripts
 
-Ejecuta desde la raíz con el entorno y las dependencias de [README.md](../README.md). Elige el análisis del área que necesitas; la app puede estar cerrada. Los informes quedan en `output/`, excluido de Git. Bundle compila temporalmente y conserva `dist/`.
+Ejecuta desde la raíz. Cada revisión analiza el estado actual, sin comparación, caché ni historial.
+Los informes se sobrescriben; no se generan JSON ni resúmenes separados.
 
 ## Comandos
 
-| Comando | Uso | Resultado |
+| Comando | Alcance | Informe |
 | --- | --- | --- |
-| `npm run diagnose` | Perfil quick: inventario, código sin uso, arquitectura, dependencias, recursos, estilos y coherencia. | `output/diagnostic workflow/<ID>/report.md` y JSON, con subinformes por etapa. |
-| `npm run diagnose:full` | Añade peso del bundle al perfil quick. | Misma estructura con etapa bundle. |
-| `node scripts/inspect-app.mjs` | Stack, módulos, componentes React, JSX y catálogo de elementos. | `01_app_inventory/` |
-| `node scripts/inspect-ui-styles.mjs` | Medidas iniciales/mínimas declaradas, fuentes, padding y tokens de módulos y superficies. | `02_ui_styles/` |
-| `node scripts/audit-ui-consistency.mjs` | Diferencias en grupos comparables, excepciones y literales candidatos a token. | `03_ui_consistency/` |
-| `node scripts/audit-unused-code.mjs` | Archivos desconectados, exports/locales sin uso y clases CSS candidatas. | `04_unused_code/` |
-| `node scripts/audit-architecture.mjs` | Imports, ciclos de valores/tipos/diferidos y relaciones entre áreas. | `05_architecture/` |
-| `node scripts/audit-dependencies.mjs` | Declaración, lock, instalación, consumidores, peers y coexistencia de versiones. | `06_dependencies/` |
-| `node scripts/audit-public-assets.mjs` | Referencias públicas, rutas ausentes, capitalización, duplicados y configuración PWA declarada. | `07_public_assets/` |
-| `node scripts/analyze-bundle.mjs` | Bytes emitidos, JS inicial/diferido, workers, precaché y atribución aproximada por fuente. | `08_bundle_analysis/` |
-| `node --experimental-transform-types scripts/measure-gpx.mjs` | Benchmark manual de CPU GPX con casos sintéticos de 1.000, 50.000 y 150.000 puntos. | Medidas en consola; requiere Node 24. |
-| `npm run notices:catalog` | Regenera el catálogo de textos de avisos. | `src/features/notices/noticeMessages.ts` |
+| `npm run check` | Lint y build; build incluye tipos y catálogo de avisos. | Consola. |
+| `npm run typecheck` | Solo tipos. | Consola. |
+| `npm run check:server` | HTTP local: cabeceras, métodos, rutas, HEAD y MIME. | Consola. |
+| `npm run diagnose` | Quick: siete análisis; bundle queda marcado como no ejecutado. | General y ocho individuales. |
+| `npm run diagnose:full` | Añade el build temporal del bundle. | Los mismos archivos, sobrescritos. |
+| `node scripts/inspect-app.mjs` | Fuentes, componentes y registros. | `01_app_inventory/report.md` |
+| `node scripts/inspect-ui-styles.mjs` | Bases compartidas, geometría y especializaciones declaradas. | `02_ui_styles/report.md` |
+| `node scripts/audit-ui-consistency.mjs` | Grupos comparables, tokens y excepciones gráficas. | `03_ui_consistency/report.md` |
+| `node scripts/audit-unused-code.mjs` | Archivos, exports, locales y clases CSS candidatos a limpieza. | `04_unused_code/report.md` |
+| `node scripts/audit-architecture.mjs` | Imports, ciclos, áreas y consumidores. | `05_architecture/report.md` |
+| `node scripts/audit-dependencies.mjs` | Manifiesto, lock, instalación, peers y consumidores. | `06_dependencies/report.md` |
+| `node scripts/audit-public-assets.mjs` | Referencias, rutas, duplicados y configuración PWA. | `07_public_assets/report.md` |
+| `node scripts/analyze-bundle.mjs` | Bytes emitidos, propietarios, workers y precaché. | `08_bundle_analysis/report.md` |
+| `node --experimental-transform-types scripts/measure-gpx.mjs` | CPU GPX sintético en Node 24; no acredita pintura ni interacción. | Consola. |
+| `npm run notices:catalog` | Regenera el catálogo si cambia. | `src/features/notices/noticeMessages.ts` |
+| `npm run notices:catalog -- --check` | Comprueba el catálogo sin escribir. | Salida 0 si coincide; 1 si falta, difiere o falla. |
 
-Las ocho carpetas numeradas están en `output/analize-app-scripts/`; cada una contiene `report.md` legible y `report.json` estructurado. La numeración indica orden de lectura. Cada CLI individual actualiza su par de informes. El coordinador conserva cada ejecución por separado.
+Los ocho individuales están en `output/analize-app-scripts/`.
+El general está en `output/analize-app-scripts/diagnostic workflow/report.md`.
+El coordinador actualiza los nueve; una CLI individual actualiza únicamente el suyo.
+Las CLI de análisis, el catálogo y check:server admiten `--help` y `-h`.
 
-Las ocho CLI de análisis y `diagnose.mjs` admiten `--help` y `-h`. Para ampliar un análisis, consulta el script propietario y su ayuda; `scripts/lib/` contiene piezas compartidas.
+## Formato y lectura
 
-## Comparar ejecuciones
+El general abre con el contador y enlaza cada análisis con su estado y sus recuentos por regla.
+Los informes individuales indican el alcance. El inventario abre con sus recuentos de cobertura.
+Los individuales reúnen ubicación, dato detectado y evidencia por elemento, sin repetir el detalle en el general.
+La clasificación, confianza y riesgo se indican de forma breve; los IDs quedan como datos internos de deduplicación.
+No se muestran ni se conservan referencias entre revisiones.
 
-`<ID>` sigue `AAAA-MM-DD_HH-mm_perfil`, en Europe/Madrid, con sufijo si coincide el minuto/perfil. `latest.json` apunta al último diagnóstico publicado; `latest-quick.json` y `latest-full.json` señalan la referencia automática compatible del perfil, con entradas estables y etapas sin fallos. Una limitación explícita puede conservar cobertura parcial.
+Para empezar sin contexto: abre el general, elige un análisis y sigue sus enlaces a las líneas de código.
+El contador incluye observaciones, relaciones y datos; no equivale a errores confirmados ni autoriza cambios por sí solo.
+Antes de corregir un candidato, comprueba sus consumidores y el contrato del área en
+[arquitectura](architecture.md) o [diseño](design.md), según corresponda.
 
-| Comando | Referencia |
-| --- | --- |
-| `npm run diagnose -- --baseline latest` | Última referencia quick; comportamiento predeterminado. |
-| `npm run diagnose -- --baseline none` | Ejecutar sin comparación. |
-| `npm run diagnose -- --baseline ID_DE_EJECUCION` | Ejecución concreta. |
-| `npm run diagnose:full -- --baseline latest` | Última referencia full. |
+Si necesitas entender el criterio, el coordinador es [diagnose.mjs](../scripts/diagnose.mjs),
+los recolectores están en [scripts/lib](../scripts/lib/) con el nombre del análisis
+(`inventory` corresponde a `app-inventory.mjs`, `styles` a `ui-styles.mjs`,
+`consistency` a `ui-consistency.mjs`, `unused` a `unused-code.mjs` y `assets` a `public-assets.mjs`).
+[findings.mjs](../scripts/lib/findings.mjs) define y clasifica los hallazgos;
+[ui-consistency.json](../scripts/config/ui-consistency.json) fija grupos y excepciones visuales.
 
-Compara con el mismo perfil y motor compatible, entradas estables y cobertura equivalente. Los informes distinguen hallazgos nuevos, cambiados, iguales y ausentes; verifica la causa de una desaparición antes de considerarla corregida. El perfil full también compara bytes de JS y precaché.
+Los individuales conservan la información de referencia por tema. Inventario agrupa archivos, declaraciones React y usos JSX.
+Estilos incluye las declaraciones de las hojas vinculadas a las superficies que describe. Consistency utiliza la lectura amplia de CSS.
+Arquitectura incluye las métricas de todos los archivos con relaciones. Bundle enumera los recursos emitidos y la atribución por fuente,
+con sus límites. El cotejo del principal con `dist/` se refiere únicamente al archivo compilado local.
 
-Para abrir el último informe en PowerShell:
+Una etapa fallida o no ejecutada muestra su estado en su propio archivo. Si ese archivo no se puede escribir, el general
+advierte que puede corresponder a una ejecución anterior. Los demás análisis publican su resultado y el general queda parcial
+si hay informes válidos. Un fallo al escribir el general se comunica en consola.
+Una entrada que cambia durante la ejecución se comunica como limitación de la revisión.
+Las escrituras reemplazan cada archivo de forma atómica; el general se escribe después de los individuales.
+
+Para abrir el general en PowerShell:
 
 ```powershell
-$diagnostico = Get-Content './output/diagnostic workflow/latest.json' -Raw | ConvertFrom-Json
-Invoke-Item (Join-Path './output/diagnostic workflow' $diagnostico.report)
+Invoke-Item './output/analize-app-scripts/diagnostic workflow/report.md'
 ```
 
-## Interpretar resultados
+## Límites
 
-| Indicador | Lectura |
-| --- | --- |
-| `complete` | Etapas terminadas sin limitaciones explícitas detectadas. |
-| `partial` | Hay límites de cobertura, una etapa fallida o entradas que cambiaron; revisa qué conclusión afecta. |
-| `failed` | Fallaron todas las etapas; un fallo de arranque/publicación puede impedir el informe. |
-| Salida `0` | Informe publicado; puede contener candidatos o limitaciones conocidas. |
-| Salida `1` | Error de ejecución; el coordinador también la usa por etapas fallidas o entradas inestables. |
-| Riesgo comprobado / posible / no acreditado | Distingue consecuencia con evidencia, consecuencia condicionada y dato sin daño funcional demostrado. |
+Los candidatos sin uso, las coincidencias con tokens y los ciclos declarados requieren inspeccionar sus consumidores y contexto.
+La revisión de estilos es estática: no calcula cascada, fuentes cargadas ni medidas efectivas del navegador.
+Los estilos inline, Canvas y los originales SVG quedan fuera de la lectura CSS.
+La atribución de bytes por source maps es aproximada; no mide RAM ni tiempos de arranque.
+Dependencias contrasta el árbol local offline; no sustituye una consulta de vulnerabilidades.
+La validación funcional sigue [Operaciones](OPERATIONS.md#comprobación-manual).
 
-Lee estado/cobertura antes de los hallazgos y sigue sus evidencias hasta el propietario. Los IDs relacionan resultados entre análisis; Markdown y JSON comparten los hallazgos, mientras las tablas conservan datos de referencia. Los contratos JSON están identificados por versión.
+Las excepciones gráficas de `scripts/config/ui-consistency.json` se aplican solo a candidatos cromáticos,
+conservando las comprobaciones de medidas y grupos comparables. Incluyen papel de informes,
+muestras cartográficas y contraste sobre imágenes. Se informa de excepciones sin declaraciones coincidentes.
+HEX, RGB/RGBA y nombres básicos reconocidos se normalizan para buscar tokens de color, superficie, sombra o filtro.
+No se extraen colores de variables, URLs o cadenas; las coincidencias no garantizan equivalencia en alto contraste.
 
-Las huellas registran entradas, motor, revisión y entorno reconocido; usan hashes para secretos. Cambiar entradas durante la ejecución impide comparación y referencia automática.
-
-## Alcance de cada lectura
-
-| Análisis | Límite que debes considerar |
-| --- | --- |
-| Inventario | Cuenta declaraciones/JSX escritos; los usos dinámicos y wrappers pueden requerir inspección. Las versiones del lock describen resolución, no instalación efectiva. |
-| Estilos | Conserva expresiones y contexto CSS; distingue apertura, suelo del registro y mínimo expandido medido. «Sin declarar» conserva significado desconocido. Usa zoom 1 como referencia y consulta el navegador para cascada, fuentes y medidas efectivas. |
-| Coherencia | Compara grupos y excepciones de `scripts/config/ui-consistency.json`, con fuentes en [Diseño](design.md). Una coincidencia numérica necesita significado compartido antes de convertirse en token. Revisa superficies sin grupo y excepciones incumplidas. |
-| Código sin uso | Los resultados son candidatos: contrasta referencias dinámicas, efectos laterales y consumidores del grupo antes de retirar código. Revisa huecos del análisis primero. |
-| Arquitectura | Separa valores, tipos, diferidos y workers. Un ciclo declarado exige revisar inicialización; una proyección circular entre áreas puede existir sin ciclo real entre archivos. Métricas de consumidores/dependencias sirven para investigar. |
-| Dependencias | Contrasta manifiesto/lock/instalación y el chequeo npm local offline. Valora peers, tipos, CSS y herramientas antes de retirar una declaración. La coexistencia de versiones puede ser legítima; esta herramienta conserva su alcance local, separado de `npm audit`. |
-| Recursos | Una referencia o patrón PWA es configuración declarada; contrasta carga y precaché emitida. Conserva originales/licencias; duplicados o ausencia de referencias reconocidas requieren revisión de consumidores. |
-| Bundle | Totales emitidos son bytes reales; atribución por source maps es aproximada. `renderedLength` pertenece a una fase previa a minificación. Bytes sin atribuir permanecen en el total y requieren lectura contextual. |
-| Benchmark GPX | Mide cálculo de CPU en Node; compara layout, pintura, interacción y tiempos del dispositivo manualmente. |
-
-Los diagnósticos generan evidencia y candidatos. Las decisiones de cambio siguen el alcance de la petición y la política de [AGENTS.md](../AGENTS.md); la validación funcional sigue [Operaciones](OPERATIONS.md#comprobación-manual).
+`check:server` necesita `dist/` compilado. Usa loopback y un puerto temporal, y cierra el proceso también ante fallos.
+Comprueba estados 200/400/403/404/405, rutas fuera de dist, CSP/anti-enmarcado/nosniff, métodos, HEAD, PWA y MIME.
+No comprueba el despliegue público ni el funcionamiento de la aplicación en navegador.
 
 ## Catálogo de avisos
 
-`collect-notice-messages.mjs` lee el AST TypeScript de `src`, deduplica/ordena literales y conserva niveles del emisor y anotaciones `@notice-level`. Actualiza únicamente el catálogo cuando cambia; los textos variables se completan con sus originales al emitirse, según [Arquitectura](architecture.md#avisos).
-
-Los hooks `predev` y `prebuild` lo ejecutan automáticamente. Con Vite ya abierto, usa `npm run notices:catalog` tras editar mensajes para refrescar la lista de Configuración.
+`collect-notice-messages.mjs` resuelve variables por símbolo y ámbito, admite textos breves y conserva el texto original como clave.
+Distingue errores y advertencias, reconoce setters set…Error y anotaciones @notice-level; excluye etiquetas de diccionarios tipados.
+No evalúa funciones o importaciones ni reconstruye reasignaciones; los mensajes variables se incorporan al emitirse.
+Los hooks predev/prebuild regeneran el catálogo. Con Vite abierto, usa `npm run notices:catalog` tras editar mensajes.
+El bundle comprueba su vigencia antes de crear temporales o llamar a Vite; si falta o difiere, falla sin regenerarlo.

@@ -1,4 +1,5 @@
-import { renderAnalysis, markdownTable as table, sourceReference, entryReference, readableBytes } from './findings.mjs'
+import { collectFindings, markdownDocument, markdownText, renderFindings, sourceReference } from './findings.mjs'
+import { reportDate, reportSection, wrapReport } from './report-format.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -117,40 +118,86 @@ function analyze(source) {
   return { file: relative(source.fileName), imports, components, jsx: [...tags.values()].sort((a, b) => compare(a.name, b.name)) }
 }
 
-export function renderAppInventory(report, options = {}) {
-  const { sourceRoot } = options
-  return renderAnalysis('inventory',report,[
-    '## Datos de referencia · inventario',
-    table(['Archivos de src','Componentes candidatos','Módulos registrados','Elementos del catálogo'],[[report.files.length,report.components.length,Object.keys(report.modules.values).length,Object.keys(report.elements.catalog.values).length]]),
-    `Node de referencia: ${report.environment.referenceNode??'no indicado'}; npm: ${report.environment.referenceNpm??'no indicado'}; Node de esta lectura: ${report.environment.currentNode}.`,
-    '## Datos de referencia · configuración y comandos',
-    table(['Configuración','Archivo'],report.configuration.map(file=>[path.basename(file),sourceReference(file,1,sourceRoot)])),
-    table(['Comando npm','Ejecución'],Object.entries(report.project.scripts)),
-    `${report.dependencies.length} dependencias directas declaradas en package.json. La declaración, instalación, requisitos y consumidores se diagnostican en dependencies.`,
-    '## Datos de referencia · módulos y componentes propietarios',
-    table(['Módulo','Id','Componente candidato','Fuente del componente','Registro'],Object.entries(report.modules.values).map(([id,item])=>{
-      const name=id[0].toUpperCase()+id.slice(1)+'Module'
-      const candidates=report.components.filter(component=>component.name===name)
-      const component=candidates.length===1?candidates[0]:candidates.find(part=>part.file.startsWith(`src/features/${id}/`))
-      return [item.name,id,component?.name??'No localizado por convención',component?entryReference(component,sourceRoot):'Sin propietario único reconocido',entryReference(report.modules,sourceRoot)]
-    })),
-    'La asociación por nombre es una convención del inventario, no prueba de montaje. Las medidas del registro se conservan en JSON y se presentan con su contexto en styles.',
-    '## Datos de referencia · componentes React candidatos',
-    table(['Componente','Declaración','Export directo','Ubicación'],report.components.map(item=>[item.name,item.kind,item.exported,entryReference(item,sourceRoot)])),
-    'Los componentes se reconocen por nombre y JSX; factories o wrappers pueden limitar la detección. Una aparición en el inventario no es un hallazgo de código sin uso.',
-    '## Datos de referencia · JSX por archivo',
-    table(['Archivo','Etiquetas intrínsecas (apariciones)','Componentes usados (apariciones)'],report.sources.filter(source=>source.jsx.length).map(source=>[
-      sourceReference(source.file,1,sourceRoot),source.jsx.filter(tag=>tag.kind==='intrinsic').map(tag=>`${tag.name} (${tag.count})`).join(', '),source.jsx.filter(tag=>tag.kind==='component').map(tag=>`${tag.name} (${tag.count})`).join(', '),
-    ])),
-    'Las apariciones JSX son texto del código, incluidas ramas condicionales; no son instancias visibles.',
-    '## Datos de referencia · catálogo de elementos operativos',
-    `Registro: ${entryReference(report.elements.catalog,sourceRoot)}. No se leen instancias creadas por el usuario.`,
-    table(['Id','Nombre','Recurso declarado','Clase visual'],Object.entries(report.elements.catalog.values).map(([id,item])=>[id,item.name,item.path,item.visualClass])),
-    ...report.elements.types.map(item=>`### Contrato: ${item.name}\n\n${entryReference(item,sourceRoot)}\n\n\`\`\`typescript\n${item.declaration}\n\`\`\``),
-    '## Datos de referencia · archivos fuente',
-    table(['Archivo','Tamaño fuente'],report.files.map(item=>[sourceReference(item.file,1,sourceRoot),readableBytes(item.bytes)])),
-    'El JSON conserva también imports y expresiones de registros sin resolver. Los tamaños fuente no son coste del bundle ni consumo de memoria.',
-  ],options)
+function inventoryArea(file) {
+  const parts = file.split('/')
+  if (parts.length <= 2) return parts.slice(0, -1).join('/') || 'Raíz'
+  const depth = ['components', 'domain', 'features'].includes(parts[1]) ? 3 : 2
+  return parts.slice(0, Math.min(depth, parts.length - 1)).join('/')
+}
+
+function renderInventoryFiles(report, reference) {
+  const sources = new Map(report.sources.map(item => [item.file, item]))
+  const files = new Map(report.files.map(item => [item.file, item.bytes]))
+  for (const item of report.sources) {
+    if (!files.has(item.file) && (item.components.length || item.jsx.length)) files.set(item.file, null)
+  }
+  const areas = new Map()
+  const declarations = { class: 'clase', function: 'función', variable: 'variable' }
+  for (const [file, bytes] of [...files].sort(([left], [right]) => compare(left, right))) {
+    const area = inventoryArea(file)
+    if (!areas.has(area)) areas.set(area, [])
+    const label = area === 'Raíz' ? file : file.slice(area.length + 1)
+    const rows = areas.get(area)
+    rows.push(`- ${reference(file, 1, label)}${bytes === null ? '' : ` · ${bytes} B`}`)
+
+    const source = sources.get(file)
+    if (source?.components.length) {
+      const items = source.components.map(item =>
+        `\`${item.name}\` (${declarations[item.kind]}, ${item.exported ? 'export directo, ' : ''}L${item.line})`)
+      rows.push(`  - Declaraciones React: ${items.join(', ')}`)
+    }
+    for (const [kind, description] of [['intrinsic', 'JSX intrínseco'], ['component', 'JSX de componentes']]) {
+      const tags = source?.jsx.filter(tag => tag.kind === kind) ?? []
+      if (tags.length) rows.push(`  - ${description}: ${tags.map(tag => `\`${tag.name}\` ×${tag.count}`).join(', ')}`)
+    }
+  }
+  return [...areas].map(([area, rows]) => `### ${area}\n\n${rows.map(row => wrapReport(row)).join('\n')}`).join('\n\n')
+}
+
+export function renderAppInventory(report, { sourceRoot } = {}) {
+  const reference = (file, line, label = path.posix.basename(file)) => sourceReference(file, line, sourceRoot, markdownText(label))
+  const modules = Object.entries(report.modules.values)
+  const elements = Object.entries(report.elements.catalog.values)
+  const jsxFiles = report.sources.filter(item => item.jsx.length).length
+  const { referenceNode, referenceNpm, currentNode } = report.environment
+  const findings = report.findings ?? collectFindings({ inventory: report })
+
+  return markdownDocument('Inventario de la aplicación',
+    `**${report.files.length} archivos fuente · ${report.components.length} componentes candidatos · ${modules.length} módulos · ${elements.length} elementos**`,
+    `${jsxFiles} archivos con JSX · ${report.elements.types.length} contratos · ${report.dependencies.length} dependencias directas.`,
+    `${reportDate(report.generatedAt)} (Madrid). Lectura estática de las declaraciones y registros del proyecto.`,
+    wrapReport('[Módulos](#módulos) · [Configuración](#configuración-y-comandos) · [Elementos](#elementos)'
+      + ' · [Contratos](#contratos) · [Fuentes por área](#fuentes-por-área)'),
+    findings.length ? renderFindings(findings, { sourceRoot, report }) : '',
+    reportSection('Módulos', [
+      `Registro en ${reference(report.modules.file, report.modules.line)}. La asociación se basa en el nombre del componente.`,
+      ...modules.map(([id, item]) => {
+        const name = id[0].toUpperCase() + id.slice(1) + 'Module'
+        const candidates = report.components.filter(component => component.name === name)
+        const component = candidates.length === 1 ? candidates[0]
+          : candidates.find(candidate => candidate.file.startsWith(`src/features/${id}/`))
+        const owner = component ? reference(component.file, component.line, component.name) : 'propietario sin identificar'
+        return `- **${markdownText(item.name)}** (\`${id}\`) · ${owner}`
+      }),
+    ]),
+    reportSection('Configuración y comandos', [
+      `Proyecto \`${report.project.name}\` ${report.project.version}. Node de la revisión ${currentNode}.`,
+      `Entorno de referencia: Node ${referenceNode ?? 'sin indicar'}, npm ${referenceNpm ?? 'sin indicar'}.`,
+      `Archivos: ${report.configuration.map(file => reference(file, 1)).join(', ')}.`,
+      ...Object.entries(report.project.scripts).map(([name, command]) => `- \`npm run ${name}\` → \`${command}\``),
+    ]),
+    reportSection('Elementos', [
+      `Registro en ${reference(report.elements.catalog.file, report.elements.catalog.line)}.`,
+      ...elements.map(([id, item]) =>
+        `- **${markdownText(item.name)}** (\`${id}\`) · ${markdownText(item.visualClass)} · \`${item.path}\``),
+    ]),
+    '## Contratos\n\n' + report.elements.types.map(item =>
+      `### ${item.name}\n\n${reference(item.file, item.line, `${path.posix.basename(item.file)}:${item.line}`)}`
+      + `\n\n\`\`\`typescript\n${item.declaration}\n\`\`\``).join('\n\n'),
+    '## Fuentes por área\n\n' + wrapReport('Tamaño en disco, declaraciones React y apariciones JSX, incluidas las ramas condicionales. '
+      + 'React se reconoce por nombre y JSX. Los wrappers pueden requerir revisar la fuente. '
+      + '«Export directo» indica que la declaración lleva export.') + '\n\n' + renderInventoryFiles(report, reference),
+  ).trimEnd() + '\n'
 }
 
 export function collectAppInventory(project = createProjectContext()) {

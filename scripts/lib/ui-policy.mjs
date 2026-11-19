@@ -3,9 +3,10 @@ import path from 'node:path'
 import Ajv from 'ajv'
 import { root, readJson } from './project.mjs'
 import { digest } from './snapshot.mjs'
+import { paintProperties } from './css-paint.mjs'
 
 export const policyFile = 'scripts/config/ui-consistency.json'
-const properties = ['font-family', 'font-size', 'font-weight', 'line-height', 'padding', 'padding-inline', 'padding-block', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'padding-inline-start', 'padding-inline-end', 'padding-block-start', 'padding-block-end', 'gap', 'row-gap', 'column-gap', ...['width', 'height', 'inline-size', 'block-size'].flatMap(axis => [axis, `min-${axis}`, `max-${axis}`]), 'initialWidth', 'initialHeight', 'registryMinWidth', 'registryMinHeight']
+const properties = ['font-family', 'font-size', 'font-weight', 'line-height', 'padding', 'padding-inline', 'padding-block', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'padding-inline-start', 'padding-inline-end', 'padding-block-start', 'padding-block-end', 'gap', 'row-gap', 'column-gap', ...['width', 'height', 'inline-size', 'block-size'].flatMap(axis => [axis, `min-${axis}`, `max-${axis}`]), 'initialWidth', 'initialHeight', 'registryMinWidth', 'registryMinHeight', ...paintProperties]
 const id = { type: 'string', pattern: '^[a-z][a-z0-9-]*$' }
 const description = { type: 'string', minLength: 1 }
 const sources = { type: 'array', minItems: 1, uniqueItems: true, items: description }
@@ -22,6 +23,12 @@ const validate = new Ajv({ allErrors: true }).compile({
     exceptions: { type: 'array', items: {
       type: 'object', additionalProperties: false, required: ['id', 'group', 'moduleId', 'property', 'expected', 'reason', 'sources'],
       properties: { id, group: id, moduleId: description, property: { enum: properties }, expected: description, reason: description, sources },
+    } },
+    paintExceptions: { type: 'array', items: {
+      type: 'object', additionalProperties: false, required: ['id', 'file', 'reason', 'sources'],
+      properties: { id, file: { type: 'string', pattern: '^src/.+\\.css$' },
+        selectors: { type: 'array', minItems: 1, uniqueItems: true, items: description },
+        properties: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: paintProperties } }, reason: description, sources },
     } },
   },
 })
@@ -42,7 +49,12 @@ export function loadUiPolicy() {
     if (exceptionIds.has(exception.id) || exceptionTargets.has(target)) throw new Error(`Excepción visual duplicada: ${exception.id}`)
     exceptionIds.add(exception.id); exceptionTargets.add(target)
   }
-  for (const source of [...policy.groups, ...policy.exceptions].flatMap(item => item.sources)) {
+  const paintIds = new Set()
+  for (const exception of policy.paintExceptions ?? []) {
+    if (paintIds.has(exception.id)) throw new Error(`Excepción gráfica duplicada: ${exception.id}`)
+    paintIds.add(exception.id)
+  }
+  for (const source of [...policy.groups, ...policy.exceptions, ...(policy.paintExceptions ?? [])].flatMap(item => [...item.sources, ...(item.file ? [item.file] : [])])) {
     const absolute = path.resolve(root, source), local = path.relative(root, absolute)
     if (local.startsWith('..') || path.isAbsolute(local) || !fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) throw new Error(`Fuente de política visual no válida: ${source}`)
   }

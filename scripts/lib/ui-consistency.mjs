@@ -1,10 +1,12 @@
-import { renderAnalysis, markdownTable as table, sourceReference, entryReference } from './findings.mjs'
+import { renderAnalysis, reportSection, sourceReference, entryReference } from './findings.mjs'
 import { collectUiStyles } from './ui-styles.mjs'
 import { loadUiPolicy } from './ui-policy.mjs'
+import { isPaintProperty, normalizePaint, paintColors } from './css-paint.mjs'
 
 const relevant = /^(?:font-family|font-size|font-weight|line-height|padding(?:-.+)?|gap|row-gap|column-gap|(?:min-|max-)?(?:width|height|inline-size|block-size))$/
 const textOf = value => value && typeof value === 'object' ? value.expression ?? JSON.stringify(value) : String(value)
 const normalize = value => String(value).trim().replace(/\s*!important\s*$/, '').replace(/\s+/g, ' ')
+const normalizedProperty = (property, value) => isPaintProperty(property) ? normalizePaint(value) : normalize(value)
 
 function groupBy(items, keyOf) {
   const groups = new Map()
@@ -65,10 +67,10 @@ function differences(surfaces, policy) {
         if (exception) {
           seenExceptions.add(exception.id)
           const detail = { ...exception, groupName: group.name, label: surface.label, actual: value, file: surface.file, line: surface.line, source: entry.source }
-          if (normalize(value) === normalize(exception.expected)) { appliedExceptions.push(detail); continue }
+          if (normalizedProperty(property, value) === normalizedProperty(property, exception.expected)) { appliedExceptions.push(detail); continue }
           exceptionViolations.push(detail)
         }
-        const key = normalize(value)
+        const key = normalizedProperty(property, value)
         if (!variants.has(key)) variants.set(key, { value: key, surfaces: [] })
         variants.get(key).surfaces.push(entry)
       }
@@ -85,7 +87,7 @@ function differences(surfaces, policy) {
 function cssDeclarations(inventory) {
   const entries = inventory.css.flatMap(sheet => sheet.rules.flatMap(rule => {
     if (rule.selector.startsWith('@') || rule.context.some(context => /^@(?:-\w+-)?keyframes\b/.test(context))) return []
-    return rule.declarations.filter(item => relevant.test(item.property)).map(item => ({ ...item, selector: rule.selector, context: rule.context }))
+    return rule.declarations.filter(item => relevant.test(item.property) || isPaintProperty(item.property)).map(item => ({ ...item, selector: rule.selector, context: rule.context }))
   }))
   return [...new Map(entries.map(item => [`${item.file}:${item.line}:${item.property}:${item.selector}:${item.context.join('/')}`, item])).values()]
 }
@@ -93,10 +95,11 @@ function cssDeclarations(inventory) {
 function repeatedLiterals(declarations) {
   const literals = declarations.filter(item => {
     const value = normalize(item.value)
-    if (/var\(/.test(value) || /^(?:0(?:px|rem|em)?|auto|none|normal|inherit|initial|unset|revert(?:-layer)?|100%)$/.test(value)) return false
+    if (/\b(?:var|url)\s*\(/i.test(value) || /^(?:0(?:px|rem|em)?|auto|none|normal|inherit|initial|unset|revert(?:-layer)?|transparent|currentcolor|100%)$/i.test(value)) return false
+    if (isPaintProperty(item.property)) return paintColors(value).length > 0
     return item.property === 'font-family' || (['font-weight', 'line-height'].includes(item.property) && /^\d*\.?\d+$/.test(value)) || /-?\d*\.?\d+(?:px|rem|em)\b/.test(value)
   })
-  return [...groupBy(literals, item => `${item.property}\0${normalize(item.value)}`).values()]
+  return [...groupBy(literals, item => `${item.property}\0${normalizedProperty(item.property, item.value)}`).values()]
     .filter(items => items.length >= 3 && new Set(items.map(item => item.file)).size >= 2)
     .map(items => ({ property: items[0].property, value: normalize(items[0].value), files: new Set(items.map(item => item.file)).size, occurrences: items }))
     .sort((a, b) => b.occurrences.length - a.occurrences.length || a.property.localeCompare(b.property, 'en') || a.value.localeCompare(b.value, 'en'))
@@ -104,13 +107,32 @@ function repeatedLiterals(declarations) {
 
 function tokenCandidates(inventory, declarations) {
   const tokenFile = inventory.css.find(sheet => sheet.file === 'src/styles/tokens.css')
-  const tokens = tokenFile.rules.filter(rule => rule.selector === ':root').flatMap(rule => rule.declarations).filter(item => item.property.startsWith('--'))
+  const tokens = tokenFile.rules.filter(rule => rule.selector === ':root' && rule.context.every(context => context.startsWith('@layer'))).flatMap(rule => rule.declarations).filter(item => item.property.startsWith('--'))
   const familyOf = property => property === 'font-family' ? /^--font-(?:interface-default|clock)$/
     : property === 'font-size' ? /^--(?:font-size-.+-base|(?:control|field)-font-size-base)$/
       : /^(?:padding|gap|row-gap|column-gap)/.test(property) ? /^--space-\d+$/
         : /(?:width|height|inline-size|block-size)$/.test(property) ? /^--(?:control-height|icon-size|checkbox-size)-base$/ : null
   const candidates = []
   for (const declaration of declarations) {
+    if (isPaintProperty(declaration.property)) {
+      const matches = new Map()
+      const match = (literal, key, family) => {
+        const matching = tokens.filter(token => family.test(token.property) && normalizePaint(token.rootTokenExpansion) === key)
+        if (!matching.length) return
+        const known = matches.get(literal) ?? { literal, tokens: [] }
+        for (const token of matching) if (!known.tokens.some(item => item.name === token.property)) known.tokens.push({ name: token.property, value: token.rootTokenExpansion, file: token.file, line: token.line })
+        matches.set(literal, known)
+      }
+      for (const color of paintColors(declaration.value)) match(color.literal, color.key, /^--(?:color-|palette-)/)
+      // Whole shadows/gradients can reuse a semantic token; never treat lengths
+      // inside them as spacing, or resolve a local var()/URL as a literal.
+      const family = /^(?:background|background-color|background-image)$/.test(declaration.property) ? /^--surface-/
+        : /^(?:box-shadow|text-shadow)$/.test(declaration.property) ? /^--shadow-/
+          : /^(?:filter|backdrop-filter)$/.test(declaration.property) ? /^--filter-/ : null
+      if (family && !/\b(?:var|url)\s*\(/i.test(declaration.value) && !/^(?:none|inherit|initial|unset|revert(?:-layer)?)$/i.test(normalize(declaration.value))) match(declaration.value, normalizePaint(declaration.value), family)
+      if (matches.size) candidates.push({ ...declaration, matches: [...matches.values()] })
+      continue
+    }
     const family = familyOf(declaration.property)
     if (!family || /var\(/.test(declaration.value)) continue
     const value = normalize(declaration.value)
@@ -125,6 +147,21 @@ function tokenCandidates(inventory, declarations) {
     if (matches.length) candidates.push({ ...declaration, matches })
   }
   return candidates
+}
+
+function paintExceptions(declarations, policy) {
+  const excluded = new Set(), appliedPaintExceptions = [], uncertainties = []
+  for (const exception of policy.paintExceptions ?? []) {
+    const matches = declarations.filter(item => isPaintProperty(item.property) && item.file === exception.file
+      && (!exception.selectors || exception.selectors.includes(item.selector))
+      && (!exception.properties || exception.properties.includes(item.property)))
+    if (!matches.length) uncertainties.push({ file: policy.file, line: 1, kind: 'excepción gráfica sin declaraciones verificables', expression: exception.id })
+    else {
+      matches.forEach(item => excluded.add(item))
+      appliedPaintExceptions.push({ ...exception, declarations: matches })
+    }
+  }
+  return { declarations: declarations.filter(item => !excluded.has(item)), appliedPaintExceptions, uncertainties, excluded: excluded.size }
 }
 
 function numericConstraints(inventory) {
@@ -147,31 +184,44 @@ function numericConstraints(inventory) {
 
 export function renderUiConsistency(report, options = {}) {
   const { sourceRoot } = options
-  return renderAnalysis('consistency',report,[
-    '## Datos de referencia · cobertura visual',
-    table(['Superficies','Hojas CSS','Grupos con diferencias','Propiedades discrepantes por grupo','Superficies sin grupo'],[[report.coverage.surfaces,report.coverage.stylesheets,new Set(report.differences.map(item=>item.groupId??item.group)).size,report.differences.length,report.ungroupedSurfaces.length]]),
-    '## Datos de referencia · grupos comparables',
-    `Política: ${sourceReference(report.policy.file,1,sourceRoot)}. Solo se comparan las propiedades seleccionadas; los grupos sin miembros no aportan comparaciones.`,
-    table(['Grupo','Superficies','Propiedades','Razón de equivalencia'],report.comparisonGroups.map(item=>[item.name,item.members.map(member=>member.label).join('; ')||'Sin miembros detectados',item.properties.join(', '),item.reason])),
-    '## Datos de referencia · excepciones verificadas',
-    table(['Excepción','Superficie / propiedad','Valor declarado','Motivo y fuentes'],report.appliedExceptions.map(item=>[item.id,`${item.label} / ${item.property}`,item.actual,`${item.reason} (${item.sources.join(', ')})`])),
-    '## Datos de referencia · superficies sin equivalencia definida',
-    table(['Ubicación','Superficie','Tipo'],report.ungroupedSurfaces.map(item=>[entryReference(item,sourceRoot),item.label,item.kind])),
-    'Las diferencias, restricciones, excepciones incumplidas, coincidencias de literales y tokens aparecen solo en los hallazgos anteriores. La ausencia de una declaración no se trata como cero; no se normalizan todas las expresiones CSS equivalentes. Las medidas efectivas pertenecen a una comprobación visual manual.',
-  ],options)
+  return renderAnalysis('consistency', report, [
+    reportSection('Cobertura', [
+      `${report.coverage.surfaces} superficies · ${report.coverage.stylesheets} hojas · ${report.coverage.cssDeclarations} declaraciones`,
+      `${new Set(report.differences.map(item => item.groupId ?? item.group)).size} grupos con diferencias · ${report.differences.length} diferencias por propiedad · ${report.ungroupedSurfaces.length} superficies sin grupo`,
+      `Color y sombra: ${report.coverage.paintDeclarations} declaraciones · ${report.coverage.excludedPaintDeclarations} bajo excepción.`,
+      `Política en ${sourceReference(report.policy.file, 1, sourceRoot, 'ui-consistency.json')}. Una declaración ausente queda sin valor comparable.`,
+    ]),
+    reportSection('Grupos comparables', report.comparisonGroups.map(item => [
+      `- **${item.name}** · ${item.members.map(member => member.label).join(', ') || 'sin miembros detectados'}`,
+      `  - ${item.properties.join(', ')}. ${item.reason}`,
+    ].join('\n'))),
+    reportSection('Excepciones aplicadas', [
+      ...report.appliedExceptions.map(item => [
+        `- ${entryReference(item.source ?? item, sourceRoot, item.label)} · \`${item.property}: ${item.actual}\`. ${item.reason}`,
+        `  - Fuentes: ${item.sources.join(', ')}`,
+      ].join('\n')),
+      ...(report.appliedPaintExceptions ?? []).map(item => [
+        `- ${sourceReference(item.file, 1, sourceRoot, item.file)} · ${item.reason}`,
+        ...item.declarations.map(entry => `  - L${entry.line} · ${entry.selector} · \`${entry.property}: ${entry.value}\``),
+      ].join('\n')),
+    ]),
+    reportSection('Sin grupo comparable', report.ungroupedSurfaces.map(item => `- ${entryReference(item, sourceRoot, item.label)} · ${item.kind}`)),
+  ], options)
 }
 
-export function collectUiConsistency(inventory = collectUiStyles()) {
-  const policy = loadUiPolicy()
+export function collectUiConsistency(inventory = collectUiStyles(), policy = loadUiPolicy()) {
   const surfaces = surfacesOf(inventory)
   const declarations = cssDeclarations(inventory)
   const comparisons = differences(surfaces, policy)
+  const paint = paintExceptions(declarations, policy)
   return {
     schemaVersion: 1, generatedAt: new Date().toISOString(), inventoryGeneratedAt: inventory.generatedAt,
     analysis: 'static', classification: 'review-points', collector: 'scripts/lib/ui-styles.mjs#collectUiStyles',
-    coverage: { surfaces: surfaces.length, modules: inventory.modules.length, stylesheets: inventory.css.length, cssDeclarations: declarations.length },
+    coverage: { surfaces: surfaces.length, modules: inventory.modules.length, stylesheets: inventory.css.length, cssDeclarations: declarations.length,
+      paintDeclarations: declarations.filter(item => isPaintProperty(item.property)).length, excludedPaintDeclarations: paint.excluded },
     rules: { minimumRepeatedDeclarations: 3, minimumRepeatedFiles: 2, baseZoom: 1, automaticallyChangesCode: false },
-    policy, ...comparisons, repeatedLiterals: repeatedLiterals(declarations),
-    tokenCandidates: tokenCandidates(inventory, declarations), numericConstraints: numericConstraints(inventory),
+    policy, ...comparisons, uncertainties: [...comparisons.uncertainties, ...paint.uncertainties], appliedPaintExceptions: paint.appliedPaintExceptions,
+    repeatedLiterals: repeatedLiterals(paint.declarations),
+    tokenCandidates: tokenCandidates(inventory, paint.declarations), numericConstraints: numericConstraints(inventory),
   }
 }
