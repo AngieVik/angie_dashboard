@@ -5,37 +5,31 @@ import process from 'node:process'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { clearTimeout, setTimeout } from 'node:timers'
-import { createServer } from 'node:net'
 import { request } from 'node:http'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const timeoutMs = 5000
 
-async function availablePort() {
-  const probe = createServer()
-  probe.listen(0, '127.0.0.1')
-  await once(probe, 'listening')
-  const { port } = probe.address()
-  await new Promise((resolve, reject) => probe.close(error => error ? reject(error) : resolve()))
-  return port
-}
-
 function ready(child) {
   return new Promise((resolve, reject) => {
     let output = '', errors = ''
-    const finish = error => {
+    const finish = (error, port) => {
       clearTimeout(timer)
       child.stdout.off('data', stdout)
       child.stderr.off('data', stderr)
       child.off('error', failed)
       child.off('exit', exited)
       if (error) reject(error)
-      else resolve()
+      else resolve(port)
     }
     const stdout = chunk => {
       output = (output + chunk).slice(-2048)
-      if (output.includes('Angie: http://127.0.0.1:')) finish()
+      const match = /(?:^|\n)Angie: http:\/\/127\.0\.0\.1:(\d+)\r?\n/.exec(output)
+      if (!match) return
+      const port = Number(match[1])
+      if (port < 1 || port > 65535) finish(new Error('El servidor anunció un puerto no válido.'))
+      else finish(null, port)
     }
     const stderr = chunk => { errors = (errors + chunk).slice(-2048) }
     const failed = error => finish(error)
@@ -97,14 +91,13 @@ async function main() {
   if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('No existe el build. Ejecuta npm run build antes de npm run check:server.')
   const files = fs.readdirSync(dist, { recursive: true }).map(file => file.replaceAll('\\', '/'))
     .filter(file => fs.statSync(path.join(dist, file)).isFile())
-  const port = await availablePort()
   const child = spawn(process.execPath, [path.join(root, 'server/server.mjs')], {
-    cwd: root, env: { ...process.env, HOST: '127.0.0.1', PORT: String(port) },
+    cwd: root, env: { ...process.env, HOST: '127.0.0.1', PORT: '0' },
     stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
   })
   let checks = 0
   try {
-    await ready(child)
+    const port = await ready(child)
     const check = async (method, pathname, status, type) => {
       const result = await responseFor(port, method, pathname)
       assert.equal(result.status, status, `${method} ${pathname}`)

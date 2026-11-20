@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { root, createProjectContext } from './project.mjs'
 import { diagnosticReport } from './findings.mjs'
-import { renderStageStatus } from './report-format.mjs'
+import { renderStageFailure } from './report-format.mjs'
 
 export const isMain = url => Boolean(process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(url))
 
@@ -51,7 +51,7 @@ export function runCli(url, { name, analysis, collect, render, markdownFile, sum
       atomicWrite(path.resolve(root, markdownFile), render(report))
       console.log(`${summary(report)}\nHallazgos: ${report.findings.length}.\nInforme: ${markdownFile}`)
     } catch (error) {
-      atomicWrite(path.resolve(root, markdownFile), renderStageStatus(analysis, 'failed', error.message))
+      atomicWrite(path.resolve(root, markdownFile), renderStageFailure(analysis, error.message))
       throw error
     } finally { context?.dispose() }
   }

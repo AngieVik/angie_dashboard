@@ -89,7 +89,7 @@ function cssDeclarations(inventory) {
     if (rule.selector.startsWith('@') || rule.context.some(context => /^@(?:-\w+-)?keyframes\b/.test(context))) return []
     return rule.declarations.filter(item => relevant.test(item.property) || isPaintProperty(item.property)).map(item => ({ ...item, selector: rule.selector, context: rule.context }))
   }))
-  return [...new Map(entries.map(item => [`${item.file}:${item.line}:${item.property}:${item.selector}:${item.context.join('/')}`, item])).values()]
+  return [...new Map(entries.map((item, index) => [item.offset === undefined ? index : `${item.file}:${item.offset}`, item])).values()]
 }
 
 function repeatedLiterals(declarations) {

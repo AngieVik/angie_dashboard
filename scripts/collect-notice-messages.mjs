@@ -8,6 +8,8 @@ import process from 'node:process'
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const output = join(root, 'src/features/notices/noticeMessages.ts')
 const levels = ['message', 'success', 'info', 'warning', 'error', 'loading']
+const toastDirectory = join(root, 'src/components/ui/sonner')
+const toastEntries = new Set([toastDirectory, join(toastDirectory, 'index'), join(toastDirectory, 'toast')])
 
 export function collectNoticeMessages(program) {
   const messages = new Map(), resolving = new Set()
@@ -34,18 +36,42 @@ export function collectNoticeMessages(program) {
       finally { resolving.delete(symbol) }
     }
   }
-  function stringDictionary(node) {
-    const declaration = node.parent, type = ts.isVariableDeclaration(declaration) ? declaration.type : undefined
-    // Record keys such as error/message can label statuses rather than emit notices.
-    return type && ts.isTypeReferenceNode(type) && type.typeName.getText() === 'Record'
+  function isStringRecord(type) {
+    return type && ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName) && type.typeName.text === 'Record'
       && type.typeArguments?.[1]?.kind === ts.SyntaxKind.StringKeyword
+  }
+  function stringDictionary(node) {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (ts.isVariableDeclaration(parent)) return isStringRecord(parent.type)
+      if (ts.isSatisfiesExpression(parent) || ts.isAsExpression(parent) || ts.isTypeAssertionExpression(parent)) {
+        if (isStringRecord(parent.type)) return true
+      } else if (!ts.isParenthesizedExpression(parent)) return false
+    }
+    return false
+  }
+  function toastLevel(call) {
+    const property = ts.isPropertyAccessExpression(call) ? call : null
+    const level = property?.name.text ?? 'message', receiver = property?.expression ?? call
+    if (!levels.includes(level) || !ts.isIdentifier(receiver)) return null
+
+    const binding = checker.getSymbolAtLocation(receiver)?.declarations?.find(ts.isImportSpecifier)
+    if (!binding || binding.isTypeOnly || (binding.propertyName ?? binding.name).text !== 'toast') return null
+    const clause = binding.parent.parent, module = clause.parent.moduleSpecifier
+    if (clause.isTypeOnly || !ts.isStringLiteral(module)) return null
+    const specifier = module.text
+    if (specifier === 'sonner') return level
+    const importer = receiver.getSourceFile().fileName
+    const target = specifier.startsWith('@/') ? resolve(root, 'src', specifier.slice(2))
+      : specifier.startsWith('.') ? resolve(dirname(importer), specifier) : null
+    return target && toastEntries.has(target.replace(/\.[jt]sx?$/, '')) ? level : null
   }
   function visit(node, code) {
     if (ts.isNewExpression(node) && /Error$/.test(node.expression.getText(code)) && node.arguments?.[0]) strings(node.arguments[0])
     if (ts.isCallExpression(node)) {
       const expression = node.expression.getText(code)
-      if (/^toast(?:\.(?:error|success|info|warning|message|loading))?$/.test(expression)) {
-        if (node.arguments[0]) strings(node.arguments[0], expression.split('.')[1] ?? 'message')
+      const level = toastLevel(node.expression)
+      if (level) {
+        if (node.arguments[0]) strings(node.arguments[0], level)
       } else if (/^(?:errors|warnings)\.push$/.test(expression)) {
         for (const argument of node.arguments) strings(argument, expression === 'warnings.push' ? 'warning' : 'error')
       } else if (/^set(?:[A-Z]\w*)?Error$/.test(expression) || /^(?:notice|fail|invalid|failure)$/.test(expression)) {

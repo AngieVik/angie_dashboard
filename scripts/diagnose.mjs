@@ -12,7 +12,7 @@ import { collectPublicAssets, renderPublicAssets } from './lib/public-assets.mjs
 import { collectDependencies, renderDependencies } from './lib/dependencies.mjs'
 import { collectArchitecture, renderArchitecture } from './lib/architecture.mjs'
 import { collectFindings, finding, diagnosticReport, relateFindings, analysisLabels, findingCounts, reportRule } from './lib/findings.mjs'
-import { reportDate, wrapReport, renderStageStatus } from './lib/report-format.mjs'
+import { reportDate, wrapReport, renderStageFailure } from './lib/report-format.mjs'
 
 const analyses = Object.keys(analysisLabels).filter(name => name !== 'pipeline')
 const destination = 'output/analize-app-scripts/diagnostic workflow/report.md'
@@ -20,21 +20,25 @@ const states = { complete: 'completo', partial: 'parcial', failed: 'error' }
 
 export function render(report) {
   const sections = [
-    '# Auditoría',
+    '# Última auditoría coordinada',
     '**' + report.findings.length + (report.findings.length === 1 ? ' hallazgo**' : ' hallazgos**') + (findingCounts(report.findings) ? ' · ' + findingCounts(report.findings) : ''),
     reportDate(report.finishedAt) + ' (Madrid) · ' + report.profile + ' · ' + states[report.status],
   ]
   const rows = []
   for (const name of analyses) {
     const stage = report.stages[name]
+    if (!stage) {
+      rows.push(`- ${name} · no ejecutado en esta revisión`)
+      continue
+    }
     const items = report.findings.filter(item => (item.origins ?? [item.analyzer]).includes(name))
     const file = path.posix.relative(path.posix.dirname(destination), individualReportPaths(name).markdownFile)
     const counts = new Map()
     for (const item of items) counts.set(item.rule, (counts.get(item.rule) ?? 0) + 1)
-    const label = stage ? states[stage.status] : 'no ejecutado'
+    const label = states[stage.status]
     const rules = [...counts].map(([rule, count]) => `${reportRule(rule)}: ${count}`).join(' · ')
     rows.push(`- [${name}](${file}) · ${label}${items.length ? ` · **${items.length}**` : ''}${rules ? ` · ${rules}` : ''}`)
-    if (stage?.error) rows.push('  - ' + stage.error)
+    if (stage.error) rows.push('  - ' + stage.error)
   }
   sections.push('## Informes\n\n' + wrapReport(rows.join('\n')))
   if (!report.stableInputs) sections.push('## Entradas cambiantes', wrapReport(report.changedInputs.join(', ')))
@@ -45,24 +49,23 @@ export function publish({ profile, stages: collectedStages, changedInputs: chang
   const stages = { ...collectedStages }
   const published = {}
   for (const name of analyses) {
-    const file = path.join(root, individualReportPaths(name).markdownFile)
     let stage = stages[name]
+    if (!stage) continue
+    const file = path.join(root, individualReportPaths(name).markdownFile)
     let markdown
-    if (stage && stage.status !== 'failed') {
+    if (stage.status !== 'failed') {
       try { markdown = renderers[name](reports[name]) }
       catch (error) {
         stage = stages[name] = { status: 'failed', error: `No se pudo generar el Markdown: ${error?.message ?? error}` }
       }
     }
-    if (!stage || stage.status === 'failed') {
-      markdown = renderStageStatus(name, stage?.status, stage?.error ?? `Fuera del perfil ${profile}.`)
-    }
+    if (stage.status === 'failed') markdown = renderStageFailure(name, stage.error)
     try {
       write(file, markdown)
-      if (stage && stage.status !== 'failed') published[name] = reports[name]
+      if (stage.status !== 'failed') published[name] = reports[name]
     } catch (error) {
       const detail = `No se pudo actualizar el archivo: ${error?.message ?? error}. Si existe, corresponde a una ejecución anterior.`
-      stages[name] = { status: 'failed', error: stage?.error ? `${stage.error} ${detail}` : detail }
+      stages[name] = { status: 'failed', error: stage.error ? `${stage.error} ${detail}` : detail }
     }
   }
 
@@ -82,7 +85,7 @@ export function publish({ profile, stages: collectedStages, changedInputs: chang
 async function main() {
   const args = process.argv.slice(2)
   if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
-    console.log('Uso: node scripts/diagnose.mjs [--profile quick|full]\nquick: siete análisis; full: añade bundle. Sobrescribe el informe general y los ocho individuales, sin JSON, historial ni comparación.\nDestino: ' + destination)
+    console.log('Uso: node scripts/diagnose.mjs [--profile quick|full]\nquick: siete análisis; full: añade bundle. Sobrescribe el general y los informes de las etapas ejecutadas.\nDestino: ' + destination)
     return
   }
   let profile = 'quick'

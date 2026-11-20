@@ -1,4 +1,5 @@
 import { renderAnalysis, reportSection, sourceReference, entryReference, markdownText } from './findings.mjs'
+import { reportCode } from './report-format.mjs'
 import path from 'node:path'
 import ts from 'typescript'
 import { relative, createProjectContext } from './project.mjs'
@@ -211,7 +212,7 @@ function formatValue(value) {
 export function renderUiStyles(report, options = {}) {
   const { sourceRoot } = options
   const ref = item => entryReference(item, sourceRoot, `${path.posix.basename(item.file)}:${item.line ?? 1}`)
-  const expanded = (value, expansion) => `\`${value}\`${expansion != null && expansion !== value ? ` → \`${expansion}\`` : ''}`
+  const expanded = (value, expansion) => reportCode(value) + (expansion != null && expansion !== value ? ' → ' + reportCode(expansion) : '')
   const profiles = profile => ({ ...profile?.inheritedTypography, ...profile?.properties })
   const styleRows = (style, base) => {
     const shared = profiles(base)
@@ -243,9 +244,9 @@ export function renderUiStyles(report, options = {}) {
         ...styleRows(style),
       ].join('\n')),
       '- Apertura por defecto de FileDialog',
-      ...Object.entries(report.dialogDefaults).map(([property, item]) => `  - ${property}: \`${formatValue(item.value)}\` · ${ref(item)}`),
+      ...Object.entries(report.dialogDefaults).map(([property, item]) => `  - ${property}: ${reportCode(formatValue(item.value))} · ${ref(item)}`),
       '- Restricciones de FileDialog',
-      ...report.dialogMinimum.map(item => `  - ${item.property}: \`${formatValue(item.value)}\` · ${ref(item)}`),
+      ...report.dialogMinimum.map(item => `  - ${item.property}: ${reportCode(formatValue(item.value))} · ${ref(item)}`),
     ]),
     reportSection('Módulos', [
       `${report.modules[0]?.minimumNote ?? ''} Cada módulo usa la base module y muestra sus especializaciones.`,
@@ -261,19 +262,19 @@ export function renderUiStyles(report, options = {}) {
       ...(item.initial ? Object.entries(item.initial).filter(([key, part]) => {
         const shared = report.dialogDefaults[key]
         return !shared || part.source?.file !== shared.file || part.source?.line !== shared.line
-      }).map(([key, part]) => `  - ${key}: \`${formatValue(part.value)}\`${part.source ? ` · ${ref(part.source)}` : ''}`)
+      }).map(([key, part]) => `  - ${key}: ${reportCode(formatValue(part.value))}${part.source ? ` · ${ref(part.source)}` : ''}`)
         : ['  - Apertura según CSS y contenido.']),
       ...styleRows(item.style, report.baseProfiles[item.base]),
     ].join('\n'))),
     reportSection('Llamadas de aviso', report.notices.map(item =>
-      `- ${entryReference(item, sourceRoot, item.owner)} · ${item.kind}.${item.method} · \`${formatValue(item.message)}\` (${item.base ?? 'navegador'})`)),
-    reportSection('Mínimos dinámicos', report.sizingEvidence.map(item => `- ${ref(item)} · \`${item.expression}\``)),
+      `- ${entryReference(item, sourceRoot, item.owner)} · ${item.kind}.${item.method} · ${reportCode(formatValue(item.message))} (${item.base ?? 'navegador'})`)),
+    reportSection('Mínimos dinámicos', report.sizingEvidence.map(item => `- ${ref(item)} · ${reportCode(item.expression)}`)),
     reportSection('Declaraciones CSS por hoja', [
       'Se muestran los selectores y sus condiciones. Las expansiones de esta sección usan las variables globales.',
       ...sheets.flatMap(sheet => [
         `\n### ${sourceReference(sheet.file, 1, sourceRoot, sheet.file.replace(/^src\//, ''))}\n`,
         ...sheet.rules.filter(rule => rule.declarations.length).map(rule => [
-          '- ' + [...rule.context, rule.selector].map(part => `\`${part}\``).join(' → '),
+          '- ' + [...rule.context, rule.selector].map(reportCode).join(' → '),
           ...rule.declarations.map(item => `  - L${item.line} · ${item.property}: ${expanded(item.value, item.rootTokenExpansion)}`),
         ].join('\n')),
       ]),

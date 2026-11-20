@@ -18,6 +18,6 @@ Al cambiar una interfaz, recorre componente, estilos, medición, zoom y portales
 
 Aplica la política de comprobaciones y entrega de [AGENTS.md](../AGENTS.md#comprobaciones-y-entrega), con los comandos de [Validación](OPERATIONS.md#validación). Revisa el diff final y los enlaces documentales afectados.
 
-Actualiza únicamente el documento propietario indicado en [Responsabilidades de la documentación](../AGENTS.md#responsabilidades-de-la-documentación). Distingue el diseño acordado de la implementación observada y conserva las decisiones abiertas como «Pendiente».
+Actualiza únicamente el documento propietario de la materia, según las [referencias de trabajo](../AGENTS.md#referencias-de-trabajo). Distingue el diseño acordado de la implementación observada y conserva las decisiones abiertas como «Pendiente».
 
 Entrega los cambios y la evidencia obtenida; identifica la validación manual que corresponde al área. Los procedimientos para servir, publicar o revertir están en [Operaciones](OPERATIONS.md).

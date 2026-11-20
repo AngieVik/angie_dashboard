@@ -1,4 +1,5 @@
 import { renderAnalysis, reportSection, entryReference, sourceReference } from './findings.mjs'
+import { reportCode } from './report-format.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
@@ -13,6 +14,58 @@ function walk(node, visit) {
 function location(node) {
   const source = node.getSourceFile()
   return { file: relative(source.fileName), line: source.getLineAndCharacterOfPosition(node.getStart()).line + 1 }
+}
+
+function resolveGlobPatterns(node, from) {
+  const [argument, options] = node.arguments
+  if (!argument || node.arguments.length > 2) return null
+  const patterns = ts.isArrayLiteralExpression(argument) ? argument.elements : [argument]
+  if (!patterns.every(ts.isStringLiteralLike)) return null
+
+  let eager = false
+  if (options) {
+    if (!ts.isObjectLiteralExpression(options)) return null
+    for (const property of options.properties) {
+      if (!ts.isPropertyAssignment(property) || !(ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name))) return null
+      const { name, initializer } = property
+      switch (name.text) {
+        case 'eager':
+          if (![ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword].includes(initializer.kind)) return null
+          eager = initializer.kind === ts.SyntaxKind.TrueKeyword
+          break
+        case 'import':
+        case 'query':
+          // These options change the imported value, not which files match.
+          break
+        case 'exhaustive':
+          if (initializer.kind !== ts.SyntaxKind.FalseKeyword) return null
+          break
+        case 'caseSensitive':
+          if (initializer.kind !== ts.SyntaxKind.TrueKeyword) return null
+          break
+        default:
+          return null
+      }
+    }
+  }
+
+  const include = [], exclude = []
+  for (const { text } of patterns) {
+    const negative = text.startsWith('!')
+    const pattern = negative ? text.slice(1) : text
+    // Only resolve syntax whose matching rules agree with Vite's glob expansion.
+    if (!/^(?:@\/)?(?:[\w./*?-]|\{[\w.-]+(?:,[\w.-]+)+\})+$/.test(pattern) ||
+        pattern.split('/').some(segment => segment.includes('**') && segment !== '**')) return null
+    let normalized
+    if (pattern.startsWith('@/')) normalized = path.posix.join('src', pattern.slice(2))
+    else if (pattern.startsWith('/')) normalized = path.posix.normalize(pattern.slice(1))
+    else if (pattern.startsWith('./') || pattern.startsWith('../')) normalized = path.posix.join(path.posix.dirname(from), pattern)
+    else return null
+    if (normalized === '..' || normalized.startsWith('../')) return null
+    const destination = negative ? exclude : include
+    destination.push(normalized)
+  }
+  return { include, exclude, eager }
 }
 
 export function moduleDependencyType(node) {
@@ -72,7 +125,21 @@ export function collectUnusedCode(project = createProjectContext()) {
         if (node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) addEdge(file, node.arguments[0].text, 'import dinámico literal', location(node).line, 'dynamic')
         else uncertainties.push({ ...location(node), kind: 'import dinámico no literal', expression: node.getText() })
       }
-      if (ts.isCallExpression(node) && node.expression.getText() === 'import.meta.glob') uncertainties.push({ ...location(node), kind: 'glob no expandido', expression: node.getText() })
+      if (ts.isCallExpression(node) && node.expression.getText() === 'import.meta.glob') {
+        const resolved = resolveGlobPatterns(node, file)
+        if (resolved) {
+          const { include, exclude, eager } = resolved
+          const { line } = location(node)
+          const specifier = node.arguments[0].getText()
+          for (const to of files) {
+            if (to === file || to.split('/').includes('node_modules')) continue
+            if (include.some(pattern => path.posix.matchesGlob(to, pattern)) && !exclude.some(pattern => path.posix.matchesGlob(to, pattern))) {
+              const dependencyType = /\.d\.[cm]?ts$/.test(file) || /\.d\.[cm]?ts$/.test(to) ? 'type' : eager ? 'runtime' : 'dynamic'
+              edges.push({ from: file, to, kind: 'import.meta.glob', line, specifier, dependencyType })
+            }
+          }
+        } else uncertainties.push({ ...location(node), kind: 'glob no expandido', expression: node.getText() })
+      }
       if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && node.moduleReference.expression && ts.isStringLiteralLike(node.moduleReference.expression)) addEdge(file, node.moduleReference.expression.text, 'import require', location(node).line, node.isTypeOnly ? 'type' : 'runtime')
       if (ts.isCallExpression(node) && ['require', 'require.resolve', 'import.meta.resolve'].includes(node.expression.getText())) {
         const argument = node.arguments[0]
@@ -124,7 +191,11 @@ export function collectUnusedCode(project = createProjectContext()) {
     reachable.add(file)
     for (const edge of outgoing.get(file) ?? []) queue.push(edge.to)
   }
-  const detached = sourceFiles.filter(file => !reachable.has(file)).map(file => ({ file, line: 1, bytes: fs.statSync(path.join(root, file)).size, consumers: incoming.get(file) ?? [] }))
+  // Only unresolved references reachable from an entry could connect these files.
+  const requiresReview = uncertainties.some(item => reachable.has(item.file))
+  const detached = sourceFiles.filter(file => !reachable.has(file)).map(file => ({
+    file, line: 1, bytes: fs.statSync(path.join(root, file)).size, consumers: incoming.get(file) ?? [], requiresReview,
+  }))
 
   const canonical = symbol => symbol && (symbol.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(symbol) : symbol
   const exported = [], tracked = new Set(), forwarded = new Map(), references = new Map()
@@ -218,14 +289,15 @@ export function collectUnusedCode(project = createProjectContext()) {
 
 export function renderUnusedCode(report, options = {}) {
   const { sourceRoot } = options
+  const pending = report.detachedFiles.filter(item => item.requiresReview).length
   return renderAnalysis('unused', report, [
     reportSection('Cobertura', [
-      `${report.coverage.sourceFiles} archivos · ${report.coverage.connectedFiles} conectados · ${report.detachedFiles.length} sin recorrido · ${report.coverage.edges} relaciones`,
+      `${report.coverage.sourceFiles} archivos · ${report.coverage.connectedFiles} conectados · ${report.detachedFiles.length - pending} desconectados según el análisis · ${pending} pendientes de revisión · ${report.coverage.edges} relaciones`,
     ]),
     report.resolvedCssAccesses?.length ? reportSection('Accesos CSS calculados', [
       'La resolución enumera alternativas estáticas de la expresión.',
       ...report.resolvedCssAccesses.map(item => [
-        `- ${entryReference(item, sourceRoot, path.posix.basename(item.file) + ':' + item.line)} · \`${item.expression}\``,
+        `- ${entryReference(item, sourceRoot, path.posix.basename(item.file) + ':' + item.line)} · ${reportCode(item.expression)}`,
         `  - ${sourceReference(item.stylesheet, 1, sourceRoot, path.posix.basename(item.stylesheet))} → ${item.classes.join(', ')}`,
         `  - Base: ${item.basis.join(' · ')}`,
       ].join('\n')),

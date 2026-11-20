@@ -21,10 +21,15 @@ export function parseCssText(file, text, { allDeclarations = false } = {}) {
   quote = ''
   const line = index => clean.slice(0, index).split('\n').length
   const declaration = end => {
-    const chunk = clean.slice(start, end).trim(), colon = chunk.indexOf(':')
+    const raw = clean.slice(start, end)
+    const chunk = raw.trim(), colon = chunk.indexOf(':')
     if (!stack.length || colon < 1) return
     const property = chunk.slice(0, colon).trim(), value = chunk.slice(colon + 1).trim()
-    if (allDeclarations || property.startsWith('--') || measures.test(property) || isPaintProperty(property) || (property === 'src' && stack.at(-1).selector === '@font-face')) stack.at(-1).declarations.push({ property, value, file, line: line(start + clean.slice(start, end).search(/\S/)) })
+    const rule = stack.at(-1)
+    if (allDeclarations || property.startsWith('--') || measures.test(property) || isPaintProperty(property) || (property === 'src' && rule.selector === '@font-face')) {
+      const offset = start + raw.search(/\S/)
+      rule.declarations.push({ property, value, file, line: line(offset), offset })
+    }
   }
   for (let i = 0; i < clean.length; i++) {
     const char = clean[i]

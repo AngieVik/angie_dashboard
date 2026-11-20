@@ -1,7 +1,7 @@
 # Guía de scripts
 
-Ejecuta desde la raíz. Cada revisión analiza el estado actual, sin comparación, caché ni historial.
-Los informes se sobrescriben; no se generan JSON ni resúmenes separados.
+Ejecuta desde la raíz. Cada revisión parte de las fuentes actuales y guarda el resultado en el mismo Markdown.
+Se conserva un archivo por informe. Los scripts no leen informes previos ni guardan copias históricas.
 
 ## Comandos
 
@@ -10,8 +10,8 @@ Los informes se sobrescriben; no se generan JSON ni resúmenes separados.
 | `npm run check` | Lint y build; build incluye tipos y catálogo de avisos. | Consola. |
 | `npm run typecheck` | Solo tipos. | Consola. |
 | `npm run check:server` | HTTP local: cabeceras, métodos, rutas, HEAD y MIME. | Consola. |
-| `npm run diagnose` | Quick: siete análisis; bundle queda marcado como no ejecutado. | General y ocho individuales. |
-| `npm run diagnose:full` | Añade el build temporal del bundle. | Los mismos archivos, sobrescritos. |
+| `npm run diagnose` | Quick: siete análisis. Omite bundle. | General y siete individuales. |
+| `npm run diagnose:full` | Añade el build temporal del bundle. | General y ocho individuales. |
 | `node scripts/inspect-app.mjs` | Fuentes, componentes y registros. | `01_app_inventory/report.md` |
 | `node scripts/inspect-ui-styles.mjs` | Bases compartidas, geometría y especializaciones declaradas. | `02_ui_styles/report.md` |
 | `node scripts/audit-ui-consistency.mjs` | Grupos comparables, tokens y excepciones gráficas. | `03_ui_consistency/report.md` |
@@ -26,18 +26,19 @@ Los informes se sobrescriben; no se generan JSON ni resúmenes separados.
 
 Los ocho individuales están en `output/analize-app-scripts/`.
 El general está en `output/analize-app-scripts/diagnostic workflow/report.md`.
-El coordinador actualiza los nueve; una CLI individual actualiza únicamente el suyo.
+El coordinador actualiza el general y los individuales ejecutados. Una CLI individual actualiza únicamente el suyo.
 Las CLI de análisis, el catálogo y check:server admiten `--help` y `-h`.
 
 ## Formato y lectura
 
-El general abre con el contador y enlaza cada análisis con su estado y sus recuentos por regla.
+El general resume la última ejecución de `diagnose` y enlaza los informes de las etapas ejecutadas.
 Los informes individuales indican el alcance. El inventario abre con sus recuentos de cobertura.
 Los individuales reúnen ubicación, dato detectado y evidencia por elemento, sin repetir el detalle en el general.
 La clasificación, confianza y riesgo se indican de forma breve; los IDs quedan como datos internos de deduplicación.
 No se muestran ni se conservan referencias entre revisiones.
 
-Para empezar sin contexto: abre el general, elige un análisis y sigue sus enlaces a las líneas de código.
+Consulta los informes solo cuando la tarea requiera evidencia de auditoría. Si el área ya está asignada,
+abre su informe individual y busca la sección, el módulo o la ruta pertinente. Usa el general para coordinar varias áreas.
 El contador incluye observaciones, relaciones y datos; no equivale a errores confirmados ni autoriza cambios por sí solo.
 Antes de corregir un candidato, comprueba sus consumidores y el contrato del área en
 [arquitectura](architecture.md) o [diseño](design.md), según corresponda.
@@ -54,9 +55,9 @@ Estilos incluye las declaraciones de las hojas vinculadas a las superficies que 
 Arquitectura incluye las métricas de todos los archivos con relaciones. Bundle enumera los recursos emitidos y la atribución por fuente,
 con sus límites. El cotejo del principal con `dist/` se refiere únicamente al archivo compilado local.
 
-Una etapa fallida o no ejecutada muestra su estado en su propio archivo. Si ese archivo no se puede escribir, el general
-advierte que puede corresponder a una ejecución anterior. Los demás análisis publican su resultado y el general queda parcial
-si hay informes válidos. Un fallo al escribir el general se comunica en consola.
+Una etapa omitida se indica solo en el general. Si una etapa falla, su propio informe muestra el error y los demás publican su resultado.
+Si falla la escritura de un individual, el general advierte que ese archivo puede corresponder a una ejecución anterior.
+El general queda parcial si hay informes válidos. Un fallo al escribir el general se comunica en consola.
 Una entrada que cambia durante la ejecución se comunica como limitación de la revisión.
 Las escrituras reemplazan cada archivo de forma atómica; el general se escribe después de los individuales.
 
@@ -81,14 +82,15 @@ muestras cartográficas y contraste sobre imágenes. Se informa de excepciones s
 HEX, RGB/RGBA y nombres básicos reconocidos se normalizan para buscar tokens de color, superficie, sombra o filtro.
 No se extraen colores de variables, URLs o cadenas; las coincidencias no garantizan equivalencia en alto contraste.
 
-`check:server` necesita `dist/` compilado. Usa loopback y un puerto temporal, y cierra el proceso también ante fallos.
+`check:server` necesita `dist/` compilado. Arranca en loopback con `PORT=0`, usa el puerto anunciado por el servidor y cierra el proceso también ante fallos.
 Comprueba estados 200/400/403/404/405, rutas fuera de dist, CSP/anti-enmarcado/nosniff, métodos, HEAD, PWA y MIME.
 No comprueba el despliegue público ni el funcionamiento de la aplicación en navegador.
 
 ## Catálogo de avisos
 
 `collect-notice-messages.mjs` resuelve variables por símbolo y ámbito, admite textos breves y conserva el texto original como clave.
-Distingue errores y advertencias, reconoce setters set…Error y anotaciones @notice-level; excluye etiquetas de diccionarios tipados.
+Distingue errores y advertencias, reconoce setters set…Error y anotaciones @notice-level.
+Reconoce el `toast` importado por su símbolo, aunque use un alias, y excluye etiquetas de `Record<…, string>` con tipo explícito o `satisfies`.
 No evalúa funciones o importaciones ni reconstruye reasignaciones; los mensajes variables se incorporan al emitirse.
 Los hooks predev/prebuild regeneran el catálogo. Con Vite abierto, usa `npm run notices:catalog` tras editar mensajes.
 El bundle comprueba su vigencia antes de crear temporales o llamar a Vite; si falta o difiere, falla sin regenerarlo.

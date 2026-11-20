@@ -1,4 +1,4 @@
-import { reportDate, reportScope, wrapReport } from './report-format.mjs'
+import { reportCode, reportDate, reportScope, wrapReport } from './report-format.mjs'
 export { reportSection } from './report-format.mjs'
 import path from 'node:path'
 import Ajv from 'ajv'
@@ -136,6 +136,7 @@ const scopes = {
 }
 const definitions = {
   'detached-group': ['Componentes y archivos sin consumidores conectados', 'observación', 'no acreditado', 'No se acredita un fallo funcional por la ausencia de recorrido detectado. El grupo puede estar reservado o utilizar una carga no reconocida.'],
+  'detached-group-review': ['Archivos cuyo recorrido requiere revisión', 'observación', 'no acreditado', 'Revisa las referencias sin resolver de los archivos conectados antes de retirar este grupo.'],
   'unreferenced-exports': ['Declaraciones sin referencias locales ni externas conectadas', 'observación', 'no acreditado', 'La ausencia de referencias reconocidas describe el uso del código dentro del alcance analizado; no acredita un fallo funcional.'],
   'internal-exports': ['Exportaciones con uso exclusivamente interno', 'observación', 'no acreditado', 'La declaración conserva usos dentro de su archivo. Su exportación sin consumidores externos no acredita un fallo ni un coste de ejecución.'],
   'local-unused': ['Diagnósticos de nombres sin uso', 'inconsistencia', 'posible', 'El diagnóstico de TypeScript puede impedir superar la comprobación de tipos si se trata como error en la configuración vigente.'],
@@ -266,7 +267,10 @@ export function collectFindings(reports) {
       const names = members.map(item => item.file), inside = new Set(names)
       const incoming = members.flatMap(item => item.consumers), outside = incoming.filter(edge => !inside.has(edge.from))
       const element = elementFromFile(names[0]), totalBytes = members.reduce((sum, item) => sum + item.bytes, 0)
-      add('unused', 'detached-group', names.join('|'), `${element.kind}: ${element.name} — sin consumidores conectados`, members.map(item => ({
+      const requiresReview = members.some(item => item.requiresReview)
+      const rule = requiresReview ? 'detached-group-review' : 'detached-group'
+      const status = requiresReview ? 'requiere revisión' : 'sin consumidores conectados'
+      add('unused', rule, names.join('|'), `${element.kind}: ${element.name} — ${status}`, members.map(item => ({
         file: item.file,
         line: 1,
         detail: `${item.bytes} bytes de fuente; ${item.consumers.length} consumidores directos: ${item.consumers.map(edge => `${edge.from}:${edge.line} (${edge.kind})`).join('; ') || 'ninguno'}.`
@@ -769,6 +773,7 @@ export function diagnosticReport(analyzer, report) {
 const ruleLabels = {
   'token-candidates': 'Tokens', 'repeated-literal': 'Valores repetidos',
   'detached-group': 'Archivos sin recorrido', 'unreferenced-exports': 'Exports sin uso',
+  'detached-group-review': 'Archivos pendientes de revisión por referencias sin resolver',
   'internal-exports': 'Exports internos', 'local-unused': 'Nombres sin uso', 'unused-css': 'Clases sin uso',
   'runtime-cycle': 'Ciclo de valores', 'type-related-cycle': 'Ciclo con tipos', 'deferred-cycle': 'Ciclo diferido',
   'cross-feature-contract': 'Relación entre áreas', 'undeclared-use': 'Declaración ausente',
@@ -802,7 +807,7 @@ function evidenceLines(entries, sourceRoot) {
     lines.push('Ubicación: ' + file)
     for (const entry of evidence) {
       const location = entry.file ? sourceReference(entry.file, entry.line, sourceRoot, 'L' + (entry.line ?? 1)) : ''
-      const detail = entry.detail ?? entry.message ?? entry.expression ?? ''
+      const detail = entry.detail ?? entry.message ?? (entry.expression === undefined ? '' : reportCode(entry.expression))
       lines.push(wrapReport('- ' + (location ? location + ': ' : '') + detail))
     }
   }
@@ -813,13 +818,13 @@ function tokenEvidence(report, file, sourceRoot) {
   const lines = ['Ubicación: ' + file]
   for (const item of report.tokenCandidates.filter(item => item.file === file)) {
     const location = sourceReference(file, item.line, sourceRoot, 'L' + item.line)
-    lines.push('- ' + location + ': ' + item.selector)
-    if (item.context?.length) lines.push('  Contexto: ' + item.context.join(' / '))
-    lines.push('  ' + item.property + ': ' + item.value)
+    lines.push('- ' + location + ': ' + reportCode(item.selector))
+    if (item.context?.length) lines.push('  Contexto: ' + item.context.map(reportCode).join(' / '))
+    lines.push('  ' + reportCode(item.property + ': ' + item.value))
     const matches = item.matches.toSorted((a, b) => Number(b.literal === item.value) - Number(a.literal === item.value))
     for (const match of matches) {
       const names = match.tokens.map(token => sourceReference(token.file, token.line, sourceRoot, token.name))
-      lines.push('  ' + (match.literal === item.value ? '→ ' : match.literal + ' → ') + names.join(', '))
+      lines.push('  ' + (match.literal === item.value ? '→ ' : reportCode(match.literal) + ' → ') + names.join(', '))
     }
   }
   return wrapReport(lines.join('\n'))

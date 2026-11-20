@@ -1,21 +1,12 @@
 # Angie Dashboard
 
-## Contexto y responsabilidades de la documentación
+## Referencias de trabajo
 
-| Documento                               | Contenido propietario                                                                                                               |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| [AGENTS.md](AGENTS.md)                  | Reglas generales de trabajo, control de versiones, política de comprobaciones y entrega.                                            |
-| [development.md](docs/development.md)   | Flujo de trabajo: delimitar, localizar, evaluar enfoque técnico, implementar y entregar.                                            |
-| [design.md](docs/design.md)             | Diseño objetivo e integración: medidas, acabados, composición, componentes, tokens, CSS y portales; decisiones visuales pendientes. |
-| [architecture.md](docs/architecture.md) | Implementación observada: propietarios, conexiones, contratos de datos, persistencia, procesamiento, overrides y límites técnicos.  |
-| [OPERATIONS.md](docs/OPERATIONS.md)     | Procedimientos para validar, servir, publicar, actualizar, revertir y resolver incidencias.                                         |
-| [guia_scripts.md](docs/guia_scripts.md) | Comandos de diagnóstico y generación, salidas y límites de interpretación.                                                          |
-| [SECURITY.md](SECURITY.md)              | Política activa de soporte, comunicación de vulnerabilidades y mantenimiento de seguridad.                                          |
-| [README.md](README.md)                  | Descripción del proyecto, requisitos de entorno, instalación y arranque rápido.                                                     |
-| [CHANGELOG.md](CHANGELOG.md)            | Registro cronológico de versiones y evidencia de despliegues publicados.                                                            |
-| [LICENSE.md](LICENSE.md)                | Licencia MIT del código propio y referencias a licencias de terceros.                                                               |
+- [Flujo de trabajo](docs/development.md#delimitar-localizar-y-evaluar)
+- [Contratos de datos y persistencia](docs/architecture.md#datos-y-persistencia)
+- [Diseño e integración](docs/design.md#integración-compartida)
 
-- Consulta `docs/` de forma puntual por módulo: localiza primero el propietario y lee solo las secciones relacionadas con la tarea. Los documentos extensos son referencias bajo demanda; inicia el contexto con este archivo y las fuentes afectadas, evitando cargar por defecto toda la carpeta `docs/` o los informes de `output/`.
+- Empieza por el archivo que define el comportamiento y sigue sus consumidores directos. En `docs/` y `output/`, localiza primero los encabezados y lee solo la sección pertinente. Si un archivo supera unos 20.000 caracteres, usa sus encabezados o símbolos para localizar los bloques completos que necesitas. Cuando edites documentación, elimina explicaciones duplicadas y enlaza al documento donde se mantiene la regla.
 - Los parámetros y comportamientos de la app se definen en su código propietario. Consérvalos salvo que la petición acuerde cambiarlos, pero advierte si detectas un problema o una alternativa mejor antes de editar.
 - No reconstruyas decisiones ausentes como si estuvieran confirmadas, ni asumas decisiones abiertas; pregunta antes de implementar.
 - Actualiza cada materia únicamente en su documento propietario cuando forme parte de la tarea y enlázala desde los demás. Si una implementación observada no confirma una decisión de diseño, márcala como «Pendiente» en su sección propietaria.
@@ -29,7 +20,7 @@
 
 ## Código e interfaz
 
-- Criterio técnico proactivo: Antes de escribir código, revisa la petición frente a los contratos existentes, los casos borde, el rendimiento y las posibilidades de reutilización de la base actual. Si detectas un problema relevante, explica brevemente la consecuencia y recomienda la mejor alternativa. Resuelve los detalles ordinarios dentro del alcance; si la alternativa cambia el resultado solicitado o amplía el alcance, espera mi decisión antes de aplicarla. Advertir y proponer en el chat no requiere autorización; modificar archivos fuera del alcance acordado sí.
+- Antes de escribir código, contrasta el enfoque solicitado con los contratos existentes, sus consumidores, los casos borde, el rendimiento y las posibilidades de reutilización. Si detectas un problema relevante, indica en el chat dónde está, qué consecuencia tendría y qué alternativa recomiendas. Resuelve por tu cuenta los detalles que preserven el resultado y el alcance acordados. Si seguir el enfoque solicitado rompería un contrato, introduciría una regresión relevante o exigiría una decisión pendiente, espera mi decisión antes de editar la parte afectada y avanza en el trabajo independiente. Pide autorización antes de aplicar cualquier alternativa que cambie el resultado solicitado o amplíe el alcance.
 - Sigue el recorrido entre el componente propietario, sus consumidores y los datos afectados. Mantén las convenciones del área y conserva el trabajo local existente.
 - Centraliza cada responsabilidad en su base compartida existente. Reutiliza componentes, tokens y CSS.
 - Limpieza: Al sustituir una implementación dentro del alcance acordado, retira el código muerto o restos que ya no tengan consumidores.
@@ -53,10 +44,7 @@
 - La lectura de los archivos afectados y la revisión del diff forman parte de tu trabajo inicial.
 - Reserva las auditorías completas del proyecto solo para peticiones expresas.
 - En las revisiones: Presenta los hallazgos indicando ubicación, consecuencia, evidencia y propuesta de solución. Distingue hipótesis de hechos comprobados y aplica correcciones dentro del alcance acordado.
-- En la entrega final de cada tarea:
-    1. Indica los archivos modificados.
-    2. Detalla las comprobaciones estáticas o de compilación realizadas.
-    3. Identifica explícitamente las comprobaciones de funcionamiento en navegador o dispositivo que quedan pendientes para validación manual.
+- En la respuesta final, indica el resultado y enlaza los archivos modificados cuando los haya. Menciona las comprobaciones que aporten evidencia relevante, los fallos que afecten a la entrega y la validación manual que quede pendiente. Omite las comprobaciones rutinarias sin incidencias y las que no apliquen.
 
 ## Control de versiones y calidad de código
 
