@@ -14,7 +14,7 @@ export type DocumentModuleId = 'board' | 'elements' | 'dotations' | 'information
 export interface Position { x: number; y: number }
 export type PinNameColor = 'dark' | 'light' | 'yellow' | 'blue' | 'green' | 'red'
 export type PinAnchor = 'top-left' | 'top' | 'top-right' | 'left' | 'center' | 'right' | 'bottom-left' | 'bottom' | 'bottom-right' | Position
-export interface PinTransform { rotation?: number; flipX?: boolean; flipY?: boolean }
+interface PinTransform { rotation?: number; flipX?: boolean; flipY?: boolean }
 export type ElementVisual = PinTransform & (
   | { type: 'asset'; assetId: AssetId; scale: number }
   | { type: 'emoji'; value: string; scale: number })
@@ -97,10 +97,10 @@ export interface MapDocument { markers: MapMarker[]; gpx: MapGpxReference[] }
 export interface GeographicPosition { latitude: number; longitude: number }
 export interface PlanPin extends GeographicPosition { elementId: string; visible: boolean }
 export interface PlanStroke { id: string; color: string; width: number; points: GeographicPosition[] }
-export interface OperationalPlanDocument { pins: PlanPin[]; strokes: PlanStroke[] }
+interface OperationalPlanDocument { pins: PlanPin[]; strokes: PlanStroke[] }
 export interface ReferencedBoardImage { resourceId: string; layout: { x: number; y: number; width: number; height: number } }
 
-export type ElementIcon = { type: 'asset'; assetId: AssetId } | { type: 'emoji'; value: string }
+type ElementIcon = { type: 'asset'; assetId: AssetId } | { type: 'emoji'; value: string }
 export type UIBoardElement = {
   id: string; name: string; icon: ElementIcon; information: string
 } & ({ isUnit: true; operational: UnitOperational } | { isUnit: false; operational: null })

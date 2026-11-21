@@ -42,5 +42,7 @@
   .item > svg { flex: none; width: var(--icon-size-base); height: var(--icon-size-base); pointer-events: none; }
   .item > svg[data-open="true"] { color: var(--color-accent-red); }
   .checkboxMark { display: inline-flex; flex: none; width: var(--checkbox-size); pointer-events: none; }
-  .radioMark { flex: 0 0 14px; width: 14px; color: var(--color-accent-red); font-size: 14px; line-height: 1; text-align: center; pointer-events: none; }
+  .item[data-slot="dropdown-menu-radio-item"] { min-height: 0; padding-block: var(--field-padding-base); }
+  .radioMark { display: inline-flex; flex: none; width: var(--icon-size-base); color: var(--color-text); pointer-events: none; }
+  .radioMark > svg { width: 100%; height: auto; }
 }

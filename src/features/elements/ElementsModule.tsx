@@ -3,7 +3,7 @@ import { useContext, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Position } from '../../domain/document/types'
 import { Button } from '@/components/ui/button'
 
-import { ArrowLeft, Check, CopyPlus, Eye, EyeOff, Plus, Save, Trash, Wrench, X } from 'lucide-react'
+import { ArrowBigLeft, CopyPlus, Eye, EyeOff, ListCheck, ListPlus, PackageCheck, PackagePlus, ScanBox, ScanText, Trash, Wrench, X } from 'lucide-react'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { ModuleSizeContext } from '../../layout/ModuleSizeContext'
 import type { DocumentStore } from '../document/documentStore'
@@ -30,6 +30,11 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
   const formId = useId()
   const [, setError] = useValidationNotice()
   const [editor, setEditor] = useState<{ kind: 'create' | 'edit' | 'batch'; id: string | null } | null>(null)
+  const modifying = editor !== null && editor.kind !== 'create'
+  const CreateIcon = isUnit ? ListPlus : PackagePlus
+  const SaveIcon = isUnit ? ListCheck : PackageCheck
+  const ApplyIcon = isUnit ? ScanText : ScanBox
+  const PrimaryIcon = modifying ? SaveIcon : CreateIcon
   const requestSpace = useContext(ModuleSizeContext)
   const editorWasOpen = useRef(false)
   const editorOpen = Boolean(editor)
@@ -116,12 +121,12 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
   }}>
     <div className={`elements-configure-actions ${toolbarStyles.base}`}>
       <div className="elements-primary-actions">
-        <Button ref={addControl} aria-label={editor && editor.kind !== 'create' ? 'Guardar' : 'Crear'} type={editor ? 'submit' : 'button'} form={editor ? formId : undefined} disabled={blocked} onClick={event => {
+        <Button ref={addControl} aria-label={modifying ? 'Guardar' : 'Crear'} type={editor ? 'submit' : 'button'} form={editor ? formId : undefined} disabled={blocked} onClick={event => {
           if (!editor) {
             event.preventDefault()
             if (!blockedRef.current) setEditor({ kind: 'create', id: null })
           }
-        }}>{editor && editor.kind !== 'create' ? <Save aria-hidden="true" /> : <Plus aria-hidden="true" />}</Button>
+        }}><PrimaryIcon aria-hidden="true" /></Button>
         {!editor &&
           <div className="elements-selection-actions" role="group" aria-label={selectionMode ? 'Acciones de la selección' : 'Acciones del elemento seleccionado'}>
             <Button aria-label="Modificar" disabled={blocked || !actionElements.length} onClick={() => {
@@ -158,8 +163,8 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
             }}><Trash aria-hidden="true" /></Button>
           </div>}
         {editor && <>
-          <Button type="submit" form={formId} name="action" value="apply" aria-label="Aplicar" disabled={blocked}><Check aria-hidden="true" /></Button>
-          <Button aria-label="Atrás" disabled={blocked} onClick={() => { if (!blockedRef.current) back() }}><ArrowLeft aria-hidden="true" /></Button>
+          {modifying && <Button type="submit" form={formId} name="action" value="apply" aria-label="Aplicar" disabled={blocked}><ApplyIcon aria-hidden="true" /></Button>}
+          <Button aria-label="Atrás" disabled={blocked} onClick={() => { if (!blockedRef.current) back() }}><ArrowBigLeft aria-hidden="true" /></Button>
         </>}
       </div>
       {!editor && selectionMode && <div className="elements-selection-controls">

@@ -2,7 +2,7 @@ import type { NoticeLevel } from './noticePreferences'
 export type { NoticeLevel } from './noticePreferences'
 export interface NoticeHistoryEntry { id: number; at: number; message: string; original: string; notice?: string; level: NoticeLevel }
 // Session-only, bounded independently of the document and local preferences.
-export const NOTICE_HISTORY_LIMIT = 200
+const NOTICE_HISTORY_LIMIT = 200
 let entries: readonly NoticeHistoryEntry[] = []
 let sequence = 0
 const listeners = new Set<() => void>()

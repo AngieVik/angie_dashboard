@@ -8,7 +8,7 @@ import type { DesktopViewState } from './savedDesktopViews'
 import { applySettingsNumberDrafts } from './settingsNumberDrafts'
 import type { SettingsNumberDrafts, SettingsNumberKey } from './settingsNumberDrafts'
 
-export function createSettingsStore(repository: SettingsStorage) {
+function createSettingsStore(repository: SettingsStorage) {
   let state = { settings: emptySettings(), numberDrafts: {} as SettingsNumberDrafts, revision: null as number | null, ready: false, loading: false, saving: false, error: null as string | null }
   const listeners = new Set<() => void>()
   function update(patch: Partial<typeof state>) { state = { ...state, ...patch }; listeners.forEach(listener => listener()) }

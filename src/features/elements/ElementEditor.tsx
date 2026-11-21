@@ -1,3 +1,4 @@
+import { limitPinText, pinTextFontSize } from './pinText'
 import { Select } from '@/components/ui/select'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, FocusEvent, MouseEvent, PointerEvent } from 'react'
@@ -22,7 +23,7 @@ type ElementEditorProps = {
   onSave?: never; onSaveBatch: (patch: ElementBatchPatch, keepOpen: boolean) => boolean; batchCount: number
 })
 type RepeatAction = 'name-down' | 'name-up' | 'scale-down' | 'scale-up' | 'rotate-left' | 'rotate-right' | 'flip-x' | 'flip-y'
-const emojiCharacters = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
 
 export function ElementEditor({ element, onSave, onSaveBatch, onSizeChange, batchCount, formId, isUnit = false, creating = !element }: ElementEditorProps) {
   const { blocked, blockedRef } = useViewportInteraction()
@@ -58,7 +59,8 @@ export function ElementEditor({ element, onSave, onSaveBatch, onSizeChange, batc
   const catalog = getIconIds(unit)
   const [representation, setRepresentation] = useState(element?.visual.type ?? 'asset')
   const [assetId, setAssetId] = useState<AssetId>(element?.visual.type === 'asset' ? element.visual.assetId : catalog[0]!)
-  const [emoji, setEmoji] = useState<string>(() => element?.visual.type === 'emoji' ? emojiCharacters.segment(element.visual.value)[Symbol.iterator]().next().value?.segment ?? '' : '')
+  const [emoji, setEmoji] = useState<string>(() => element?.visual.type === 'emoji' ? element.visual.value : '')
+  const composingText = useRef(false)
   const [rotation, setRotation] = useState(element?.visual.rotation ?? 0)
   const [flipX, setFlipX] = useState(element?.visual.flipX ?? false)
   const [flipY, setFlipY] = useState(element?.visual.flipY ?? false)
@@ -277,12 +279,18 @@ export function ElementEditor({ element, onSave, onSaveBatch, onSizeChange, batc
           }}>PNG</Button>
           <Button aria-pressed={representation === 'emoji'} disabled={blocked} onClick={() => {
             if (!blockedRef.current && representation !== 'emoji') { changed.current.add('icon'); setRepresentation('emoji') }
-          }}>Emoji</Button>
+          }}>TXT</Button>
         </div>
-        <Input className="element-emoji-control" aria-label="Emoji" disabled={blocked || representation !== 'emoji'} value={emoji} onChange={event => {
+        <Input className="element-emoji-control" aria-label="TXT" disabled={blocked || representation !== 'emoji'} value={emoji}
+          onCompositionStart={() => { composingText.current = true }}
+          onCompositionEnd={event => {
+            composingText.current = false
+            if (!blockedRef.current && representation === 'emoji') setEmoji(limitPinText(event.currentTarget.value))
+          }} onChange={event => {
           if (!blockedRef.current && representation === 'emoji') {
             changed.current.add('icon')
-            setEmoji(emojiCharacters.segment(event.target.value)[Symbol.iterator]().next().value?.segment ?? '')
+            const value = event.currentTarget.value
+            setEmoji(composingText.current ? value : limitPinText(value))
           }
         }} />
       </div>
@@ -327,7 +335,7 @@ export function ElementEditor({ element, onSave, onSaveBatch, onSizeChange, batc
           <div ref={previewScene} className="element-preview-scene">
             <div ref={previewPin} className="element-preview-pin" style={{ left: previewLeft, top: previewTop, width: box.width * previewScale, height: box.height * previewScale }}>
               {visual.type === 'asset' ? <img src={ICON_CATALOG[visual.assetId].path} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', transform: pinTransform(visual) }} /> :
-                <span className="board-pin-emoji" style={{ display: 'block', fontSize: 48 * previewScale, lineHeight: `${64 * previewScale}px`, transform: pinTransform(visual) }}>{visual.value}</span>}
+                <span className="board-pin-emoji" style={{ display: 'block', fontSize: pinTextFontSize(visual.value) * previewScale, lineHeight: `${64 * previewScale}px`, transform: pinTransform(visual) }}>{visual.value}</span>}
             </div>
             <Crosshair className="element-anchor-mark" aria-hidden="true" style={{ left: previewLeft + anchorPoint.x * previewScale, top: previewTop + anchorPoint.y * previewScale }} />
           </div>

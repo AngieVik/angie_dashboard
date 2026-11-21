@@ -1,5 +1,5 @@
 export const TEXT_SIZES = [100, 125, 150, 200] as const
-export type TextSize = typeof TEXT_SIZES[number]
+type TextSize = typeof TEXT_SIZES[number]
 export type MotionPreference = 'system' | 'reduce'
 export interface AccessibilityPreferences { textSize: TextSize; highContrast: boolean; motion: MotionPreference }
 

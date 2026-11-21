@@ -333,7 +333,7 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
     ]
   },
   {
-    "text": "Escribe o pega un emoji.",
+    "text": "Escribe o pega texto en TXT.",
     "levels": [
       "error"
     ]

@@ -17,7 +17,7 @@ export function Select({ value, onValueChange, options, className = '', disabled
   return <DropdownMenu open={open && !disabled} onOpenChange={next => {
     if (next && trigger.current) {
       const computed = getComputedStyle(trigger.current)
-      setFont({ fontSize: computed.fontSize, fontFamily: computed.fontFamily, '--select-row-height': computed.height } as CSSProperties)
+      setFont({ fontSize: computed.fontSize, fontFamily: computed.fontFamily })
     }
     setOpen(next)
   }}>

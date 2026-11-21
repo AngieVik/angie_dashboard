@@ -1,4 +1,4 @@
-import { renderAnalysis, reportSection, entryReference, sourceReference, readableBytes } from './findings.mjs'
+import { areaDocument } from './audit-report.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
@@ -223,35 +223,8 @@ export function collectPublicAssets(project = createProjectContext(), inputFiles
   }
 }
 
-export function renderPublicAssets(report, options = {}) {
-  const { sourceRoot } = options
-  const ref = item => entryReference(item, sourceRoot, path.posix.basename(item.file ?? item.source) + ':' + item.line)
-  const directories = new Map()
-  for (const item of report.assets) {
-    const directory = path.posix.dirname(item.file)
-    if (!directories.has(directory)) directories.set(directory, [])
-    directories.get(directory).push(item)
-  }
-  return renderAnalysis('assets', report, [
-    reportSection('Cobertura', [
-      '- ' + report.coverage.files + ' archivos; ' + readableBytes(report.coverage.totalBytes) + '; ' + report.references.length + ' referencias.',
-      '- Solo configuración: ' + report.configurationOnly.length + '; sin referencia reconocida: ' + report.unreferenced.length + '.',
-    ]),
-    reportSection('Configuración PWA', [
-      'Coincidencias con archivos de public/. El precaché del build se mide en bundle.',
-      ...report.patterns.map(item => `- ${item.kind} \`${item.pattern}\` → ${item.matchedFiles.length} archivos · ${ref(item)}`),
-    ]),
-    reportSection('Directorios referenciados', report.directoryReferences.map(item => `- \`${item.value}\` → ${item.target} · ${ref(item)}`)),
-    reportSection('Inventario por directorio', [
-      'Los recursos son originales protegidos salvo indicación. Los archivos de licencia están marcados.',
-      ...[...directories].flatMap(([directory, items]) => [
-        `\n### ${directory}\n`,
-        ...items.map(item => [
-          `- ${sourceReference(item.file, 1, sourceRoot, path.posix.basename(item.file))} · ${readableBytes(item.bytes)} · ${item.status}${item.license ? ' · licencia' : ''}${item.protectedOriginal ? '' : ' · sin protección'}`,
-          ...item.references.map(entry => `  - ${entry.kind} · ${ref(entry)}`),
-          ...item.configuredBy.map(entry => `  - ${entry.kind} \`${entry.pattern}\``),
-        ].join('\n')),
-      ]),
-    ]),
-  ], options)
+export function renderPublicAssets(r) {
+  return areaDocument('assets', r, [
+    `${r.coverage.files} recursos, ${r.coverage.totalBytes} bytes y ${r.references.length} referencias declaradas. Recursos cubiertos solo por configuración: ${r.configurationOnly.length}.`,
+  ])
 }

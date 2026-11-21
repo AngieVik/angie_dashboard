@@ -1,4 +1,4 @@
-export type CalculationResult = { ok: true; value: number } | { ok: false; error: string }
+type CalculationResult = { ok: true; value: number } | { ok: false; error: string }
 
 interface Operand { value: number; percentage: boolean }
 type Token = { type: 'number'; value: number } | { type: 'operator'; value: string }

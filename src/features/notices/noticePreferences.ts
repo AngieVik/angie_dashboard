@@ -6,7 +6,7 @@ export const NOTICE_LEVEL_LABELS: Record<NoticeLevel, string> = { message: 'Avis
 export const NOTICE_DURATION_DEFAULT = 5
 export const NOTICE_DURATION_MIN = 1
 export const NOTICE_DURATION_MAX = 120
-export const NOTICE_TEXT_LIMIT = 500
+const NOTICE_TEXT_LIMIT = 500
 
 // Dynamic diagnostics keep their original detail unless the user replaces the template.
 export const NOTICE_CATALOG = {
@@ -59,7 +59,7 @@ export const NOTICE_CATALOG = {
   centerReports: { level: 'warning', label: 'Centro de avisos · Informes', text: '{detalle}' },
 } as const
 export type NoticeId = keyof typeof NOTICE_CATALOG
-export interface NoticeOverride { enabled: boolean; text: string; levels?: NoticeLevel[] }
+interface NoticeOverride { enabled: boolean; text: string; levels?: NoticeLevel[] }
 export interface NoticePreferences { duration: number; levels: NoticeLevel[]; messages: Record<string, NoticeOverride> }
 export function defaultNoticePreferences(): NoticePreferences { return { duration: NOTICE_DURATION_DEFAULT, levels: [...NOTICE_LEVELS], messages: {} } }
 

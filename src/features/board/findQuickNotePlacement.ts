@@ -3,7 +3,7 @@ import type { Size } from '../../layout/layoutTypes'
 import type { Board } from './boardTypes'
 import { getPinNameLayout, getRotatedPinBox } from '../elements/pinPresentation'
 
-export interface NotePlacementBox extends Size { x: number; y: number }
+interface NotePlacementBox extends Size { x: number; y: number }
 export function getQuickNoteObstacles(board: Board, elements: readonly DocumentElement[], nameWidth: (element: DocumentElement) => number): NotePlacementBox[] {
   const boxes = board.quickNotes.map(note => ({ x: note.position.x - note.width / 2, y: note.position.y - note.height / 2, width: note.width, height: note.height }))
   for (const element of elements) if (element.pinVisible && element.position) {

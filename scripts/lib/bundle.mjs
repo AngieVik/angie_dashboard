@@ -1,4 +1,5 @@
-import { renderAnalysis, reportSection, sourceReference, markdownText } from './findings.mjs'
+import { areaDocument } from './audit-report.mjs'
+import { initialGzipSize } from './report-format.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -131,71 +132,12 @@ function aggregate(chunks, key) {
   return [...groups.values()].map(row => ({ ...row, chunks: [...row.chunks] })).sort((a, b) => b.bytes - a.bytes)
 }
 
-export function renderBundle(report, options = {}) {
-  const { sourceRoot } = options
-  const main = report.chunks.find(chunk => chunk.entry)
-  const initial = report.chunks.filter(chunk => chunk.initial)
-  const mainGroups = main ? aggregate([main], 'group') : []
-  const share = size => main.bytes ? `${(size / main.bytes * 100).toFixed(1)} %` : '0 %'
-  const amount = bytes => `${kb(bytes)} kB`
-  const sourcesByOwner = new Map()
-  for (const item of report.sources) {
-    const owner = item.group ?? item.package ?? item.kind
-    if (!sourcesByOwner.has(owner)) sourcesByOwner.set(owner, [])
-    sourcesByOwner.get(owner).push(item)
-  }
-  const source = (file, label = file) => fs.existsSync(path.resolve(root, file))
-    ? sourceReference(file, 1, sourceRoot, markdownText(label)) : `\`${file}\``
-  const split = item => `${kb(item.bytes)} / ${kb(item.initialBytes)} / ${kb(item.workerBytes)}`
-  const withoutAttribution = report.chunks.flatMap(chunk => {
-    const modules = (chunk.modules ?? []).filter(item => item.renderedLength > 0 && !item.attributedBytes)
-    return modules.length ? [
-      `- \`${chunk.file}\``,
-      ...modules.map(item => `  - ${source(item.source)} · ${item.group} · longitud ${item.renderedLength}`),
-    ].join('\n') : []
-  })
-  return renderAnalysis('bundle', report, [
-    reportSection('Medidas', [
-      main ? `- Principal: \`${main.file}\` · ${amount(main.bytes)} · ${amount(main.gzipBytes)} gzip.` : '- Principal sin identificar.',
-      `- JS inicial: ${initial.length} archivos · ${amount(initial.reduce((sum, item) => sum + item.bytes, 0))} · ${amount(initial.reduce((sum, item) => sum + item.gzipBytes, 0))} gzip.`,
-      `- JS emitido: ${amount(report.chunks.reduce((sum, item) => sum + item.bytes, 0))}, incluidos diferidos y workers.`,
-      `- Precaché: ${report.precache.files} archivos · ${amount(report.precache.bytes)} sin compresión.`,
-      main ? `- Principal sin atribución: ${amount(main.unmappedBytes)}. Cruzan límites sintácticos ${amount(main.unreliableBytes)}.` : '',
-      main ? `- Principal en dist: ${main.matchesCurrentDist === true ? 'idéntico byte a byte' : main.matchesCurrentDist === false ? 'mismo nombre, distinto contenido' : 'sin archivo equivalente'}.` : '',
-      'Método: segmentos de source map v3 acotados por sintaxis, pertenencia de módulos según el empaquetador y gzip nivel 6. kB decimales.',
-    ]),
-    reportSection('Precaché por clase', report.precache.groups.map(item => `- ${item.kind} · ${item.files} archivos · ${amount(item.bytes)}`)),
-    main ? reportSection('Composición del principal', [
-      ...mainGroups.map(item => `- ${item.name} · ${amount(item.bytes)} · ${share(item.bytes)}`),
-      `- Sin atribución · ${amount(main.unmappedBytes)} · ${share(main.unmappedBytes)}`,
-    ]) : '',
-    reportSection('JavaScript emitido', [
-      'Por archivo: tipo de carga · kB reales / gzip / sin atribución.',
-      ...report.chunks.map(item => `- \`${item.file}\` · ${item.initial ? 'inicial' : item.worker ? 'worker' : 'diferida o compartida'} · ${kb(item.bytes)} / ${kb(item.gzipBytes)} / ${kb(item.unmappedBytes)}`),
-    ]),
-    reportSection('Recursos emitidos', report.assets.map(item => `- \`${item.file}\` · ${amount(item.bytes)}${item.precached ? ' · precaché' : ''}`)),
-    reportSection('Atribución por propietario', [
-      'Cada terna indica kB atribuidos al total / carga inicial / workers. Los totales por fuente son aproximados.',
-      ...report.groups.map(item => `- ${item.name} · ${split(item)}`),
-    ]),
-    reportSection('Fuentes emitidas', [
-      'kB atribuidos al total / carga inicial / workers.',
-      ...[...sourcesByOwner].flatMap(([owner, items]) => [
-        `\n### ${owner}\n`,
-        ...items.map(item => {
-          const label = item.name.replace(/^src\//, '').replace(/^node_modules\/(?:@[^/]+\/)?[^/]+\//, '')
-          return `- ${source(item.name, label)} · ${split(item)}`
-        }),
-      ]),
-    ]),
-    withoutAttribution.length ? reportSection('Módulos incluidos sin bytes atribuibles', [
-      'La longitud informada por el empaquetador precede a la minificación.', ...withoutAttribution,
-    ]) : '',
-    report.dependenciesWithoutMappedJavaScript.length ? reportSection('Dependencias declaradas sin JavaScript atribuible', [
-      'Pueden aportar CSS, tipos o requisitos de otros paquetes.',
-      ...report.dependenciesWithoutMappedJavaScript.map(name => `- ${name}`),
-    ]) : '',
-  ], options)
+export function renderBundle(r) {
+  const initial = r.chunks.filter(chunk => chunk.initial)
+  return areaDocument('bundle', r, [
+    `JavaScript: ${r.chunks.length} archivos, ${kb(r.chunks.reduce((sum, chunk) => sum + chunk.bytes, 0))} kB emitidos.`,
+    `Carga inicial: ${kb(initial.reduce((sum, chunk) => sum + chunk.bytes, 0))} kB y ${initialGzipSize(initial)}. Precaché: ${r.precache.files} archivos, ${kb(r.precache.bytes)} kB.`,
+  ])
 }
 
 export async function collectBundle() {

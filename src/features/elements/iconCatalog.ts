@@ -1,7 +1,7 @@
 import type { AssetId, ElementVisual } from '../../domain/document/types'
-export type VisualClass = 'Horizontal' | 'Vertical' | 'Cuadrado'
-export interface IconEntry { id: AssetId; name: string; path: string; visualClass: VisualClass; isUnit: boolean }
-export const ICON_BOXES = {
+type VisualClass = 'Horizontal' | 'Vertical' | 'Cuadrado'
+interface IconEntry { id: AssetId; name: string; path: string; visualClass: VisualClass; isUnit: boolean }
+const ICON_BOXES = {
   Horizontal: { width: 150, height: 100 },
   Vertical: { width: 100, height: 150 },
   Cuadrado: { width: 100, height: 100 },

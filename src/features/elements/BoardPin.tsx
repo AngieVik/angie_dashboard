@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button'
 import styles from './BoardPin.module.css'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { clampAssetScale, clampPinPosition } from './elementCommands'
+import { pinTextFontSize } from './pinText'
 import { getPinBox, ICON_CATALOG } from './iconCatalog'
 import { getPinNameLayout, getScaledPinNameOffset, PIN_NAME_COLORS, pinNameLines, pinNameStyle, pinTransform } from './pinPresentation'
 import { boardDelta } from '../board/boardViewport'
 import type { BoardViewportState } from '../board/boardViewport'
 import type { Size } from '../../layout/layoutTypes'
 
-export interface BoardPinProps {
+interface BoardPinProps {
   element: DocumentElement; selected: boolean; enabled: boolean; surface: RefObject<HTMLDivElement | null>
   onSelect: () => void; onEdit?: () => void; onMove: (position: Position) => void; onScale: (scale: number) => void
   onNameMove?: (offset: Position) => void; onNameColor?: (color: PinNameColor) => void
@@ -119,7 +120,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
       onPointerCancel={() => { lastTap.current = null; cancel() }} onLostPointerCapture={cancel} onClick={select} onDoubleClick={edit}>
       {visual.type === 'asset' ? <img src={ICON_CATALOG[visual.assetId].path} alt={ICON_CATALOG[visual.assetId].name} draggable={false}
         style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', transform: pinTransform(visual) }} /> :
-        <span className="board-pin-emoji" aria-hidden="true" style={{ display: 'block', fontSize: 48 * visual.scale, lineHeight: `${64 * visual.scale}px`, transform: pinTransform(visual) }}>{visual.value}</span>}
+        <span className="board-pin-emoji" aria-hidden="true" style={{ display: 'block', fontSize: pinTextFontSize(visual.value) * visual.scale, lineHeight: `${64 * visual.scale}px`, transform: pinTransform(visual) }}>{visual.value}</span>}
     </button>
     {!element.nameHidden && <Popover open={colorsOpen && interactive} onOpenChange={setColorsOpen}>
       <PopoverAnchor asChild><button type="button" className={`board-pin-name ${styles.name}`} aria-label={`Mover nombre de ${element.name}`}

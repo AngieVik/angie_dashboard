@@ -1,5 +1,6 @@
 // shadcn/ui Radix composition, adapted to Angie's shared controls and tokens.
 import type { ComponentProps } from 'react'
+import { Pin } from 'lucide-react'
 import { useContext } from 'react'
 import * as Primitive from '@radix-ui/react-dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -36,7 +37,7 @@ export function DropdownMenuCheckboxItem({ children, className = '', checked = f
 
 export function DropdownMenuRadioItem({ children, className = '', ...props }: ComponentProps<typeof Primitive.RadioItem>) {
   return <Primitive.RadioItem data-slot="dropdown-menu-radio-item" className={`${styles.item} ${className}`.trim()} {...props}>
-    <span aria-hidden="true" className={styles.radioMark}><Primitive.ItemIndicator>✓</Primitive.ItemIndicator></span>
+    <span aria-hidden="true" className={styles.radioMark}><Primitive.ItemIndicator asChild><Pin /></Primitive.ItemIndicator></span>
     {children}
   </Primitive.RadioItem>
 }

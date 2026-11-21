@@ -3,16 +3,16 @@ import type { DexieOptions } from 'dexie'
 import { emptySettings, validateSettings } from './appSettings'
 import type { AppSettings } from './appSettings'
 
-export interface SettingsSnapshot { settings: AppSettings; revision: number | null }
+interface SettingsSnapshot { settings: AppSettings; revision: number | null }
 export interface SettingsStorage {
   load(): Promise<SettingsSnapshot>
   save(settings: AppSettings, expectedRevision: number | null): Promise<number>
 }
 interface SettingsRecord { key: string; settings: unknown; revision: number }
-export class SettingsConflictError extends Error {
+class SettingsConflictError extends Error {
   constructor() { super('La configuración cambió en otra pestaña. Recárgala antes de guardar.'); this.name = 'SettingsConflictError' }
 }
-export function createSettingsDatabase(name = 'angie-dashboard-settings', options?: DexieOptions) {
+function createSettingsDatabase(name = 'angie-dashboard-settings', options?: DexieOptions) {
   const db = new Dexie(name, options)
   db.version(1).stores({ settings: 'key' })
   return db

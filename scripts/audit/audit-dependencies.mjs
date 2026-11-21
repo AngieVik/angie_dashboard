@@ -1,5 +1,5 @@
-import { collectDependencies, renderDependencies } from './lib/dependencies.mjs'
-import { runCli, individualReportPaths } from './lib/runtime.mjs'
+import { collectDependencies, renderDependencies } from '../lib/dependencies.mjs'
+import { runCli, individualReportPaths } from '../lib/runtime.mjs'
 
 runCli(import.meta.url, {
   name: 'audit-dependencies.mjs', analysis: 'dependencies', collect: collectDependencies, render: renderDependencies,

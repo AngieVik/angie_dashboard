@@ -1,5 +1,5 @@
-import { collectArchitecture, renderArchitecture } from './lib/architecture.mjs'
-import { runCli, individualReportPaths } from './lib/runtime.mjs'
+import { collectArchitecture, renderArchitecture } from '../lib/architecture.mjs'
+import { runCli, individualReportPaths } from '../lib/runtime.mjs'
 
 runCli(import.meta.url, {
   name: 'audit-architecture.mjs', analysis: 'architecture', collect: collectArchitecture, render: renderArchitecture,

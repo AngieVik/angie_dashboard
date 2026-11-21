@@ -25,54 +25,99 @@ export function reportCode(value) {
   return delimiter + padding + text + padding + delimiter
 }
 
-function wrapProse(lines, width) {
-  // Mask only whitespace inside inline markup, keeping its positions in the original text.
-  const markup = /(?<![`\\])(`+)(?!`)(?:(?!\r?\n[ \t]*\r?\n)[\s\S])*?(?<!`)\1(?!`)|\[[^\r\n]*?\]\([^\r\n]*?\)/g
-  const masked = lines.join('\n').replace(markup, span => span.replace(/[^\S\r\n]/g, '\0')).split('\n')
-  return lines.map((line, index) => {
-    if (line.length <= width || /^(?:[ \t]*#| {4}|\t)/.test(line)) return line
-    const prefix = line.slice(0, masked[index].match(/^[ \t]*(?:- )?/)[0].length)
-    const continuation = prefix.replace('- ', '  ')
-    const rows = []
-    let current = prefix, end = prefix.length, hasText = false
-    for (const match of masked[index].slice(prefix.length).matchAll(/\S+/g)) {
-      const start = prefix.length + match.index
-      const gap = line.slice(end, start)
-      end = start + match[0].length
-      const word = line.slice(start, end)
-      if (hasText && current.length + gap.length + word.length > width) {
-        rows.push(current)
-        current = continuation + word
-      } else current += gap + word
-      hasText = true
-    }
-    rows.push(current + line.slice(end))
-    return rows.join('\n')
-  })
-}
+const maxLines = 250
+const maxCharacters = 10_000
+const minimumContinuationCases = 2
 
-export function wrapReport(text, width = 110) {
-  const output = [], prose = []
-  let fence
-  for (const line of String(text).split('\n')) {
-    const marker = line.match(/^[ \t]*(`{3,}|~{3,})([^\n]*)$/)
-    if (fence) {
-      output.push(line)
-      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()) fence = undefined
-    } else if (marker && (marker[1][0] === '~' || !marker[2].includes('`'))) {
-      output.push(...wrapProse(prose, width), line)
-      prose.length = 0
-      fence = marker[1]
-    } else prose.push(line)
+function pageText(doc, entries, navigation = '', first = true) {
+  const parts = ['# ' + doc.title]
+  if (navigation) parts.push(navigation)
+  if (first) parts.push(...doc.intro)
+  for (const section of doc.sections) {
+    const content = entries.filter(entry => entry.section === section)
+    if (content.length) parts.push('## ' + section.title + ' (' + (section.count ?? section.blocks.length) + ')', content.map(entry =>
+      entry.continued ? 'Continuación de ' + entry.label + ':\n' + entry.text : entry.text).join('\n'))
+    else if (first && !section.blocks.length) parts.push('## ' + section.title + ' (0)')
   }
-  return output.concat(wrapProse(prose, width)).join('\n')
+  return parts.join('\n\n') + '\n'
 }
 
-export function renderStageFailure(analyzer, detail = '') {
-  return '# ' + analyzer + '\n\n**Error de ejecución**\n\n' + wrapReport(detail) + '\n'
+const fits = (text, margin = 0) => text.length <= maxCharacters * (1 + margin) && text.trimEnd().split('\n').length <= maxLines * (1 + margin)
+const smallOverrun = 0.02
+export const partName = number => number === 1 ? 'report.md' : 'report-' + number + '.md'
+
+function navigation(number, more) {
+  const links = []
+  if (number > 1) links.push('[Anterior](' + partName(number - 1) + ')')
+  if (more) links.push('[Siguiente](' + partName(number + 1) + ')')
+  return links.length ? 'Parte ' + number + ' · ' + links.join(' · ') : ''
 }
 
-export function reportSection(title, rows) {
-  const content = rows.filter(Boolean)
-  return content.length ? `## ${title}\n\n${wrapReport(content.join('\n'))}` : ''
+// An individual case can itself exceed a page. Prefer a full evidence line;
+// a long expression with no breaks is continued without discarding characters.
+function fragmentEnd(text, available) {
+  const prefix = text.slice(0, available)
+  const line = prefix.lastIndexOf('\n')
+  if (line >= available / 2) return line + 1
+  const space = prefix.lastIndexOf(' ')
+  if (space >= available / 2) return space + 1
+  return /[\uD800-\uDBFF]$/.test(prefix) ? available - 1 : available
+}
+
+export function reportPages(doc) {
+  if (!fits(pageText(doc, [], '', true)) && doc.intro.length) {
+    doc = { ...doc, intro: [], sections: [{ title: 'Alcance', blocks: doc.intro }, ...doc.sections] }
+  }
+  const entries = doc.sections.flatMap(section => section.blocks.map((text, index) => ({
+    section, text, label: text.match(/^- [^\n]*?(`[a-f0-9]{16}`)/)?.[1] ?? 'la entrada ' + (index + 1),
+  })))
+  const pages = []
+  let cursor = 0
+  do {
+    const number = pages.length + 1
+    const render = (items, more) => pageText(doc, items, navigation(number, more), number === 1)
+    const current = []
+    while (cursor < entries.length) {
+      const entry = entries[cursor]
+      const tail = entries.length - cursor
+      if (fits(render([...current, entry], tail > 1))) {
+        current.push(entry)
+        cursor++
+        continue
+      }
+      if (tail <= maxLines && fits(render([...current, ...entries.slice(cursor)], false), smallOverrun)) {
+        current.push(...entries.slice(cursor))
+        cursor = entries.length
+        break
+      }
+      if (current.length) {
+        // Give a substantial final case a companion when both fit on the next page.
+        if (tail < minimumContinuationCases && current.length >= minimumContinuationCases && fits(pageText(doc, [current.at(-1), entry], navigation(number + 1, false), false))) {
+          current.pop()
+          cursor--
+        }
+        break
+      }
+      const baseline = render([{ ...entry, text: '' }], true)
+      const availableLines = Math.max(1, maxLines - baseline.split('\n').length)
+      const availableChars = Math.max(1, maxCharacters - baseline.length)
+      const lineWindow = entry.text.split('\n', availableLines).join('\n')
+      const cut = fragmentEnd(entry.text, Math.min(lineWindow.length || 1, availableChars))
+      if (cut < 1) throw new Error('Cabecera demasiado extensa para continuar el informe.')
+      current.push({ ...entry, text: entry.text.slice(0, cut) })
+      if (cut >= entry.text.length) cursor++
+      else entries[cursor] = { ...entry, text: entry.text.slice(cut), continued: true }
+      break
+    }
+    pages.push(render(current, cursor < entries.length))
+  } while (cursor < entries.length)
+  return pages
+}
+
+export function failureDocument(area, error) {
+  return { title: area, intro: [], sections: [{ title: 'Error de ejecución', blocks: [String(error)] }] }
+}
+export function initialGzipSize(chunks) {
+  const bytes = chunks.reduce((sum, chunk) => sum + (chunk.initial ? chunk.gzipBytes : 0), 0)
+  return (bytes / 1000).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kB gzip'
 }

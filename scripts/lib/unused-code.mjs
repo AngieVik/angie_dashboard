@@ -1,5 +1,4 @@
-import { renderAnalysis, reportSection, entryReference, sourceReference } from './findings.mjs'
-import { reportCode } from './report-format.mjs'
+import { areaDocument } from './audit-report.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
@@ -198,7 +197,7 @@ export function collectUnusedCode(project = createProjectContext()) {
   }))
 
   const canonical = symbol => symbol && (symbol.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(symbol) : symbol
-  const exported = [], tracked = new Set(), forwarded = new Map(), references = new Map()
+  const exported = [], tracked = new Set(), forwarded = new Map(), references = new Map(), reexports = new Map()
   for (const [file, source] of sources) {
     if (!file.startsWith('src/') || !reachable.has(file) || source.isDeclarationFile) continue
     const moduleSymbol = checker.getSymbolAtLocation(source)
@@ -207,7 +206,11 @@ export function collectUnusedCode(project = createProjectContext()) {
       const target = canonical(symbol)
       const declaration = target?.declarations?.find(node => relative(node.getSourceFile().fileName) === file)
       // Barrels forward the original declaration; do not duplicate their findings.
-      if (!declaration) continue
+      if (!declaration) {
+        if (!reexports.has(target)) reexports.set(target, [])
+        reexports.get(target).push(file + '#' + symbol.name)
+        continue
+      }
       exported.push({ name: symbol.name, symbol: target, ...location(declaration), declarationKind: ts.SyntaxKind[declaration.kind] })
       tracked.add(target)
     }
@@ -263,6 +266,7 @@ export function collectUnusedCode(project = createProjectContext()) {
     const local = uses.filter(use => use.file === item.file)
     const detachedUses = uses.filter(use => use.file !== item.file && !reachable.has(use.file))
     return [{ name: item.name, file: item.file, line: item.line, declarationKind: item.declarationKind,
+      reexports: (reexports.get(item.symbol) ?? []).sort(),
       category: local.length ? 'export usado solo dentro de su archivo' : 'export sin referencias detectadas desde archivos conectados',
       localReferences: local.length, disconnectedReferences: detachedUses.length, examples: [...local, ...detachedUses].slice(0, 5),
     }]
@@ -287,22 +291,8 @@ export function collectUnusedCode(project = createProjectContext()) {
   }
 }
 
-export function renderUnusedCode(report, options = {}) {
-  const { sourceRoot } = options
-  const pending = report.detachedFiles.filter(item => item.requiresReview).length
-  return renderAnalysis('unused', report, [
-    reportSection('Cobertura', [
-      `${report.coverage.sourceFiles} archivos · ${report.coverage.connectedFiles} conectados · ${report.detachedFiles.length - pending} desconectados según el análisis · ${pending} pendientes de revisión · ${report.coverage.edges} relaciones`,
-    ]),
-    report.resolvedCssAccesses?.length ? reportSection('Accesos CSS calculados', [
-      'La resolución enumera alternativas estáticas de la expresión.',
-      ...report.resolvedCssAccesses.map(item => [
-        `- ${entryReference(item, sourceRoot, path.posix.basename(item.file) + ':' + item.line)} · ${reportCode(item.expression)}`,
-        `  - ${sourceReference(item.stylesheet, 1, sourceRoot, path.posix.basename(item.stylesheet))} → ${item.classes.join(', ')}`,
-        `  - Base: ${item.basis.join(' · ')}`,
-      ].join('\n')),
-    ]) : '',
-    reportSection('Entradas protegidas del recorrido', report.entries.map(file => `- ${sourceReference(file, 1, sourceRoot, file)}`)),
-  ], options)
+export function renderUnusedCode(r) {
+  return areaDocument('unused', r, [
+    `${r.coverage.connectedFiles} de ${r.coverage.sourceFiles} archivos alcanzables desde las entradas. ${r.coverage.edges} relaciones analizadas.`,
+  ])
 }
-

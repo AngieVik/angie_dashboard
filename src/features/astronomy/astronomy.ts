@@ -5,7 +5,7 @@ import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import type { FormatPreferences } from '../settings/formatPreferences'
 import { formatClockTime } from '@/platform/formatting'
 
-export const SOLAR_EVENTS = ['sunrise', 'sunset', 'dawn', 'dusk', 'nauticalDawn', 'nauticalDusk', 'nightEnd', 'night'] as const
+const SOLAR_EVENTS = ['sunrise', 'sunset', 'dawn', 'dusk', 'nauticalDawn', 'nauticalDusk', 'nightEnd', 'night'] as const
 export type SolarEvent = typeof SOLAR_EVENTS[number]
 
 export function zonedDateKey(instant: Date | number, timeZone: string): string {

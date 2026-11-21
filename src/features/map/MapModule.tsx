@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { InputGroup } from '@/components/ui/input-group'
 
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { toast } from '@/components/ui/sonner'
@@ -657,8 +657,10 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
         <DropdownMenuTrigger asChild><Button aria-label="Fondo del mapa" disabled={blocked}><Layers aria-hidden="true" /></Button></DropdownMenuTrigger>
         <DropdownMenuContent side="bottom" align="end" collisionPadding={8} aria-label="Fondo del mapa">
           <DropdownMenuGroup>
-            {(Object.keys(MAP_BACKGROUNDS) as MapBackground[]).map(id => <DropdownMenuCheckboxItem key={id} checked={background === id} disabled={blocked}
-              onSelect={() => changeBackground(id)}>{MAP_BACKGROUNDS[id].name}</DropdownMenuCheckboxItem>)}
+            <DropdownMenuRadioGroup value={background}>
+              {(Object.keys(MAP_BACKGROUNDS) as MapBackground[]).map(id => <DropdownMenuRadioItem key={id} value={id} disabled={blocked}
+                onSelect={() => changeBackground(id)}>{MAP_BACKGROUNDS[id].name}</DropdownMenuRadioItem>)}
+            </DropdownMenuRadioGroup>
             {background === 'pnoa' && <>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem checked={pnoaInformation} disabled={blocked}

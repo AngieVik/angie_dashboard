@@ -33,7 +33,7 @@ function readRecord(record: LocalTimerRecord | undefined) {
   try { return { timers: record ? validateTimers(record.timers) : [], revision: recordRevision(record) } }
   catch { throw new TimerCorruptionError() }
 }
-export function createTimerDatabase(name = 'angie-dashboard-timers', options?: DexieOptions) {
+function createTimerDatabase(name = 'angie-dashboard-timers', options?: DexieOptions) {
   const db = new Dexie(name, options)
   db.version(1).stores({ timers: 'key' })
   return db

@@ -21,8 +21,11 @@ const validate = new Ajv({ allErrors: true }).compile({
         properties: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: properties } }, reason: description, sources },
     } },
     exceptions: { type: 'array', items: {
-      type: 'object', additionalProperties: false, required: ['id', 'group', 'moduleId', 'property', 'expected', 'reason', 'sources'],
-      properties: { id, group: id, moduleId: description, property: { enum: properties }, expected: description, reason: description, sources },
+      type: 'object', additionalProperties: false, required: ['id', 'group', 'property', 'expected', 'reason', 'sources'],
+      oneOf: [{ required: ['moduleId'] }, { required: ['surface'] }],
+      properties: { id, group: id, moduleId: description,
+        surface: { type: 'object', additionalProperties: false, required: ['file', 'label'], properties: { file: description, label: description } },
+        property: { enum: properties }, expected: description, reason: description, sources },
     } },
     paintExceptions: { type: 'array', items: {
       type: 'object', additionalProperties: false, required: ['id', 'file', 'reason', 'sources'],
@@ -44,8 +47,8 @@ export function loadUiPolicy() {
   }
   for (const exception of policy.exceptions) {
     const group = policy.groups.find(item => item.id === exception.group)
-    if (!group || group.target !== 'modules' || !group.properties.includes(exception.property)) throw new Error(`Excepción fuera de su grupo o propiedad: ${exception.id}`)
-    const target = `${exception.group}:${exception.moduleId}:${exception.property}`
+    if (!group || (group.target === 'modules') !== Boolean(exception.moduleId) || !group.properties.includes(exception.property)) throw new Error(`Excepción fuera de su grupo o propiedad: ${exception.id}`)
+    const target = JSON.stringify([group.id, exception.moduleId ?? exception.surface.file, exception.surface?.label, exception.property])
     if (exceptionIds.has(exception.id) || exceptionTargets.has(target)) throw new Error(`Excepción visual duplicada: ${exception.id}`)
     exceptionIds.add(exception.id); exceptionTargets.add(target)
   }

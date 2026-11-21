@@ -9,7 +9,7 @@
     "dev": "vite",
     "start": "node server/server.mjs",
     "diagnose": "node scripts/diagnose.mjs",
-    "diagnose:full": "node scripts/diagnose.mjs --profile full",
+    "test:audit": "node --test tests/audit.test.mjs",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run build",

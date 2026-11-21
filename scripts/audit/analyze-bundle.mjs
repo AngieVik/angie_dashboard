@@ -1,5 +1,5 @@
-import { collectBundle, renderBundle } from './lib/bundle.mjs'
-import { runCli, individualReportPaths } from './lib/runtime.mjs'
+import { collectBundle, renderBundle } from '../lib/bundle.mjs'
+import { runCli, individualReportPaths } from '../lib/runtime.mjs'
 
 runCli(import.meta.url, {
   name: 'analyze-bundle.mjs', analysis: 'bundle', collect: collectBundle, render: renderBundle,

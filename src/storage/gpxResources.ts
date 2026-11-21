@@ -1,6 +1,6 @@
 import { INPUT_BUDGETS } from '../domain/input/inputBudgets'
 
-export interface GpxResource { fingerprint: string; blob: Blob }
+interface GpxResource { fingerprint: string; blob: Blob }
 // Session resources are independent of UIBoard files and local recovery.
 const originals = new Map<string, GpxResource>()
 

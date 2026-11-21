@@ -2,9 +2,9 @@ import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
 import type { GpxData, GpxPoint } from './gpx'
 import { wrapLongitude } from './longitudeGeometry'
 
-export interface GpxMetrics { distances: number[][]; totalMeters: number }
+interface GpxMetrics { distances: number[][]; totalMeters: number }
 export interface GpxLocation { point: GpxPoint; distanceMeters?: number; offsetMeters: number; displayLongitude?: number }
-export interface KilometerMark { point: GpxPoint; kilometer: number; displayLongitude?: number }
+interface KilometerMark { point: GpxPoint; kilometer: number; displayLongitude?: number }
 
 const EARTH_RADIUS = 6_371_000
 const radians = Math.PI / 180
@@ -55,10 +55,6 @@ export function projectGpxSegment(a: GpxPoint, b: GpxPoint, query: GeographicCoo
   const point = interpolate(a, b, fraction)
   return { point, offsetMeters: geographicDistance(query, point), distanceMeters: fromMeters + (toMeters - fromMeters) * fraction,
     ...(display ? { displayLongitude: display[0] + (display[1] - display[0]) * fraction } : {}) }
-}
-
-export function getKilometerMarks(data: GpxData, minimumIntervalKm: number): KilometerMark[] {
-  return Array.from(iterateKilometerMarks(data, minimumIntervalKm)).filter((mark): mark is KilometerMark => mark !== undefined)
 }
 
 // Empty yields bound scanning work too, including tracks with few/no PKs.

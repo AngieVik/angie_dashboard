@@ -1,5 +1,5 @@
 export type TimerKind = 'tzero' | 'tminus' | 'advisory'
-export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed'
+type TimerStatus = 'idle' | 'running' | 'paused' | 'completed'
 interface TimerBase {
   id: string
   note: string

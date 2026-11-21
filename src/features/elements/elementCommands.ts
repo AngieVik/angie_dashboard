@@ -33,7 +33,7 @@ function normalizeVisual(visual: ElementVisual): ElementVisual {
     if (!ICON_CATALOG[visual.assetId]) throw new Error('Icono no reconocido.')
     return { type: 'asset', assetId: visual.assetId, scale: clampAssetScale(visual.scale), ...transform }
   }
-  if (!visual.value.length) throw new Error('Escribe o pega un emoji.')
+  if (!visual.value.length) throw new Error('Escribe o pega texto en TXT.')
   return { type: 'emoji', value: visual.value, scale: clampAssetScale(visual.scale), ...transform }
 }
 function normalizeNamePresentation(input: Pick<CreateElementInput, 'nameOffset' | 'nameColor'>) {

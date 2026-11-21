@@ -1,4 +1,4 @@
-import { renderAnalysis, reportSection, entryReference, sourceReference, collectFindings } from './findings.mjs'
+import { areaDocument } from './audit-report.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -170,6 +170,8 @@ export function collectDependencies(project = createProjectContext(), unused = c
     if (locked && locked.version !== actual.version) issues.push({ name: actual.name, rule: 'installed-lock-version', file: `${location}/package.json`, detail: `Instalada ${actual.version}; lock ${locked.version}.` })
     if (!locked && !actual.extraneous) issues.push({ name: actual.name, rule: 'installed-without-lock-node', file: `${location}/package.json`, detail: `Instalada ${actual.version}; ubicación ausente de la tabla packages del lock.` })
   }
+  const activeDirectLocations = new Set(uses.filter(use => declaredNames.has(use.name) && use.scope !== 'desconectado')
+    .map(use => 'node_modules/' + use.name))
   const direct = sorted(declaredNames).map(name => {
     const declarations = sections.filter(section => Object.hasOwn(manifest[section] ?? {}, name)).map(section => ({ section, range: manifest[section][name] }))
     for (const section of sections) {
@@ -178,7 +180,9 @@ export function collectDependencies(project = createProjectContext(), unused = c
     const ownUses = uses.filter(use => use.name === name)
     const consumers = requirements.filter(requirement => requirement.name === name && requirement.source === 'instalado')
     const activeUses = ownUses.filter(use => use.scope !== 'desconectado')
-    const status = activeUses.length ? 'con consumidores reconocidos' : ownUses.length ? 'solo referencias desconectadas' : consumers.length ? 'solo requisitos de paquetes' : 'sin consumidor reconocido'
+    const verifiedPeer = npm.available && npm.exitCode === 0 && consumers.some(item =>
+      item.kind === 'peerDependencies' && !item.optional && item.target === 'node_modules/' + name && activeDirectLocations.has(item.from))
+    const status = activeUses.length || verifiedPeer ? 'con consumidores reconocidos' : ownUses.length ? 'solo referencias desconectadas' : consumers.length ? 'solo requisitos de paquetes' : 'sin consumidor reconocido'
     return { name, declarations, lockedVersion: lock.packages[`node_modules/${name}`]?.version ?? null, installedVersion: installed.get(`node_modules/${name}`)?.version ?? null, status, uses: ownUses, requiredBy: consumers }
   })
   for (const section of sections) for (const name of Object.keys(lock.packages[''][section] ?? {})) {
@@ -206,36 +210,9 @@ export function collectDependencies(project = createProjectContext(), unused = c
   }
 }
 
-export function renderDependencies(report, options = {}) {
-  const { sourceRoot } = options
-  const findings = report.findings ?? collectFindings({ dependencies: report })
-  const packagesWith = rule => new Set(findings.filter(item => item.rule === rule).map(item => item.element.name))
-  const consumerFindings = packagesWith('review-consumers')
-  const versionFindings = packagesWith('installed-multiple-versions')
-  return renderAnalysis('dependencies', { ...report, findings }, [
-    reportSection('Cobertura', [
-      `${report.coverage.direct} directas · ${report.coverage.lockedLocations} ubicaciones en lock · ${report.coverage.installedLocations} instaladas`,
-      `${report.coverage.references} referencias del proyecto · ${report.coverage.requirements} requisitos de paquetes`,
-      report.npm.available ? `npm ${report.npm.version} · salida ${report.npm.exitCode} · \`${report.npm.command}\`.` : 'Árbol instalado sin comprobación de npm.',
-    ]),
-    reportSection('Dependencias directas', [
-      'Versiones en orden lock / instalada. Los usos indican la clase y el ámbito reconocidos.',
-      ...report.direct.map(item => {
-        const declared = item.declarations.map(entry => `${entry.section} \`${entry.range}\``).join(', ')
-        const classes = [...new Set(item.uses.map(use => `${use.kind} (${use.scope})`))]
-        const uses = consumerFindings.has(item.name) ? [] : item.uses.map(use =>
-          `  - ${entryReference(use, sourceRoot, path.posix.basename(use.file) + ':' + use.line)} · ${use.kind} · \`${use.specifier}\` · ${use.scope}`)
-        const required = consumerFindings.has(item.name) || versionFindings.has(item.name) ? [] : item.requiredBy.map(entry => {
-          const label = entry.from.replace(/^node_modules\//, '')
-          const from = sourceReference(`${entry.from}/package.json`, 1, sourceRoot, label)
-          return `  - ${from} · ${entry.kind} \`${entry.range}\`${entry.optional ? ' · opcional' : ''} → ${entry.target ?? 'sin resolver'} (${entry.version ?? 'sin versión'})`
-        })
-        return [
-          `- **${item.name}** · ${declared} · ${item.lockedVersion ?? 'sin dato'} / ${item.installedVersion ?? 'sin dato'}`,
-          `  - ${item.status} · ${classes.join(', ') || 'sin clases de uso'}`,
-          ...uses, ...required,
-        ].join('\n')
-      }),
-    ]),
-  ], options)
+export function renderDependencies(r) {
+  return areaDocument('dependencies', r, [
+    `${r.coverage.direct} dependencias directas y ${r.coverage.installedLocations} ubicaciones instaladas. ${r.coverage.references} referencias locales.`,
+    r.npm.available ? `Árbol npm: salida ${r.npm.exitCode}, ${r.npm.problems.length} problemas. Paquetes con varias versiones instaladas: ${r.multipleVersions.map(item => item.name).join(', ') || 'ninguno'}.` : 'La comprobación del árbol npm quedó incompleta.',
+  ])
 }

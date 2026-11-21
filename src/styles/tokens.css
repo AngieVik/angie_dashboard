@@ -39,9 +39,9 @@
   --palette-white-alpha-2: rgb(255 255 255 / 2%);
   --palette-warm-white-alpha-9: rgb(242 242 240 / 9%);
   --palette-warm-white-alpha-12: rgb(242 242 240 / 12%);
-  --palette-blue-gray-alpha-12: rgb(176 196 216 / 12%);
-  --palette-blue-gray-alpha-40: rgb(176 196 216 / 40%);
-  --palette-blue-gray-alpha-55: rgb(176 196 216 / 55%);
+  --palette-blue-gray-alpha-9: rgb(176 196 216 / 9%);
+  --palette-blue-gray-alpha-30: rgb(176 196 216 / 30%);
+  --palette-blue-gray-alpha-42: rgb(176 196 216 / 42%);
 
   /* Medidas de base compartidas; el zoom del módulo genera los valores efectivos que se indican a continuación. */
   --space-1: 4px;
@@ -104,7 +104,7 @@
   --surface-dialog-backdrop: var(--palette-black-alpha-65);
   --surface-toolbar: linear-gradient(180deg, var(--palette-gray-725), var(--palette-gray-850) 80%);
   --surface-inset: linear-gradient(180deg, var(--palette-gray-800), var(--palette-gray-875));
-  --surface-field-focus: linear-gradient(var(--palette-blue-gray-alpha-12), var(--palette-blue-gray-alpha-12));
+  --surface-field-focus: linear-gradient(var(--palette-blue-gray-alpha-9), var(--palette-blue-gray-alpha-9));
   --surface-map-attribution: var(--palette-gray-900-alpha-90);
   --surface-map-scale: var(--palette-gray-900-alpha-85);
   --shadow-button: inset 0 1px 0 var(--palette-warm-white-alpha-9), 0 1px 3px var(--palette-black-alpha-35);
@@ -114,7 +114,7 @@
   --shadow-map-pin-selected: inset 0 0 0 1px var(--color-accent-red);
   --filter-map-selection-pin: drop-shadow(0 1px 1px var(--palette-black-alpha-53));
   --filter-map-marker-flag: drop-shadow(0 1px 2px var(--palette-black-alpha-73));
-  --shadow-field-focus: inset 0 0 6px var(--palette-blue-gray-alpha-55), 0 0 5px var(--palette-blue-gray-alpha-40);
+  --shadow-field-focus: inset 0 0 6px var(--palette-blue-gray-alpha-42), 0 0 5px var(--palette-blue-gray-alpha-30);
   --shadow-selection: 0 0 6px var(--palette-red-alpha-7);
   --shadow-panel: 0 8px 25px var(--palette-black-alpha-45), 0 1px 3px var(--palette-black-alpha-50), inset 0 1px var(--palette-white-alpha-2);
   --shadow-dialog: 0 10px 40px var(--palette-black-alpha-70);

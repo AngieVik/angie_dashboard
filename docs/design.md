@@ -146,7 +146,7 @@ Orden lateral: General, Avisos, Pizarra, Mapa, Plano operativo, Informes, Calcul
 
 Guardar se desactiva sin cambios efectivos o con campos numéricos incompletos; vuelve a desactivarse tras éxito o recuperar valores originales. El guardado ordinario conserva la ventana y muestra Sonner. Al cerrar con cambios: «Actualmente hay cambios sin guardar.» con Guardar/Cerrar; `SettingsExitActions` dispone acciones con salto de línea. El contrato del borrador y las acciones inmediatas están en [Arquitectura](architecture.md#configuración).
 
-La confirmación de Limpieza usa AlertDialog y Checkbox, casilla Todos con estado parcial y selección inicial según acción. Presenta resumen, conservaciones y efectos compartidos; dos columnas de casillas pasan a una en estrecho. Cabecera/footer quedan fuera del scroll. «Limpiar selección» se desactiva sin selección y bloquea casillas/cierre durante ejecución; Cancelar queda accesible antes. Los nombres proceden del registro de módulos.
+La confirmación de Limpieza usa AlertDialog y Checkbox, casilla Todos con estado parcial y selección inicial según acción. Su ancho de apertura llega a 760 px para seleccionar módulos y revisar el resumen, las conservaciones y los efectos compartidos. En pantallas estrechas deja 32 px de margen horizontal total y las casillas pasan de dos columnas a una. Cabecera/footer quedan fuera del scroll. «Limpiar selección» se desactiva sin selección y bloquea casillas/cierre durante ejecución; Cancelar queda accesible antes. Los nombres proceden del registro de módulos.
 
 ## Accesibilidad
 
@@ -166,7 +166,7 @@ Alto contraste: superficies planas oscuras, texto secundario claro, bordes refor
 | `layout/moduleToolbar.module.css`                       | Base de herramientas; Mapa integra tokens en su composición propia.                                                                                                                                                                    |
 | `OverlayPortalContext`                                  | Contenedor de menús, popovers, Select, ContextMenu y Sheet; conserva viewport, scroll y foco aunque esté fuera de `app-shell`.                                                                                                         |
 | `FileDialog` / `AlertDialog` / `Sheet`                  | Marco y movimiento sobre ModuleFrame, confirmaciones y paneles modales/no modales. Archivo conserva tamaño expandido durante su apertura; Informes usa Sheet no modal.                                                                 |
-| `ResizablePanel*`                                       | Adaptadores de react-resizable-panels: porcentajes explícitos (`defaultSize="50%"`); valores numéricos son píxeles.                                                                                                                    |
+| ReportSelectionResize | Separador de Informes. Usa la clase local handle y permite ajustar el ancho con el puntero o el teclado. |
 
 Conserva `data-slot`, clases funcionales y estados accesibles de consumidores, medición y gestos. Reserva inline para posiciones, dimensiones, colores elegidos y zoom dinámicos. Mantén reglas funcionales sin capa y prioridades de medición/movimiento al ajustar estilos; la prioridad CSS depende de cascada/especificidad. Una especialización local conserva la base y los tokens globales.
 

@@ -1,4 +1,4 @@
-import { renderAnalysis, reportSection, sourceReference, entryReference } from './findings.mjs'
+import { areaDocument } from './audit-report.mjs'
 import { collectUiStyles } from './ui-styles.mjs'
 import { loadUiPolicy } from './ui-policy.mjs'
 import { isPaintProperty, normalizePaint, paintColors } from './css-paint.mjs'
@@ -46,6 +46,20 @@ function differences(surfaces, policy) {
     const absent = (group.members ?? []).filter(id => !members.some(surface => surface.moduleId === id))
     if (absent.length) warn('miembros de grupo visual no encontrados', `${group.id}: ${absent.join(', ')}`)
     comparisonGroups.push({ ...group, members: members.map(surface => ({ label: surface.label, file: surface.file, line: surface.line, moduleId: surface.moduleId })), configuredMembers: group.members ?? null })
+    const exceptionsByMember = new Map()
+    for (const exception of policy.exceptions.filter(item => item.group === group.id)) {
+      const matches = members.filter(member => exception.surface
+        ? member.file === exception.surface.file && member.label === exception.surface.label
+        : member.moduleId === exception.moduleId)
+      if (matches.length > 1) {
+        warn('excepción visual con destino ambiguo', exception.id)
+        seenExceptions.add(exception.id)
+      } else if (matches.length === 1) {
+        const member = matches[0]
+        if (!exceptionsByMember.has(member)) exceptionsByMember.set(member, new Map())
+        exceptionsByMember.get(member).set(exception.property, exception)
+      }
+    }
     for (const property of group.properties) {
       const variants = new Map()
       let missing = 0
@@ -63,7 +77,7 @@ function differences(surfaces, policy) {
           inherited: !isNumeric && !declared,
           source: isNumeric ? numericSource : { file: definition.file, line: definition.line },
         }
-        const exception = policy.exceptions.find(item => item.group === group.id && item.moduleId === surface.moduleId && item.property === property)
+        const exception = exceptionsByMember.get(surface)?.get(property)
         if (exception) {
           seenExceptions.add(exception.id)
           const detail = { ...exception, groupName: group.name, label: surface.label, actual: value, file: surface.file, line: surface.line, source: entry.source }
@@ -78,7 +92,7 @@ function differences(surfaces, policy) {
       if (variants.size > 1) result.push({ group: group.name, groupId: group.id, property, variants: [...variants.values()], withoutDeclaration: missing })
     }
   }
-  for (const exception of policy.exceptions) if (!seenExceptions.has(exception.id)) warn('excepción visual sin valor verificable', `${exception.id}: revisar selección de módulo y declaración de ${exception.property}`)
+  for (const exception of policy.exceptions) if (!seenExceptions.has(exception.id)) warn('excepción visual sin valor verificable', `${exception.id}: revisar la superficie y la declaración de ${exception.property}`)
   return { differences: result, comparisonGroups, appliedExceptions, exceptionViolations, uncertainties,
     ungroupedSurfaces: surfaces.filter(surface => !selected.has(surface)).map(surface => ({ label: surface.label, kind: surface.kind, file: surface.file, line: surface.line })),
   }
@@ -106,6 +120,7 @@ function repeatedLiterals(declarations) {
 }
 
 function tokenCandidates(inventory, declarations) {
+  const eligibleFiles = new Set(inventory.css.filter(sheet => sheet.hasDashboardTokens).map(sheet => sheet.file))
   const tokenFile = inventory.css.find(sheet => sheet.file === 'src/styles/tokens.css')
   const tokens = tokenFile.rules.filter(rule => rule.selector === ':root' && rule.context.every(context => context.startsWith('@layer'))).flatMap(rule => rule.declarations).filter(item => item.property.startsWith('--'))
   const familyOf = property => property === 'font-family' ? /^--font-(?:interface-default|clock)$/
@@ -114,6 +129,7 @@ function tokenCandidates(inventory, declarations) {
         : /(?:width|height|inline-size|block-size)$/.test(property) ? /^--(?:control-height|icon-size|checkbox-size)-base$/ : null
   const candidates = []
   for (const declaration of declarations) {
+    if (!eligibleFiles.has(declaration.file)) continue
     if (isPaintProperty(declaration.property)) {
       const matches = new Map()
       const match = (literal, key, family) => {
@@ -164,6 +180,20 @@ function paintExceptions(declarations, policy) {
   return { declarations: declarations.filter(item => !excluded.has(item)), appliedPaintExceptions, uncertainties, excluded: excluded.size }
 }
 
+function cssCoincidences(inventory, declarations) {
+  const occurrences = new Map()
+  const record = declaration => {
+    const key = JSON.stringify([declaration.file, declaration.offset ?? declaration.line, declaration.selector, declaration.property, declaration.value, declaration.context])
+    if (!occurrences.has(key)) occurrences.set(key, { ...declaration, matches: [] })
+    return occurrences.get(key)
+  }
+  for (const repeat of repeatedLiterals(declarations)) {
+    for (const entry of repeat.occurrences) record(entry).repeat = { occurrences: repeat.occurrences.length, sheets: repeat.files }
+  }
+  for (const entry of tokenCandidates(inventory, declarations)) record(entry).matches = entry.matches
+  return [...occurrences.values()]
+}
+
 function numericConstraints(inventory) {
   const checks = []
   for (const module of inventory.modules) for (const [index, axis] of ['ancho', 'alto'].entries()) {
@@ -182,31 +212,10 @@ function numericConstraints(inventory) {
   return checks
 }
 
-export function renderUiConsistency(report, options = {}) {
-  const { sourceRoot } = options
-  return renderAnalysis('consistency', report, [
-    reportSection('Cobertura', [
-      `${report.coverage.surfaces} superficies · ${report.coverage.stylesheets} hojas · ${report.coverage.cssDeclarations} declaraciones`,
-      `${new Set(report.differences.map(item => item.groupId ?? item.group)).size} grupos con diferencias · ${report.differences.length} diferencias por propiedad · ${report.ungroupedSurfaces.length} superficies sin grupo`,
-      `Color y sombra: ${report.coverage.paintDeclarations} declaraciones · ${report.coverage.excludedPaintDeclarations} bajo excepción.`,
-      `Política en ${sourceReference(report.policy.file, 1, sourceRoot, 'ui-consistency.json')}. Una declaración ausente queda sin valor comparable.`,
-    ]),
-    reportSection('Grupos comparables', report.comparisonGroups.map(item => [
-      `- **${item.name}** · ${item.members.map(member => member.label).join(', ') || 'sin miembros detectados'}`,
-      `  - ${item.properties.join(', ')}. ${item.reason}`,
-    ].join('\n'))),
-    reportSection('Excepciones aplicadas', [
-      ...report.appliedExceptions.map(item => [
-        `- ${entryReference(item.source ?? item, sourceRoot, item.label)} · \`${item.property}: ${item.actual}\`. ${item.reason}`,
-        `  - Fuentes: ${item.sources.join(', ')}`,
-      ].join('\n')),
-      ...(report.appliedPaintExceptions ?? []).map(item => [
-        `- ${sourceReference(item.file, 1, sourceRoot, item.file)} · ${item.reason}`,
-        ...item.declarations.map(entry => `  - L${entry.line} · ${entry.selector} · \`${entry.property}: ${entry.value}\``),
-      ].join('\n')),
-    ]),
-    reportSection('Sin grupo comparable', report.ungroupedSurfaces.map(item => `- ${entryReference(item, sourceRoot, item.label)} · ${item.kind}`)),
-  ], options)
+export function renderUiConsistency(r) {
+  return areaDocument('consistency', r, [
+    `${r.coverage.surfaces} superficies, ${r.coverage.stylesheets} hojas CSS y ${r.coverage.cssDeclarations} declaraciones. Superficies fuera de los grupos comparables: ${r.ungroupedSurfaces.length}.`,
+  ])
 }
 
 export function collectUiConsistency(inventory = collectUiStyles(), policy = loadUiPolicy()) {
@@ -221,7 +230,6 @@ export function collectUiConsistency(inventory = collectUiStyles(), policy = loa
       paintDeclarations: declarations.filter(item => isPaintProperty(item.property)).length, excludedPaintDeclarations: paint.excluded },
     rules: { minimumRepeatedDeclarations: 3, minimumRepeatedFiles: 2, baseZoom: 1, automaticallyChangesCode: false },
     policy, ...comparisons, uncertainties: [...comparisons.uncertainties, ...paint.uncertainties], appliedPaintExceptions: paint.appliedPaintExceptions,
-    repeatedLiterals: repeatedLiterals(paint.declarations),
-    tokenCandidates: tokenCandidates(inventory, paint.declarations), numericConstraints: numericConstraints(inventory),
+    cssCoincidences: cssCoincidences(inventory, paint.declarations), numericConstraints: numericConstraints(inventory),
   }
 }

@@ -1,6 +1,6 @@
-export interface AlarmAudio { loop: boolean; currentTime: number; play(): Promise<void>; pause(): void }
-export type PlaybackResult = { status: 'started' | 'blocked' | 'error' | 'stopped' }
-export interface AlarmState { activeCount: number; preview: boolean; error: string | null }
+interface AlarmAudio { loop: boolean; currentTime: number; play(): Promise<void>; pause(): void }
+type PlaybackResult = { status: 'started' | 'blocked' | 'error' | 'stopped' }
+interface AlarmState { activeCount: number; preview: boolean; error: string | null }
 export class AlarmController {
   private readonly alerts = new Set<string>()
   private state: AlarmState = { activeCount: 0, preview: false, error: null }

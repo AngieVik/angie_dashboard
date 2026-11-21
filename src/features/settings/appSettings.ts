@@ -11,13 +11,13 @@ import { defaultFormatPreferences, validateFormatPreferences } from './formatPre
 import type { FormatPreferences } from './formatPreferences'
 import { DEFAULT_MAGNET_OPTIONS, MAGNET_DISTANCE_MIN, MAGNET_DISTANCE_MAX } from '@/layout/magnetSettings'
 
-export interface DefaultLocation {
+interface DefaultLocation {
   name: string
   latitude: number
   longitude: number
   timeZone: string
 }
-export type InitialArrangement = 'ordered' | 'bars'
+type InitialArrangement = 'ordered' | 'bars'
 export interface AppSettings { location: DefaultLocation | null; noticesAlwaysVisible: boolean; notices: NoticePreferences; magnetByDefault: boolean; magnetDistance: number; magnetAlignEdges: boolean; accessibility: AccessibilityPreferences; formats: FormatPreferences; initialModules: ModuleId[] | null; initialArrangement: InitialArrangement; initialZoom: number; zoomStep: number; savedDesktopViews: SavedDesktopView[] }
 export function emptySettings(): AppSettings { return { location: null, noticesAlwaysVisible: false, notices: defaultNoticePreferences(), magnetByDefault: false, magnetDistance: DEFAULT_MAGNET_OPTIONS.distance, magnetAlignEdges: DEFAULT_MAGNET_OPTIONS.alignEdges, accessibility: defaultAccessibilityPreferences(), formats: defaultFormatPreferences(), initialModules: null, initialArrangement: 'ordered', initialZoom: 1, zoomStep: ZOOM_STEP_DEFAULT, savedDesktopViews: [] } }
 

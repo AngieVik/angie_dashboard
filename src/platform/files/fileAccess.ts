@@ -10,7 +10,7 @@ export interface FilePlatform {
   download(text: string, filename: string, mimeType?: string): void
 }
 
-export type LoadOutcome =
+type LoadOutcome =
   | { status: 'loaded'; data: UIBoardData; fingerprint: string }
   | { status: 'cancelled' }
   | { status: 'error'; message: string }
@@ -28,7 +28,7 @@ export function isFileCancellation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
 }
 
-export async function textFingerprint(text: string): Promise<string> {
+async function textFingerprint(text: string): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')
 }

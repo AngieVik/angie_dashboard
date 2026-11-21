@@ -22,10 +22,6 @@ function cacheFor(store: DocumentStore, generation: number) {
   return current.cache
 }
 
-export function gpxGeometryMemory(store: DocumentStore) {
-  return caches.get(store)?.cache.memory() ?? { files: 0, points: 0, bytes: 0, consumers: 0 }
-}
-
 export function useGpxFiles(store: DocumentStore, generation: number, references: readonly MapGpxReference[]) {
   const cache = cacheFor(store, generation)
   const [consumer] = useState(() => ({}))

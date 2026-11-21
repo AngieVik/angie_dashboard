@@ -9,7 +9,7 @@ import type { TimerInstant } from './timerClock'
 type TimerAction = (timers: TimerRecord[], now: number) => TimerRecord[]
 type TimerMutationResult = 'saved' | 'conflict' | 'unavailable' | 'not-ready'
 
-export function createTimerStore(repository: InternalTimerRepository, alarm: AlarmController) {
+function createTimerStore(repository: InternalTimerRepository, alarm: AlarmController) {
   const clock = new TimerClock(), initial = clock.read()
   let state = { timers: [] as TimerRecord[], ready: false, storageUnavailable: false, storageConflict: false, storageCorrupt: false, recoveryGeneration: 0 }
   let time = initial

@@ -1,6 +1,6 @@
 import type { AngieDocument } from './types'
 
-export interface DocumentCommandResult<T = void> {
+interface DocumentCommandResult<T = void> {
   document: AngieDocument
   changed: boolean
   value: T

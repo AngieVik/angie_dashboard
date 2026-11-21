@@ -3,6 +3,7 @@ import * as L from 'leaflet'
 import type { DocumentElement, GeographicPosition, PlanPin, Position } from '../../domain/document/types'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
+import { pinTextFontSize } from '../elements/pinText'
 import { getPinBox, ICON_CATALOG } from '../elements/iconCatalog'
 import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, getScaledPinNameOffset, pinNameLines, PIN_NAME_COLORS, PIN_BASE_SCALE, PIN_REFERENCE_ZOOM, pinTransform } from '../elements/pinPresentation'
 import { clampAssetScale } from '../elements/elementCommands'
@@ -121,6 +122,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
       content.dataset.selected = String(selected)
       content.dataset.enabled = String(enabled)
       content.style.pointerEvents = enabled ? 'auto' : 'none'
+      const textSize = element.visual.type === 'emoji' ? pinTextFontSize(element.visual.value) : 0
       const visual = document.createElement(element.visual.type === 'asset' ? 'img' : 'span')
       visual.className = 'plan-pin-visual'
       visual.style.transform = pinTransform(element.visual)
@@ -131,7 +133,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
         visual.draggable = false
       } else if (element.visual.type === 'emoji') {
         visual.textContent = element.visual.value
-        visual.style.fontSize = `${48 * element.visual.scale * factor}px`
+        visual.style.fontSize = `${textSize * element.visual.scale * factor}px`
       }
       content.append(visual)
       function nameLayout(scale = element.visual.scale) {
@@ -193,7 +195,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
         node!.style.marginLeft = `${-anchor.x * factor}px`
         node!.style.marginTop = `${-anchor.y * factor}px`
         content.style.transformOrigin = `${anchor.x * factor}px ${anchor.y * factor}px`
-        if (element.visual.type === 'emoji') visual.style.fontSize = `${48 * scale * factor}px`
+        if (element.visual.type === 'emoji') visual.style.fontSize = `${textSize * scale * factor}px`
         if (name) {
           name.style.fontSize = `${nameLayout(scale).fontSize * factor}px`
           name.style.padding = `${scale * factor}px ${4 * scale * factor}px`

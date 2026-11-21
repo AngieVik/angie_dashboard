@@ -1,5 +1,4 @@
-import { collectFindings, markdownDocument, markdownText, renderFindings, sourceReference } from './findings.mjs'
-import { reportDate, reportSection, wrapReport } from './report-format.mjs'
+import { areaDocument } from './audit-report.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -118,86 +117,86 @@ function analyze(source) {
   return { file: relative(source.fileName), imports, components, jsx: [...tags.values()].sort((a, b) => compare(a.name, b.name)) }
 }
 
-function inventoryArea(file) {
-  const parts = file.split('/')
-  if (parts.length <= 2) return parts.slice(0, -1).join('/') || 'Raíz'
-  const depth = ['components', 'domain', 'features'].includes(parts[1]) ? 3 : 2
-  return parts.slice(0, Math.min(depth, parts.length - 1)).join('/')
+export function renderAppInventory(r) {
+  return areaDocument('inventory', r, [
+    `${r.files.length} archivos, ${r.components.length} componentes candidatos y ${r.elements.types.length} contratos.`,
+    `Módulos registrados: ${Object.values(r.modules.values).map(item => item.name).join(', ')}. Catálogo: ${Object.keys(r.elements.catalog.values).length} elementos.`,
+    `Entradas con icono, carga y vista resueltos: ${r.moduleCoverage.resolved} de ${r.moduleCoverage.total}.`,
+  ])
 }
 
-function renderInventoryFiles(report, reference) {
-  const sources = new Map(report.sources.map(item => [item.file, item]))
-  const files = new Map(report.files.map(item => [item.file, item.bytes]))
-  for (const item of report.sources) {
-    if (!files.has(item.file) && (item.components.length || item.jsx.length)) files.set(item.file, null)
-  }
-  const areas = new Map()
-  const declarations = { class: 'clase', function: 'función', variable: 'variable' }
-  for (const [file, bytes] of [...files].sort(([left], [right]) => compare(left, right))) {
-    const area = inventoryArea(file)
-    if (!areas.has(area)) areas.set(area, [])
-    const label = area === 'Raíz' ? file : file.slice(area.length + 1)
-    const rows = areas.get(area)
-    rows.push(`- ${reference(file, 1, label)}${bytes === null ? '' : ` · ${bytes} B`}`)
-
-    const source = sources.get(file)
-    if (source?.components.length) {
-      const items = source.components.map(item =>
-        `\`${item.name}\` (${declarations[item.kind]}, ${item.exported ? 'export directo, ' : ''}L${item.line})`)
-      rows.push(`  - Declaraciones React: ${items.join(', ')}`)
+// Follow the keys used by AppHeader and by DashboardGrid's renderModule callback.
+// An unrelated JSX use or an id comparison inside a button handler is not a render branch.
+export function inspectModuleConsumers(registrySource, app, checker) {
+  const objects = (source, name) => {
+    const node = declarations(source).get(name)
+    if (!node || !ts.isObjectLiteralExpression(unwrap(node))) throw new Error('No se pudo leer ' + name)
+    const entries = new Map()
+    for (const property of unwrap(node).properties) {
+      if (!(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) || ts.isComputedPropertyName(property.name))
+        throw new Error('Entrada no reconocida en ' + name + ': ' + property.getText())
+      entries.set(property.name.text, property)
     }
-    for (const [kind, description] of [['intrinsic', 'JSX intrínseco'], ['component', 'JSX de componentes']]) {
-      const tags = source?.jsx.filter(tag => tag.kind === kind) ?? []
-      if (tags.length) rows.push(`  - ${description}: ${tags.map(tag => `\`${tag.name}\` ×${tag.count}`).join(', ')}`)
-    }
+    return entries
   }
-  return [...areas].map(([area, rows]) => `### ${area}\n\n${rows.map(row => wrapReport(row)).join('\n')}`).join('\n\n')
-}
-
-export function renderAppInventory(report, { sourceRoot } = {}) {
-  const reference = (file, line, label = path.posix.basename(file)) => sourceReference(file, line, sourceRoot, markdownText(label))
-  const modules = Object.entries(report.modules.values)
-  const elements = Object.entries(report.elements.catalog.values)
-  const jsxFiles = report.sources.filter(item => item.jsx.length).length
-  const { referenceNode, referenceNpm, currentNode } = report.environment
-  const findings = report.findings ?? collectFindings({ inventory: report })
-
-  return markdownDocument('Inventario de la aplicación',
-    `**${report.files.length} archivos fuente · ${report.components.length} componentes candidatos · ${modules.length} módulos · ${elements.length} elementos**`,
-    `${jsxFiles} archivos con JSX · ${report.elements.types.length} contratos · ${report.dependencies.length} dependencias directas.`,
-    `${reportDate(report.generatedAt)} (Madrid). Lectura estática de las declaraciones y registros del proyecto.`,
-    wrapReport('[Módulos](#módulos) · [Configuración](#configuración-y-comandos) · [Elementos](#elementos)'
-      + ' · [Contratos](#contratos) · [Fuentes por área](#fuentes-por-área)'),
-    findings.length ? renderFindings(findings, { sourceRoot, report }) : '',
-    reportSection('Módulos', [
-      `Registro en ${reference(report.modules.file, report.modules.line)}. La asociación se basa en el nombre del componente.`,
-      ...modules.map(([id, item]) => {
-        const name = id[0].toUpperCase() + id.slice(1) + 'Module'
-        const candidates = report.components.filter(component => component.name === name)
-        const component = candidates.length === 1 ? candidates[0]
-          : candidates.find(candidate => candidate.file.startsWith(`src/features/${id}/`))
-        const owner = component ? reference(component.file, component.line, component.name) : 'propietario sin identificar'
-        return `- **${markdownText(item.name)}** (\`${id}\`) · ${owner}`
-      }),
-    ]),
-    reportSection('Configuración y comandos', [
-      `Proyecto \`${report.project.name}\` ${report.project.version}. Node de la revisión ${currentNode}.`,
-      `Entorno de referencia: Node ${referenceNode ?? 'sin indicar'}, npm ${referenceNpm ?? 'sin indicar'}.`,
-      `Archivos: ${report.configuration.map(file => reference(file, 1)).join(', ')}.`,
-      ...Object.entries(report.project.scripts).map(([name, command]) => `- \`npm run ${name}\` → \`${command}\``),
-    ]),
-    reportSection('Elementos', [
-      `Registro en ${reference(report.elements.catalog.file, report.elements.catalog.line)}.`,
-      ...elements.map(([id, item]) =>
-        `- **${markdownText(item.name)}** (\`${id}\`) · ${markdownText(item.visualClass)} · \`${item.path}\``),
-    ]),
-    '## Contratos\n\n' + report.elements.types.map(item =>
-      `### ${item.name}\n\n${reference(item.file, item.line, `${path.posix.basename(item.file)}:${item.line}`)}`
-      + `\n\n\`\`\`typescript\n${item.declaration}\n\`\`\``).join('\n\n'),
-    '## Fuentes por área\n\n' + wrapReport('Tamaño en disco, declaraciones React y apariciones JSX, incluidas las ramas condicionales. '
-      + 'React se reconoce por nombre y JSX. Los wrappers pueden requerir revisar la fuente. '
-      + '«Export directo» indica que la declaración lleva export.') + '\n\n' + renderInventoryFiles(report, reference),
-  ).trimEnd() + '\n'
+  const registry = objects(registrySource, 'MODULE_REGISTRY'), icons = objects(registrySource, 'MODULE_ICONS')
+  const factories = objects(app, 'moduleFactories'), branches = new Map(), uncertainties = [], issues = []
+  let callback
+  walk(app, node => {
+    if (!jsxTag(node) || node.tagName.getText() !== 'DashboardGrid') return
+    const attr = node.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText() === 'renderModule')
+    if (attr?.initializer && ts.isJsxExpression(attr.initializer)) callback = attr.initializer.expression
+  })
+  let understood = false
+  if (callback && ts.isArrowFunction(callback) && callback.parameters.length === 1) {
+    let branch = unwrap(callback.body)
+    while (ts.isConditionalExpression(branch)) {
+      const condition = unwrap(branch.condition)
+      if (!ts.isBinaryExpression(condition) || condition.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken ||
+          condition.left.getText() !== callback.parameters[0].name.getText() || !ts.isStringLiteralLike(condition.right)) break
+      branches.set(condition.right.text, unwrap(branch.whenTrue))
+      branch = unwrap(branch.whenFalse)
+    }
+    understood = branch.kind === ts.SyntaxKind.NullKeyword
+  }
+  if (!understood) uncertainties.push({ ...location(app, callback ?? app), kind: 'renderModule no se pudo interpretar por completo', expression: 'DashboardGrid.renderModule' })
+  let resolved = 0
+  for (const [id, property] of registry) {
+    const missing = []
+    const icon = icons.get(id)
+    if (!icon) missing.push('Falta el icono en MODULE_ICONS.')
+    else {
+      const symbol = ts.isShorthandPropertyAssignment(icon) ? checker.getShorthandAssignmentValueSymbol(icon) : checker.getSymbolAtLocation(icon.initializer)
+      const target = symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol)
+      if (!target?.valueDeclaration) missing.push('El icono declarado en MODULE_ICONS no se resuelve.')
+    }
+    const factory = factories.get(id)
+    if (!factory) missing.push('Falta la carga diferida en moduleFactories.')
+    else {
+      // Resolve the actual imported export using the TypeScript program, including reexports.
+      let member, importCall
+      walk(factory, n => {
+        if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword) importCall = n
+        if (ts.isPropertyAssignment(n) && n.name.getText() === 'default' && ts.isPropertyAccessExpression(n.initializer)) member = n.initializer.name
+      })
+      if (!importCall || !member) uncertainties.push({ ...location(app, factory), kind: 'carga diferida no reconocida', expression: id })
+      else if (!checker.getSymbolAtLocation(member)) missing.push('Importación o exportación sin resolver: ' + importCall.getText() + ' → ' + member.text)
+    }
+    const view = branches.get(id)
+    if (!view && understood) missing.push('Falta la rama de renderizado en DashboardGrid.renderModule.')
+    if (view) {
+      const tag = ts.isJsxElement(view) ? view.openingElement.tagName : ts.isJsxSelfClosingElement(view) ? view.tagName : undefined
+      const binding = tag && checker.getSymbolAtLocation(tag)?.valueDeclaration
+      if (binding && ts.isBindingElement(binding) && binding.parent.parent.initializer?.getText() === 'moduleViews') {
+        const key = (binding.propertyName ?? binding.name).getText()
+        if (key !== id) missing.push('La rama dibuja la vista de ' + key + '.')
+      } else if (view.kind === ts.SyntaxKind.NullKeyword || (tag && !binding)) missing.push('La rama carece de una vista resoluble.')
+      else uncertainties.push({ ...location(app, view), kind: 'vínculo de vista no reconocido', expression: id })
+    }
+    if (missing.length) issues.push({ id, registry: location(registrySource, property), consumer: location(app, view ?? factory ?? callback ?? app), missing })
+    else if (view && !uncertainties.some(gap => gap.expression === id)) resolved++
+  }
+  return { total: registry.size, resolved, issues, uncertainties }
 }
 
 export function collectAppInventory(project = createProjectContext()) {
@@ -214,6 +213,7 @@ export function collectAppInventory(project = createProjectContext()) {
     if (error) throw new Error(`${relative(source.fileName)}: ${ts.flattenDiagnosticMessageText(error.messageText, ' ')}`)
   }
   const sources = [...parsed.values()].map(analyze)
+  const moduleCoverage = inspectModuleConsumers(project.source('src/layout/moduleRegistry.ts'), project.source('src/app/App.tsx'), project.getProgram().getTypeChecker())
   const registry = (file, name) => {
     const source = parsed.get(file)
     if (!source) throw new Error(`No se encuentra la fuente ${file}`)
@@ -241,7 +241,7 @@ export function collectAppInventory(project = createProjectContext()) {
       referenceNpm: manifest.engines?.npm ?? guidance.match(/npm\s+(\d+\.\d+\.\d+)/)?.[1] ?? null,
       currentNode: process.version,
     },
-    configuration, dependencies,
+    configuration, dependencies, moduleCoverage, uncertainties: moduleCoverage.uncertainties,
     files: files.map(file => ({ file: relative(file), bytes: fs.statSync(file).size })),
     sources,
     components: sources.flatMap(source => source.components),

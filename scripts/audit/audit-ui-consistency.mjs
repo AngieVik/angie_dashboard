@@ -1,6 +1,6 @@
-import { collectUiConsistency, renderUiConsistency } from './lib/ui-consistency.mjs'
-import { runCli, individualReportPaths } from './lib/runtime.mjs'
-import { collectUiStyles } from './lib/ui-styles.mjs'
+import { collectUiConsistency, renderUiConsistency } from '../lib/ui-consistency.mjs'
+import { runCli, individualReportPaths } from '../lib/runtime.mjs'
+import { collectUiStyles } from '../lib/ui-styles.mjs'
 
 runCli(import.meta.url, {
   name: 'audit-ui-consistency.mjs', analysis: 'consistency', collect: project => collectUiConsistency(collectUiStyles(project)), render: renderUiConsistency,

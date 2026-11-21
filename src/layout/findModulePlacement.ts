@@ -1,7 +1,7 @@
 import { moduleBaseSize } from './moduleRegistry'
 import type { ModuleLayout, PlacementRequest, PlacementResult, Size } from './layoutTypes'
 
-export function overlaps(a: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>, b: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>): boolean {
+function overlaps(a: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>, b: Pick<ModuleLayout, 'x' | 'y' | 'width' | 'height'>): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 }
 

@@ -42,7 +42,7 @@ export class InputBudgetError extends Error {
   constructor(readonly issue: ValidationIssue) { super(issue.message); this.name = 'InputBudgetError' }
 }
 
-export type InputFileKind = 'json' | 'gpx' | 'image'
+type InputFileKind = 'json' | 'gpx' | 'image'
 export function checkFileBytes(size: number, kind: InputFileKind): void {
   const limit = INPUT_BUDGETS[`${kind}Bytes`]
   if (!Number.isSafeInteger(size) || size < 0) throw new InputBudgetError({ path: kind, message: `${kind}: no se pudo comprobar el tamaño. Se conserva el contenido anterior.` })

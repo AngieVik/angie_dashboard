@@ -44,13 +44,13 @@ export interface DocumentSnapshot {
   fileMessage: string | null
   fileName: string | null
 }
-export interface GeneratedReport { report: ReturnType<typeof createDocumentReport> }
+interface GeneratedReport { report: ReturnType<typeof createDocumentReport> }
 interface StoreContext { platform: FilePlatform; now?: () => Date }
 
 const RECOVERY_DELAY_MS = 1000
 const RECOVERY_MAX_WAIT_MS = 5000
 
-export function createDocumentStore(repository: UIBoardRecovery, context: StoreContext) {
+function createDocumentStore(repository: UIBoardRecovery, context: StoreContext) {
   let state: DocumentSnapshot = {
     document: createEmptyDocument(), documentGeneration: 0, active: false, ready: false, openModules: [],
     autosaveUnavailable: false, localStorageMessage: null, autosaveSaving: false, localSavedAt: null, storageConflict: false,

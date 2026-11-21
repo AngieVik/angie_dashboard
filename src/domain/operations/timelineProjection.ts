@@ -9,7 +9,7 @@ export function isTimelineEntryDeleted(entry: TimelineEntry): boolean {
 export function isTimelineEntryCorrected(entry: TimelineEntry): boolean {
   return entry.revisions.some(revision => revision.kind === 'correction')
 }
-export function getTimelineEntryText(entry: TimelineEntry): string | null {
+function getTimelineEntryText(entry: TimelineEntry): string | null {
   const revision = entry.revisions.findLast(revision => revision.kind === 'text')
   return revision?.kind === 'text' ? revision.text : entry.type === 'manual' ? entry.text : null
 }

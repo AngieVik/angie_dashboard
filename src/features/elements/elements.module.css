@@ -56,9 +56,10 @@
   :where(.base) :is(:global(.element-representation-control), :global(.element-icon-group)) [data-slot="button"]:last-child { margin-inline-start: -1px; border-radius: 0 var(--radius-control) var(--radius-control) 0; }
   :where(.base) :global(.element-representation-control) [data-slot="button"][aria-pressed="true"] { position: relative; z-index: 1; background: var(--surface-button-hover); border-color: var(--color-field-border); }
   :where(.base) :global(.element-editor) [data-slot="select"] { flex: 1; }
+  :where(.base) :global(.element-editor) [data-slot="textarea"] { padding-block: max(0px, calc((var(--field-height) - 1lh) / 2 - 1px)); }
   :where(.base) :global(.element-adjustment-row) > span { flex: 0 0 5ch; color: var(--color-text-secondary); }
   :where(.base) :global(.element-value-control) [data-slot="input"],
-  :where(.base) :global(.element-editor) :global(.element-emoji-control) { flex: 0 0 auto; width: calc(4ch + 2 * var(--control-gap)); appearance: textfield; text-align: center; font-variant-numeric: tabular-nums; }
+  :where(.base) :global(.element-editor) :global(.element-emoji-control) { flex: 0 0 auto; width: calc(10ch + 2 * var(--control-gap)); appearance: textfield; text-align: center; font-variant-numeric: tabular-nums; }
   :where(.base) :global(.element-value-control) input::-webkit-inner-spin-button,
   :where(.base) :global(.element-value-control) input::-webkit-outer-spin-button { appearance: none; margin: 0; }
   :where(.base) :global(.element-transform-controls) [data-slot="button"][aria-pressed="true"]:not(:hover:enabled) { border-color: var(--color-selection-border); background: var(--color-selected); }

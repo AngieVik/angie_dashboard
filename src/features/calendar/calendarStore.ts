@@ -3,7 +3,7 @@ import type { CalendarStorage } from './calendarRepository'
 import { calendarDateKey, isCalendarDate, parseCalendarEvent } from './calendarEvents'
 import type { CalendarEvent } from './calendarEvents'
 
-export function createCalendarStore(repository: CalendarStorage) {
+function createCalendarStore(repository: CalendarStorage) {
   let state = { events: [] as CalendarEvent[], selectedDate: calendarDateKey(new Date()), ready: false, busy: false, error: null as string | null }
   let initialization: Promise<void> | undefined
   let pendingReload = false

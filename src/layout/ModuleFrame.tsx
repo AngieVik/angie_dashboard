@@ -23,7 +23,7 @@ function scrollKey(element: HTMLElement, root: HTMLElement) {
   return [element.tagName, [...element.classList].join('.'), element.getAttribute('aria-label') ?? ''].join('|')
 }
 
-export type ModuleAction = 'front' | 'collapse' | 'contract' | 'expand' | 'fit' | 'reset-zoom' | 'clear-close' | 'reset' | 'close'
+type ModuleAction = 'front' | 'collapse' | 'contract' | 'expand' | 'fit' | 'reset-zoom' | 'clear-close' | 'reset' | 'close'
 export type ModuleActions = (action: ModuleAction) => Size | undefined
 
 interface ScrollAxis { element: HTMLElement; offset: number; ratio: number; maximum: number }

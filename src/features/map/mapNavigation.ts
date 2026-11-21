@@ -1,6 +1,6 @@
 import type { MapBackground } from './mapBackgrounds'
 
-export interface MapView { latitude: number; longitude: number; zoom: number; background: MapBackground; pnoaInformation: boolean }
+interface MapView { latitude: number; longitude: number; zoom: number; background: MapBackground; pnoaInformation: boolean }
 export const MAX_MAP_LATITUDE = 85.05112878
 
 const views = new Map<string, MapView>()

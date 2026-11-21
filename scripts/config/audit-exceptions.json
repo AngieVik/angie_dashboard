@@ -1,0 +1,62 @@
+[
+  {
+    "ref": "9e44aa1d64f218e5",
+    "reason": "El índice de Select reexporta este tipo como parte de su interfaz compartida."
+  },
+  {
+    "ref": "8760e28120f2c187",
+    "reason": "El índice de Sheet reexporta este componente como parte de su interfaz compartida."
+  },
+  {
+    "ref": "2b2a9391e22d3dd1",
+    "reason": "El índice de AlertDialog ofrece AlertDialogAction para las acciones de confirmación."
+  },
+  {
+    "ref": "070b49b7e354f52c",
+    "reason": "El índice de DropdownMenu ofrece DropdownMenuItem para las opciones de acción simple."
+  },
+  {
+    "ref": "7bcb2cc38be630b4",
+    "reason": "El índice de Sheet ofrece este componente para componer paneles."
+  },
+  {
+    "ref": "efdfdc4f63d80288",
+    "reason": "El índice de Sheet ofrece este componente para componer paneles."
+  },
+  {
+    "ref": "a51b9710aed40d1e",
+    "reason": "El índice de Sheet ofrece este componente para componer paneles."
+  },
+  {
+    "ref": "96c56c438fd7a3a9",
+    "reason": "El índice de Sheet ofrece este componente para componer paneles."
+  },
+  {
+    "ref": "e8a0cf03345f9249",
+    "reason": "El índice de Sheet ofrece este componente para componer paneles."
+  },
+  {
+    "ref": "2bcd1fc61304cef4",
+    "reason": "La fila de Elementos reserva espacio para colorear el borde al marcarla o seleccionarla."
+  },
+  {
+    "ref": "912fef9409c3fa18",
+    "reason": "La opción de Select reserva espacio para el borde visible de la opción elegida."
+  },
+  {
+    "ref": "c74f0b26f0da34ac",
+    "reason": "El disparador del menú mantiene el borde transparente y señala la interacción mediante el texto."
+  },
+  {
+    "ref": "ee4909ca95c057a7",
+    "reason": "El botón de control conserva su marco transparente y señala el estado pulsado mediante el color del icono."
+  },
+  {
+    "ref": "908e08c7727d72cc",
+    "reason": "El tirador de ventana conserva un borde transparente en su caja de 24 px y muestra el foco mediante un contorno."
+  },
+  {
+    "ref": "4089994eed737e3b",
+    "reason": "El tirador inferior derecho de la cuadrícula usa el mismo marco que el tirador de ventana mediante el selector propio de la biblioteca."
+  }
+]

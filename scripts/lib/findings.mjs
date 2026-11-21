@@ -1,8 +1,7 @@
-import { reportCode, reportDate, reportScope, wrapReport } from './report-format.mjs'
-export { reportSection } from './report-format.mjs'
 import path from 'node:path'
 import Ajv from 'ajv'
 import { digest } from './snapshot.mjs'
+import { readJson } from './project.mjs'
 export const analysisLabels = {
   inventory: 'Inventario de la app',
   styles: 'Estilos y medidas',
@@ -103,16 +102,6 @@ export function validateFindings(findings) {
   if (new Set(findings.map(item => item.id)).size !== findings.length)
     throw new Error('Identificador de hallazgo duplicado.')
 }
-export const markdownText = value => String(value ?? '—').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('|', '\\|').replaceAll('\r', '').replaceAll('\n', ' ')
-export const markdownDocument = (title, ...sections) => [`# ${title}`, ...sections.filter(Boolean), ''].join('\n\n')
-export function sourceReference(file, line = 1, sourceRoot = '../../../', text = `${file}:${line ?? 1}`) {
-  if (!file)
-    return 'ejecución'
-  const label = text.replaceAll('[', '\\[').replaceAll(']', '\\]')
-  return `[${label}](${(sourceRoot + file).split('/').map(part => encodeURIComponent(part)).join('/')}#L${line ?? 1})`
-}
-export const entryReference = (item, sourceRoot, label) => sourceReference(typeof item.source === 'string' ? item.source : item.file, item.line, sourceRoot, label)
-export const readableBytes = value => value < 1000 ? `${value} B` : value < 1000000 ? `${(value / 1000).toFixed(2)} kB` : `${(value / 1000000).toFixed(2)} MB`
 const group = (items, keyOf) => {
   const groups = new Map()
   for (const item of items) {
@@ -160,8 +149,8 @@ const definitions = {
   'unmatched-include-assets': ['Patrones includeAssets sin coincidencias', 'observación', 'no acreditado', 'El patrón no aporta archivos públicos reconocidos. Puede ser una reserva intencional; no demuestra un recurso ausente en ejecución.'],
   'style-difference': ['Diferencias entre superficies comparables', 'observación', 'posible', 'Las superficies pueden mostrar valores distintos si estas declaraciones se aplican en su contexto. No se calcula el efecto final de la cascada.'],
   'exception-mismatch': ['Excepciones visuales con valor distinto del esperado', 'inconsistencia', 'posible', 'La declaración puede apartarse de una especialización visual documentada. Su efecto visible depende de la composición y la cascada.'],
-  'repeated-literal': ['Coincidencias de propiedades y valores literales', 'observación', 'no acreditado', 'Compartir un valor literal no acredita incoherencia ni fallo visual; las declaraciones pueden tener responsabilidades distintas.'],
-  'token-candidates': ['Coincidencias con tokens existentes', 'observación', 'no acreditado', 'La coincidencia con un token no acredita un contrato compartido ni un problema visual actual.'],
+  'css-coincidence': ['Coincidencias CSS', 'observación', 'no acreditado', 'La coincidencia pide comprobar la intención de diseño.'],
+  'unresolved-module': ['Integración de módulos', 'inconsistencia', 'posible', 'La apertura del módulo puede quedar incompleta.'],
   'numeric-constraint': ['Restricciones numéricas contradictorias', 'inconsistencia', 'posible', 'Las restricciones pueden producir un tamaño distinto al inicial o al máximo esperado. No se ha medido recorte ni layout efectivo.'],
   'multiple-versions': ['Versiones presentes en el código emitido', 'dato', 'posible', 'El artefacto incluye código de varias versiones. Los bytes emitidos pueden contribuir a transferencia y almacenamiento cuando se carguen; no son ahorro recuperable acreditado.'],
   'coverage-gap': ['Limitaciones de cobertura', 'limitación', 'posible', 'El análisis de esta zona puede omitir consumidores o relaciones y producir conclusiones incompletas. No implica un fallo de la app.'],
@@ -287,25 +276,15 @@ export function collectFindings(reports) {
         signature: names,
       })
     }
-    for (const [key, entries] of group(unused.unusedExports, item => `${item.file}:${item.localReferences > 0 ? 'internal' : 'unreferenced'}`)) {
-      const internal = entries[0].localReferences > 0, names = entries.map(item => item.name).sort(), element = elementFromFile(entries[0].file)
-      add('unused', internal ? 'internal-exports' : 'unreferenced-exports', key, `${element.kind}: ${element.name} — ${internal ? 'exportaciones con uso interno' : 'declaraciones sin consumidores conectados'}`, entries.map(item => ({
-        file: item.file,
-        line: item.line,
-        detail: `${item.name} (${item.declarationKind}); referencias locales: ${item.localReferences}; externas desconectadas: ${item.disconnectedReferences}; externas conectadas: 0.`,
-        symbol: item.name
-      })), {
+    for (const item of unused.unusedExports) {
+      const rule = item.localReferences ? 'internal-exports' : 'unreferenced-exports'
+      const element = elementFromFile(item.file)
+      const evidence = { file: item.file, line: item.line, symbol: item.name, detail: item.declarationKind }
+      add('unused', rule, JSON.stringify([item.file, item.name]), reportRule(rule) + ' — ' + element.kind + ': ' + element.name, [evidence], {
         element,
-        observed: `${names.length} declaraciones: ${names.join(', ')}. ${internal ? 'Conservan uso local.' : 'Sin referencias locales detectadas.'} No se reconocen consumidores externos conectados.`,
-        facts: {
-          declarations: entries.map(({ name, localReferences, disconnectedReferences }) => ({
-            name,
-            localReferences,
-            disconnectedReferences,
-            connectedExternalReferences: 0
-          }))
-        },
-        signature: names,
+        observed: item.name + ' · referencias locales / externas desconectadas: ' + item.localReferences + '/' + item.disconnectedReferences,
+        facts: { symbol: item.name, localReferences: item.localReferences, disconnectedReferences: item.disconnectedReferences, reexports: item.reexports ?? [] },
+        signature: [item.declarationKind, item.reexports ?? []],
       })
     }
     for (const item of unused.localUnused)
@@ -565,13 +544,20 @@ export function collectFindings(reports) {
         signature: item.expression
       })
   }
+  for (const issue of reports.inventory?.moduleCoverage?.issues ?? []) {
+    add('inventory', 'unresolved-module', issue.id, 'Módulo sin resolver: ' + issue.id, [
+      { ...issue.registry, detail: 'Entrada de MODULE_REGISTRY: ' + issue.id },
+      { ...issue.consumer, detail: issue.missing.join(' ') },
+    ], { confidence: 'alta', signature: issue.missing })
+  }
   const ui = reports.consistency
   if (ui) {
     for (const item of ui.differences)
       add('consistency', 'style-difference', `${item.groupId ?? item.group}:${item.property}`, `${item.group}: valores distintos de ${item.property}`, item.variants.flatMap(variant => variant.surfaces.map(surface => ({
         file: surface.source?.file ?? surface.file,
         line: surface.source?.line ?? surface.line,
-        detail: `${surface.label}: ${variant.value}${surface.inherited ? ' (referencia heredada)' : ''}; componente ${surface.file}:${surface.line}.`
+        componentLine: surface.line,
+        detail: `${surface.label}: ${variant.value}${surface.inherited ? ' (referencia heredada)' : ''}; componente ${surface.file}.`
       }))), {
         confidence: 'baja',
         element: {
@@ -618,36 +604,22 @@ export function collectFindings(reports) {
         confidence: 'alta',
         signature: item.expression
       })
-    for (const item of ui.repeatedLiterals)
-      add('consistency', 'repeated-literal', `${item.property}:${item.value}`, `${item.property}: ${item.value} — coincidencia en ${item.files} hojas`, item.occurrences.map(entry => ({
-        file: entry.file,
-        line: entry.line,
-        detail: `${item.property}: ${item.value}; selector ${entry.selector}; contexto: ${entry.context?.join(' → ') || 'raíz'}.`
-      })), {
-        element: {
-          kind: 'Propiedad CSS',
-          name: `${item.property}: ${item.value}`
-        },
-        observed: `${item.occurrences.length} declaraciones de ${item.property}: ${item.value} en ${item.files} hojas CSS.`,
-        facts: {
-          property: item.property,
-          value: item.value,
-          occurrences: item.occurrences.length,
-          stylesheets: item.files
-        },
-        signature: item.occurrences.map(entry => `${entry.file}:${entry.selector}`).sort()
+    for (const [key, entries] of group(ui.cssCoincidences, entry =>
+      JSON.stringify([entry.file, entry.context, entry.selector, entry.property, entry.value]))) {
+      const first = entries[0]
+      const numeric = /^[-+]?(?:\d*\.)?\d+(?:[a-z]+|%)?(?:\s+[-+]?(?:\d*\.)?\d+(?:[a-z]+|%)?)*$/i.test(first.value.trim())
+      const title = first.selector + ' · ' + first.property + ': ' + first.value
+      const evidence = entries.map(entry => {
+        const notes = []
+        if (entry.repeat) notes.push('Repetido ' + entry.repeat.occurrences + ' veces en ' + entry.repeat.sheets + ' hojas')
+        for (const match of entry.matches) notes.push(match.literal + ' → ' + match.tokens.map(token => token.name + ' = ' + token.value).join(', '))
+        return { ...fileLocation(entry), detail: notes.join(' | '), matches: entry.matches, repeat: entry.repeat }
       })
-    for (const [file, entries] of group(ui.tokenCandidates, item => item.file))
-      add('consistency', 'token-candidates', file, `${elementFromFile(file).name}: valores que coinciden con tokens`, entries.map(item => ({
-        file: item.file,
-        line: item.line,
-        detail: `${item.selector}: ${item.property}: ${item.value}; contexto: ${item.context?.join(' → ') || 'raíz'}; coincidencias: ${item.matches.map(match => `${match.literal} → ${match.tokens.map(token => `${token.name} (${token.file}:${token.line}; ${token.value})`).join(', ')}`).join('; ')}.`
-      })), {
-        confidence: 'baja',
-        observed: `${entries.length} declaraciones de ${file} contienen valores literales coincidentes con tokens de su familia. Las coincidencias y fuentes se indican en la evidencia.`,
-        facts: { declarations: entries.length },
-        signature: entries.map(item => `${item.selector}:${item.context?.join('/') ?? ''}:${item.property}:${item.value}:${item.matches.flatMap(match => match.tokens.map(token => `${token.name}=${token.value}`)).sort().join('|')}`).sort()
+      add('consistency', 'css-coincidence', key, title, evidence, {
+        facts: { numeric, context: first.context }, confidence: 'baja',
+        signature: evidence.map(entry => entry.matches.flatMap(match => match.tokens.map(token => [token.file, token.name, token.value]))),
       })
+    }
     for (const item of ui.numericConstraints)
       add('consistency', 'numeric-constraint', `${item.file}:${item.label}:${item.axis}`, `${item.label}: restricción de ${item.axis}`, [{
         ...fileLocation(item),
@@ -664,7 +636,7 @@ export function collectFindings(reports) {
           minimum: item.minimum,
           maximum: item.maximum
         },
-        signature: item
+        signature: [item.file, item.label, item.axis, item.initial, item.minimum, item.maximum, item.context]
       })
   }
   if (reports.bundle)
@@ -758,23 +730,53 @@ export function relateFindings(items) {
     }
   return unique.sort((a, b) => analysisOrder.indexOf(a.analyzer) - analysisOrder.indexOf(b.analyzer) || a.nature.localeCompare(b.nature, 'es') || a.element.name.localeCompare(b.element.name, 'es') || a.id.localeCompare(b.id, 'en'))
 }
-export function diagnosticReport(analyzer, report) {
+export function diagnosticReport(analyzer, report, accepted = readJson('scripts/config/audit-exceptions.json')) {
   if (!Object.hasOwn(analysisLabels, analyzer))
     throw new Error(`Análisis desconocido: ${analyzer}`)
   const data = { ...report }
   const findings = collectFindings({ [analyzer]: data })
   validateFindings(findings)
-  return {
-    ...data,
-    diagnosticSchemaVersion: diagnosticVersion,
-    findings
+  const decisions = new Map()
+  if (!Array.isArray(accepted)) throw new Error('Se esperaba una lista en audit-exceptions.json.')
+  for (const entry of accepted) {
+    if (typeof entry?.ref !== 'string' || !/^[a-f0-9]{16}$/.test(entry.ref) || typeof entry.reason !== 'string' || !entry.reason.trim() || decisions.has(entry.ref))
+      throw new Error('Excepción sin referencia única válida o sin motivo en audit-exceptions.json.')
+    decisions.set(entry.ref, entry.reason.trim())
   }
+  const review = [], exceptions = [], limitations = [], observations = []
+  for (const item of findings) {
+    // These measurements have no project rule defining a violation.
+    if (['cross-feature-contract', 'installed-multiple-versions'].includes(item.rule)) continue
+    if (item.rule === 'css-coincidence' && item.facts.numeric) { observations.push(item); continue }
+    if (item.rule === 'coverage-gap') { limitations.push(item); continue }
+    const evidence = item.evidence.map(({ file, artifact, detail }) => JSON.stringify([file, artifact, detail])).sort()
+    const ref = digest(JSON.stringify([item.id, item.fingerprint, item.observed, evidence])).slice(0, 16)
+    const current = { ...item, ref }
+    if (decisions.has(ref)) exceptions.push({ title: item.title, reason: decisions.get(ref), finding: current })
+    else review.push(current)
+  }
+  for (const item of report.appliedExceptions ?? []) {
+    const location = item.source ?? item
+    exceptions.push({ title: item.id, reason: item.reason, sources: item.sources, evidence: [
+      { file: location.file, line: location.line, detail: item.label + ' · ' + item.property + ' = ' + item.actual },
+    ] })
+  }
+  for (const item of report.appliedPaintExceptions ?? []) {
+    exceptions.push({ title: item.id, reason: item.reason, sources: item.sources,
+      evidence: item.declarations.map(entry => ({
+        file: entry.file, line: entry.line, detail: [...entry.context, entry.selector, entry.property + ': ' + entry.value].join(' · '),
+      })),
+    })
+  }
+  const priority = item => item.classification === 'inconsistencia' ? 0 : item.impact.certainty === 'no acreditado' ? 2 : 1
+  review.sort((a, b) => priority(a) - priority(b))
+  return { ...data, diagnosticSchemaVersion: diagnosticVersion, findings: review, exceptions, limitations, observations }
 }
 const ruleLabels = {
-  'token-candidates': 'Tokens', 'repeated-literal': 'Valores repetidos',
-  'detached-group': 'Archivos sin recorrido', 'unreferenced-exports': 'Exports sin uso',
+  'css-coincidence': 'Coincidencia CSS', 'unresolved-module': 'Módulo sin resolver',
+  'detached-group': 'Archivos sin recorrido', 'unreferenced-exports': 'Comprobar consumidores',
   'detached-group-review': 'Archivos pendientes de revisión por referencias sin resolver',
-  'internal-exports': 'Exports internos', 'local-unused': 'Nombres sin uso', 'unused-css': 'Clases sin uso',
+  'internal-exports': 'Revisar si necesita exportarse', 'local-unused': 'Nombres sin uso', 'unused-css': 'Clases sin uso',
   'runtime-cycle': 'Ciclo de valores', 'type-related-cycle': 'Ciclo con tipos', 'deferred-cycle': 'Ciclo diferido',
   'cross-feature-contract': 'Relación entre áreas', 'undeclared-use': 'Declaración ausente',
   'review-consumers': 'Consumidores', 'installed-multiple-versions': 'Varias versiones',
@@ -789,98 +791,3 @@ const ruleLabels = {
 }
 
 export const reportRule = rule => ruleLabels[rule] ?? rule
-
-export function findingCounts(findings) {
-  const classes = new Map()
-  for (const item of findings) classes.set(item.classification, (classes.get(item.classification) ?? 0) + 1)
-  return classes.size ? [...classes].map(([name, count]) => name + ': ' + count).join(' · ') : ''
-}
-
-function findingMetadata(item) {
-  return item.classification + ' · confianza: ' + item.confidence + ' · riesgo: ' + item.impact.certainty
-}
-
-function evidenceLines(entries, sourceRoot) {
-  const lines = []
-  const files = group(entries, entry => entry.file ?? entry.artifact ?? 'ejecución')
-  for (const [file, evidence] of files) {
-    lines.push('Ubicación: ' + file)
-    for (const entry of evidence) {
-      const location = entry.file ? sourceReference(entry.file, entry.line, sourceRoot, 'L' + (entry.line ?? 1)) : ''
-      const detail = entry.detail ?? entry.message ?? (entry.expression === undefined ? '' : reportCode(entry.expression))
-      lines.push(wrapReport('- ' + (location ? location + ': ' : '') + detail))
-    }
-  }
-  return lines.join('\n')
-}
-
-function tokenEvidence(report, file, sourceRoot) {
-  const lines = ['Ubicación: ' + file]
-  for (const item of report.tokenCandidates.filter(item => item.file === file)) {
-    const location = sourceReference(file, item.line, sourceRoot, 'L' + item.line)
-    lines.push('- ' + location + ': ' + reportCode(item.selector))
-    if (item.context?.length) lines.push('  Contexto: ' + item.context.map(reportCode).join(' / '))
-    lines.push('  ' + reportCode(item.property + ': ' + item.value))
-    const matches = item.matches.toSorted((a, b) => Number(b.literal === item.value) - Number(a.literal === item.value))
-    for (const match of matches) {
-      const names = match.tokens.map(token => sourceReference(token.file, token.line, sourceRoot, token.name))
-      lines.push('  ' + (match.literal === item.value ? '→ ' : reportCode(match.literal) + ' → ') + names.join(', '))
-    }
-  }
-  return wrapReport(lines.join('\n'))
-}
-
-export function renderFindings(items, { sourceRoot = '../../../', report } = {}) {
-  const sections = []
-  const batches = group(items, item => item.rule)
-  for (const [rule, batch] of batches) {
-    sections.push('## ' + reportRule(rule) + ' (' + batch.length + ')')
-    const batchMetadata = [...new Set(batch.map(findingMetadata))]
-    const shared = batchMetadata.length === 1
-    if (shared) sections.push(batchMetadata[0])
-    const risks = [...new Set(batch.filter(item => item.impact.certainty !== 'no acreditado').map(item => item.impact.description))]
-    if (risks.length) sections.push(wrapReport(risks.join(' ')))
-    const byElement = group(batch, item => (item.element.file ?? item.element.name))
-    for (const entries of byElement.values()) {
-      const name = entries[0].element.name
-      sections.push('### ' + markdownText(name))
-      const metadata = [...new Set(entries.map(findingMetadata))]
-      if (!shared && metadata.length === 1) sections.push(metadata[0])
-      const seen = new Set()
-      for (const item of entries) {
-        if (metadata.length > 1) sections.push(findingMetadata(item))
-        if (item.rule === 'token-candidates' && report?.tokenCandidates) {
-          sections.push(tokenEvidence(report, item.element.file ?? item.files[0], sourceRoot))
-          continue
-        }
-        if (item.observed && item.observed !== name && !item.evidence.some(entry => entry.detail === item.observed)) {
-          sections.push(wrapReport(item.observed))
-        }
-        const evidence = item.evidence.filter(entry => {
-          const key = JSON.stringify(entry)
-          if (seen.has(key)) return false
-          seen.add(key)
-          return true
-        })
-        if (evidence.length) sections.push(evidenceLines(evidence, sourceRoot))
-      }
-    }
-  }
-  return sections.join('\n\n')
-}
-
-export function renderAnalysis(analyzer, report, [overview, ...references] = [], { sourceRoot = '../../../' } = {}) {
-  const findings = report.findings ?? collectFindings({ [analyzer]: report })
-  const titles = references.flatMap(section => section.match(/^## (.+)/)?.[1] ?? [])
-  const contents = titles.length >= 3 ? wrapReport(titles.map(title => {
-    const anchor = title.toLowerCase().replace(/[^\p{L}\p{N} _-]/gu, '').replace(/ +/g, '-')
-    return `[${title}](#${anchor})`
-  }).join(' · ')) : ''
-  return markdownDocument(analyzer,
-    '**' + findings.length + (findings.length === 1 ? ' hallazgo**' : ' hallazgos**') + (findingCounts(findings) ? ' · ' + findingCounts(findings) : ''),
-    reportDate(report.generatedAt) + ' (Madrid). Alcance: ' + reportScope(analyzer),
-    overview,
-    contents,
-    findings.length ? renderFindings(findings, { sourceRoot, report }) : '',
-    ...references).trimEnd() + '\n'
-}

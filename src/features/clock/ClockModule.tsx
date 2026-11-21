@@ -13,7 +13,7 @@ import type { TimerStore } from './timerStore'
 import styles from './clock.module.css'
 
 // Implementation parameter; the V1 exposes no frequency setting.
-export const ALARM_FLASH_HZ = 2
+const ALARM_FLASH_HZ = 2
 export function ClockModule({ store }: { store: TimerStore }) {
   const { timers, ready, storageConflict, recoveryGeneration } = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const { settings } = useSettings()

@@ -22,7 +22,3 @@ export const PNOA_INFORMATION = {
 } as const
 
 export type MapBackground = keyof typeof MAP_BACKGROUNDS
-
-export function isMapBackground(value: unknown): value is MapBackground {
-  return typeof value === 'string' && Object.hasOwn(MAP_BACKGROUNDS, value)
-}

@@ -9,7 +9,7 @@ export interface LegendRow {
   meaning: string
   sample: 'relief' | 'hypsometry' | 'river' | 'water' | 'settlement' | 'motorway' | 'road' | 'track' | 'railway' | 'boundary' | 'protected' | 'vegetation' | 'building'
 }
-export interface TopographicLegend {
+interface TopographicLegend {
   maxZoom: number
   title: string
   reference: string

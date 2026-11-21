@@ -50,9 +50,9 @@ function resetOperations(document: AngieDocument, all: boolean) {
   return changed ? { ...document, elements } : document
 }
 
-export type CleanupRuntimeEffect = 'board-image' | 'coordinate-input' | 'element-selection' | 'timers'
-export interface CleanupSharedEffect { module: DocumentModuleId; text: string }
-export interface ModuleCleanupDefinition {
+type CleanupRuntimeEffect = 'board-image' | 'coordinate-input' | 'element-selection' | 'timers'
+interface CleanupSharedEffect { module: DocumentModuleId; text: string }
+interface ModuleCleanupDefinition {
   clear: (document: AngieDocument) => AngieDocument
   summary: (document: AngieDocument, timers: number) => string
   preserves: readonly { text: string; unless?: readonly DocumentModuleId[] }[]

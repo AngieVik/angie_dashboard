@@ -5,7 +5,7 @@ import { SETTINGS_MODULE_IDS } from './settingsModuleOrder'
 
 export const SAVED_DESKTOP_VIEWS_LIMIT = 50
 export const SAVED_VIEW_NAME_LIMIT = 80
-export interface DesktopViewModule { id: ModuleId; x: number; y: number; width: number; height: number }
+interface DesktopViewModule { id: ModuleId; x: number; y: number; width: number; height: number }
 export interface DesktopViewState { modules: DesktopViewModule[]; viewport: ViewportState; active: ModuleId | null }
 export interface SavedDesktopView { id: string; name: string; desktop: DesktopViewState }
 export interface DesktopViewsController {

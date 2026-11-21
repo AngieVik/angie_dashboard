@@ -3,7 +3,7 @@ import type { ModuleId, Size } from './layoutTypes'
 
 export type ModuleSizeMode = 'standard' | 'editable' | 'feed' | 'specific'
 interface ModuleDefinition { name: string; initial: readonly [number, number]; minimum: readonly [number, number]; baseHeight: 'minimum-content' | 'fixed'; autoResize: boolean; autoHeightLimit?: number; compactInPlace?: boolean; sizeMode: ModuleSizeMode }
-export const MODULE_AUTO_HEIGHT_LIMIT = 500
+const MODULE_AUTO_HEIGHT_LIMIT = 500
 export const MODULE_REGISTRY = {
   board: { name: 'Pizarra', initial: [510, 420], minimum: [27, 27], baseHeight: 'fixed', autoResize: false, sizeMode: 'specific' },
   elements: { name: 'Elementos', initial: [240, 30], minimum: [27, 27], baseHeight: 'minimum-content', autoResize: true, compactInPlace: true, autoHeightLimit: MODULE_AUTO_HEIGHT_LIMIT, sizeMode: 'editable' },

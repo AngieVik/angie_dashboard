@@ -1,7 +1,7 @@
 import type { ViewportState } from './layoutTypes'
 import { VIEWPORT_ZOOM_MAX, VIEWPORT_ZOOM_MIN } from './viewportMath'
 
-export interface NavigationState extends ViewportState {
+interface NavigationState extends ViewportState {
   autoResize?: boolean
   scrolls?: Record<string, { left: number; top: number }>
 }

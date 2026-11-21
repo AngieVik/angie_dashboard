@@ -4,8 +4,6 @@ import type { GpxData, LoadedGpx } from './gpx'
 import { gpxGeometryBytes as geometryBytes, GPX_GEOMETRY_BYTES as GEOMETRY_BYTES } from './gpxBudget'
 import type { GpxAllowance } from './gpxBudget'
 
-export type WithGpxFiles = <T>(references: readonly MapGpxReference[], run: (files: LoadedGpx[]) => Promise<T>) => Promise<T>
-
 export class GpxGeometryCache {
   private admission?: Promise<void>
   private consumers = new Map<object, Set<string>>()

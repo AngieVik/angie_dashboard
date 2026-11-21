@@ -1,5 +1,5 @@
-import { collectPublicAssets, renderPublicAssets } from './lib/public-assets.mjs'
-import { runCli, individualReportPaths } from './lib/runtime.mjs'
+import { collectPublicAssets, renderPublicAssets } from '../lib/public-assets.mjs'
+import { runCli, individualReportPaths } from '../lib/runtime.mjs'
 
 runCli(import.meta.url, {
   name: 'audit-public-assets.mjs', analysis: 'assets', collect: collectPublicAssets, render: renderPublicAssets,

@@ -32,14 +32,14 @@
     border-radius: var(--radius-control);
     background: var(--surface-button);
     color: var(--color-text);
-    box-shadow: inset 0 1px 0 rgb(242 242 240 / 9%), 0 1px 3px rgb(0 0 0 / 35%);
+    box-shadow: inset 0 1px 0 var(--palette-warm-white-alpha-9), 0 1px 3px var(--palette-black-alpha-35);
     font-size: var(--control-font-size);
     font-weight: 400;
     line-height: 1.4;
     container: operations-card / inline-size;
     transition: background var(--transition-control), border-color var(--transition-control), color var(--transition-control);
   }
-  :where(.base) :global(.operations-notes):not([data-disabled="true"], [data-active="true"]):hover { border-color: var(--color-hover-border); background: var(--surface-button-hover); box-shadow: inset 0 1px 0 rgb(242 242 240 / 12%); }
+  :where(.base) :global(.operations-notes):not([data-disabled="true"], [data-active="true"]):hover { border-color: var(--color-hover-border); background: var(--surface-button-hover); box-shadow: inset 0 1px 0 var(--palette-warm-white-alpha-12); }
   :where(.base) :global(.operations-custom-row) { display: flex; flex: 1; align-items: center; gap: var(--control-gap); min-width: 0; margin: 0; padding: calc(var(--field-padding-base) * var(--module-zoom, 1)); }
   :where(.base) :global(.operations-note-color) { position: relative; display: grid; flex: none; place-items: center; width: calc(var(--icon-size-base) * var(--module-zoom, 1)); height: calc(var(--icon-size-base) * var(--module-zoom, 1)); margin: 0; cursor: pointer; }
   :where(.base) :global(.operations-note-color) input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }

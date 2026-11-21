@@ -9,10 +9,10 @@ export interface CalendarStorage {
   deleteEvent(id: string): Promise<void>
 }
 interface EventRecord { id: string; event: unknown; revision: number }
-export class CalendarConflictError extends Error {
+class CalendarConflictError extends Error {
   constructor() { super('Este evento cambió en otra pestaña. Recarga la agenda antes de continuar.'); this.name = 'CalendarConflictError' }
 }
-export function createCalendarDatabase(name = 'angie-dashboard-calendar', options?: DexieOptions) {
+function createCalendarDatabase(name = 'angie-dashboard-calendar', options?: DexieOptions) {
   const db = new Dexie(name, options)
   db.version(1).stores({ events: 'id' })
   return db

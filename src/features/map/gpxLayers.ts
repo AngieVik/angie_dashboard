@@ -7,31 +7,23 @@ import { longitudeShift, unwrapLongitude } from './longitudeGeometry'
 // 256 vertices or 16 dots. No job owns a long loop over the full GPX.
 const jobs = new Set<Generator<void>>()
 let timer: ReturnType<typeof setTimeout> | undefined
-let maximumStepMs = 0, maximumSliceMs = 0
 function schedule() {
   if (timer !== undefined || !jobs.size) return
   timer = setTimeout(() => {
     timer = undefined
-    const start = performance.now(), deadline = start + 4
+    const deadline = performance.now() + 4
     do {
       const job = jobs.values().next().value
       if (!job) break
       jobs.delete(job)
-      const stepStart = performance.now()
       if (!job.next().done) jobs.add(job)
-      maximumStepMs = Math.max(maximumStepMs, performance.now() - stepStart)
     } while (performance.now() < deadline && jobs.size)
-    maximumSliceMs = Math.max(maximumSliceMs, performance.now() - start)
     schedule()
   }, 0)
 }
 function enqueue(job: Generator<void>) { jobs.add(job); schedule(); return () => { jobs.delete(job); job.return(undefined); if (!jobs.size && timer !== undefined) { clearTimeout(timer); timer = undefined } } }
 
-// Diagnostics count owned jobs/layers, without retaining maps or geometries.
-let ownedLayers = 0
-export function gpxLayerMemory() { return { jobs: jobs.size, layers: ownedLayers, maximumStepMs, maximumSliceMs } }
-
-interface LayerTask { key: string; data: LoadedGpx['data']; group: L.LayerGroup; cancel: () => void; count: number; shift: number }
+interface LayerTask { key: string; data: LoadedGpx['data']; group: L.LayerGroup; cancel: () => void; shift: number }
 export class GpxLayers {
   private geometry = new Map<string, LayerTask>()
   private kilometers = new Map<string, LayerTask>()
@@ -40,9 +32,8 @@ export class GpxLayers {
     const task = entries.get(id)
     if (!task) return
     task.cancel(); task.group.remove(); task.group.clearLayers()
-    ownedLayers -= task.count; task.count = 0; entries.delete(id)
+    entries.delete(id)
   }
-  private add(task: LayerTask, layer: L.Layer) { task.group.addLayer(layer); task.count++; ownedLayers++ }
   sync(files: readonly LoadedGpx[], zoom: number) {
     const visible = files.filter(file => file.visible)
     const labeled = visible.filter(file => file.kilometers)
@@ -56,7 +47,7 @@ export class GpxLayers {
       const previous = this.geometry.get(file.id)
       if (!previous || previous.key !== key || previous.data !== file.data) {
         this.remove(this.geometry, file.id)
-        const task: LayerTask = { key, data: file.data, group: L.layerGroup().addTo(this.map), cancel: () => {}, count: 0, shift }
+        const task: LayerTask = { key, data: file.data, group: L.layerGroup().addTo(this.map), cancel: () => {}, shift }
         this.geometry.set(file.id, task)
         task.cancel = enqueue(this.drawGeometry(task, file))
       }
@@ -65,7 +56,7 @@ export class GpxLayers {
         const previous = this.kilometers.get(file.id)
         if (!previous || previous.key !== key || previous.data !== file.data) {
           this.remove(this.kilometers, file.id)
-          const task: LayerTask = { key, data: file.data, group: L.layerGroup().addTo(this.map), cancel: () => {}, count: 0, shift }
+          const task: LayerTask = { key, data: file.data, group: L.layerGroup().addTo(this.map), cancel: () => {}, shift }
           this.kilometers.set(file.id, task)
           task.cancel = enqueue(this.drawKilometers(task, file, zoom, labelBudget))
         }
@@ -79,7 +70,7 @@ export class GpxLayers {
       let previous = line[0]?.longitude ?? 0
       if (line.length === 1) {
         const point = line[0]!
-        this.add(task, L.circleMarker([point.latitude, (file.data.displayLongitudes?.[offset] ?? point.longitude) + task.shift], { radius: 4, color, interactive: false }))
+        task.group.addLayer(L.circleMarker([point.latitude, (file.data.displayLongitudes?.[offset] ?? point.longitude) + task.shift], { radius: 4, color, interactive: false }))
         if (++dots % 16 === 0) yield
       } else for (let start = 0; start < line.length - 1; start += 255) {
         const points: L.LatLngTuple[] = []
@@ -89,7 +80,7 @@ export class GpxLayers {
         }
         // Neighboring chunks share their boundary point; distinct GPX segments
         // never connect. This affects only the visual layer, never calculations.
-        this.add(task, L.polyline(points, { color, weight: 3, interactive: false }))
+        task.group.addLayer(L.polyline(points, { color, weight: 3, interactive: false }))
         yield
       }
       offset += line.length
@@ -97,7 +88,7 @@ export class GpxLayers {
     for (const point of file.data.waypoints) {
       const marker = L.circleMarker([point.latitude, (file.data.displayLongitudes?.[offset++] ?? point.longitude) + task.shift], { radius: 5, color, weight: 2, fillColor: color, fillOpacity: 1 })
       if (point.name) { const label = document.createElement('span'); label.textContent = point.name; marker.bindTooltip(label) }
-      this.add(task, marker)
+      task.group.addLayer(marker)
       if (++dots % 16 === 0) yield
     }
   }
@@ -107,7 +98,7 @@ export class GpxLayers {
         const label = document.createElement('span')
         label.textContent = mark.kilometer.toLocaleString('es-ES'); label.style.borderColor = file.color
         label.title = 'PK ' + mark.kilometer.toLocaleString('es-ES')
-        this.add(task, L.marker([mark.point.latitude, (mark.displayLongitude ?? mark.point.longitude) + task.shift], {
+        task.group.addLayer(L.marker([mark.point.latitude, (mark.displayLongitude ?? mark.point.longitude) + task.shift], {
           icon: L.divIcon({ className: 'map-kilometer', html: label, iconSize: [30, 20], iconAnchor: [15, 10] }),
           interactive: false, keyboard: false, zIndexOffset: 200,
         }))

@@ -43,7 +43,17 @@
       "sources": ["src/components/ui/sheet/sheet.tsx", "src/components/ui/sheet/sheet.module.css"]
     }
   ],
-  "exceptions": [],
+  "exceptions": [
+    {
+      "id": "cleanup-dialog-width",
+      "group": "alert-dialog-shell",
+      "surface": { "file": "src/features/view/CleanupMenu.tsx", "label": "CleanupMenu: Limpieza" },
+      "property": "width",
+      "expected": "min(760px, calc(100% - 32px))",
+      "reason": "El ancho de apertura de Limpieza está validado para seleccionar módulos y revisar la vista previa de sus efectos.",
+      "sources": ["docs/design.md", "src/features/view/cleanup.module.css"]
+    }
+  ],
   "paintExceptions": [
     {
       "id": "standalone-report-paper",
