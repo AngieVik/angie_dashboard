@@ -7,8 +7,8 @@ const MIN_WIDTH = 25
 const MAX_WIDTH = 75
 const clamp = (value: number) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value))
 
-export function ReportSelectionResize({ value, onChange, container, controls, disabled, className = '' }: {
-  value: number; onChange: (value: number) => void; container: RefObject<HTMLDivElement | null>; controls: string; disabled: boolean; className?: string
+export function ReportSelectionResize({ value, onChange, container, controls, disabled, label = 'Cambiar ancho del contenido del informe', className = '' }: {
+  value: number; onChange: (value: number) => void; container: RefObject<HTMLDivElement | null>; controls: string; disabled: boolean; className?: string; label?: string
 }) {
   const { blocked, blockedRef } = useViewportInteraction()
   const gesture = useRef<{ id: number; node: HTMLButtonElement; x: number; width: number; value: number } | null>(null)
@@ -48,7 +48,7 @@ export function ReportSelectionResize({ value, onChange, container, controls, di
     gesture.current = null
     if (current.node.hasPointerCapture(current.id)) current.node.releasePointerCapture(current.id)
   }
-  return <button type="button" role="separator" aria-orientation="vertical" aria-label="Cambiar ancho del contenido del informe"
+  return <button type="button" role="separator" aria-orientation="vertical" aria-label={label}
     aria-controls={controls} aria-valuemin={MIN_WIDTH} aria-valuemax={MAX_WIDTH} aria-valuenow={Math.round(value)}
     aria-valuetext={`${Math.round(value)} %`} disabled={disabled || blocked} aria-disabled={disabled || blocked}
     className={`${styles.handle} ${className}`} onPointerDown={event => {

@@ -24,7 +24,7 @@ function captureItems<Source, Value>(items: Source[], previous: Source[] | undef
 
 export function sameUIBoardContent(left: UIBoardData, right: UIBoardData): boolean {
   return left.document.title === right.document.title && left.elements === right.elements && left.notebook === right.notebook
-    && left.timeline === right.timeline && left.quickNotes === right.quickNotes && left.openModules === right.openModules
+    && left.timeline === right.timeline && left.quickNotes === right.quickNotes && left.planQuickNotes === right.planQuickNotes && left.openModules === right.openModules
 }
 
 function copyTimeline(entry: TimelineEntry): TimelineEntry {
@@ -60,6 +60,8 @@ export function captureUIBoard(document: AngieDocument, openModules: readonly Do
       : { id: block.id, type: block.type, title: block.title, items: block.items.map(item => ({ id: item.id, text: item.text, checked: item.checked })) }),
     timeline: captureItems(document.timeline, source?.timeline, data?.timeline, copyTimeline),
     quickNotes: captureItems(document.board.quickNotes, source?.board.quickNotes, data?.quickNotes, note => ({ id: note.id, title: note.title, text: note.text })),
+    ...(document.plan?.quickNotes?.length ? { planQuickNotes: captureItems(document.plan.quickNotes, source?.plan?.quickNotes, data?.planQuickNotes,
+      note => ({ id: note.id, title: note.title, text: note.text })) } : {}),
     openModules: data && samePortableValue(openModules, data.openModules) ? data.openModules : [...openModules],
   }
 }
@@ -75,7 +77,9 @@ export function openUIBoard(data: UIBoardData): AngieDocument {
   })
   document.notebook = structuredClone(data.notebook)
   document.timeline = structuredClone(data.timeline)
-  document.board.quickNotes = data.quickNotes.map((note, index) => ({ ...note, scale: 1, width: 180, height: 64,
+  const restoreNotes = (notes: UIBoardData['quickNotes']) => notes.map((note, index) => ({ ...note, scale: 1, width: 180, height: 64,
     position: { x: 110 + index % 4 * 200, y: 60 + Math.floor(index / 4) * 84 } }))
+  document.board.quickNotes = restoreNotes(data.quickNotes)
+  if (data.planQuickNotes?.length) document.plan = { pins: [], strokes: [], quickNotes: restoreNotes(data.planQuickNotes) }
   return document
 }

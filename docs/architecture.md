@@ -18,7 +18,7 @@ Consulta el apartado del área afectada. El [diseño](design.md) reúne medidas 
 
 ### Documento portable y recuperación
 
-`domain/document/types.ts` define `UIBoardData`; `uiBoardData.ts` proyecta y reabre el formato estricto `angie-uiboard`, sin versiones históricas. Conserva identidad y fechas, Elementos/Dotaciones con información operativa y referencia de catálogo o emoji, notas y checklists, Registro con revisiones, texto de notas rápidas y módulos abiertos.
+`domain/document/types.ts` define `UIBoardData`; `uiBoardData.ts` proyecta y reabre el formato estricto `angie-uiboard`, sin versiones históricas. Conserva identidad y fechas, Elementos/Dotaciones con información operativa y referencia de catálogo o emoji, notas y checklists, Registro con revisiones, texto de notas rápidas de Pizarra y Plano operativo y módulos abiertos.
 
 La geometría y navegación de ventanas, posiciones y transformaciones de pines, imágenes y otros binarios, dibujos, GPX e informes generados pertenecen a la sesión. Reabrir un UIBoard reconstruye únicamente sus datos portables.
 
@@ -146,7 +146,7 @@ El motor de temporizadores usa tiempo monotónico durante la ejecución y marcas
 
 ### Políticas HTTP del servidor estático
 
-`server/server.mjs` sirve `dist/` y aplica `Content-Security-Policy`, `X-Frame-Options: DENY` y `X-Content-Type-Options: nosniff` antes del enrutado, también en HEAD y errores. La CSP impide enmarcar la app (`frame-ancestors 'none'`), bases alternativas, objetos y envíos de formularios. Limita scripts, workers, manifiesto y audio al mismo origen; las imágenes admiten los proveedores cartográficos declarados, `data:` y `blob:`. Los iframes internos de informes siguen usando `srcdoc`, sandbox y su CSP propia; las fuentes admiten `data:` para el HTML autónomo.
+`server/server.mjs` sirve `dist/` y aplica `Content-Security-Policy`, `X-Frame-Options: DENY` y `X-Content-Type-Options: nosniff` antes del enrutado, también en HEAD y errores. La CSP impide enmarcar la app (`frame-ancestors 'none'`), bases alternativas, objetos y envíos de formularios. Limita scripts, workers, manifiesto y audio al mismo origen; las imágenes y teselas admiten el mismo origen, orígenes HTTPS, `data:` y `blob:`. Los iframes internos de informes siguen usando `srcdoc`, sandbox y su CSP propia; las fuentes admiten `data:` para el HTML autónomo.
 
 La política conserva excepciones de compatibilidad: `script-src 'unsafe-eval'` porque `validateDocument.ts` compila el esquema con Ajv en ejecución (también permite WASM); `style-src 'unsafe-inline'` para estilos dinámicos e informes; `connect-src 'self' https:` para búsqueda/elevación y el proveedor HTTPS configurable de `mapSearch.ts`. Por ello, la CSP no bloquea evaluación dinámica ni restringe las conexiones HTTPS a una lista de dominios. Eliminar esas excepciones exigiría precompilar validadores y revisar esos contratos.
 

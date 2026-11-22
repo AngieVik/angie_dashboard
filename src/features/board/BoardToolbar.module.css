@@ -1,4 +1,0 @@
-@layer components {
-  .colorControl { position: relative; display: flex; flex: none; }
-  .colorControl input[type="color"] { position: absolute; inset: 0; width: var(--control-height); min-width: 0; height: var(--control-height); min-height: 0; padding: 0; opacity: 0; pointer-events: none; }
-}

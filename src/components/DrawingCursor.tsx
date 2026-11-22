@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 import styles from './DrawingCursor.module.css'
 
-export function DrawingCursor({ diameter, color, exclude }: {
+export function DrawingCursor({ diameter, color, exclude, children }: {
+  children?: ReactNode
   diameter: number
   color?: string
   exclude?: string
@@ -44,5 +46,5 @@ export function DrawingCursor({ diameter, color, exclude }: {
     }
   }, [exclude])
   return <span ref={ref} className={styles.base} data-slot="drawing-cursor" hidden aria-hidden="true"
-    style={{ width: diameter, height: diameter, backgroundColor: color ?? 'transparent' }} />
+    style={{ width: diameter, height: diameter, backgroundColor: color ?? 'transparent', boxShadow: children ? 'none' : undefined }}>{children}</span>
 }

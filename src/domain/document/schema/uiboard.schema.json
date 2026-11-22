@@ -67,6 +67,12 @@
         "$ref": "#/$defs/quickNote"
       }
     },
+    "planQuickNotes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/quickNote"
+      }
+    },
     "openModules": {
       "type": "array",
       "uniqueItems": true,

@@ -27,15 +27,13 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
   const active = useRef<{ original: string; value: string } | null>(initialDraft === undefined ? null : { original: originalText, value: initialDraft })
   const text = draft ?? originalText
   const [preview, setPreview] = useState<Note | null>(null)
-  const drag = useRef<{ kind: 'move' | 'resize'; pointerId: number; x: number; y: number; base: Note; ready: boolean; moved: boolean; next: Note | null } | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const cancel = useCallback(() => { clearTimeout(timer.current); drag.current = null; setPreview(null) }, [])
+  const drag = useRef<{ kind: 'move' | 'resize'; pointerId: number; x: number; y: number; base: Note; moved: boolean; next: Note | null } | null>(null)
+  const cancel = useCallback(() => { drag.current = null; setPreview(null) }, [])
   useEffect(() => {
     // Navigation cancels only the gesture, preserving the active field draft and focus.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (blocked || !enabled) cancel()
   }, [blocked, enabled, cancel])
-  useEffect(() => () => clearTimeout(timer.current), [])
   useLayoutEffect(() => { if (focusBody) textarea.current?.focus() }, [focusBody, textarea])
   function commit(render = true) {
     const editing = active.current
@@ -68,14 +66,12 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
   function start(event: PointerEvent<HTMLElement>, kind: 'move' | 'resize') {
     if (!enabled || blockedRef.current || event.button !== 0) return
     event.stopPropagation(); event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId)
-    drag.current = { kind, pointerId: event.pointerId, x: event.clientX, y: event.clientY, base: note, ready: kind === 'resize' || event.pointerType === 'mouse', moved: false, next: null }
-    clearTimeout(timer.current)
-    if (kind === 'move' && event.pointerType !== 'mouse') timer.current = setTimeout(() => { if (drag.current && !blockedRef.current) drag.current.ready = true }, 250)
+    drag.current = { kind, pointerId: event.pointerId, x: event.clientX, y: event.clientY, base: note, moved: false, next: null }
   }
   function move(event: PointerEvent<HTMLElement>) {
     const current = drag.current, rect = surface.current?.getBoundingClientRect()
-    if (!current || current.pointerId !== event.pointerId || !current.ready || blockedRef.current || !rect?.width) return
-    if (!current.moved && current.kind === 'move' && event.pointerType === 'mouse' && Math.hypot(event.clientX - current.x, event.clientY - current.y) <= 4) return
+    if (!current || current.pointerId !== event.pointerId || blockedRef.current || !rect?.width) return
+    if (!current.moved && current.kind === 'move' && Math.hypot(event.clientX - current.x, event.clientY - current.y) <= 4) return
     current.moved = true
     event.stopPropagation()
     const delta = boardDelta({ x: event.clientX - current.x, y: event.clientY - current.y }, rect, view,

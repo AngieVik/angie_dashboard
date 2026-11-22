@@ -14,7 +14,19 @@ import { boardDelta, getBoardBounds, zoomBoardAt, toBoardPosition } from './boar
 import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { transformBoardImage } from './boardImageGeometry'
 import type { BoardImageLayout, ImageAction } from './boardImageGeometry'
-import { BoardToolbar } from './BoardToolbar'
+import { drawingHistory, recordDrawingEdit, replayDrawingEdit } from '../drawing/drawingHistory'
+import { DrawingToolbar, type DrawingTool } from '../drawing/DrawingToolbar'
+import { DrawingPanel } from '../drawing/DrawingPanel'
+import { DrawingImages, ImageTools, type ImageActions, type ImageMode } from '../drawing/DrawingImages'
+import { InkSurface } from '../drawing/InkSurface'
+import { inkAt, inkReferences, replaceInk } from '../drawing/inkGeometry'
+import { ShapeSurface } from '../drawing/ShapeSurface'
+import { distance, drawingMembers, groupVisible, type Projection } from '../drawing/shapeGeometry'
+import { useDrawingTools } from '../drawing/useDrawingTools'
+import drawingStyles from '../drawing/drawing.module.css'
+import { Button } from '@/components/ui/button'
+import { applyDocumentCommands } from '@/domain/document/documentCommand'
+import { togglePinVisibility } from '../elements/elementCommands'
 import { DrawingCursor } from '@/components/DrawingCursor'
 import { QuickNote } from './QuickNote'
 import { findQuickNotePlacement, getQuickNoteObstacles } from './findQuickNotePlacement'
@@ -36,10 +48,10 @@ function Stroke({ stroke }: { stroke: BoardStroke }) {
     lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
 }
 
-export function BoardModule({ store, imageSession, imageInputRef, selectedId = null, onSelect, onViewChange, onOpenModule, onEditElement, selectionReset = 0 }: {
+export function BoardModule({ store, imageSession, imageInputRef, selectedId = null, onSelect, onViewChange, onEditElement, selectionReset = 0 }: {
   selectionReset?: number; store: DocumentStore; imageSession: BoardImageSession; selectedId?: string | null; onSelect?: (id: string | null) => void
   imageInputRef: RefObject<HTMLInputElement | null>
-  onViewChange?: (center: Position) => void; onOpenModule?: (id: 'dotations' | 'elements') => void; onEditElement?: (id: string) => void
+  onViewChange?: (center: Position) => void; onEditElement?: (id: string) => void
 }) {
   const { document, documentGeneration } = useDocumentStore(store)
   const dismissImageError = imageSession.dismissError
@@ -57,13 +69,20 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   const interaction = useRef(state)
   const [color, setColor] = useState('#D63A3A'), [width, setWidth] = useState(4)
   const [focusNote, setFocusNote] = useState<string | null>(null)
+  const tools = useDrawingTools()
+  const workspace = useRef<HTMLDivElement>(null), imageActions = useRef<ImageActions>(null)
+  const [imageMode, setImageMode] = useState<ImageMode>('move')
+  const [localPoint, setLocalPoint] = useState<Position | null>(null)
+  const [calibration, setCalibration] = useState<Position[]>([]), [meters, setMeters] = useState('')
+  const [locate, setLocate] = useState<{ id: string; revision: number } | null>(null)
   const toolbar = useRef<HTMLDivElement>(null), noteMeasure = useRef<HTMLDivElement>(null)
   function focusTool() { toolbar.current?.querySelector<HTMLButtonElement>('[data-board-mode][aria-pressed="true"]')?.focus() }
   const area = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null)
+  const [inkPreview, setInkPreview] = useState<BoardStroke[] | null>(null)
   const pointer = useRef<number | null>(null)
   const emptyPointer = useRef<{ id: number; x: number; y: number } | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
-  const { scale, navigationKey, fitContentRef } = useModuleZoom()
+  const { scale, changeScale, navigationKey, fitContentRef } = useModuleZoom()
   const canvasKey = navigationKey ? navigationKey + '.canvas' : undefined
   const [view, setView] = useState(() => readNavigation(canvasKey))
   const scaledView = zoomBoardAt(view, scale, { x: 0, y: 0 }, { width: 0, height: 0 }, { left: 0, top: 0, right: 0, bottom: 0 })
@@ -121,7 +140,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   const apply = useCallback((command: DocumentCommand) => {
     if (store.getSnapshot().documentGeneration !== documentGeneration) return false
     try {
-      if (!store.applyDocumentCommand(command)) {
+      if (!recordDrawingEdit(store, 'board', command)) {
         toast.error(store.getSnapshot().fileMessage ?? 'No se pudo modificar la Pizarra.', { notice: 'boardEdit' }); return false
       }
       return true
@@ -153,7 +172,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     return toBoardPosition(position, rect, view, size)
   }
   function start(event: PointerEvent<HTMLDivElement>) {
-    if (blockedRef.current || event.button !== 0) return
+    if (blockedRef.current || !event.isPrimary || event.button !== 0) return
     const position = point(event)
     if (!position) return
     const mode = interaction.current.mode
@@ -174,7 +193,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     })
     emptyPointer.current = overObject ? null : { id: event.pointerId, x: event.clientX, y: event.clientY }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    if (mode === 'select' || mode === 'image') return
+    if (mode !== 'pen') return
     event.preventDefault()
     pointer.current = event.pointerId
     dispatch({ type: 'start', id: crypto.randomUUID(), point: position, color, width })
@@ -194,7 +213,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     }
     if (empty?.id === event.pointerId && !blockedRef.current && Math.hypot(event.clientX - empty.x, event.clientY - empty.y) <= 4) {
       if (interaction.current.mode === 'image') dispatch({ type: 'mode', mode: 'select' })
-      dispatch({ type: 'select-note', id: null }); onSelect?.(null)
+      tools.select(null); dispatch({ type: 'select-note', id: null }); onSelect?.(null)
     }
   }
   function addNote() {
@@ -220,13 +239,81 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     if (!dispatch({ type: 'add-note', note: { id, title: '', text: '', scale: 1, position, ...dimensions } })) return
     onSelect?.(null); setFocusNote(id)
   }
+  const history = drawingHistory(store, 'board')
+  function replay(direction: 'undo' | 'redo') {
+    if (blockedRef.current) return
+    pointer.current = null
+    dispatch({ type: 'cancel' })
+    try { replayDrawingEdit(store, 'board', direction) }
+    catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo restaurar la edición.', { notice: 'boardEdit' }) }
+  }
+  useEffect(() => {
+    function cancelDrawing(event: KeyboardEvent) {
+      if (event.key === 'Escape' && pointer.current !== null) {
+        pointer.current = null
+        dispatch({ type: 'cancel' })
+      }
+    }
+    window.addEventListener('keydown', cancelDrawing)
+    return () => window.removeEventListener('keydown', cancelDrawing)
+  }, [dispatch])
+  const board = document.board
+  const projection: Projection = {
+    screen: p => ({ x: p.x * view.scale + view.offsetX, y: p.y * view.scale + view.offsetY }),
+    world: p => ({ x: Math.max(0, (p.x - view.offsetX) / view.scale), y: Math.max(0, (p.y - view.offsetY) / view.scale) }),
+    pixelsPerUnit: () => view.scale / (board.metersPerUnit ?? 1),
+  }
+  const change = (patch: Partial<typeof board>) => !blockedRef.current && apply(d => replaceBoard(d, { ...d.board, ...patch }))
+  function activate(mode: DrawingTool) {
+    cancelImage(); pointer.current = null; emptyPointer.current = null
+    setInkPreview(null); tools.activate(state.mode, mode); dispatch({ type: 'mode', mode })
+  }
+  function selectDrawing(id: string | null) {
+    tools.select(id); onSelect?.(null); dispatch({ type: 'select-note', id: null })
+  }
+  const pins = document.elements.filter(e => e.position)
+  const placed = new Map(pins.map(e => [e.id, e.pinVisible]))
+  function place(id: string, position: Position) {
+    if (placed.has(id) || blockedRef.current) return
+    if (apply(d => applyDocumentCommands(d, [doc => updateElement(doc, id, { position }),
+      ...(document.elements.find(e => e.id === id)?.pinVisible === false ? [(doc: typeof document) => togglePinVisibility(doc, id)] : [])]))) {
+      onSelect?.(id); activate('select')
+    }
+  }
+  function center(p: Position, zoom = view.scale) {
+    changeScale?.(zoom)
+    navigate({ scale: zoom, offsetX: size.width / 2 - p.x * zoom, offsetY: size.height / 2 - p.y * zoom })
+  }
+  function fit(ids: string[]) {
+    const points = pins.filter(e => ids.includes(e.id)).map(e => e.position!)
+    for (const s of board.shapes ?? []) if (ids.includes(s.id)) {
+      const r = s.radii, c = s.points[0]!, factor = s.unit === 'world' ? 1 / (board.metersPerUnit ?? 1) : 1 / view.scale
+      if (r) points.push({ x: c.x - r.x * factor, y: c.y - r.y * factor }, { x: c.x + r.x * factor, y: c.y + r.y * factor })
+      else points.push(...s.points)
+    }
+    for (const s of board.strokes) if (ids.includes(s.id)) for (const p of s.points) points.push(p)
+    if (!points.length) return
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity
+    for (const p of points) { left = Math.min(left, p.x); right = Math.max(right, p.x); top = Math.min(top, p.y); bottom = Math.max(bottom, p.y) }
+    center({ x: (left + right) / 2, y: (top + bottom) / 2 }, Math.max(.25, Math.min(2, (size.width - 32) / Math.max(1, right - left), (size.height - 32) / Math.max(1, bottom - top))))
+  }
+  const pick = state.mode === 'origin' ? (p: Position) => { if (change({ origin: p })) activate('select') }
+    : state.mode === 'calibrate' ? (p: Position) => { if (!calibration.length || distance(calibration[0]!, p) > 0) setCalibration([...calibration.slice(0, 1), p]) }
+    : state.mode === 'place' && selectedId ? (p: Position) => place(selectedId, p) : undefined
+  const imageSelected = board.images?.some(i => i.id === tools.selected) ?? false
+  const located = pins.find(e => e.id === locate?.id)?.position
   const image = imageSession.image
-  const strokes = state.draft && !blocked ? [...document.board.strokes, state.draft] : document.board.strokes
+  const ink = board.strokes.filter(s => s.tool === 'pen' && groupVisible(board, s.id)).map(s => ({ id: s.id, points: s.points, width: s.width * view.scale }))
+  const inkMode = state.mode === 'eraser' && tools.settings.eraser ? 'erase-object' : state.mode
+  const committed = !blocked && (state.mode === 'eraser' || state.mode === 'select') ? inkPreview ?? board.strokes : board.strokes
+  const strokes = state.draft && !blocked ? [...committed, state.draft] : committed
   return <div className={`board-module ${styles.base}`} data-mode={state.mode}>
-    <BoardToolbar toolbarRef={toolbar} imageInputRef={imageInputRef} mode={state.mode} onMode={mode => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'mode', mode }) }}
-      onAddNote={addNote} background={document.board.backgroundColor} onBackground={color => { cancelImage(); if (!imageSession.clear()) return; if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }); dispatch({ type: 'background', color }) }}
-      color={color} onColor={setColor} width={width} onWidth={setWidth} onClearStrokes={() => { pointer.current = null; emptyPointer.current = null; dispatch({ type: 'clear-strokes' }) }} hasStrokes={Boolean(document.board.strokes.length || state.draft)} onClearImage={() => { cancelImage(); if (!imageSession.clear()) return; if (state.mode === 'image') dispatch({ type: 'mode', mode: 'select' }) }} hasImage={Boolean(imageSession.image)} onOpenModule={onOpenModule} onImage={file => { cancelImage(); void imageSession.load(file).then(loaded => { if (loaded) setView(current => ({ ...current, offsetX: 0, offsetY: 0 })) }) }} busy={imageSession.busy} blocked={blocked} />
-    <div ref={area} className="board-area">
+    <DrawingToolbar module="board" toolbarRef={toolbar} mode={state.mode} settings={tools.settings} panels={tools.panels} toggle={tools.toggle} onMode={activate}
+      canUndo={!!history.undo.length} canRedo={!!history.redo.length} replay={replay} onAddNote={addNote} background={board.backgroundColor}
+      onBackground={color => dispatch({ type: 'background', color })} color={color} onColor={setColor} width={width} onWidth={setWidth} blocked={blocked} />
+    <input ref={imageInputRef} hidden type="file" accept="image/png,image/jpeg" onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void imageSession.load(file) }} />
+    <div className={drawingStyles.workspace} ref={workspace}>
+    <div ref={area} className="board-area" style={tools.panels.length ? { flex: '0 0 ' + tools.panelWidth + '%' } : undefined}>
       <div ref={noteMeasure} className={`quick-note-measure ${noteStyles.base} ${noteStyles.measurement}`} aria-hidden="true">
         <div className="quick-note-header" /><Textarea rows={1} className="quick-note-text" tabIndex={-1} readOnly />
       </div>
@@ -235,6 +322,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
         data-content-width={actualBounds.right} data-content-height={actualBounds.bottom} data-extent-width={bounds.right} data-extent-height={bounds.bottom} data-scale={view.scale} data-offset-x={view.offsetX} data-offset-y={view.offsetY} data-viewport-width={size.width} data-viewport-height={size.height}
         {...navigation}
         onPointerDown={start} onPointerMove={event => {
+          if (tools.panels.includes('src')) setLocalPoint(point(event))
           const gesture = imageGesture.current
           if (gesture?.id === event.pointerId) {
             if (blockedRef.current || gesture.image !== imageSession.image || imageSession.busy) { cancelImage(); return }
@@ -250,7 +338,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
           if (position) dispatch({ type: 'point', point: position })
         }} onPointerUp={finish} onPointerCancel={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
         onLostPointerCapture={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
-        {!blocked && (state.mode === 'pen' || state.mode === 'eraser') && <DrawingCursor diameter={width * view.scale}
+        {!blocked && state.mode === 'pen' && <DrawingCursor diameter={width * view.scale}
           color={state.mode === 'pen' ? color : undefined} exclude=".board-pin,.quick-note" />}
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
@@ -259,8 +347,22 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
               {image && imageLayout && <Image image={image.image} {...imageLayout} />}
             </Group>
           </Layer>
-          <Layer listening={false} x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>{strokes.map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
         </Stage>
+        <DrawingImages images={board.images ?? []} actions={imageActions} projection={projection} mode={imageMode} enabled={!blocked && state.mode === 'select'}
+          selected={tools.selected} select={id => { selectDrawing(id); activate('select') }} save={images => change({ images })} warn={message => toast.error(message, { notice: 'boardImage' })} />
+        <Stage className={drawingStyles.boardInk} width={size.width} height={size.height} listening={false}>
+          <Layer listening={false} x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>{strokes.filter(stroke => groupVisible(board, stroke.id)).map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
+        </Stage>
+        {!blocked && (inkMode === 'select' || inkMode === 'eraser' || inkMode === 'erase-object') && <InkSurface key={inkMode} mode={inkMode}
+          paths={ink} diameter={width * view.scale} projection={projection} selected={tools.selected} select={selectDrawing}
+          preview={changes => setInkPreview(replaceInk(board.strokes, changes, p => p))} clear={() => setInkPreview(null)}
+          commit={(changes, delta) => change({ strokes: replaceInk(board.strokes, changes, p => p), ...inkReferences(board, changes, projection, delta) })} />}
+        {!blocked && <ShapeSurface key={state.mode} mode={state.mode === 'eraser' && tools.settings.eraser ? 'erase-object' : state.mode}
+          color={color} width={width} fixed={state.mode === 'circle' ? tools.settings.circle : tools.settings.polyline} objects={board} projection={projection}
+          ownerVisible={id => placed.get(id) !== false}
+          anchorAt={p => pins.findLast(e => e.pinVisible && groupVisible(board, e.id) && distance(projection.screen(e.position!), projection.screen(p)) < 12)?.id ?? inkAt(ink, projection, p)}
+          selected={tools.selected} select={selectDrawing} change={change} pick={pick} warn={message => toast.error(message, { notice: 'boardPoints' })} />}
+        {locate && located && <span key={locate.revision} className={drawingStyles.locate} onAnimationEnd={() => setLocate(null)} style={{ left: projection.screen(located).x, top: projection.screen(located).y }} />}
         {image && imageLayout && state.mode === 'image' && !blocked && !imageSession.busy && <div className="board-image-editor"
           aria-label="Mover imagen de fondo" data-image-action="move"
           style={{ left: view.offsetX + imageLayout.x * view.scale, top: view.offsetY + imageLayout.y * view.scale,
@@ -269,9 +371,9 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
             className="board-image-resize" data-corner={corner} data-image-action={corner} aria-label={'Redimensionar imagen ' + corner} />)}
         </div>}
         <div className="board-notes board-pins" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
-          {document.elements.filter(element => element.pinVisible).map(element =>
+          {document.elements.filter(element => element.pinVisible && groupVisible(board, element.id)).map(element =>
             <BoardPin key={element.id} element={element} surface={surface} view={view} viewportSize={size} selected={selectedId === element.id} enabled={state.mode === 'select'}
-              onSelect={() => { dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
+              onSelect={() => { tools.select(null); dispatch({ type: 'select-note', id: null }); onSelect?.(element.id) }}
               onEdit={() => {
                 if (blockedRef.current) return
                 dispatch({ type: 'select-note', id: null }); onSelect?.(element.id); onEditElement?.(element.id)
@@ -287,7 +389,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
         </div>
         <div className="board-notes" style={{ transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})` }}>
           {document.board.quickNotes.map(note => <QuickNote key={note.id} note={note} surface={surface} view={view} viewportSize={size} focusBody={focusNote === note.id} selected={state.selectedNoteId === note.id} enabled={state.mode === 'select'}
-            onSelect={() => { onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
+            onSelect={() => { tools.select(null); onSelect?.(null); dispatch({ type: 'select-note', id: note.id }) }} onMove={position => dispatch({ type: 'move-note', id: note.id, position })}
             onResize={size => dispatch({ type: 'resize-note', id: note.id, size })}
             initialDraft={store.getQuickNoteDraft(note.id, documentGeneration)} onDraftChange={text => store.setQuickNoteDraft(note.id, text, documentGeneration)}
             onEdit={patch => dispatch({ type: 'edit-note', id: note.id, ...patch })} onDelete={() => {
@@ -296,6 +398,29 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
             }} />)}
         </div>
       </div>
+    </div>
+    {tools.panels.length > 0 && <DrawingPanel container={workspace} width={tools.panelWidth} setWidth={tools.setPanelWidth} panels={tools.panels} blocked={blocked}
+      elements={document.elements} placed={placed} selected={selectedId} select={id => { tools.select(null); onSelect?.(id) }}
+      place={(id, client) => {
+        onSelect?.(id)
+        if (!client) { dispatch({ type: 'mode', mode: 'place' }); return }
+        const rect = surface.current?.getBoundingClientRect(), position = rect && toBoardPosition(client, rect, view, size)
+        if (position) place(id, position)
+      }} center={id => { const p = pins.find(e => e.id === id)?.position; if (p) { center(p); setLocate({ id, revision: performance.now() }) } }}
+      pins={(ids, visible) => apply(d => applyDocumentCommands(d, ids.map(id => doc => visible === null ? updateElement(doc, id, { position: null })
+        : doc.elements.find(e => e.id === id)?.pinVisible === visible ? { document: doc, value: undefined, changed: false } : togglePinVisibility(doc, id))))}
+      groups={board.groups ?? []} saveGroups={groups => change({ groups })} fit={fit}
+      members={[...pins.map(e => ({ id: e.id, name: e.name })), ...drawingMembers(board)]}
+      images={<><ImageTools actions={imageActions} selected={imageSelected} mode={imageMode} setMode={value => { activate('select'); setImageMode(value) }}
+        remove={() => change({ images: board.images?.filter(i => i.id !== tools.selected) })} />
+        {image && <><Button onClick={() => dispatch({ type: 'mode', mode: 'image' })}>Mover imagen de fondo</Button><Button onClick={imageSession.clear}>Retirar imagen de fondo</Button></>}</>}
+      src={<><Button onClick={() => dispatch({ type: 'mode', mode: 'origin' })}>Fijar origen</Button>
+        {board.origin && localPoint && <output>Posición local: {((localPoint.x - board.origin.x) * (board.metersPerUnit ?? 1)).toFixed(2)}, {((board.origin.y - localPoint.y) * (board.metersPerUnit ?? 1)).toFixed(2)} {board.metersPerUnit ? 'm' : 'unidades'}</output>}
+        <Button onClick={() => { setCalibration([]); setMeters(''); dispatch({ type: 'mode', mode: 'calibrate' }) }}>Calibrar escala</Button>
+        {state.mode === 'calibrate' && (calibration.length < 2 ? <span>{calibration.length ? 'Marca el segundo punto' : 'Marca el primer punto'}</span> :
+          <form onSubmit={e => { e.preventDefault(); const value = Number(meters) / distance(calibration[0]!, calibration[1]!); if (value > 0 && Number.isFinite(value) && change({ metersPerUnit: value })) activate('select') }}>
+            <label>Distancia real (m)<input type="number" min="0" step="any" required value={meters} onChange={e => setMeters(e.target.value)} /></label><Button type="submit">Aplicar escala</Button></form>)}
+        {board.metersPerUnit && <output>{Number(board.metersPerUnit.toPrecision(6))} m por unidad</output>}</>} />}
     </div>
   </div>
 }

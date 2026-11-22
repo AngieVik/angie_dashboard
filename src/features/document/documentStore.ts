@@ -75,8 +75,8 @@ function createDocumentStore(repository: UIBoardRecovery, context: StoreContext)
 
   function update(patch: Partial<DocumentSnapshot>) {
     if (patch.document) {
-      if (patch.document.board.quickNotes !== state.document.board.quickNotes) {
-        const notes = new Set(patch.document.board.quickNotes.map(note => note.id))
+      if (patch.document.board.quickNotes !== state.document.board.quickNotes || patch.document.plan?.quickNotes !== state.document.plan?.quickNotes) {
+        const notes = new Set([...patch.document.board.quickNotes, ...patch.document.plan?.quickNotes ?? []].map(note => note.id))
         for (const id of quickNoteDrafts.keys()) if (!notes.has(id)) quickNoteDrafts.delete(id)
       }
       const next = new Set(patch.document.map?.gpx.map(item => item.fingerprint) ?? [])
@@ -173,7 +173,7 @@ function createDocumentStore(repository: UIBoardRecovery, context: StoreContext)
     const candidate = { ...document, document: { ...document.document, id: state.document.document.id,
       createdAt: state.document.document.createdAt, updatedAt: state.document.document.updatedAt } }
     if (candidate.document.title === state.document.document.title && candidate.elements === state.document.elements &&
-      candidate.notebook === state.document.notebook && candidate.timeline === state.document.timeline && candidate.board.quickNotes === state.document.board.quickNotes) {
+      candidate.notebook === state.document.notebook && candidate.timeline === state.document.timeline && candidate.board.quickNotes === state.document.board.quickNotes && candidate.plan?.quickNotes === state.document.plan?.quickNotes) {
       update({ document: candidate }); return true
     }
     const captured = measureWork('document.capture', () => captureUIBoard(candidate, state.openModules, data ? { document: state.document, data } : undefined))
@@ -242,7 +242,7 @@ function createDocumentStore(repository: UIBoardRecovery, context: StoreContext)
     setQuickNoteDraft(id: string, text: string | null, generation: number) {
       if (!state.active || generation !== state.documentGeneration) return
       if (text === null) quickNoteDrafts.delete(id)
-      else if (state.document.board.quickNotes.some(note => note.id === id)) quickNoteDrafts.set(id, text)
+      else if (state.document.board.quickNotes.some(note => note.id === id) || state.document.plan?.quickNotes?.some(note => note.id === id)) quickNoteDrafts.set(id, text)
     },
     async setTitle(title: string) {
       const error = documentNameError(title)

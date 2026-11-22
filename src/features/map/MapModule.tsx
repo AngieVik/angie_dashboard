@@ -15,6 +15,9 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGro
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { toast } from '@/components/ui/sonner'
+import { createPortal } from 'react-dom'
+import { MAP_OVERLAYS } from './mapOverlays'
+import { ActiveOverlay, MapOverlaysPanel, CoordinateTransform } from './MapOverlaysPanel'
 import { copyText } from '../../platform/clipboard'
 import { measureWork } from '../../platform/workMetrics'
 import { checkGpxPointTotal, InputBudgetError } from '../../domain/input/inputBudgets'
@@ -84,15 +87,19 @@ export interface MapNotice {
   onOpenGpx: () => void
 }
 
-export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, onNoticesChange, noticeSource = 'map' }: {
+export function MapModule({ navigationKey, store, overlay, srcPanel, onCoordinateSelect, onNoticesChange, noticeSource = 'map' }: {
   navigationKey: string
   store: DocumentStore
+  srcPanel?: HTMLElement | null
   overlay?: ReactNode
   onCoordinateSelect?: (point: GeographicCoordinate) => void
   onNoticesChange: (source: 'map' | 'plan', notice: MapNotice | null) => void
   noticeSource?: 'map' | 'plan'
 }) {
   const { document: currentDocument, documentGeneration } = useDocumentStore(store)
+  const overlays = currentDocument.map?.overlays ?? MAP_OVERLAYS
+  const [overlaysOpen, setOverlaysOpen] = useState(false)
+  const overlayFailure = useCallback((name: string) => toast.error('No se pudieron cargar las teselas de ' + name, { notice: 'mapSave', id: navigationKey + name }), [navigationKey])
   const references = currentDocument.map?.gpx ?? EMPTY_REFERENCES
   const markers = currentDocument.map?.markers ?? EMPTY_MARKERS
   const { files, onFilesChange, loadGpx, admitGpx, withGpxAdmission, getGpxGeometry } = useGpxFiles(store, documentGeneration, references)
@@ -621,7 +628,10 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       cancelledTouch.current = true; mapRef.current?.touchZoom.disable()
     }
   }
+  const overlayPanel = <fieldset disabled={blocked}><MapOverlaysPanel sources={overlays} save={items => mutateMap(map => ({ ...map, overlays: items }))} /><CoordinateTransform /></fieldset>
   return <div data-slot="map-module" className={`${styles.base} map-module`} data-coordinates-open={coordinatesOpen} aria-busy={busy}>
+    {srcPanel && createPortal(overlayPanel, srcPanel)}
+    {overlays.filter(item => item.active).map(source => <ActiveOverlay key={source.id} mapRef={mapRef} source={source} onError={overlayFailure} />)}
     <div className="map-toolbar" hidden={!coordinatesOpen}>
       <form id={coordinatesMenuId} aria-label="Buscar en el mapa" onSubmit={event => { event.preventDefault(); searchMap() }} onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); resetSearch(); setCoordinatesOpen(false); coordinatesTrigger.current?.focus() }
@@ -647,6 +657,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
       </form>
     </div>
     <div className="map-panel-toggles" role="group" aria-label="Paneles del mapa">
+      {noticeSource === 'map' && <Button disabled={blocked} aria-label="Superposiciones cartográficas" aria-pressed={overlaysOpen} onClick={() => setOverlaysOpen(!overlaysOpen)}><Layers /></Button>}
       <Button ref={coordinatesTrigger} aria-label="Buscador y coordenadas" aria-expanded={coordinatesOpen}
         aria-controls={coordinatesMenuId} aria-pressed={coordinatesOpen} disabled={blocked} onClick={() => { resetSearch(); setCoordinatesOpen(open => !open) }}><Crosshair aria-hidden="true" /></Button>
       <Button ref={markersTrigger} aria-label="Marcadores" aria-expanded={markersOpen}
@@ -695,7 +706,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
           <Button aria-label="Alejar mapa" disabled={blocked} onClick={() => mapRef.current?.zoomOut()}><Minus aria-hidden="true" /></Button>
         </div>
       </div>
-      <div className="map-sidepanels" hidden={!gpxOpen && !markersOpen}>
+      <div className="map-sidepanels" hidden={!gpxOpen && !markersOpen && !overlaysOpen}>
       {gpxOpen && <aside id={gpxMenuId} className={`${styles.panel} ${styles.gpxPanel} map-gpx-menu`} aria-labelledby={`${gpxMenuId}-title`} onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeGpx() }
       }}>

@@ -82,6 +82,9 @@ export function validateDocument(input: unknown): ValidationResult<UIBoardData> 
   for (const [index, note] of document.quickNotes.entries()) {
     if (identify(note.id, `quickNotes[${index}].id`)) return invalid()
   }
+  for (const [index, note] of (document.planQuickNotes ?? []).entries()) {
+    if (identify(note.id, `planQuickNotes[${index}].id`)) return invalid()
+  }
   if (compareUtcDates(document.document.updatedAt, document.document.createdAt) < 0) {
     if (add('document.updatedAt', 'no puede ser anterior a createdAt')) return invalid()
   }

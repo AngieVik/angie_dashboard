@@ -12,6 +12,12 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
     bounds = bounds ? { left: Math.min(bounds.left, box.left), top: Math.min(bounds.top, box.top), right: Math.max(bounds.right, box.right), bottom: Math.max(bounds.bottom, box.bottom) } : box
   }
   for (const stroke of board.strokes) for (const point of stroke.points) include(point.x, point.y, stroke.width / 2, stroke.width / 2)
+  for (const shape of board.shapes ?? []) {
+    const factor = shape.unit === 'world' ? 1 / (board.metersPerUnit ?? 1) : 1
+    for (const point of shape.points) include(point.x, point.y, (shape.radii?.x ?? shape.width / 2) * factor, (shape.radii?.y ?? shape.width / 2) * factor)
+  }
+  for (const image of board.images ?? []) for (const p of image.corners) include(p.x, p.y, 0, 0)
+  for (const label of board.labels ?? []) include(label.point.x, label.point.y, 0, 0)
   for (const note of board.quickNotes) include(note.position.x, note.position.y, note.width / 2, note.height / 2)
   for (const element of elements) if (element.pinVisible && element.position) {
     const box = getRotatedPinBox(element.visual)

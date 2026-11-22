@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
+import { codeInspectorPlugin } from 'code-inspector-plugin';
 
 export default defineConfig({
   resolve: {
@@ -10,6 +11,10 @@ export default defineConfig({
     },
   },
   plugins: [
+    codeInspectorPlugin({
+      bundler: 'vite',
+      editor: 'code', // Abre directamente en VS Code
+    }),
     react(),
     VitePWA({
       registerType: 'prompt',

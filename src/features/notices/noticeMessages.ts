@@ -63,6 +63,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
     ]
   },
   {
+    "text": "Comprueba los marcadores de columna, fila y nivel de la plantilla.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
     "text": "Configuración guardada inválida.",
     "levels": [
       "error"
@@ -172,6 +178,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
   },
   {
     "text": "El contenido no coincide con el GPX guardado. Selecciona su archivo original.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "El contenido se ha modificado desde otra herramienta.",
     "levels": [
       "error"
     ]
@@ -345,6 +357,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
     ]
   },
   {
+    "text": "Escribe un nombre para la capa.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
     "text": "Escribe un título de hasta 120 caracteres.",
     "levels": [
       "error"
@@ -441,7 +459,25 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
     ]
   },
   {
+    "text": "Introduce el nombre de la capa WMS.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "Introduce la capa WMTS o su plantilla de teselas.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
     "text": "Introduce un lugar, dirección o coordenadas.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "Introduce una URL HTTPS válida.",
     "levels": [
       "error"
     ]
@@ -903,6 +939,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
     ]
   },
   {
+    "text": "No se pudo preparar la imagen.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
     "text": "No se pudo preparar la paginación.",
     "levels": [
       "error"
@@ -952,6 +994,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
   },
   {
     "text": "No se pudo resolver una zona horaria compatible. Selecciónala manualmente.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "No se pudo restaurar la edición.",
     "levels": [
       "error"
     ]
@@ -1090,6 +1138,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
   },
   {
     "text": "Selecciona una imagen JPG o PNG.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "Servicio no válido.",
     "levels": [
       "error"
     ]

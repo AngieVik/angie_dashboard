@@ -23,7 +23,6 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     }
     case 'point': return state.draft && finitePoint(action.point) ? { ...state, draft: { ...state.draft, points: [...state.draft.points, clampBoardPosition(action.point)] } } : state
     case 'finish': return state.draft ? { ...state, draft: null, board: { ...board, strokes: [...board.strokes, state.draft] } } : state
-    case 'clear-strokes': return { ...state, draft: null, board: { ...board, strokes: [] } }
     case 'cancel': return { ...state, draft: null }
     case 'select-note': return state.mode === 'select' ? { ...state, selectedNoteId: action.id } : state
     case 'add-note': return finitePoint(action.note.position) && [action.note.width, action.note.height, action.note.scale].every(value => Number.isFinite(value) && value > 0) ? {

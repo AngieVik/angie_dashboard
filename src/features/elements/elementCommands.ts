@@ -1,3 +1,4 @@
+import { moveDrawingLabels, removeDrawingReferences } from '@/domain/document/drawingReferences'
 import type { AngieDocument, DocumentElement, ElementVisual, Position } from '../../domain/document/types'
 import type { CreateElementInput, ElementBatchPatch, ElementPatch } from './elementTypes'
 import { ICON_CATALOG } from './iconCatalog'
@@ -107,7 +108,11 @@ export function updateElement(document: AngieDocument, id: string, patch: Elemen
   if (next.nameOffset !== undefined && sameRecord(element.nameOffset, next.nameOffset)) next.nameOffset = element.nameOffset
   if (typeof element.pinAnchor === 'object' && typeof next.pinAnchor === 'object' && sameRecord(element.pinAnchor, next.pinAnchor)) next.pinAnchor = element.pinAnchor
   if (sameRecord(element, next)) return commandResult(document, document)
-  return commandResult(document, { ...document, elements: document.elements.map(item => item === element ? next : item) })
+  let board = document.board
+  if (element.position && element.position !== position) board = position
+    ? moveDrawingLabels(board, element.id, position.x - element.position.x, position.y - element.position.y)
+    : removeDrawingReferences(board, new Set([element.id]))
+  return commandResult(document, { ...document, board, elements: document.elements.map(item => item === element ? next : item) })
 }
 export function duplicateElement(document: AngieDocument, id: string) {
   const element = findElement(document, id)
@@ -137,8 +142,9 @@ export function deleteElement(document: AngieDocument, id: string) {
   const pins = document.plan?.pins.filter(pin => pin.elementId.toLowerCase() !== id.toLowerCase())
   const planChanged = pins && pins.length !== document.plan!.pins.length
   if (elements.length === document.elements.length && !planChanged) return commandResult(document, document)
-  return commandResult(document, { ...document, elements: elements.length === document.elements.length ? document.elements : elements,
-    ...(planChanged ? { plan: { ...document.plan!, pins } } : {}) })
+  const removed = new Set([id])
+  return commandResult(document, { ...document, board: removeDrawingReferences(document.board, removed), elements: elements.length === document.elements.length ? document.elements : elements,
+    ...(planChanged ? { plan: { ...removeDrawingReferences(document.plan!, removed), pins } } : {}) })
 }
 
 export function togglePinVisibility(document: AngieDocument, id: string) {

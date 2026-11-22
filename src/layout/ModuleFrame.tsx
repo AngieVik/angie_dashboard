@@ -421,7 +421,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
         if (dragged.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation(); return }
       }}>
       <div data-slot="module-scaled-content" className="module-scaled-content" data-scale={scale} data-kind={id === 'board' ? 'board' : 'module'} style={{ '--module-zoom': id === 'board' ? 1 : scale } as CSSProperties}>
-        <ModuleZoomContext value={{ scale, navigationKey, fitContentRef, beginGestureRef }}><ModuleSizeContext value={requestContentSpace}>{children}</ModuleSizeContext></ModuleZoomContext>
+        <ModuleZoomContext value={{ scale, changeScale, navigationKey, fitContentRef, beginGestureRef }}><ModuleSizeContext value={requestContentSpace}>{children}</ModuleSizeContext></ModuleZoomContext>
       </div>
     </div>
     <div data-slot="module-controls" className="module-controls" hidden={collapsed} data-zoom-hidden={zoomHidden} data-auto-resize-supported={supportsAutoResize}>

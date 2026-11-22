@@ -25,10 +25,9 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
   const [preview, setPreview] = useState<PinPreview | null>(null)
   const [colorsOpen, setColorsOpen] = useState(false)
   const lastTap = useRef<{ kind: 'move' | 'name'; time: number; x: number; y: number } | null>(null)
-  const gesture = useRef<{ kind: 'move' | 'resize' | 'name'; pointerId: number; x: number; y: number; origin: Position; nameOffset: Position; scale: number; ready: boolean; moved: boolean; next: PinPreview | null } | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const gesture = useRef<{ kind: 'move' | 'resize' | 'name'; pointerId: number; x: number; y: number; origin: Position; nameOffset: Position; scale: number; moved: boolean; next: PinPreview | null } | null>(null)
   const suppressClick = useRef(false)
-  const cancel = useCallback(() => { clearTimeout(timer.current); gesture.current = null; setPreview(null) }, [])
+  const cancel = useCallback(() => { gesture.current = null; setPreview(null) }, [])
   useEffect(() => {
     if (blocked || !enabled) {
       // The viewport owns two-finger gestures; discard uncommitted manipulation and taps.
@@ -38,7 +37,6 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
       lastTap.current = null
     }
   }, [blocked, enabled, cancel])
-  useEffect(() => () => clearTimeout(timer.current), [])
   if (!element.position || !element.pinVisible) return null
   const visual = { ...element.visual, scale: preview?.scale ?? element.visual.scale }
   const position = preview?.position ?? clampPinPosition(element.position, visual)
@@ -51,9 +49,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
     event.currentTarget.setPointerCapture?.(event.pointerId)
     suppressClick.current = false
     gesture.current = { kind, pointerId: event.pointerId, x: event.clientX, y: event.clientY, origin: position,
-      nameOffset, scale: element.visual.scale, ready: kind === 'resize' || event.pointerType === 'mouse', moved: false, next: null }
-    clearTimeout(timer.current)
-    if (kind !== 'resize' && event.pointerType !== 'mouse') timer.current = setTimeout(() => { if (gesture.current && !blockedRef.current) gesture.current.ready = true }, 250)
+      nameOffset, scale: element.visual.scale, moved: false, next: null }
   }
   function move(event: PointerEvent<HTMLButtonElement>) {
     const current = gesture.current, rect = surface.current?.getBoundingClientRect()
@@ -62,7 +58,7 @@ export function BoardPin({ element, selected, enabled, surface, onSelect, onEdit
       current.moved = true
       lastTap.current = null
     }
-    if (!current.ready || !current.moved) return
+    if (!current.moved) return
     event.stopPropagation()
     const { x: dx, y: dy } = boardDelta({ x: event.clientX - current.x, y: event.clientY - current.y }, rect, view, viewportSize ?? { width: surface.current!.clientWidth || rect.width, height: surface.current!.clientHeight || rect.height })
     if (current.kind === 'name') {

@@ -28,7 +28,7 @@ const contentSecurityPolicy = [
   "script-src-attr 'none'",
   // React/Leaflet geometry and the srcdoc reports use inline styles.
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://tile.openstreetmap.org https://tms-pnoa-ma.idee.es https://tms-mapa-raster.ign.es https://tms-ign-base.idee.es https://www.ign.es",
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "media-src 'self'",
   // mapSearch supports an operator-selected HTTPS Nominatim-compatible endpoint.

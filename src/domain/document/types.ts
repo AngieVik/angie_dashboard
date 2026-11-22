@@ -25,6 +25,27 @@ export type BoardStroke = {
   points: Position[]
 } & ({ tool: 'pen'; color: string } | { tool: 'eraser'; color: null })
 
+export interface DrawingShape {
+  id: string
+  kind: 'line' | 'polygon' | 'rectangle' | 'ellipse'
+  points: Position[]
+  color: string
+  width: number
+  unit: 'world' | 'screen'
+  radii?: Position
+}
+export interface DrawingLabel { id: string; text: string; point: Position; owner?: string }
+export interface DrawingGroup { id: string; name: string; visible: boolean; members: string[] }
+export interface DrawingImage {
+  id: string; source: { name: string }; corners: [Position, Position]; rotation: number; flipX: boolean; flipY: boolean
+  crop: { left: number; top: number; right: number; bottom: number }
+}
+export interface DrawingObjects {
+  images?: DrawingImage[]
+  shapes?: DrawingShape[]
+  labels?: DrawingLabel[]
+  groups?: DrawingGroup[]
+}
 export interface QuickNote { id: string; title: string; text: string; scale: number; position: Position; width: number; height: number }
 export interface UnitOperational { status: OperationalStatus | null; currentEntryId: string | null; notes: string; notesColor?: string; tags: string[] }
 export type DocumentElement = {
@@ -73,7 +94,7 @@ export interface ModuleLayout { x: number; y: number; width: number; height: num
 /** Working state. Geometry and resources live only for the current session. */
 export interface AngieDocument {
   document: { readonly id: string; title: string; readonly createdAt: string; updatedAt: string }
-  board: { backgroundColor: string; strokes: BoardStroke[]; quickNotes: QuickNote[]; backgroundImage?: ReferencedBoardImage }
+  board: DrawingObjects & { origin?: Position; metersPerUnit?: number; backgroundColor: string; strokes: BoardStroke[]; quickNotes: QuickNote[]; backgroundImage?: ReferencedBoardImage }
   elements: DocumentElement[]
   notebook: NotebookBlock[]
   timeline: TimelineEntry[]
@@ -93,11 +114,15 @@ export interface MapGpxReference {
   kilometers: boolean
   kilometerInterval: 0.1 | 0.5 | 1 | 5 | 10
 }
-export interface MapDocument { markers: MapMarker[]; gpx: MapGpxReference[] }
+export interface MapOverlay {
+  id: string; name: string; type: 'WMS' | 'XYZ' | 'WMTS'; url: string
+  layer?: string; matrix?: string; style?: string; format?: string; opacity: number; active: boolean
+}
+export interface MapDocument { overlays?: MapOverlay[]; markers: MapMarker[]; gpx: MapGpxReference[] }
 export interface GeographicPosition { latitude: number; longitude: number }
 export interface PlanPin extends GeographicPosition { elementId: string; visible: boolean }
 export interface PlanStroke { id: string; color: string; width: number; points: GeographicPosition[] }
-interface OperationalPlanDocument { pins: PlanPin[]; strokes: PlanStroke[] }
+interface OperationalPlanDocument extends DrawingObjects { quickNotes?: QuickNote[]; pins: PlanPin[]; strokes: PlanStroke[] }
 export interface ReferencedBoardImage { resourceId: string; layout: { x: number; y: number; width: number; height: number } }
 
 type ElementIcon = { type: 'asset'; assetId: AssetId } | { type: 'emoji'; value: string }
@@ -113,6 +138,7 @@ export interface UIBoardData {
   notebook: NotebookBlock[]
   timeline: TimelineEntry[]
   quickNotes: Pick<QuickNote, 'id' | 'title' | 'text'>[]
+  planQuickNotes?: Pick<QuickNote, 'id' | 'title' | 'text'>[]
   openModules: DocumentModuleId[]
 }
 

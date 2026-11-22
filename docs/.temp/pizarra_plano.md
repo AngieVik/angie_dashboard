@@ -26,7 +26,7 @@
 
 - **Motor de renderizado dual (`L.SVG` y `L.Canvas`):**
     - Leaflet permite renderizar vectores en SVG (ideal para seleccionar y editar formas individuales mediante eventos DOM).
-    - Canvas `preferCanvas: true` cuando necesitas mover cientos de geometrías sin pérdida de fluidez.
+        - Canvas `preferCanvas: true` cuando necesitas mover cientos de geometrías sin pérdida de fluidez.
 
 ## Estándares GIS nativos
 
@@ -209,7 +209,7 @@ Con Seleccionar/mover, selecciona la figura para mostrar sus vértices.
 - **En un lugar vacío.** Toca o haz clic donde quieras escribir. La etiqueta queda anclada a ese punto de la pizarra o a esa ubicación del mapa.
 - **Al mover la vista o el objeto.** La etiqueta acompaña a su punto de anclaje al desplazar la vista o cambiar el zoom. Si está vinculada a un objeto y lo mueves, se desplaza con él.
 
-### Recursos · Pizarra y Plano operativo
+### Recursos
 
 El botón «Recursos» abre o cierra un panel lateral derecho con dos secciones, «Pines» e «Imágenes». El ancho se ajusta arrastrando el separador vertical, como en Informes. El lienzo sigue disponible mientras el panel está abierto.
 
@@ -227,7 +227,6 @@ La lista reúne los recursos creados en Elementos y Dotaciones. Cada fila corres
 **Acciones**
 
 - **Colocar pin · selección única.** Disponible para un recurso pendiente de colocar en ese módulo. Al pulsar el botón, el puntero cambia a «crosshair» de Lucide. El siguiente clic o toque en el lienzo fija la posición del pin.
-- **Mostrar/Ocultar pin · selección única o múltiple.** Actúa sobre los pines colocados de la selección. Si hay alguno visible, la primera pulsación oculta todos los seleccionados. Cuando todos están ocultos, la siguiente pulsación los muestra. Cada pin conserva su posición.
 - **Centrar pin · selección única.** Centra la vista en el pin con el zoom actual. Para localizarlo, aparecen sobre él tres círculos amarillos sucesivos, a intervalos de un segundo, de mayor a menor.
 - **Retirar pin · selección única o múltiple.** Retira del módulo los pines seleccionados. El recurso sigue disponible en la lista para volver a colocarlo.
 
@@ -256,12 +255,29 @@ Cada modo de edición muestra solo sus propios controles. «Recortar», «Girar 
 - **Mostrar/ocultar grupo.** Un objeto agrupado se muestra si al menos uno de sus grupos está visible. Cuando todos sus grupos están ocultos, el objeto queda oculto. Mostrar u ocultar un grupo conserva el estado de los demás.
 - **Encuadrar grupo.** Ajusta el centro y el zoom para que las formas y los pines del grupo quepan en la vista. En Plano operativo, L.FeatureGroup reúne sus capas y el mapa ajusta la vista a los límites del conjunto mediante fitBounds(group.getBounds()).
 
-### SRC · Plano operativo
+### SRC
+
+soportar WMS y XYZ/WMTS de forma nativa en Leaflet combinando un catálogo predefinido en src/ con un formulario para añadir servicios personalizados por URL.
+
+- **WMS + XYZ/WMTS sin dependencias extra (Opción 3):** Leaflet los incluye de serie sin tocar `package.json`. `L.tileLayer.wms` es imprescindible para superposiciones temáticas con fondo transparente (Catastro, hidrografía, límites, ortofotos PNOA), mientras que `L.tileLayer` cubre teselas rápidas XYZ/WMTS (sombreados de relieve, redes de senderos, OpenTopoMap).
+- **Catálogo operativo + URL libre (Opciones 2 y 1):** En una intervención necesitas activar capas oficiales (IGN, Catastro, etc.) en un clic sin pelear con parámetros, pero permitir añadir URLs externas evita tener que recompilar la app si necesitas una capa autonómica o temporal.
+- **Límite estricto a `EPSG:3857`:** Restringe la compatibilidad a `EPSG:3857` (Web Mercator, estándar de Leaflet y de los fondos actuales en `mapBackgrounds.ts`). Casi todos los servicios WMS modernos en España (IGN, Catastro, REDIAM) lo soportan; admitir proyecciones UTM como `EPSG:25830` te obligaría a meter `proj4leaflet` y a cambiar el CRS de todo el mapa.
+
+**Cómo integrarlo en `src/features/map/`**
+
+- **Registro paralelo a los fondos:** Igual que `mapBackgrounds.ts` declara las capas base, crea `mapOverlays.ts` en `src/features/map/` para que tanto `Mapa` como `Plano operativo` hereden las superposiciones automáticamente.
+- **Parámetros obligatorios de superposición:** A diferencia de un fondo, cada *overlay* debe gestionar:
+
+    - **Transparencia:** `transparent: true` y `format: 'image/png'` por defecto en peticiones WMS.
+    - **Opacidad individual:** Slider de 0 % a 100 % por capa activa para poder leer el mapa base debajo.
+    - **Jerarquía de capas (`zIndex`):** Situar las superposiciones por encima del mapa base, pero siempre por debajo de los trazos GPX, dibujos y marcadores operativos.
+
+#### SRC · Plano operativo
 
 - **Superponer cartografía.** Al solicitar una capa a un servicio cartográfico, utiliza un código EPSG compatible con la capa y con el mapa. Así puedes mostrar cartografía de distintas fuentes en su ubicación correspondiente.
 - **Transformar coordenadas.** Identifica el SRC de origen y el de destino por sus códigos EPSG y convierte las coordenadas de una misma ubicación entre ambos sistemas.
 
-### SRC · Pizarra
+#### SRC · Pizarra
 
 - **Fijar el origen.** Señala el punto del croquis que representará la coordenada local (0, 0).
 - **Calibrar la escala.** Marca dos puntos cuya separación conozcas e introduce la distancia real en metros.

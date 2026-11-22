@@ -42,7 +42,7 @@ export function useBoardViewportGestures(view: BoardViewportState, size: Size, b
     onPointerDownCapture: (event: PointerEvent<HTMLDivElement>) => {
       suppressClick.current = false
       if (blockedRef.current || (event.button !== 1 && (!allowDrag || event.button !== 0))) return
-      if (event.button === 0 && event.target instanceof Element && event.target.closest('.board-pin,.quick-note,[data-image-action],button,input,textarea,select,[role="slider"]')) return
+      if (event.button === 0 && event.target instanceof Element && event.target.closest('.board-pin,.quick-note,[data-shape],[data-ink],[data-drawing-image],[data-image-action],button,input,textarea,select,[role="slider"]')) return
       if (event.button === 1) { event.preventDefault(); event.stopPropagation() }
       event.currentTarget.setPointerCapture?.(event.pointerId)
       middle.current = { id: event.pointerId, point: pixel({ x: event.clientX, y: event.clientY }), moved: false, button: event.button }

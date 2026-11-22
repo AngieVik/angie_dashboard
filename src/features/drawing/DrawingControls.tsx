@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button'
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
-import styles from './PlanStrokeControls.module.css'
 
-export function PlanStrokeControls({ color, width, blocked, onColor, onWidth }: {
+export function DrawingControls({ color, width, blocked, onColor, onWidth, background, onBackground }: {
+  background?: string; onBackground?: (color: string) => void
   color: string; width: number; blocked: boolean
   onColor: (color: string) => void; onWidth: (width: number) => void
 }) {
-  const penColor = useRef<HTMLInputElement>(null)
+  const [palette, setPalette] = useState(false)
+  const [target, setTarget] = useState<'ink' | 'background'>('ink')
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   useEffect(() => {
@@ -20,7 +21,7 @@ export function PlanStrokeControls({ color, width, blocked, onColor, onWidth }: 
     let frame: number
     function check() {
       const node = trigger.current, rect = node?.getBoundingClientRect()
-      const clips = [node?.closest('.plan-toolbar'), node?.closest('.module-content')]
+      const clips = [node?.closest('[data-drawing-toolbar]'), node?.closest('.module-content')]
       if (blocked || !rect || rect.right <= 0 || rect.bottom <= 0 || rect.left >= window.innerWidth || rect.top >= window.innerHeight ||
         clips.some(clip => {
           const box = clip?.getBoundingClientRect()
@@ -41,9 +42,16 @@ export function PlanStrokeControls({ color, width, blocked, onColor, onWidth }: 
         <Slider label="Grosor" value={width} min={1} max={40} step={1} disabled={blocked} onValueChange={onWidth} />
       </PopoverContent>
     </Popover>
-    <span className={`plan-color-control ${styles.base}`}>
-      <Button disabled={blocked} aria-label="Elegir color del lápiz" aria-description={color} onClick={() => penColor.current?.click()}><InkPaletteIcon color={color} /></Button>
-      <input ref={penColor} type="color" aria-label="Color del lápiz" value={color} disabled={blocked} tabIndex={-1} onChange={event => onColor(event.target.value)} />
-    </span>
+    <Popover open={palette && !blocked} onOpenChange={value => { setTarget('ink'); setPalette(value) }}>
+      <PopoverTrigger asChild><Button aria-label={onBackground ? 'Color de herramientas o fondo' : 'Color de herramientas'} disabled={blocked}><InkPaletteIcon color={color} /></Button></PopoverTrigger>
+      <PopoverContent side="bottom" aria-label="Selector de color">
+        {onBackground && <div role="group" aria-label="Aplicar color a">
+          <Button aria-pressed={target === 'ink'} onClick={() => setTarget('ink')}>Herramientas</Button>
+          <Button aria-pressed={target === 'background'} onClick={() => setTarget('background')}>Fondo</Button>
+        </div>}
+        <input type="color" aria-label={target === 'ink' ? 'Tinta de herramientas' : 'Color de fondo'} value={target === 'ink' ? color : background}
+          disabled={blocked} onChange={event => (target === 'ink' ? onColor : onBackground)?.(event.target.value.toUpperCase())} />
+      </PopoverContent>
+    </Popover>
   </>
 }

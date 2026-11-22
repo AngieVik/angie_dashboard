@@ -1,0 +1,43 @@
+@layer components {
+  .surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; touch-action: none; outline: none; }
+  :global(.plan-module) .surface { z-index: 640; }
+  .label { fill: var(--color-text); stroke: var(--color-field); paint-order: stroke; stroke-width: 3px; font-size: var(--control-font-size); }
+  .labelForm { position: absolute; z-index: 680; max-width: 100%; }
+  .workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+  .workspace > :global(.map-module) { flex: 1; min-width: 0; }
+  .panel { flex: 1; min-width: 0; overflow: auto; padding: var(--space-2); border-left: 1px solid var(--color-border); }
+  .panel section, .panel fieldset { display: grid; min-width: 0; gap: var(--space-1); margin-bottom: var(--space-2); }
+  .panel input, .panel select { min-width: 0; max-width: 100%; }
+  .row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; touch-action: pan-y; }
+  .row[aria-pressed="true"] { background: var(--color-selected); }
+  .row span { overflow-wrap: anywhere; white-space: normal; }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .notes { position: absolute; inset: 0; pointer-events: none; z-index: 655; overflow: hidden; }
+}
+
+
+@layer components {
+  .images { position: absolute; inset: 0; pointer-events: none; }
+  :global(.plan-module) .images { z-index: 630; }
+  .image { position: absolute; touch-action: none; cursor: move; }
+  .imagePixels, .imagePixels div, .imagePixels img { width: 100%; height: 100%; display: block; pointer-events: none; }
+  .handle { position: absolute; transform: translate(-50%, -50%); width: var(--space-3); height: var(--space-3); padding: 0; background: var(--color-field); border: 1px solid var(--color-selection-border); touch-action: none; }
+  .flip { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; }
+  .panel label, .panel form { display: grid; gap: var(--space-1); }
+  .locate { position: absolute; width: 48px; height: 48px; border: 3px solid var(--palette-yellow); border-radius: 50%; pointer-events: none; z-index: 670; animation: drawing-locate 3s steps(1) forwards; }
+  @keyframes drawing-locate {
+    0% { transform: translate(-50%,-50%) scale(1); } 33.333% { transform: translate(-50%,-50%) scale(.7); }
+    66.666% { transform: translate(-50%,-50%) scale(.4); } 100% { opacity: 0; }
+  }
+}
+
+@layer components {
+  .ink { position: absolute; inset: 0; touch-action: none; outline: none; }
+  .ink:has([data-slot="drawing-cursor"]:not([hidden])) { cursor: none; }
+  .inkPaths { overflow: hidden; pointer-events: none; }
+  :global(.plan-module) .ink { z-index: 635; }
+}
+
+@layer components {
+  .boardInk { position: absolute; inset: 0; pointer-events: none; }
+}

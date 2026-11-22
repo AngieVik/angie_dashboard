@@ -3,14 +3,14 @@ import type { AngieDocument, BoardStroke, Position, QuickNote } from '../../doma
 export type NoteEdit = { title?: string; text?: string }
 
 export type Board = AngieDocument['board']
-export type BoardMode = 'select' | 'pen' | 'eraser' | 'image'
+export type BoardMode = import('../drawing/DrawingToolbar').DrawingTool | 'image' | 'place' | 'origin' | 'calibrate'
 export interface BoardState { board: Board; mode: BoardMode; draft: BoardStroke | null; selectedNoteId: string | null }
 export type BoardAction =
   | { type: 'mode'; mode: BoardMode }
   | { type: 'background'; color: string }
   | { type: 'start'; id: string; point: Position; color: string; width: number }
   | { type: 'point'; point: Position }
-  | { type: 'finish' | 'cancel' | 'clear-strokes' }
+  | { type: 'finish' | 'cancel' }
   | { type: 'select-note'; id: string | null }
   | { type: 'add-note'; note: QuickNote }
   | { type: 'move-note'; id: string; position: Position }

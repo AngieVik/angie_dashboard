@@ -17,6 +17,7 @@ import type { GeographicCoordinate } from '../features/coordinates/coordinateTyp
 import type { MapNotice } from '../features/map/MapModule'
 import { getTimerStore } from '../features/clock/timerStore'
 import { getCalendarStore } from '../features/calendar/calendarStore'
+import { resetDrawingHistory } from '../features/drawing/drawingHistory'
 import { useBoardImage } from '../features/board/useBoardImage'
 import { DashboardGrid } from '../layout/DashboardGrid'
 import type { OpenModule } from '../layout/DashboardGrid'
@@ -359,6 +360,7 @@ export function App() {
       if (!store.applyDocumentCommand(document => applyCleanupPlan(document, plan))) {
         setCleanupError(store.getSnapshot().fileMessage ?? 'No se pudieron limpiar los módulos.'); return
       }
+      for (const id of ids) if (id === 'board' || id === 'plan') resetDrawingHistory(store, id)
       if (plan.runtime.has('board-image')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
       if (plan.runtime.has('coordinate-input')) rememberCoordinateInput('')
       if (plan.runtime.has('element-selection')) selectElement(null)
@@ -475,7 +477,7 @@ export function App() {
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet ?? false}
             magnetOptions={{ distance: preferences.settings.magnetDistance, alignEdges: preferences.settings.magnetAlignEdges }} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow} onGrowEnd={endGrowth}
             onRetry={retryModule} renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
-              onViewChange={updateBoardCenter} onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
+              onViewChange={updateBoardCenter}
               onEditElement={elementId => {
                 const element = document.elements.find(element => element.id === elementId)
                 if (!element) return
@@ -499,7 +501,7 @@ export function App() {
               id === 'coordinates' ? <CoordinatesModule generation={documentGeneration} selectedCoordinate={selectedCoordinate} onInputChange={rememberCoordinateInput} radar={{ active: radarActive, onToggle: toggleRadar }} /> :
               id === 'plan' ? <PlanModule key={`${documentGeneration}.${moduleRevisions.plan ?? 0}`} navigationKey={document.document.id} store={store} onNoticesChange={updateMapNotices}
                 selectedId={selectedId} onSelect={selectElement} onCoordinateSelect={selectCoordinate}
-                onOpenModule={id => { if (open.some(module => module.id === id)) activate(id); else toggle(id) }}
+
                 onEditElement={elementId => {
                   const element = document.elements.find(element => element.id === elementId)
                   if (!element) return

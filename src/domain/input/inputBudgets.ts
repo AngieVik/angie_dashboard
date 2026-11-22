@@ -100,7 +100,7 @@ export function checkDocumentBudget(input: unknown): ValidationIssue | null {
     if (seen.has(value)) return { path, message: `${path}: el documento contiene referencias circulares. Se conserva el contenido anterior.` }
     seen.add(value)
     if (Array.isArray(value)) {
-      const isPoints = /^(board|plan)\.strokes\[\d+\]\.points$/.test(path)
+      const isPoints = /^(board|plan)\.(?:strokes|shapes)\[\d+\]\.points$/.test(path)
       const limit = isPoints ? INPUT_BUDGETS.strokePoints : path === 'map.gpx' ? INPUT_BUDGETS.gpxFiles
         : /\.revisions$/.test(path) ? INPUT_BUDGETS.revisions : INPUT_BUDGETS.collectionItems
       if (value.length > limit) return budgetIssue(path, limit, isPoints ? 'puntos' : 'entradas')

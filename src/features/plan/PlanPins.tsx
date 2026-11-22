@@ -5,19 +5,18 @@ import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { pinTextFontSize } from '../elements/pinText'
 import { getPinBox, ICON_CATALOG } from '../elements/iconCatalog'
-import { getPinAnchorPoint, getPinNameLayout, getRotatedPinBox, getScaledPinNameOffset, pinNameLines, PIN_NAME_COLORS, PIN_BASE_SCALE, PIN_REFERENCE_ZOOM, pinTransform } from '../elements/pinPresentation'
+import { getPinAnchorPoint, getPinNameLayout, getScaledPinNameOffset, pinNameLines, PIN_NAME_COLORS, PIN_BASE_SCALE, PIN_REFERENCE_ZOOM, pinTransform } from '../elements/pinPresentation'
 import { clampAssetScale } from '../elements/elementCommands'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { useMapSurface } from '../map/MapSurfaceContext'
 import type { PlanMode } from './planTypes'
 
-export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focusRequest, onSelect, onEdit, onMove, onNameMove, onScale }: {
+export function PlanPins({ navigationKey, elements, pins, mode, selectedId, onSelect, onEdit, onMove, onNameMove, onScale }: {
   navigationKey: string
   elements: DocumentElement[]
   pins: PlanPin[]
   mode: PlanMode
   selectedId: string | null
-  focusRequest: number
   onSelect: (id: string) => void
   onEdit: (id: string) => void
   onMove: (id: string, point: GeographicPosition) => boolean
@@ -30,46 +29,7 @@ export function PlanPins({ navigationKey, elements, pins, mode, selectedId, focu
   const callbacks = useRef({ selectedId, onSelect, onEdit, onMove, onNameMove, onScale })
   const renderedPins = useRef(new Map<string, L.Marker>())
   const focusedPin = useRef<{ id: string; part: 'pin' | 'name' | 'resize' } | null>(null)
-  const lastFocusRequest = useRef(0)
   useLayoutEffect(() => { callbacks.current = { selectedId, onSelect, onEdit, onMove, onNameMove, onScale } }, [selectedId, onSelect, onEdit, onMove, onNameMove, onScale])
-  useEffect(() => {
-    const map = mapRef.current
-    if (blocked || !map || lastFocusRequest.current === focusRequest) return
-    lastFocusRequest.current = focusRequest
-    if (selectedId) {
-      const pin = pins.find(pin => pin.visible && pin.elementId.toLowerCase() === selectedId.toLowerCase())
-      if (pin) map.panTo([pin.latitude, pin.longitude], { animate: false })
-      return
-    }
-    const bounds = L.latLngBounds([])
-    const factor = PIN_BASE_SCALE * zoom
-    for (const pin of pins) {
-      if (!pin.visible) continue
-      const element = elements.find(element => element.id.toLowerCase() === pin.elementId.toLowerCase())
-      if (!element) continue
-      const box = getPinBox(element.visual), rotated = getRotatedPinBox(element.visual)
-      const anchor = getPinAnchorPoint(element.visual, element.pinAnchor)
-      const center = { x: box.width / 2 - anchor.x, y: box.height / 2 - anchor.y }
-      let left = center.x - rotated.width / 2, right = center.x + rotated.width / 2
-      let top = center.y - rotated.height / 2, bottom = center.y + rotated.height / 2
-      if (!element.nameHidden) {
-        const label = getPinNameLayout(element)
-        const node = renderedPins.current.get(element.id)?.getElement()?.querySelector<HTMLElement>('.plan-pin-name')
-        const estimatedWidth = Math.max(...pinNameLines(element.name).map(line => [...line].length)) * label.fontSize * .75 + 8 * element.visual.scale
-        const width = node?.offsetWidth ? node.offsetWidth / factor : estimatedWidth
-        const height = node?.offsetHeight ? node.offsetHeight / factor : label.height
-        left = Math.min(left, center.x + label.offset.x - width / 2)
-        right = Math.max(right, center.x + label.offset.x + width / 2)
-        top = Math.min(top, center.y + label.offset.y - height / 2)
-        bottom = Math.max(bottom, center.y + label.offset.y + height / 2)
-      }
-      const point = map.project([pin.latitude, pin.longitude], PIN_REFERENCE_ZOOM)
-      bounds.extend(map.unproject(point.add([left * factor - 4, top * factor - 4]), PIN_REFERENCE_ZOOM))
-      bounds.extend(map.unproject(point.add([right * factor + 4, bottom * factor + 4]), PIN_REFERENCE_ZOOM))
-    }
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 17, animate: false })
-  }, [focusRequest, pins, elements, selectedId, blocked, mapRef, zoom])
-
   useEffect(() => {
     const map = mapRef.current
     if (!map) return

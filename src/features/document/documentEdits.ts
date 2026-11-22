@@ -1,3 +1,4 @@
+import { removeDrawingReferences } from '@/domain/document/drawingReferences'
 import type { AngieDocument, DocumentModuleId, MapDocument, UnitOperational } from '../../domain/document/types'
 import { commandResult, sameRecord } from '../../domain/document/documentCommand'
 import { createEmptyDocument } from '../../domain/document/defaultDocument'
@@ -32,7 +33,7 @@ export function replaceBoard(document: AngieDocument, board: AngieDocument['boar
 
 export function replaceMap(document: AngieDocument, map: MapDocument) {
   const previous = document.map
-  const next = { markers: reuseItems(previous?.markers ?? [], map.markers), gpx: reuseItems(previous?.gpx ?? [], map.gpx) }
+  const next = { ...map, markers: reuseItems(previous?.markers ?? [], map.markers), gpx: reuseItems(previous?.gpx ?? [], map.gpx) }
   return commandResult(document, sameRecord(previous, next) ? document : { ...document, map: next })
 }
 
@@ -85,7 +86,7 @@ function operationalEffects(before: AngieDocument, after: AngieDocument): Cleanu
 export const MODULE_CLEANUP: Readonly<Record<DocumentModuleId, ModuleCleanupDefinition>> = {
   board: {
     clear: document => replaceBoard(document, createEmptyDocument().board).document,
-    summary: document => `${document.board.strokes.length} trazos, ${document.board.quickNotes.length} notas y ${document.board.backgroundImage ? 1 : 0} imágenes de fondo. Se restablece el fondo de la pizarra.`,
+    summary: document => `${document.board.strokes.length} trazos, ${document.board.shapes?.length ?? 0} figuras, ${document.board.quickNotes.length} notas, ${document.board.labels?.length ?? 0} etiquetas, ${document.board.groups?.length ?? 0} grupos y ${(document.board.images?.length ?? 0) + Number(!!document.board.backgroundImage)} imágenes. Se restablece el fondo de la pizarra.`,
     preserves: [], runtime: ['board-image'],
   },
   elements: {
@@ -123,7 +124,7 @@ export const MODULE_CLEANUP: Readonly<Record<DocumentModuleId, ModuleCleanupDefi
   },
   plan: {
     clear: document => { if (!document.plan) return document; const next = { ...document }; delete next.plan; return next },
-    summary: document => `${document.plan?.strokes.length ?? 0} trazos y ${document.plan?.pins.length ?? 0} ubicaciones del plano.`,
+    summary: document => `${document.plan?.strokes.length ?? 0} trazos, ${document.plan?.shapes?.length ?? 0} figuras, ${document.plan?.quickNotes?.length ?? 0} notas, ${document.plan?.labels?.length ?? 0} etiquetas, ${document.plan?.images?.length ?? 0} imágenes, ${document.plan?.groups?.length ?? 0} grupos y ${document.plan?.pins.length ?? 0} ubicaciones del plano.`,
     preserves: [{ text: 'Elementos.', unless: ['elements'] }, { text: 'Dotaciones.', unless: ['dotations'] }, { text: 'GPX del Mapa.', unless: ['map'] }],
   },
   clock: { clear: unchanged, summary: (_document, timers) => `${timers} temporizadores guardados y sus alarmas.`, preserves: [], runtime: ['timers'] },
@@ -145,6 +146,12 @@ export const MODULE_CLEANUP: Readonly<Record<DocumentModuleId, ModuleCleanupDefi
 export function clearDocumentModules(document: AngieDocument, ids: readonly DocumentModuleId[]) {
   let next = document
   for (const id of new Set(ids)) next = MODULE_CLEANUP[id].clear(next)
+  if (next.elements !== document.elements) {
+    const retained = new Set(next.elements.map(e => e.id))
+    const removed = new Set(document.elements.filter(e => !retained.has(e.id)).map(e => e.id))
+    next = { ...next, board: removeDrawingReferences(next.board, removed),
+      ...(next.plan ? { plan: removeDrawingReferences(next.plan, removed) } : {}) }
+  }
   if (next.plan && next.elements !== document.elements) {
     const remaining = new Set(next.elements.map(element => element.id.toLowerCase()))
     const pins = next.plan.pins.filter(pin => remaining.has(pin.elementId.toLowerCase()))
