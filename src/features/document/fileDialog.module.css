@@ -11,8 +11,6 @@
   .surface[data-modal="false"] .workspace { pointer-events: none; }
   .surface[data-modal="false"] .workspace [data-module] { pointer-events: auto; }
   .workspace { position: fixed; }
-  .surface :focus-visible { outline: none; }
-  .body button:focus-visible { border-color: var(--color-hover-border); }
   .body [data-slot="alert-dialog-footer"] { margin-top: 8px; }
   .workspace :global(.module-frame):hover { border-color: var(--color-hover-border); }
 }

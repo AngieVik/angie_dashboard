@@ -87,12 +87,11 @@
       "id": "board-image-contrast",
       "file": "src/features/board/board.module.css",
       "selectors": [
-        ":where(.base) :global(.board-tool-cursor)",
         ":where(.base) :global(.board-image-editor)",
         ":where(.base) :global(.board-image-resize)"
       ],
       "properties": ["box-shadow", "outline", "border", "background"],
-      "reason": "El cursor y los controles superpuestos a imágenes usan contraste blanco/negro independiente de los colores de la imagen y del tema.",
+      "reason": "Los controles superpuestos a imágenes usan contraste blanco/negro independiente de los colores de la imagen y del tema.",
       "sources": ["src/features/board/board.module.css", "docs/design.md"]
     }
   ]

@@ -1,7 +1,7 @@
 @layer components {
   .base { --report-selection-width: 42cqi; display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 240px; }
   .toolbar { flex: none; }
-  .workspace { display: grid; grid-template-columns: var(--report-selection-width) 1px minmax(0, 1fr); flex: 1; min-height: 0; }
+  .workspace { display: grid; isolation: isolate; grid-template-columns: var(--report-selection-width) 1px minmax(0, 1fr); flex: 1; min-height: 0; }
   .workspace[data-selection-open="false"] { grid-template-columns: 0 0 minmax(0, 1fr); }
   .selectionSlot { position: relative; height: 100%; min-width: 0; min-height: 0; }
   .selectionBody { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) 8px var(--space-2) var(--space-1); container: report-selection / inline-size; }
@@ -19,7 +19,7 @@
   .selectionSheet label { display: flex; align-items: center; gap: var(--space-2); margin: 3px 0; overflow-wrap: anywhere; }
   .selectionSheet label:has(> [data-slot="checkbox"]) { gap: var(--control-gap); }
   .selectionSheet legend label { margin: 0; font-weight: 600; }
-  .selectionSheet :global(.reports-page-toolbar) label { flex-wrap: wrap; justify-content: space-between; }
+  .pageControls { display: flex; align-items: center; gap: var(--control-gap); margin-inline-start: auto; }
   .preview { display: flex; flex-direction: column; position: relative; height: 100%; min-width: 0; min-height: 0; background: var(--color-module); }
   .preview iframe { display: block; flex: 1; width: 100%; height: 100%; min-height: 0; border: 0; background: white; }
   .preview iframe[hidden] { display: none; }
@@ -31,8 +31,5 @@
   .selectionSheet[data-side="left"] { position: absolute; inset: 0; width: var(--report-selection-width); max-height: 100%; padding: 0; gap: 0; box-shadow: none; }
   .selectionSheet [data-slot="sheet-header"] { padding-inline-end: 0; }
   .resizeHandle[aria-orientation="vertical"] { background: var(--color-field-border); }
-  .resizeHandle[aria-orientation="vertical"]:focus-visible { outline: 1px solid var(--color-hover-border); outline-offset: 1px; }
   .selectionSheet[data-state="closed"] { visibility: hidden; pointer-events: none; animation: none; }
-  .selectionSheet [data-slot="select"] { max-width: 100%; }
-  .toolbar [data-slot="select"] { flex: none; margin-inline-start: auto; }
 }

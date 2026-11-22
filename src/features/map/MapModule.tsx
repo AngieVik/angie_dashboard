@@ -610,7 +610,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
     if (current !== selectionRevision.current) return
     if (store.getSnapshot().documentGeneration !== documentGeneration) return
     if (!result) { toast.error('No se pudo copiar la coordenada.', { notice: 'mapCopy', id: noticeId }); return }
-
+    toast.success('Copiado.', { notice: 'copied', description: input.trim(), id: noticeId })
   }
   function touchStart(event: PointerEvent<HTMLDivElement>) {
     if (!touches.current.size) { cancelledTouch.current = false; suppressSelection.current = false }
@@ -639,7 +639,7 @@ export function MapModule({ navigationKey, store, overlay, onCoordinateSelect, o
         <InputGroup className="map-coordinate-field">
           <Input ref={searchInput} className="map-coordinate-input" aria-label="Lugar, dirección o coordenadas" aria-invalid={Boolean(error)} placeholder="Lugar, dirección o coordenadas" value={input} disabled={blocked} spellCheck={false} autoComplete="off"
             onChange={event => { cancelGpxSelection(); resetSearch(); selectionRevision.current++; setInput(event.target.value); setError(null) }} />
-          <Button appearance="integrated" type="submit" className="map-coordinate-action map-search-submit" aria-label="Buscar" aria-busy={searchState.status === 'loading'} disabled={blocked || !input.trim() || searchState.status === 'loading'}><Search aria-hidden="true" /><span>Buscar</span></Button>
+          <Button appearance="integrated" type="submit" className="map-coordinate-action" aria-label="Buscar" aria-busy={searchState.status === 'loading'} disabled={blocked || !input.trim() || searchState.status === 'loading'}><Search aria-hidden="true" /></Button>
           <Button appearance="integrated" type="button" className="map-coordinate-action" aria-label="Copiar coordenadas del punto" disabled={blocked || !canCopy} onClick={() => { void copyCoordinate() }}>
             <Copy aria-hidden="true" />
           </Button>

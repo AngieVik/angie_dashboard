@@ -40,6 +40,7 @@ function TimelineContent({ store }: { store: DocumentStore }) {
   const newEntryInput = useRef<HTMLInputElement>(null)
   const editControl = useRef<HTMLButtonElement>(null)
   const listScroll = useRef(0)
+  const scrollAnchor = useRef({ viewport: 0, fromBottom: 0 })
   const restoreList = useRef(false)
   const latestId = document.timeline.at(-1)?.id
   const previousLatest = useRef<string | undefined>(undefined)
@@ -102,10 +103,23 @@ function TimelineContent({ store }: { store: DocumentStore }) {
       node.scrollTop = listScroll.current * ratio
       restoreList.current = false
       editControl.current?.focus({ preventScroll: true })
-    } else if (appended) node.scrollTop = node.scrollHeight
+    } else if (appended && scrollAnchor.current.fromBottom <= 1) node.scrollTop = node.scrollHeight
     else if (ratio !== 1) node.scrollTop *= ratio
-    // Resizing and text revisions must not navigate the log.
+    scrollAnchor.current = { viewport: node.clientHeight, fromBottom: node.scrollHeight - node.clientHeight - node.scrollTop }
   }, [latestId, scale, editingOpen])
+
+  useLayoutEffect(() => {
+    const node = list.current
+    if (!node || editingOpen) return
+    const observer = new ResizeObserver(() => {
+      const height = node.clientHeight
+      if (!height || height === scrollAnchor.current.viewport) return
+      node.scrollTop = node.scrollHeight - height - scrollAnchor.current.fromBottom
+      scrollAnchor.current = { viewport: height, fromBottom: Math.max(0, node.scrollHeight - height - node.scrollTop) }
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [editingOpen])
 
   return <div data-slot="timeline-module" className={`${styles.base} timeline-module`} onPointerDownCapture={event => {
     activePointers.current.add(event.pointerId)
@@ -138,7 +152,12 @@ function TimelineContent({ store }: { store: DocumentStore }) {
         </div>}
       </>}
     </div>
-    <div className="timeline-entries" role="log" aria-label="Entradas cronológicas" ref={list} hidden={editingOpen}>
+    <div className="timeline-entries" role="log" aria-label="Entradas cronológicas" ref={list} hidden={editingOpen} onScroll={event => {
+      const node = event.currentTarget
+      if (node.clientHeight && node.clientHeight === scrollAnchor.current.viewport) {
+        scrollAnchor.current.fromBottom = Math.max(0, node.scrollHeight - node.clientHeight - node.scrollTop)
+      }
+    }}>
       <ol>{entries.map(entry => <li key={entry.id} data-entry-type={entry.type} data-current={isCurrentTimelineEntry(document, entry)} data-selected={entry.id === selectedId} data-checked={selectionMode && checkedIds.includes(entry.id)}>
         {selectionMode && <Checkbox aria-label={`Incluir ${getTimelineEntryLabel(entry)} en selección múltiple`} checked={checkedIds.includes(entry.id)} disabled={blocked} onCheckedChange={next => {
           if (!blockedRef.current) setCheckedIds(ids => next ? [...ids.filter(id => id !== entry.id), entry.id] : ids.filter(id => id !== entry.id))

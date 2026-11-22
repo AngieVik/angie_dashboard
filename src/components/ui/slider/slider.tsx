@@ -1,4 +1,4 @@
-import * as Primitive from '@radix-ui/react-slider'
+import { Slider as Primitive } from 'radix-ui'
 import styles from './slider.module.css'
 
 export function Slider({ value, onValueChange, min, max, step = 1, stepOrigin = min, label, disabled = false, midpoint, valueText, className = '' }: {

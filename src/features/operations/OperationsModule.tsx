@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { OperationalStatusIcon } from './OperationalStatusIcon'
+import statusStyles from './operationalStatus.module.css'
 
 import { Input } from '@/components/ui/input'
 import styles from './OperationsModule.module.css'
@@ -27,7 +28,7 @@ export function OperationsModule({ store, selectedId }: { store: DocumentStore; 
   return <div data-slot="operations-module" className={`${styles.base} operations-module`}>
     <div className="operations-cards">
       <div className="operations-states" role="group" aria-label="Estado operativo">
-        {OPERATIONAL_STATUSES.map(({ status, icon, abbreviation }) => <Button key={status} className="operations-state" aria-label={status} aria-pressed={unit?.operational.status === status} disabled={blocked || !unit}
+        {OPERATIONAL_STATUSES.map(({ status, icon, abbreviation }) => <Button key={status} className={`${statusStyles.control} operations-state`} aria-label={status} aria-pressed={unit?.operational.status === status} disabled={blocked || !unit}
           onClick={() => {
             if (blockedRef.current || !unit || unit.operational.status === status) return
             try {
@@ -88,7 +89,7 @@ function UnitNotes({ store, unitId, index, activeLabel, activeColor }: { store: 
   }
   return <div className={`operations-notes ${disabled && !editing ? buttonStyles.disabled : ''}`} data-active={active} data-disabled={disabled} data-editing={editing}>
     <div className="operations-custom-row">
-      <label className="operations-note-color">
+      <label className="operations-note-color" data-focus-proxy>
         <OperationalStatusIcon color={draftColor} />
         <input type="color" aria-label="Color de anotación" value={draftColor} disabled={blocked} onChange={event => {
           if (blockedRef.current) return

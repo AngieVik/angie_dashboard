@@ -22,25 +22,33 @@ export function ClockModule({ store }: { store: TimerStore }) {
     const counts: Record<TimerKind, number> = { tzero: 0, tminus: 0, advisory: 0 }
     return timers.map(timer => ({ timer, index: ++counts[timer.kind] }))
   }, [timers])
-  const expandPending = useRef(false)
-  const previousCount = useRef(timers.length)
+  const list = useRef<HTMLDivElement>(null)
+  const previousList = useRef<{ count: number; height: number } | null>(null)
   const requestSpace = useContext(ModuleSizeContext)
   function addTimer(kind: TimerKind) {
     if (timers.length >= MAX_TIMER_COUNT) return
-    expandPending.current = true
     store.add(kind)
   }
   useLayoutEffect(() => {
-    const collect = timers.length < previousCount.current, expand = expandPending.current
-    previousCount.current = timers.length
-    expandPending.current = false
-    if (expand || collect) requestSpace()
-  }, [timers.length, requestSpace])
+    const node = list.current
+    if (!ready || !node) return
+    const previous = previousList.current
+    const count = timers.length
+    const height = node.scrollHeight
+    previousList.current = { count, height }
+    if (previous && previous.count !== count) requestSpace({ timerHeightDelta: height - previous.height })
+    // Track the rendered rows at the current width, font size and zoom.
+    const observer = new ResizeObserver(() => {
+      previousList.current = { count, height: node.scrollHeight }
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [timers.length, ready, requestSpace])
   useEffect(() => () => store.alarm.stopPreview(), [store])
   return <div data-slot="clock-module" data-time-format={settings.formats.time} className={`${styles.base} clock-module`} style={{ '--alarm-cycle': `${1 / ALARM_FLASH_HZ}s` } as CSSProperties}>
     <ClockDisplay store={store} timeZone={timeZone} timeFormat={settings.formats.time}
       disabled={!ready || storageConflict || timers.length >= MAX_TIMER_COUNT} addTimer={addTimer} />
-    <div className="timer-list">{numberedTimers.map(({ timer, index }) => <TimerRow key={`${recoveryGeneration}:${timer.id}`} timer={timer}
+    <div ref={list} className="timer-list">{numberedTimers.map(({ timer, index }) => <TimerRow key={`${recoveryGeneration}:${timer.id}`} timer={timer}
       index={index} store={store} disabled={storageConflict} />)}</div>
   </div>
 }

@@ -1,6 +1,7 @@
 import labelStyles from '@/layout/controlValueLabel.module.css'
 import { useEffect, useRef, useState } from 'react'
-import { GitCommitVertical, Palette } from 'lucide-react'
+import { GitCommitVertical } from 'lucide-react'
+import { InkPaletteIcon } from '@/components/InkPaletteIcon'
 import { Button } from '@/components/ui/button'
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -41,7 +42,7 @@ export function PlanStrokeControls({ color, width, blocked, onColor, onWidth }: 
       </PopoverContent>
     </Popover>
     <span className={`plan-color-control ${styles.base}`}>
-      <Button disabled={blocked} aria-label="Elegir color del lápiz" onClick={() => penColor.current?.click()}><Palette aria-hidden="true" /></Button>
+      <Button disabled={blocked} aria-label="Elegir color del lápiz" aria-description={color} onClick={() => penColor.current?.click()}><InkPaletteIcon color={color} /></Button>
       <input ref={penColor} type="color" aria-label="Color del lápiz" value={color} disabled={blocked} tabIndex={-1} onChange={event => onColor(event.target.value)} />
     </span>
   </>

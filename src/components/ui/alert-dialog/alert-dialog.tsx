@@ -2,7 +2,7 @@
 import type { ComponentProps } from 'react'
 import { useEffect, useId } from 'react'
 import { toast } from '@/components/ui/sonner'
-import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog'
+import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
 import { WindowResize } from '@/layout/WindowResize'
 import styles from './alert-dialog.module.css'
 

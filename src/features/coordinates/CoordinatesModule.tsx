@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { InputGroup } from '@/components/ui/input-group'
 
 import { toast } from '@/components/ui/sonner'
-import { Check, ClipboardPaste, Trash } from 'lucide-react'
+import { ClipboardPaste, Trash } from 'lucide-react'
 import { RadarButton } from './RadarButton'
 import type { RadarControl } from './RadarButton'
 import { useValidationNotice } from '@/hooks/useValidationNotice'
@@ -142,21 +142,22 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
       if (!blockedRef.current && current === revision.current) toast.error('No se pudo pegar. Pega las coordenadas manualmente.', { notice: 'clipboardPaste', id: noticeId })
     }
   }
-  async function copyRow(value: string | null) {
+  async function copyRow(value: string | null, url?: string) {
     if (blockedRef.current || value === null) return
     const current = ++revision.current
     const copied = await copyText(value)
     if (current !== revision.current) return
-    if (copied) toast.success('Copiado.', { notice: 'copied', id: noticeId })
+    if (copied) toast.success('Copiado.', { notice: 'copied', id: noticeId, description: value,
+      action: url ? { label: 'Abrir', onClick: () => window.open(url, '_blank', 'noopener,noreferrer') } : undefined })
     else toast.error('No se pudo copiar.', { notice: 'copyError', id: noticeId })
   }
-  const rows: { format: string; value: string | null; preview?: string }[] = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
+  const rows: { format: string; value: string | null; preview?: string; url?: string }[] = (['DD', 'DMS', 'DMM', 'UTM'] as const).map(format => {
     const conversion = result?.conversions.find(item => item.format === format)
     return { format, value: conversion?.ok ? conversion.text : null }
   })
-  rows.push({ format: 'Plus Code', value: result?.plusCode ?? null },
-    { format: 'Maps', value: result?.link ?? null, preview: 'www.google.com/maps/...' },
-    { format: 'OsmAnd', value: result?.osmandLink ?? null, preview: 'osmand.net/map/...' })
+  rows.push({ format: 'Plus Code', value: result?.plusCode ?? null, url: result ? `https://plus.codes/${result.plusCode}` : undefined },
+    { format: 'Maps', value: result?.link ?? null, url: result?.link, preview: 'www.google.com/maps/...' },
+    { format: 'OsmAnd', value: result?.osmandLink ?? null, url: result?.osmandLink, preview: 'osmand.net/map/...' })
   return <div data-slot="coordinates-module" className={`${styles.base} coordinates-module`}>
     <form onSubmit={event => { event.preventDefault(); convert() }}>
       <InputGroup>
@@ -168,7 +169,6 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
             revision.current++
             setInput(event.target.value)
           }} />
-        <Button appearance="integrated" aria-label="Validar coordenadas y mostrar formatos" disabled={blocked} onClick={convert}><Check aria-hidden="true" /></Button>
         <RadarButton active={automatic} onToggle={toggleAutomatic} disabled={blocked} />
         <Button appearance="integrated" aria-label="Pegar coordenadas" disabled={blocked} onClick={() => { void paste() }}><ClipboardPaste aria-hidden="true" /></Button>
         <Button appearance="integrated" aria-label="Borrar coordenadas" disabled={blocked} onClick={clear}><Trash aria-hidden="true" /></Button>
@@ -180,9 +180,9 @@ export function CoordinatesModule({ generation = 0, selectedCoordinate, onInputC
         const available = row.value !== null
         return <div key={row.format} role={available ? 'button' : undefined}
           tabIndex={available && !blocked ? 0 : undefined} aria-label={available ? 'Copiar ' + row.format : undefined}
-          aria-disabled={available ? blocked : undefined} onClick={() => { void copyRow(row.value) }}
+          aria-disabled={available ? blocked : undefined} onClick={() => { void copyRow(row.value, row.url) }}
           onKeyDown={event => {
-            if (available && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); void copyRow(row.value) }
+            if (available && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); void copyRow(row.value, row.url) }
           }}>
           <dt>{row.format}</dt>
           <dd className="technical-data" aria-label={'Resultado ' + row.format}>

@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import * as Primitive from '@radix-ui/react-radio-group'
+import { RadioGroup as Primitive } from 'radix-ui'
 import styles from './radio-group.module.css'
 import checkboxStyles from '../checkbox/checkbox.module.css'
 import { CheckboxMark } from '../checkbox/checkbox-mark'

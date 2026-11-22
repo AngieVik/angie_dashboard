@@ -28,6 +28,6 @@
     box-shadow: none;
     color: var(--color-text);
   }
-  .trigger:is(:hover:not(:disabled), :focus-visible) { text-shadow: 0 0 7px rgb(255 255 255 / 45%); }
+  .trigger:hover:not(:disabled) { text-shadow: 0 0 7px rgb(255 255 255 / 45%); }
   .trigger[data-state="open"] { color: var(--color-accent-red); text-shadow: none; }
 }

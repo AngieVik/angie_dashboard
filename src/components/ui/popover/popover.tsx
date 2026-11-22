@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import type { ComponentProps } from 'react'
-import * as Primitive from '@radix-ui/react-popover'
+import { Popover as Primitive } from 'radix-ui'
 import { OverlayPortalContext } from '@/layout/OverlayPortalContext'
 import styles from './popover.module.css'
 

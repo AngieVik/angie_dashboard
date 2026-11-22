@@ -9,7 +9,6 @@
   :where(.base) :global(.map-profile-missing)::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 4px; background: repeating-linear-gradient(135deg, transparent 0 3px, var(--color-field-border) 3px 4px); }
   :where(.base) :global(.map-profile-position) strong { font: inherit; font-family: var(--font-interface); color: var(--color-text); }
   :where(.base) :global(.map-profile-chart) { display: block; width: 100%; min-width: calc(260px * var(--module-zoom, 1)); height: calc(150px * var(--module-zoom, 1)); touch-action: pan-y; cursor: crosshair; }
-  :where(.base) :global(.map-profile-chart):focus-visible { outline: 1px solid var(--color-accent-red); outline-offset: -1px; }
   :where(.base) :global(.map-profile-chart)[aria-disabled="true"] { cursor: default; }
   :where(.base) :global(.map-profile-chart) text { fill: var(--color-text-secondary); font: var(--control-font-size) var(--font-interface); }
   :where(.base) :global(.map-profile-hatching) { stroke: var(--color-field-border); stroke-width: 1; }

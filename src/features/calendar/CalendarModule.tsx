@@ -4,7 +4,8 @@ import { addDays, addMonths, format, isSameDay, parseISO, startOfWeek } from 'da
 import { es } from 'date-fns/locale'
 import { MonthCaption } from 'react-day-picker'
 import type { DayButtonProps } from 'react-day-picker'
-import { CalendarHeart, Check, ChevronLeft, ChevronRight, PenLine, Plus, RefreshCw, Trash, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, PenLine, Plus, RefreshCw, Trash, X } from 'lucide-react'
+import { Switch } from 'radix-ui'
 import { Button } from '@/components/ui/button'
 import { Calendar, CalendarDayButton } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
@@ -39,6 +40,11 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
   const requestSpace = useContext(ModuleSizeContext)
   const { scale } = useContext(ModuleZoomContext)
   const calendarRef = useRef<HTMLDivElement>(null)
+  const layoutRef = useRef<HTMLDivElement>(null)
+  const datesRef = useRef<HTMLElement>(null)
+  const agendaRef = useRef<HTMLElement>(null)
+  const toggleSize = useRef<{ side: boolean; width: number; height: number } | null>(null)
+  const closedCalendar = useRef<{ side: boolean; width: number; height: number } | null>(null)
   const selected = useMemo(() => parseISO(selectedDate), [selectedDate])
   const [month, setMonth] = useState(() => parseISO(store.getSnapshot().selectedDate))
   const [view, setView] = useState<'month' | 'week'>('month')
@@ -56,12 +62,39 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
       syncCalendarAgendaLayout(calendar)
       requestSpace('minimum')
     }
-    synchronize()
+    const toggle = toggleSize.current
+    const agenda = agendaRef.current, layout = layoutRef.current
+    if (toggle && layout && agenda) {
+      toggleSize.current = null
+      const style = getComputedStyle(layout)
+      const gap = parseFloat(toggle.side ? style.columnGap : style.rowGap) || 0
+      if (showEvents) agenda.dataset.measurePosition = toggle.side ? 'right' : 'below'
+      const width = toggle.width + (showEvents && toggle.side ? agenda.offsetWidth + gap : 0)
+      const height = toggle.height + (showEvents && !toggle.side ? agenda.offsetHeight + gap : 0)
+      delete agenda.dataset.measurePosition
+      requestSpace({ agendaDelta: { width: width - calendar.clientWidth, height: height - calendar.clientHeight } })
+      if (!showEvents) closedCalendar.current = { side: toggle.side, width, height }
+    } else synchronize()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(synchronize)
     observer.observe(calendar)
     return () => observer.disconnect()
   }, [requestSpace, events, selectedDate, month, view, showEvents, editorOpen, deleting, blocked, scale])
+  function toggleEvents(open: boolean) {
+    const calendar = calendarRef.current, layout = layoutRef.current, dates = datesRef.current
+    if (blockedRef.current || !calendar || !layout || !dates) return
+    const style = getComputedStyle(calendar)
+    const previous = closedCalendar.current
+    const sameSize = previous && Math.abs(previous.width - calendar.clientWidth) <= 1 && Math.abs(previous.height - calendar.clientHeight) <= 1
+    const side = open && sameSize ? previous.side : getComputedStyle(layout).getPropertyValue('--calendar-agenda-position').trim() === 'right'
+    const agendaHeight = showEvents && !side
+      ? (agendaRef.current?.offsetHeight ?? 0) + parseFloat(getComputedStyle(layout).rowGap)
+      : 0
+    const height = layout.offsetHeight - agendaHeight
+    toggleSize.current = { side, width: dates.offsetWidth + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
+      height: height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) }
+    setShowEvents(open)
+  }
   function choose(date: Date) { if (!blockedRef.current) { store.selectDate(dateKey(date)); setMonth(date); setDeleting(null) } }
   function navigate(direction: number) {
     if (view === 'week') choose(addDays(selected, direction * 7))
@@ -83,27 +116,32 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
   }
   const week = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(selected, { weekStartsOn: 1 }), index))
   return <div ref={calendarRef} className={styles.base} data-slot="calendar-module">
-    <div className={styles.layout} data-slot="calendar-layout" data-minimum-scroll-content data-events-open={showEvents}>
+    <div ref={layoutRef} className={styles.layout} data-slot="calendar-layout" data-minimum-scroll-content data-events-open={showEvents}>
       <header className={styles.toolbar}>
         <div className={styles.selectedDate}>
           <Input type="date" aria-label="Fecha seleccionada" value={selectedKey} disabled={disabled}
+            onKeyDown={event => {
+              if ((event.key === 'Enter' || event.key === ' ') && !blockedRef.current && event.currentTarget.showPicker) {
+                event.preventDefault()
+                if (!event.repeat) event.currentTarget.showPicker()
+              }
+            }}
             onClick={event => { if (!disabled && !blockedRef.current && typeof event.currentTarget.showPicker === 'function') { event.preventDefault(); event.currentTarget.showPicker() } }}
             onChange={event => { if (/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) choose(parseISO(event.target.value)) }} />
           <span aria-hidden="true" data-disabled={disabled}>{formatDateKey(selectedDate, settings.formats.date)}</span>
         </div>
-        <Button disabled={blocked} aria-label={showEvents ? 'Ocultar eventos' : 'Mostrar eventos'} aria-expanded={showEvents} aria-pressed={showEvents} onClick={() => { if (!blockedRef.current) setShowEvents(value => !value) }}><CalendarHeart aria-hidden="true" /></Button>
+        <Switch.Root className={styles.eventsSwitch} disabled={blocked} aria-label="Mostrar eventos" checked={showEvents}
+          onCheckedChange={toggleEvents}><Switch.Thumb /></Switch.Root>
         {error && <Button disabled={busy} aria-label="Recargar agenda" onClick={() => { void store.reload() }}><RefreshCw aria-hidden="true" /></Button>}
       </header>
-      <div className={styles.navigation} role="group" aria-label="Navegación y vista del calendario">
-        <Button disabled={disabled} aria-label={view === 'month' ? 'Mes anterior' : 'Semana anterior'} onClick={() => navigate(-1)}><ChevronLeft aria-hidden="true" /></Button>
-        <div className={styles.views} role="group" aria-label="Vista del calendario">
-          <Button disabled={disabled} onClick={() => choose(new Date())}>Hoy</Button>
-          <Button disabled={disabled} aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</Button>
-          <Button disabled={disabled} aria-pressed={view === 'month'} onClick={() => setView('month')}>Mes</Button>
-        </div>
-        <Button disabled={disabled} aria-label={view === 'month' ? 'Mes siguiente' : 'Semana siguiente'} onClick={() => navigate(1)}><ChevronRight aria-hidden="true" /></Button>
+      <div className={styles.views} role="group" aria-label="Navegación y vista del calendario">
+        <Button variant="text" disabled={disabled} aria-label={view === 'month' ? 'Mes anterior' : 'Semana anterior'} onClick={() => navigate(-1)}><ChevronLeft aria-hidden="true" /></Button>
+        <Button disabled={disabled} onClick={() => choose(new Date())}>Hoy</Button>
+        <Button disabled={disabled} aria-pressed={view === 'week'} onClick={() => setView('week')}>Semana</Button>
+        <Button disabled={disabled} aria-pressed={view === 'month'} onClick={() => setView('month')}>Mes</Button>
+        <Button variant="text" disabled={disabled} aria-label={view === 'month' ? 'Mes siguiente' : 'Semana siguiente'} onClick={() => navigate(1)}><ChevronRight aria-hidden="true" /></Button>
       </div>
-      <section className={styles.dates} aria-label={view === 'month' ? 'Calendario mensual' : 'Calendario semanal'}>
+      <section ref={datesRef} className={styles.dates} aria-label={view === 'month' ? 'Calendario mensual' : 'Calendario semanal'}>
         {view === 'month' ? <EventsContext value={events}>
           <Calendar mode="single" required selected={selected} onSelect={choose} month={month} onMonthChange={setMonth} hideNavigation fixedWeeks
             components={{ MonthCaption: HiddenMonthCaption, DayButton: EventDayButton }} disabled={disabled} />
@@ -118,7 +156,7 @@ export function CalendarModule({ store }: { store: CalendarStore }) {
           })}
         </div>}
       </section>
-      <section className={styles.agenda} aria-label="Agenda del día" hidden={!showEvents}>
+      <section ref={agendaRef} className={styles.agenda} aria-label="Agenda del día" hidden={!showEvents}>
         <header className={styles.agendaHeader}><h3>{dayLabel(selected)}</h3><Button disabled={disabled || Boolean(error)} aria-label="Nuevo evento" onClick={() => edit()}><Plus aria-hidden="true" /></Button></header>
         <MoonPhase day={selectedKey} />
         {editing ? <form className={styles.form} aria-label={editing.original ? 'Editar evento' : 'Nuevo evento'} onSubmit={event => { event.preventDefault(); void save() }}>

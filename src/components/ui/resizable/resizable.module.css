@@ -3,7 +3,6 @@
   .handle[aria-orientation="vertical"] { width: 1px; align-self: stretch; }
   .handle[aria-orientation="horizontal"] { height: 1px; align-self: stretch; }
   .handle::before { position: absolute; inset: -4px; content: ''; }
-  .handle:hover, .handle:focus-visible, .handle[data-separator="active"] { background: var(--color-selection-border); }
-  .handle:focus-visible { outline: 1px solid var(--color-selection-border); outline-offset: 2px; }
+  .handle:hover, .handle[data-separator="active"] { background: var(--color-selection-border); }
   .handle[aria-disabled="true"] { opacity: .5; }
 }

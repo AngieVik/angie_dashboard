@@ -21,7 +21,7 @@ Button centraliza sus sombras de reposo, interacción y pulsación en `--shadow-
 | Borde campo / botón / separador              | `#555555` / `#3D3D3D` / `#3D3D3D`.                                                    |
 | Acento rojo / neutro                         | `#D63A3A80` / `#D6D6D280`; asigna el neutro a consumidores con especificación propia. |
 
-El foco visible de Input/Textarea usa una iluminación translúcida del fondo y un halo corto gris azulado, incluidos Archivo y Configuración. Los tokens `--surface-field-focus` y `--shadow-field-focus` conservan la superficie original bajo el efecto, sin borde rojo, animación ni cambio de tamaño. La iluminación interior permite reconocer el foco aunque el halo exterior se recorte. El modo de alto contraste sustituye el efecto por el contorno de [Accesibilidad](#accesibilidad). Los indicadores operativos usan `--color-status-*`, con significado en [Arquitectura](architecture.md#estados-operativos).
+El foco visible usa un único contorno interior de 2 px en rojo al 30 % y un halo interior gris azulado. Conserva el fondo del control y cabe dentro de campos agrupados. Los modos de [Accesibilidad](#accesibilidad) ajustan el indicador. Los indicadores operativos usan `--color-status-*`, con significado en [Arquitectura](architecture.md#estados-operativos).
 
 ## Controles e indicadores
 
@@ -38,7 +38,7 @@ Base de campos y botones de texto: altura 25px, padding `0 2px`, borde 1px y rad
 | Slider                            | Altura de control común; pista de 4px y tirador de 15 × 15px centrados verticalmente. Ancho, padding y demás acabados quedan pendientes.                                                                             |
 | Texto de una línea / dato técnico | Contenedor de 17px; dato técnico con padding `0 2px`.                                                                                                                                                                |
 | Título de contenido               | Contenedor de 15px, padding 0.                                                                                                                                                                                       |
-| Estado de Información             | 120 × 25px, limitado al ancho disponible, padding 2px, acabado de botón, margen vertical 1px y horizontal 0; reserva total vertical 27px, incluido «Sin estado».                                                     |
+| Estado de Información             | Ocupa su columna, con 120 px de referencia para la medición y 25 px de alto. Comparte con Operativo el acabado, la tipografía, el padding de 2 px y el margen vertical de 1 px; reserva total vertical 27px, incluido «Sin estado».                                                     |
 | Estado de Operativo               | Las medidas del estado de Información son mínimos de columna y fila; reparte espacio en ambas direcciones y crece con ventana/contenido. Los botones interiores se estiran; el editor visible conserva altura común. |
 | Miniatura de pin en listas        | 80 × 40px, padding 0, dibujo completo centrado y proporcional.                                                                                                                                                       |
 | Fila de Elementos/Dotaciones      | Altura por contenido, padding 0, borde de selección y radio 2px. Reserva pin/nombre y conserva desplazamiento de lista.                                                                                              |
@@ -52,7 +52,7 @@ Base de campos y botones de texto: altura 25px, padding `0 2px`, borde 1px y rad
 
 ## Ventanas
 
-Los tiradores de módulos y diálogos son botones accesibles por Tab. Con el foco en el tirador, izquierda/derecha reducen/amplían el ancho y arriba/abajo reducen/amplían el alto, en pasos de 10px lógicos; Mayús aumenta el paso a 50px. El nombre identifica la acción, las instrucciones están disponibles como descripción accesible y tooltip, y un estado accesible anuncia el tamaño resultante. El foco usa un contorno neutro interior y conserva la excepción de alto contraste. Las ventanas recogidas no muestran el tirador. Los límites y la confirmación se describen en [Ventanas y navegación](architecture.md#ventanas-y-navegación).
+Los tiradores de módulos y diálogos son botones accesibles por Tab. Con el foco en el tirador, izquierda/derecha reducen/amplían el ancho y arriba/abajo reducen/amplían el alto, en pasos de 10px lógicos; Mayús aumenta el paso a 50px. El nombre identifica la acción, las instrucciones están disponibles como descripción accesible y tooltip, y un estado accesible anuncia el tamaño resultante. Las ventanas recogidas no muestran el tirador. Los límites y la confirmación se describen en [Ventanas y navegación](architecture.md#ventanas-y-navegación).
 
 | Zona                  | Medidas y acabado                                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -72,7 +72,7 @@ Los tiradores de módulos y diálogos son botones accesibles por Tab. Con el foc
 
 Crear, reabrir o expandir desde barra/icono recupera el tamaño de apertura. La altura por contenido incluye estructura, herramientas y datos presentes; vacío conserva estructura/herramientas. Es independiente del autoajuste continuo. Colapsar conserva ancho de apertura y altura de título; contraer usa 27 × 27px.
 
-El ajuste manual puede superar ancho base y máximo automático; desactiva Autoajuste hasta reactivarlo. Al reducir, conserva acceso a herramientas y desplazamiento del contenido; Operativo puede bajar de su ancho de apertura hasta el mínimo medido. Al ampliar, listas, textos y superficies reciben espacio y los controles de una línea conservan su altura. El algoritmo de colocación y los mínimos técnicos están en [Arquitectura](architecture.md#ventanas-y-navegación).
+El ajuste manual puede superar el ancho base y el máximo automático. Desactiva Autoajuste hasta reactivarlo. [Reloj](#reloj) adapta la altura a los cambios en el número de temporizadores también en modo manual. Al reducir, conserva acceso a herramientas y desplazamiento del contenido; Operativo puede bajar de su ancho de apertura hasta el mínimo medido. Al ampliar, listas, textos y superficies reciben espacio y los controles de una línea conservan su altura. El algoritmo de colocación y los mínimos técnicos están en [Arquitectura](architecture.md#ventanas-y-navegación).
 
 Recoger todos usa columnas contiguas, omitiendo módulos cerrados y columnas vacías, desde el origen y con el zoom actual. Una columna que no cabe a la derecha continúa debajo de la fila previa:
 
@@ -92,30 +92,30 @@ Usa la técnica CSS adecuada al contenido. Asigna el desplazamiento a la zona qu
 | Módulo               | Composición                                                                                                                                                                                               |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Elementos/Dotaciones | Herramientas arriba y lista debajo; filas sin contracción que superponga pines. Nombre multilínea arriba a la derecha del pin, con tipografía de título.                                                  |
-| Información          | Tarjetas apiladas con reparto flexible. Pin, nombre arriba y estado debajo con inicio/ancho común; acciones en columna independiente.                                                                     |
+| Información          | Tarjetas apiladas con reparto flexible. Pin, nombre arriba y estado debajo con inicio/ancho común; acciones en columna independiente. Las coordenadas del plano aparecen al expandir la tarjeta.                                                                     |
 | Operativo            | Filas y columnas flexibles; una columna cuando solo cabe una. Conserva acceso a estados y edición.                                                                                                        |
 | Cuaderno             | Herramientas arriba; notas/checklists apilados en su orden, cada nuevo bloque bajo el último. Crecen con contenido; el espacio sobrante queda al final. Lista flexible con scroll y bloques `flex: none`. |
-| Registro             | Herramientas arriba, contenido desplazable y acciones con espacio propio.                                                                                                                                 |
+| Registro             | Al cambiar el alto, el registro conserva la distancia al final de la lista. Las entradas nuevas siguen visibles si se estaba leyendo la última.                                                                                                                                 |
 | Calculadora          | Operación/resultado arriba, teclado que aprovecha su zona e historial desplegable consultable.                                                                                                            |
-| Coordenadas          | Entradas y acciones agrupadas, resultados debajo con espacio flexible para valores largos.                                                                                                                |
+| Coordenadas          | Conversión automática y validación con Intro. Copiar muestra el valor en Sonner. Maps, OsmAnd y Plus Code ofrecen la acción Abrir.                                                                                                                |
 | Pizarra/Mapa/Plano   | Herramientas propias y superficie de trabajo ocupando el resto.                                                                                                                                           |
-| Informes             | Selección y vista previa con desplazamiento propio y separador existente.                                                                                                                                 |
+| Informes             | La barra reúne A4, orientación y ancho de vista previa. El panel de selección y la vista previa tienen desplazamiento propio.                                                                                                                                 |
 
-`PinThumbnail.tsx` y `pinSummary.module.css` comparten miniatura y cuadrícula pin/contenido/acciones para las listas. Usa `--pin-thumbnail-*-base`, `minmax(0, 1fr)` y `object-fit: contain`, liberando mínimos intrínsecos de imagen. Las reglas de lista conservan transformaciones de pines en superficies de trabajo. `operationalStatus.module.css` dimensiona Información y reserva márgenes en la segunda fila de la cuadrícula. Operativo consume ancho como mínimo con máximo `1fr`; la medición mínima libera contención y usa una columna.
+`PinThumbnail.tsx` y `pinSummary.module.css` comparten miniatura y cuadrícula pin/contenido/acciones para las listas. Usa `--pin-thumbnail-*-base`, `minmax(0, 1fr)` y `object-fit: contain`, liberando mínimos intrínsecos de imagen. Las reglas de lista conservan transformaciones de pines en superficies de trabajo. `operationalStatus.module.css` comparte el aspecto de los estados de Información y Operativo. Operativo consume ancho como mínimo con máximo `1fr`; la medición mínima libera contención y usa una columna.
 
 ### Reloj
 
-La hora principal se adapta al espacio, con padding `0 2px`. Referencia `ZULU TIME`, o `ZT` si falta ancho, y cifras se alinean por línea base con tamaño técnico; hora Zulu conserva padding 0. AM/PM se presenta separado y proporcional.
+Al añadir o eliminar temporizadores, Reloj adapta la altura de la ventana. En modo manual suma o resta la altura de las filas y conserva el ancho elegido. La hora principal se adapta al espacio, con padding `0 2px`. Referencia `ZULU TIME`, o `ZT` si falta ancho, y cifras se alinean por línea base con tamaño técnico; hora Zulu conserva padding 0. AM/PM se presenta separado y proporcional.
 
 T-Zero, T-Minus y Advisory comparten campo de duración de 25px de alto, padding 2px, borde/radio de campo, Rajdhani de 13px y ancho real de seis dígitos tabulares y dos puntos. Conserva dimensiones en edición, marcha, pausa y finalización, con acciones junto al valor. `TimerRow.module.css` mide `00:00:00` en un pseudoelemento invisible con fuente y zoom efectivos; `DurationInput`, output y reconocimiento ocupan ese mismo campo.
 
 ### Calendario
 
-Primera fila: fecha seleccionada y acción de eventos. Segunda: navegación y Hoy/Semana/Mes, conservando diseño y redondeado. El texto de fecha sigue los formatos de [Configuración](architecture.md#formatos-y-accesibilidad); en la presentación larga usa día, mes con inicial mayúscula y año («15 de Noviembre de 2026»).
+La primera fila reúne la fecha y el interruptor de eventos. Las flechas, Hoy, Semana y Mes forman un solo grupo en la segunda fila. Semana o Mes queda marcado según la vista activa. La selección usa el acabado común de Button que también utilizan Pizarra, PNG/TXT y los volteos. Hoy selecciona la fecha actual en esa misma vista. El texto de fecha sigue los formatos de [Configuración](architecture.md#formatos-y-accesibilidad); en la presentación larga usa día, mes con inicial mayúscula y año («15 de Noviembre de 2026»).
 
-`CalendarModule` superpone el texto a un Input de fecha nativo, reserva icono y añade 2px de padding a cada lado respecto al campo base, escalados con zoom. Toda el área abre el selector mediante `showPicker()` cuando existe, respetando bloqueo.
+`CalendarModule` superpone el texto a un Input de fecha nativo, reserva icono y añade 2px de padding a cada lado respecto al campo base, escalados con zoom. Un clic en el campo, Intro o Espacio abre el selector mediante `showPicker()` cuando existe, respetando bloqueo.
 
-La zona mensual/semanal recibe el espacio disponible. Agenda debajo en estrecho y a la derecha cuando ambas áreas caben según su contenido; vuelve debajo al desbordar. Mantén acceso a navegación, fechas y eventos mediante scroll. Grid alinea áreas y Flex distribuye interiores en el CSS actual; el umbral lateral sigue el contenido.
+Al mostrar u ocultar eventos, la ventana suma o recupera el espacio del panel en su eje, tomando como referencia las dimensiones de la cuadrícula de días. Agenda debajo en estrecho y a la derecha cuando ambas áreas caben según su contenido; vuelve debajo al desbordar. Mantén acceso a navegación, fechas y eventos mediante scroll. Grid alinea áreas y Flex distribuye interiores en el CSS actual; el umbral lateral sigue el contenido.
 
 ### Mapa y Plano
 
@@ -152,7 +152,7 @@ La confirmación de Limpieza usa AlertDialog y Checkbox, casilla Todos con estad
 
 `tokens.css` deriva tipografía y alturas desde `--accessibility-text-scale`; `accessibility.css` aplica contraste/foco y movimiento. La escala se añade al zoom existente y alcanza portales. Campos, controles, herramientas y cabecera principal ganan altura según el texto; las cabeceras de módulos mantienen geometría compacta. Sonner usa la altura adaptable de cabecera para su posición.
 
-Alto contraste: superficies planas oscuras, texto secundario claro, bordes reforzados y foco amarillo visible. Los campos prescinden de iluminación y halo en este modo; con colores forzados del sistema muestran un contorno del sistema, salvo que el alto contraste de la app ya aplique el amarillo. Movimiento reducido: minimiza transiciones/animaciones y usa desplazamiento inmediato; el comportamiento del mapa se describe en [Arquitectura](architecture.md#formatos-y-accesibilidad).
+Alto contraste: superficies planas oscuras, texto secundario claro, bordes reforzados y foco amarillo visible. Los controles prescinden del halo en este modo. Con colores forzados usan el contorno del sistema. Movimiento reducido: minimiza transiciones/animaciones y usa desplazamiento inmediato; el comportamiento del mapa se describe en [Arquitectura](architecture.md#formatos-y-accesibilidad).
 
 ## Integración compartida
 

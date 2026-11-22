@@ -1,6 +1,6 @@
 import { useCallback, useContext, useState } from 'react'
 import type { ComponentProps } from 'react'
-import * as Primitive from '@radix-ui/react-dialog'
+import { Dialog as Primitive } from 'radix-ui'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OverlayPortalContext } from '@/layout/OverlayPortalContext'

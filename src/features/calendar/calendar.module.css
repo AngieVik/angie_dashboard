@@ -7,12 +7,16 @@
   .selectedDate input::-webkit-datetime-edit { opacity: 0; }
   .selectedDate > span { grid-area: 1 / 1; align-self: center; z-index: 1; padding: 0 var(--calendar-date-padding); padding-right: calc(var(--icon-size) + var(--calendar-date-padding) + var(--field-padding-base) * var(--module-zoom, 1)); font-size: var(--field-font-size); white-space: nowrap; pointer-events: none; }
   .selectedDate > span[data-disabled="true"] { opacity: .5; }
-  .navigation, .views, .actions { display: flex; flex: none; align-items: center; gap: var(--control-gap); }
-  .navigation { grid-area: navigation; justify-content: center; min-width: max-content; }
-  .views { gap: 0; }
-  .views button { border-radius: 0; }
-  .views button:first-child { border-start-start-radius: var(--radius-control); border-end-start-radius: var(--radius-control); }
-  .views button:last-child { border-start-end-radius: var(--radius-control); border-end-end-radius: var(--radius-control); }
+  .eventsSwitch { display: inline-grid; flex: none; align-items: center; width: calc(2 * var(--icon-size)); height: var(--control-height); padding: 0; border: 0; background: transparent; cursor: pointer; }
+  .eventsSwitch::before, .eventsSwitch > span { grid-area: 1 / 1; border-radius: var(--control-height); }
+  .eventsSwitch::before { content: ''; height: var(--icon-size); border: 1px solid var(--color-field-border); background: var(--color-field); }
+  .eventsSwitch > span { z-index: 0; width: calc(var(--icon-size) - var(--space-1)); aspect-ratio: 1; margin-inline: var(--field-padding-base); background: var(--color-text-secondary); }
+  .eventsSwitch[data-state="checked"]::before { background: var(--color-active-border); }
+  .eventsSwitch[data-state="checked"] > span { justify-self: end; }
+  .eventsSwitch:disabled { opacity: .5; cursor: default; }
+  .views, .actions { display: flex; flex: none; align-items: center; }
+  .views { grid-area: navigation; justify-content: center; min-width: max-content; }
+  .actions { gap: var(--control-gap); }
   .layout { --calendar-agenda-position: below; display: grid; flex: 1 0 auto; grid-template-areas: "toolbar" "navigation" "dates" "agenda"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(min-content, 1fr) auto; gap: var(--space-2); min-height: min-content; min-width: 0; }
   .layout[data-events-open="false"] { grid-template-areas: "toolbar" "navigation" "dates"; grid-template-rows: auto auto minmax(min-content, 1fr); }
   .dates { grid-area: dates; display: flex; min-width: 0; min-height: 0; overflow: auto; }
@@ -51,14 +55,21 @@
   .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); gap: var(--space-2); }
   .form .actions { flex-wrap: wrap; }
   @container agenda (min-width: 26em) and (min-aspect-ratio: 1 / 1) {
+    .layout { --calendar-agenda-position: right; }
     .layout[data-events-open="true"] { --calendar-agenda-position: right; grid-template-areas: "toolbar ." "navigation ." "dates agenda"; grid-template-columns: minmax(min-content, 1fr) max-content; grid-template-rows: auto auto minmax(min-content, 1fr); }
-    .agenda:not([hidden]) { border-left: 1px solid var(--color-border); padding-left: var(--space-2); }
+    .agenda:not([hidden]) { height: 0; min-height: 100%; overflow: auto; border-left: 1px solid var(--color-border); padding-left: var(--space-2); }
   }
 }
 
 @layer overrides {
+  .base .agenda[data-measure-position="below"] { height: max-content; min-height: 0; }
+  .base .agenda[data-measure-position="right"] { border-left: 1px solid var(--color-border); padding-left: var(--space-2); }
+  .views button { border-radius: 0; }
+  .views button:first-child { border-start-start-radius: var(--radius-control); border-end-start-radius: var(--radius-control); }
+  .views button:last-child { border-start-end-radius: var(--radius-control); border-end-end-radius: var(--radius-control); }
+  .views button:not([data-text-button]) { width: var(--control-height); }
   .base[data-agenda-overflow] .layout[data-events-open="true"] { --calendar-agenda-position: below; grid-template-areas: "toolbar" "navigation" "dates" "agenda"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(min-content, 1fr) auto; }
-  .base[data-agenda-overflow] .agenda { border-left: 0; padding-left: 0; }
+  .base[data-agenda-overflow] .agenda { height: max-content; min-height: 0; overflow: visible; border-left: 0; padding-left: 0; }
   .dates :global(.rdp-selected) .day, .week .weekDay[aria-pressed="true"] { border: 1px solid var(--color-accent-red); background: var(--color-accent-red); color: var(--color-text); }
   :global(.module-scaled-content):is([data-measuring="true"], [data-measuring="minimum-width"]) > .base { container-type: normal; }
   :global(.module-scaled-content):is([data-measuring="true"], [data-measuring="minimum-width"]) > .base .layout { grid-template-rows: none; }

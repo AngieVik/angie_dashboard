@@ -1,6 +1,6 @@
 // shadcn/ui Radix composition; menus share DropdownMenu's presentation.
 import type { ComponentProps } from 'react'
-import * as Primitive from '@radix-ui/react-menubar'
+import { Menubar as Primitive } from 'radix-ui'
 import { Separator } from '@/components/ui/separator'
 import menuStyles from '../dropdown-menu/dropdown-menu.module.css'
 import styles from './menubar.module.css'

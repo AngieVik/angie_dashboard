@@ -20,7 +20,6 @@
   :where(.base) :global(.notebook-handle) { grid-column: 1; grid-row: 1; width: 100%; height: calc(8px * var(--module-zoom, 1)); min-height: 0; min-width: 0; border-radius: 0; touch-action: none; cursor: grab; user-select: none; }
   :where(.base) :global(.notebook-handle)::after { content: ''; width: calc(28px * var(--module-zoom, 1)); height: calc(2px * var(--module-zoom, 1)); border-radius: var(--radius-control); background: var(--color-field-border); }
   :where(.base) :global(.notebook-handle):hover::after { background: var(--color-text-secondary); }
-  :where(.base) :global(.notebook-handle):focus-visible { outline: 1px solid var(--color-selection-border); outline-offset: -1px; }
 
   :global(.module-frame)[data-fitting] .base :global(.notebook-list) { flex: none; height: auto; min-height: 0; overflow: visible; }
   :global(.module-scaled-content)[data-measuring="true"] .base :global(.notebook-list) { height: auto; min-height: 0; }

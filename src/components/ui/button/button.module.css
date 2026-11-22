@@ -18,6 +18,8 @@
     transition: background var(--transition-control), border-color var(--transition-control), color var(--transition-control);
   }
 
+  .base:where(:not(.integrated)):is([aria-checked="true"], [aria-pressed="true"]) { background: var(--color-selected); }
+
   .base:hover:not(:disabled),
   .base[data-state="open"] {
     border-color: var(--color-hover-border);
@@ -79,7 +81,7 @@
     color: var(--color-text-secondary);
   }
 
-  .base.integrated:is(:hover, :active, :focus-visible):not(:disabled) {
+  .base.integrated:is(:hover, :active):not(:disabled) {
     border: 0;
     background: transparent;
     box-shadow: none;

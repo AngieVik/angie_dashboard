@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as L from 'leaflet'
+import { DrawingCursor } from '@/components/DrawingCursor'
 import type { GeographicPosition, PlanStroke } from '../../domain/document/types'
 import { useModuleZoom } from '../../layout/ModuleZoomContext'
 import { useViewportInteraction } from '../../layout/ViewportContext'
@@ -9,6 +10,8 @@ import { coordinateNearLongitude, longitudeShift, pathLongitudeBounds, pathNearL
 import type { PlanMode } from './planTypes'
 import styles from './PlanDrawing.module.css'
 import { INPUT_BUDGETS, budgetIssue } from '../../domain/input/inputBudgets'
+
+const MIN_ERASE_RADIUS = 8
 
 function strokeLayer(map: L.Map, points: L.LatLngTuple[], color: string, width: number) {
   const pane = map.getPane('operational-plan-strokes') ?? map.createPane('operational-plan-strokes')
@@ -130,7 +133,7 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
         // Remove only the topmost annotation hit; the base map, pins and GPX are independent.
         const hit = callbacks.current.strokes.findLast(stroke => {
           const points = pathNearLongitude(unwrapPath(stroke.points), map!.getCenter().lng).map(point => map!.latLngToContainerPoint(point))
-          return points.some((end, index) => index > 0 && L.LineUtil.pointToSegmentDistance(point, points[index - 1]!, end) <= Math.max(8, stroke.width * zoom / 2 + 4))
+          return points.some((end, index) => index > 0 && L.LineUtil.pointToSegmentDistance(point, points[index - 1]!, end) <= Math.max(MIN_ERASE_RADIUS, stroke.width * zoom / 2 + 4))
         })
         if (hit) callbacks.current.onErase(hit.id)
       }
@@ -166,5 +169,8 @@ export function PlanDrawing({ navigationKey, mode, color, width, strokes, placeI
       node.removeEventListener('wheel', wheel)
     }
   }, [mapRef, navigationKey, active, blockedRef, mode, color, width, zoom, placeId])
-  return <div ref={surface} className={`plan-drawing ${styles.base}`} data-map-surface data-active={active} data-mode={mode} aria-hidden="true" onClick={event => event.stopPropagation()} />
+  return <div ref={surface} className={`plan-drawing ${styles.base}`} data-map-surface data-active={active} data-mode={mode} aria-hidden="true" onClick={event => event.stopPropagation()}>
+    {active && mode === 'draw' && <DrawingCursor diameter={width * zoom} color={color} />}
+    {active && mode === 'erase' && <DrawingCursor diameter={MIN_ERASE_RADIUS * 2} />}
+  </div>
 }

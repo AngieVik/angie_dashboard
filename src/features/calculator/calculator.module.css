@@ -12,7 +12,6 @@
   .solarTools { display: contents; }
   .arithmetic { display: flex; flex: 1; flex-direction: column; min-height: 0; }
   .screen { flex: none; min-width: 0; border: 1px solid var(--color-field-border); border-radius: var(--radius-field); background: var(--color-field); font-size: var(--field-font-size); }
-  .screen:focus-within { border-color: var(--color-text-secondary); }
   .entry { position: relative; display: flex; align-items: center; min-width: 0; height: calc(var(--field-height) - 2px); overflow: clip; }
   .operation, .historyExpression { flex: 1 1 60%; min-width: 0; overflow-x: auto; white-space: nowrap; color: var(--color-text-secondary); }
   .operation { margin-left: calc(var(--field-padding-base) * var(--module-zoom, 1)); opacity: .65; }

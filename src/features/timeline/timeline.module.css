@@ -27,7 +27,6 @@
 
 @layer overrides {
   :where(.base) :global(.timeline-entry-line) { display: flex; flex: 1; justify-content: flex-start; align-self: stretch; min-width: 0; height: auto; min-height: var(--control-height); align-items: baseline; gap: var(--control-gap); padding: calc(2px * var(--module-zoom, 1)); border: 0; color: var(--color-text); line-height: normal; text-align: left; user-select: none; -webkit-touch-callout: none; }
-  :where(.base) :global(.timeline-entry-line):focus-visible { outline: 1px solid var(--color-selection-border); outline-offset: -1px; }
   :where(.base) :global(.timeline-entry-line):not(:hover:enabled, :active:enabled) { background: transparent; box-shadow: none; }
   :where(.base) :global(.timeline-edit) [data-slot="textarea"] { width: 100%; min-height: var(--field-height); resize: vertical; overflow: auto; }
   :where(.base) :global(.timeline-add-field) [data-slot="input"] { width: 100%; }

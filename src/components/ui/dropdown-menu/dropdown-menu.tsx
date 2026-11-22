@@ -2,7 +2,7 @@
 import type { ComponentProps } from 'react'
 import { Pin } from 'lucide-react'
 import { useContext } from 'react'
-import * as Primitive from '@radix-ui/react-dropdown-menu'
+import { DropdownMenu as Primitive } from 'radix-ui'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { OverlayPortalContext } from '@/layout/OverlayPortalContext'

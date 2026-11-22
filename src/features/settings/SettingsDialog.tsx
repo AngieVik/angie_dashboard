@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { MapPin, RefreshCw, Search, Settings } from 'lucide-react'
 import { AlertDialogForm } from '@/components/ui/alert-dialog'
-import { Root as Dialog } from '@radix-ui/react-dialog'
+import { Dialog } from 'radix-ui'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { InputGroup } from '@/components/ui/input-group'
@@ -108,7 +108,7 @@ export function SettingsDialog({ initialSection = 'general', onClose, onCloseFoc
       if (closeAfter) onClose()
     } catch (error) { locationNotice(error instanceof Error ? error.message : 'No se pudo guardar la ubicación.') }
   }
-  return <Dialog open modal={false} onOpenChange={open => { if (!open) close() }}>
+  return <Dialog.Root open modal={false} onOpenChange={open => { if (!open) close() }}>
     <FileDialogContent title="Configuración" icon={Settings} onClose={close} modal={false} dismissOnOutside={false} width={720} height={520} className={styles.dialog}
       onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus() }}>
       <div className={styles.base}>
@@ -169,7 +169,7 @@ export function SettingsDialog({ initialSection = 'general', onClose, onCloseFoc
         </footer>
       </div>
     </FileDialogContent>
-  </Dialog>
+  </Dialog.Root>
 }
 
 function LocationSettings({ value, onChange, disabled, onSave }: { value: LocationDraft; onChange: (patch: Partial<LocationDraft>) => void; disabled: boolean; onSave: () => void }) {

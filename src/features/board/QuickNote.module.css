@@ -1,7 +1,6 @@
 @layer components {
   .base { position: absolute; display: flex; flex-direction: column; transform: translate(-50%, -50%); border: 1px solid #BDA349; border-top-color: #FFF2AD; border-left-color: #FFF2AD; border-radius: 2px; background: linear-gradient(135deg, #FFF0A3, #F5DB73); box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%), 1px 2px 3px var(--palette-black-alpha-35); }
   .base[data-selected="true"] { outline: 1px solid var(--color-selection-border); outline-offset: -1px; }
-  .base:focus-within { border-color: var(--color-active-border); }
   .measurement { visibility: hidden; pointer-events: none; transform: none; width: 180px; height: auto; }
   :where(.base) :global(.quick-note-body) { flex: 1; min-height: 0; overflow: hidden; }
   :where(.base) :global(.quick-note-header) { position: absolute; z-index: 1; top: 0; left: 0; right: 25px; height: 6px; cursor: grab; touch-action: none; }

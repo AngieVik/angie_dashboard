@@ -37,7 +37,7 @@ function InformationCard({ element, planPin, currentEntry, selected, onSelect, e
   const { blocked, blockedRef } = useViewportInteraction()
   const status = OPERATIONAL_STATUSES.find(item => item.status === element.operational.status)
   const custom = currentEntry?.type === 'status-change' && currentEntry.nextStatus === 'Personalizada' ? currentEntry : undefined
-  const hasDetails = Boolean(status || element.information.trim())
+  const hasDetails = Boolean(planPin || status || element.information.trim())
   return <article className="information-card" aria-label={element.name} data-element-id={element.id} style={{ '--information-card-min-height': minimumHeight === undefined ? undefined : `${minimumHeight}px` } as CSSProperties} data-expanded={expanded} data-selected={selected} data-expandable={hasDetails} onClick={event => {
     if (blockedRef.current || !(event.target instanceof Element) || event.target.closest('button,input,textarea,select,a,[role="button"],[contenteditable="true"]')) return
     onSelect(element.id)
@@ -49,17 +49,17 @@ function InformationCard({ element, planPin, currentEntry, selected, onSelect, e
       </Button>
       <strong className={`${pinSummaryStyles.name} information-name`}>{element.name}</strong>
       <span className="information-pin" aria-label={element.pinVisible ? 'Pin visible' : 'Pin oculto'}>{element.pinVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</span>
-      <Badge className={`${statusStyles.control} information-status`} aria-label="Estado operativo">
+      <Badge className={`${statusStyles.control} information-status`} data-current={selected && Boolean(status || custom)} aria-label="Estado operativo">
         {custom ? <><OperationalStatusIcon color={custom.customColor ?? 'transparent'} /><span className="information-status-name">{custom.customLabel || 'Personalizado'}</span></> : status ? <><OperationalStatusIcon icon={status.icon} /><span className="information-status-name">{status.status}</span></> : <><OperationalStatusIcon /><span className="information-status-name">Sin estado</span></>}
       </Badge>
       {hasDetails && <Button className="information-expand" aria-label={(expanded ? 'Contraer ' : 'Expandir ') + element.name} aria-expanded={expanded} aria-controls={'information-details-' + element.id} disabled={blocked} onClick={() => { if (!blockedRef.current) { onSelect(element.id); onToggle() } }}>
         {expanded ? <ListChevronsDownUp aria-hidden="true" /> : <ListChevronsUpDown aria-hidden="true" />}
       </Button>}
     </div>
-    {planPin && <p className="information-coordinates technical-data" aria-label="Coordenadas del Plano operativo">{planPin.latitude.toFixed(6)}, {planPin.longitude.toFixed(6)}</p>}
     </div>
     {hasDetails && <div id={'information-details-' + element.id} className="information-additional" hidden={!expanded} aria-hidden={!expanded} inert={!expanded}>
       <div className="information-details">
+        {planPin && <p className="information-coordinates technical-data" aria-label="Coordenadas del Plano operativo">{planPin.latitude.toFixed(6)}, {planPin.longitude.toFixed(6)}</p>}
         {status && <>
           <p className="information-phase">Fase: <span>{status.phase}</span></p>
           <p className="information-description">{status.description}</p>

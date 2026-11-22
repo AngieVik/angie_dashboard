@@ -2,6 +2,7 @@ import labelStyles from '@/layout/controlValueLabel.module.css'
 import { useEffect, useRef, useState } from 'react'
 import type { Ref, RefObject } from 'react'
 import { Button } from '@/components/ui/button'
+import { InkPaletteIcon } from '@/components/InkPaletteIcon'
 import { Slider } from '@/components/ui/slider'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -9,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import type { BoardMode } from './boardTypes'
 import styles from './BoardToolbar.module.css'
 import toolbarStyles from '@/layout/moduleToolbar.module.css'
-import { Pointer, Pencil, Eraser, StickyNote, Ambulance, Package, GitCommitVertical, Palette, PaintRoller, FileImage, ImageOff, SquareDimensions, MopSparkles } from 'lucide-react'
+import { Pointer, Pencil, Eraser, StickyNote, Ambulance, Package, GitCommitVertical, PaintRoller, FileImage, ImageOff, SquareDimensions, MopSparkles } from 'lucide-react'
 
 const modes = [
   { id: 'select', name: 'Seleccionar/mover', icon: Pointer }, { id: 'pen', name: 'Lápiz', icon: Pencil },
@@ -47,20 +48,21 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
   }, [open, blocked])
   function tool(index: number) {
     const item = modes[index]!
-    return <Button role="radio" aria-checked={mode === item.id} tabIndex={mode === item.id ? 0 : -1}
+    return <Button data-board-mode={item.id} aria-pressed={mode === item.id}
       disabled={blocked || (item.id === 'image' && (!hasImage || busy))} aria-label={item.name} onClick={() => onMode(item.id)}><item.icon aria-hidden="true" /></Button>
   }
-  return <div ref={toolbarRef} className={`board-toolbar ${toolbarStyles.base}`} role="radiogroup" aria-label="Herramienta de pizarra" onKeyDown={event => {
-    if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'radio' ||
+  return <div ref={toolbarRef} className={`board-toolbar ${toolbarStyles.base}`} role="group" aria-label="Herramientas de pizarra" onKeyDown={event => {
+    const target = event.target
+    if (!(target instanceof HTMLButtonElement) || !target.dataset.boardMode ||
       !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || blocked) return
     event.preventDefault()
     const available = modes.filter(item => item.id !== 'image' || (hasImage && !busy))
-    const index = available.findIndex(item => item.id === mode)
+    const index = available.findIndex(item => item.id === target.dataset.boardMode)
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? available.length - 1 :
       (index + (event.key === 'ArrowRight' ? 1 : available.length - 1)) % available.length
     const item = available[next]!
     onMode(item.id)
-    event.currentTarget.querySelector<HTMLButtonElement>('[aria-label="' + item.name + '"]')?.focus()
+    event.currentTarget.querySelector<HTMLButtonElement>('[data-board-mode="' + item.id + '"]')?.focus()
   }}>
     {tool(0)}
     <Separator orientation="vertical" />
@@ -74,7 +76,7 @@ export function BoardToolbar({ mode, onMode, background, onBackground, color, on
       </PopoverContent>
     </Popover>
     <span className={`board-color-control ${styles.colorControl}`}>
-      <Button disabled={blocked} aria-label="Elegir color del lápiz" onClick={() => penColor.current?.click()}><Palette aria-hidden="true" /></Button>
+      <Button disabled={blocked} aria-label="Elegir color del lápiz" aria-description={color} onClick={() => penColor.current?.click()}><InkPaletteIcon color={color} /></Button>
       <input ref={penColor} type="color" aria-label="Color del lápiz" value={color} disabled={blocked} tabIndex={-1} onChange={event => onColor(event.target.value)} />
     </span>
     <Separator orientation="vertical" />

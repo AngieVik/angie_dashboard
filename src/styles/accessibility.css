@@ -17,7 +17,7 @@
   --surface-overlay: var(--palette-gray-900);
   --surface-toolbar: var(--palette-gray-900);
   --surface-inset: var(--palette-gray-925);
-  --surface-field-focus: none;
+  --focus-color: var(--color-selection-border);
   --shadow-field-focus: none;
   --color-map-background: var(--color-module);
   --surface-map-attribution: var(--color-module);
@@ -34,20 +34,6 @@
   :root[data-text-size]:not([data-text-size="100"]) :is([data-slot="button"], [data-slot="menubar-trigger"]) { line-height: 1.4; }
   :root[data-text-size]:not([data-text-size="100"]) .module-header { --control-height: 25px; }
   :root[data-text-size]:not([data-text-size="100"]) .module-header h2 { line-height: 1; }
-  :root[data-high-contrast="true"] :focus-visible {
-    outline: 2px solid var(--color-selection-border) !important;
-    outline-offset: -2px;
-  }
-
-  /* Forced colors suppress shadows; retain a system-colored focus indicator. */
-  @media (forced-colors: active) {
-    :is([data-slot="input"], [data-slot="textarea"]):focus-visible:not(:disabled) {
-      outline: 2px solid Highlight;
-      outline-offset: -2px;
-      background-image: none;
-      box-shadow: none;
-    }
-  }
 
   /* Short durations preserve completion events used by animated components. */
   :root[data-reduced-motion="true"] *,
@@ -59,5 +45,16 @@
     transition-duration: 0s !important;
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@layer utilities {
+  :focus-visible, [data-focus-proxy]:has(> :focus-visible) {
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: calc(-1 * var(--focus-width));
+    box-shadow: var(--shadow-field-focus);
+  }
+  @media (forced-colors: active) {
+    :focus-visible, [data-focus-proxy]:has(> :focus-visible) { outline-color: Highlight; box-shadow: none; }
   }
 }

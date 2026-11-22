@@ -1,7 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { ComponentProps, CSSProperties } from 'react'
-import * as Primitive from '@radix-ui/react-alert-dialog'
-import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { AlertDialog as Primitive, Dialog as DialogPrimitive } from 'radix-ui'
 import { AlertDialogOverlay, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import type { LucideIcon } from 'lucide-react'
 import GridLayout from 'react-grid-layout'

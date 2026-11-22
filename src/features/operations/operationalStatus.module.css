@@ -5,15 +5,21 @@
     align-items: center;
     justify-content: flex-start;
     gap: var(--control-gap);
-    width: calc(var(--operational-status-width-base) * var(--module-zoom, 1));
+    width: 100%;
     min-width: 0;
     max-width: 100%;
-    height: var(--control-height);
-    min-height: var(--control-height);
+    min-height: var(--field-height);
     margin-block: calc(1px * var(--module-zoom, 1));
-    padding: calc(var(--field-padding-base) * var(--module-zoom, 1));
+    padding: calc(var(--button-padding-base) * var(--module-zoom, 1));
+    font-family: var(--font-interface);
+    font-size: var(--control-font-size);
     font-weight: 400;
     line-height: 1.4;
     text-align: left;
+  }
+  .control[aria-pressed="true"], .control[data-current="true"] {
+    border-color: var(--color-active-border);
+    background: var(--color-selected);
+    box-shadow: inset 2px 0 var(--color-accent-red);
   }
 }

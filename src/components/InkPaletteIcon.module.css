@@ -1,0 +1,12 @@
+@layer components {
+  .icon { position: relative; display: inline-grid; }
+  .swatch {
+    position: absolute;
+    top: calc(100% + var(--icon-size) / 15);
+    inset-inline: 10%;
+    height: calc(var(--icon-size) * 2 / 15);
+    border-radius: var(--radius-2);
+    box-shadow: 0 0 0 1px var(--color-border);
+    forced-color-adjust: none;
+  }
+}

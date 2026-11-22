@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import * as Primitive from '@radix-ui/react-checkbox'
+import { Checkbox as Primitive } from 'radix-ui'
 import styles from './checkbox.module.css'
 import { CheckboxMark } from './checkbox-mark'
 

@@ -152,9 +152,15 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
           target.print()
         } catch { toast.error('No se pudo abrir la impresión.', { notice: 'reportPrint', id: noticeId }) }
       }}><Printer aria-hidden="true" /></Button>
-      <Select aria-label="Tamaño de la vista previa" value={previewScale} onValueChange={value => {
-        if (value === 'fit' || value === 'actual') setPreviewScale(value)
-      }} options={[{ value: 'fit', label: 'Ajustar al ancho' }, { value: 'actual', label: 'Tamaño real' }]} />
+      <div className={styles.pageControls} role="group" aria-label="Página y vista previa">
+        <span>A4 –</span>
+        <Select aria-label="Orientación del informe" value={pageOptions.orientation} disabled={generating || saving} onValueChange={orientation => {
+          if (orientation === 'portrait' || orientation === 'landscape') setPageOptions(current => ({ ...current, orientation }))
+        }} options={[{ value: 'portrait', label: 'Vertical' }, { value: 'landscape', label: 'Horizontal' }]} />
+        <Select aria-label="Tamaño de la vista previa" value={previewScale} onValueChange={value => {
+          if (value === 'fit' || value === 'actual') setPreviewScale(value)
+        }} options={[{ value: 'actual', label: 'Ancho real' }, { value: 'fit', label: 'Ancho de ventana' }]} />
+      </div>
     </header>
     <div ref={workspace} className={styles.workspace} data-selection-open={selectionOpen}>
       <div ref={setSheetContainer} className={styles.selectionSlot} />
@@ -168,12 +174,6 @@ export function ReportsModule({ store, getTimerRecords, onNoticesChange }: { sto
           onInteractOutside={event => event.preventDefault()}>
           <SheetBody className={styles.selectionBody}>
             <SheetHeader><SheetTitle>Contenido del informe</SheetTitle></SheetHeader>
-            <fieldset className="reports-page-toolbar" disabled={generating || saving}>
-              <legend>Formato · A4</legend>
-              <label>Orientación<Select aria-label="Orientación del informe" value={pageOptions.orientation} disabled={generating || saving} onValueChange={orientation => {
-                if (orientation === 'portrait' || orientation === 'landscape') setPageOptions(current => ({ ...current, orientation }))
-              }} options={[{ value: 'portrait', label: 'Vertical' }, { value: 'landscape', label: 'Horizontal' }]} /></label>
-            </fieldset>
             <div className="reports-sections">
               {(Object.entries(REPORT_SECTIONS) as [ReportSection, typeof REPORT_SECTIONS[ReportSection]][]).map(([id, section]) => <fieldset key={id} disabled={generating || saving}>
                 <legend><label><Checkbox disabled={generating || saving} checked={enabledSections.includes(id)} aria-controls={`report-fields-${generation}-${id}`} onCheckedChange={checked => setEnabledSections(current => checked ? [...current, id] : current.filter(value => value !== id))} />{section.title}</label></legend>

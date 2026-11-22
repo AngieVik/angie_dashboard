@@ -37,7 +37,7 @@
   }
 
   .item[data-state="checked"] { background: var(--color-selected); }
-  .item[data-highlighted] { background: var(--color-selected); outline: 1px solid var(--color-selection-border); outline-offset: -1px; }
+  .item[data-highlighted]:not(:focus-visible) { background: var(--color-selected); }
   .item[data-disabled] { opacity: .5; pointer-events: none; }
   .item > svg { flex: none; width: var(--icon-size-base); height: var(--icon-size-base); pointer-events: none; }
   .item > svg[data-open="true"] { color: var(--color-accent-red); }

@@ -15,6 +15,7 @@ import { useBoardViewportGestures } from './useBoardViewportGestures'
 import { transformBoardImage } from './boardImageGeometry'
 import type { BoardImageLayout, ImageAction } from './boardImageGeometry'
 import { BoardToolbar } from './BoardToolbar'
+import { DrawingCursor } from '@/components/DrawingCursor'
 import { QuickNote } from './QuickNote'
 import { findQuickNotePlacement, getQuickNoteObstacles } from './findQuickNotePlacement'
 import { BoardPin } from '../elements/BoardPin'
@@ -57,11 +58,10 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   const [color, setColor] = useState('#D63A3A'), [width, setWidth] = useState(4)
   const [focusNote, setFocusNote] = useState<string | null>(null)
   const toolbar = useRef<HTMLDivElement>(null), noteMeasure = useRef<HTMLDivElement>(null)
-  function focusTool() { toolbar.current?.querySelector<HTMLButtonElement>('[role="radio"][aria-checked="true"]')?.focus() }
+  function focusTool() { toolbar.current?.querySelector<HTMLButtonElement>('[data-board-mode][aria-pressed="true"]')?.focus() }
   const area = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null)
   const pointer = useRef<number | null>(null)
   const emptyPointer = useRef<{ id: number; x: number; y: number } | null>(null)
-  const [cursor, setCursor] = useState<{ x: number; y: number; pixel: number } | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const { scale, navigationKey, fitContentRef } = useModuleZoom()
   const canvasKey = navigationKey ? navigationKey + '.canvas' : undefined
@@ -197,11 +197,6 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
       dispatch({ type: 'select-note', id: null }); onSelect?.(null)
     }
   }
-  function trackCursor(event: PointerEvent<HTMLDivElement>) {
-    if (event.pointerType === 'touch' || blockedRef.current || event.target instanceof Element && event.target.closest('.board-pin,.quick-note')) { setCursor(null); return }
-    const rect = surface.current?.getBoundingClientRect()
-    if (rect?.width) setCursor({ x: (event.clientX - rect.left) * size.width / rect.width, y: (event.clientY - rect.top) * size.height / rect.height, pixel: size.width / rect.width })
-  }
   function addNote() {
     if (blockedRef.current || !size.width || !size.height) return
     const current = store.getSnapshot().document
@@ -239,8 +234,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
         data-image-x={imageLayout?.x ?? 0} data-image-y={imageLayout?.y ?? 0} data-image-display-width={imageLayout?.width ?? 0} data-image-display-height={imageLayout?.height ?? 0}
         data-content-width={actualBounds.right} data-content-height={actualBounds.bottom} data-extent-width={bounds.right} data-extent-height={bounds.bottom} data-scale={view.scale} data-offset-x={view.offsetX} data-offset-y={view.offsetY} data-viewport-width={size.width} data-viewport-height={size.height}
         {...navigation}
-        onPointerDown={event => { trackCursor(event); start(event) }} onPointerMove={event => {
-          trackCursor(event)
+        onPointerDown={start} onPointerMove={event => {
           const gesture = imageGesture.current
           if (gesture?.id === event.pointerId) {
             if (blockedRef.current || gesture.image !== imageSession.image || imageSession.busy) { cancelImage(); return }
@@ -254,11 +248,10 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
           if (blockedRef.current || pointer.current !== event.pointerId) return
           const position = point(event, true)
           if (position) dispatch({ type: 'point', point: position })
-        }} onPointerEnter={trackCursor} onPointerLeave={() => setCursor(null)} onPointerUp={finish} onPointerCancel={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
+        }} onPointerUp={finish} onPointerCancel={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
         onLostPointerCapture={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
-        {cursor && !blocked && (state.mode === 'pen' || state.mode === 'eraser') && <div className="board-tool-cursor" aria-hidden="true" data-tool={state.mode}
-          style={{ left: cursor.x, top: cursor.y, width: width * view.scale, height: width * view.scale,
-            backgroundColor: state.mode === 'pen' ? color : 'transparent', boxShadow: `0 0 0 ${cursor.pixel}px #FFFFFF, 0 0 0 ${2 * cursor.pixel}px #000000` }} />}
+        {!blocked && (state.mode === 'pen' || state.mode === 'eraser') && <DrawingCursor diameter={width * view.scale}
+          color={state.mode === 'pen' ? color : undefined} exclude=".board-pin,.quick-note" />}
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
             <Rect width={size.width} height={size.height} fill={document.board.backgroundColor} />

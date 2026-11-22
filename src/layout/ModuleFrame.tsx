@@ -8,6 +8,7 @@ import { useValidationNotice } from '@/hooks/useValidationNotice'
 import { moduleCollapsedWidth, moduleCompactsInPlace, moduleExpandedMinimumSize, moduleSupportsAutoResize, MODULE_ICONS, MODULE_REGISTRY } from './moduleRegistry'
 import type { ModuleId, Size } from './layoutTypes'
 import { ModuleSizeContext } from './ModuleSizeContext'
+import type { ContentSizeRequest } from './ModuleSizeContext'
 import { ModuleZoomContext } from './ModuleZoomContext'
 import { ZoomControl } from './ZoomControl'
 import { useViewportInteraction } from './ViewportContext'
@@ -287,7 +288,7 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     // Mouse text selection stays native. Touch scrolling starts only after the
     // movement threshold, and an existing text selection keeps its native handles.
     if (textarea && textarea.selectionStart !== textarea.selectionEnd) return
-    if (!textarea && target.closest('input,textarea,select,[data-slot="select"],[role="checkbox"],[role="slider"],[role="radio"],[role="separator"][aria-valuenow],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
+    if (!textarea && target.closest('input,textarea,select,[data-slot="select"],[role="checkbox"],[role="slider"],[role="radio"],[data-board-mode],[role="separator"][aria-valuenow],[contenteditable="true"],.board-area,.notebook-handle,[data-map-surface]')) return
     let horizontal: ScrollAxis | undefined, vertical: ScrollAxis | undefined
     for (let element: Element | null = target; element && event.currentTarget.contains(element); element = element.parentElement) {
       if (!(element instanceof HTMLElement)) continue
@@ -320,10 +321,30 @@ export function ModuleFrame({ id, title, icon, active, onClose, onFit, children,
     if (size.width !== section.offsetWidth || size.height !== section.offsetHeight) onFit(size)
   }, [id, supportsAutoResize, width, blockedRef, collapsed, onFit])
   const measuredSpace = useRef(requestSpace)
-  const requestContentSpace = useCallback((mode?: 'minimum') => {
-    if (mode !== 'minimum') { requestSpace(); return }
+  const requestContentSpace = useCallback((request: ContentSizeRequest) => {
     const section = frame.current
-    if ((!elementList && id !== 'calendar') || blockedRef.current || collapsed || !section || !onFit || section.closest('.resizing')) return
+    if (blockedRef.current || collapsed || !section || !onFit || section.closest('.resizing')) return
+    if (request !== 'minimum' && 'agendaDelta' in request) {
+      if (id !== 'calendar') return
+      const size = constrainWindowContentSize(section, {
+        width: section.offsetWidth + request.agendaDelta.width,
+        height: section.offsetHeight + request.agendaDelta.height,
+      }, sizeMode)
+      if (size.width !== section.offsetWidth || size.height !== section.offsetHeight) onFit(size)
+      return
+    }
+    if (request !== 'minimum') {
+      if (id !== 'clock') return
+      if (currentAutoResize.current) {
+        preserveManualSize.current = false
+        requestSpace()
+      } else {
+        const size = constrainWindowContentSize(section, { width: section.offsetWidth, height: section.offsetHeight + request.timerHeightDelta }, sizeMode)
+        if (size.height !== section.offsetHeight) onFit({ width: section.offsetWidth, height: size.height })
+      }
+      return
+    }
+    if (!elementList && id !== 'calendar') return
     if (id === 'calendar') {
       if (width !== undefined && Math.abs(section.offsetWidth - width) > 1) return
       const size = constrainWindowContentSize(section, { width: section.offsetWidth, height: section.offsetHeight }, sizeMode)

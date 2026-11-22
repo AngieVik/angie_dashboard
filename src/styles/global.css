@@ -11,15 +11,6 @@
   }
 }
 
-@layer overrides {
-  /* Overlay the existing surface, including transparent fields in shared frames. */
-  :is([data-slot="input"], [data-slot="textarea"]):focus-visible:not(:disabled) {
-    outline: none;
-    background-image: var(--surface-field-focus);
-    box-shadow: var(--shadow-field-focus);
-  }
-}
-
 @layer base {
   :root {
     color-scheme: dark;
@@ -34,15 +25,6 @@
 
   button, input, select, textarea {
     font: inherit;
-  }
-
-  :focus-visible {
-    outline: 1px solid var(--color-selection-border);
-    outline-offset: 2px;
-  }
-
-  :is(input, textarea, select, [data-slot="select"]):focus-visible {
-    outline-color: var(--color-text-secondary);
   }
 
   .technical-data {

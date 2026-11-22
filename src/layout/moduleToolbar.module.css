@@ -5,5 +5,4 @@
 
 @layer overrides {
   :where(.base) [data-slot="button"] { flex: none; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); min-height: var(--control-height); }
-  :where(.base) [data-slot="button"]:is([aria-checked="true"], [aria-pressed="true"]) { background: var(--color-selected); }
 }
