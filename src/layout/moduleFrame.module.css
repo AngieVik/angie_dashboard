@@ -66,7 +66,7 @@
     justify-content: space-between;
     gap: 0;
     padding: 0 2px;
-    border-bottom: 1px solid #080808;
+    border-bottom: 1px solid var(--color-frame-separator);
     background: var(--surface-header);
     box-shadow: inset 0 1px 0 var(--palette-warm-white-alpha-12);
     cursor: pointer;

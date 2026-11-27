@@ -1,5 +1,6 @@
 :root {
   /* Paleta primitiva: los valores no implican ningún componente ni estado. */
+  --palette-gray-975: #080808;
   --palette-gray-950: #0C0C0C;
   --palette-gray-925: #111111;
   --palette-gray-900: #181818;
@@ -76,6 +77,7 @@
   --color-map-background: var(--palette-gray-700);
   --color-border: var(--palette-gray-625);
   --color-frame-border: var(--palette-gray-550);
+  --color-frame-separator: var(--palette-gray-975);
   --color-active-border: var(--color-accent-red);
   --color-selection-border: var(--color-accent-red);
   --color-selected: var(--palette-gray-700);

@@ -10,16 +10,16 @@ Button centraliza sus sombras de reposo, interacción y pulsación en `--shadow-
 
 | Uso                                          | Especificación                                                                        |
 | -------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Texto general / secundario                   | Roboto Condensed, 13px; `#F2F2F2` / `#ADADAD`. Reserva con fuente del sistema.        |
-| Títulos                                      | Roboto Condensed, 16px.                                                               |
-| Cifras críticas de Reloj y temporizadores    | Rajdhani, con cifras tabulares donde corresponda.                                     |
+| Texto general / secundario | `--font-interface`, `--font-size-body`; `--color-text` / `--color-text-secondary`. Reserva con fuente del sistema. |
+| Títulos | `--font-size-title`. |
+| Cifras críticas de Reloj y temporizadores | `--font-clock`, con cifras tabulares donde corresponda. |
 | Sonner                                       | Tamaño del texto general.                                                             |
-| Espacios                                     | 4px entre controles y 6px entre grupos; padding interior aplicado una vez.            |
+| Espacios | `--control-gap` entre controles y `--section-gap` entre grupos; padding interior aplicado una vez. |
 | Capitalización                               | Sentence case; acrónimos y `ZULU TIME` conservan mayúsculas.                          |
-| Escritorio / ventana / campo / opción activa | `#0C0C0C` / `#181818` / `#111111` / `#303030`.                                        |
-| Botón / hover                                | Degradado `#333333 → #252525` / `#404040 → #303030`.                                  |
-| Borde campo / botón / separador              | `#555555` / `#3D3D3D` / `#3D3D3D`.                                                    |
-| Acento rojo / neutro                         | `#D63A3A80` / `#D6D6D280`; asigna el neutro a consumidores con especificación propia. |
+| Escritorio / ventana / campo / opción activa | `--color-background` / `--color-module` / `--color-field` / `--color-selected`. |
+| Botón / hover | `--surface-button` / `--surface-button-hover`. |
+| Borde campo / botón y separador | `--color-field-border` / `--color-border`. |
+| Acento rojo / neutro | `--color-accent-red` / `--color-accent-neutral`; asigna el neutro a consumidores con especificación propia. |
 
 El foco visible usa un único contorno interior de 2 px en rojo al 30 % y un halo interior gris azulado. Conserva el fondo del control y cabe dentro de campos agrupados. Los modos de [Accesibilidad](#accesibilidad) ajustan el indicador. Los indicadores operativos usan `--color-status-*`, con significado en [Arquitectura](architecture.md#estados-operativos).
 
@@ -56,9 +56,9 @@ Los tiradores de módulos y diálogos son botones accesibles por Tab. Con el foc
 
 | Zona                  | Medidas y acabado                                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Marco (`ModuleFrame`) | Borde 1px `#484848`, radio 3px, padding 0.                                                                                            |
-| Título                | 27px alto, padding `0 2px`, degradado `#383838 → #2C2C2C → #222222`, separador 1px `#080808`.                                         |
-| Herramientas          | 32px alto, padding `3px 5px`, degradado `#2E2E2E → #1D1D1D`, separador 1px hacia contenido.                                           |
+| Marco (`ModuleFrame`) | Borde 1px `--color-frame-border`, radio 3px, padding 0. |
+| Título | 27px alto, padding `0 2px`, fondo `--surface-header`, separador 1px `--color-frame-separator`. |
+| Herramientas | 32px alto, padding `3px 5px`, fondo `--surface-toolbar`, separador 1px hacia contenido. |
 | Barra inferior        | 25px alto y fondo de ventana. Padding `0 54px 0 2px` con Autoajuste o `0 27px 0 2px` sin él; reserva derecha para acciones y tirador. |
 
 | Módulos                                   | Apertura        | Autoajuste de altura                             | Herramientas      |
