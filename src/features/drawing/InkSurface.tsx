@@ -7,7 +7,7 @@ import styles from './drawing.module.css'
 
 export function InkSurface({ mode, projection, paths, objects, selected, select, preview, commit, clear }: {
   mode: 'select' | 'eraser'; projection: Projection; paths: InkPath[]; objects: DrawingObjects; selected: string | null
-  select: (id: string) => void; preview: (changes: InkChanges) => void
+  select: (id: string | null) => void; preview: (changes: InkChanges) => void
   commit: (changes: InkChanges, translation?: Position) => void; clear: () => void
 }) {
   const node = useRef<HTMLDivElement>(null)
