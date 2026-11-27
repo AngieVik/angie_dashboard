@@ -5,12 +5,37 @@
   .labelForm { position: absolute; z-index: 680; max-width: 100%; }
   .workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
   .workspace > :global(.map-module) { flex: 1; min-width: 0; }
-  .panel { flex: 1; min-width: 0; overflow: auto; padding: var(--space-2); border-left: 1px solid var(--color-border); }
+  .panel { flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain; padding: var(--control-gap); border-inline-start: 1px solid var(--color-border); }
   .panel section, .panel fieldset { display: grid; min-width: 0; gap: var(--space-1); margin-bottom: var(--space-2); }
   .panel input, .panel select { min-width: 0; max-width: 100%; }
-  .row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; touch-action: pan-y; }
-  .row[aria-pressed="true"] { background: var(--color-selected); }
-  .row span { overflow-wrap: anywhere; white-space: normal; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--control-gap);
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-field);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .row[aria-pressed="true"] { border-color: var(--color-selection-border); background: var(--color-selected); box-shadow: inset 1px 0 var(--color-selection-border); }
+  .row > svg, .placement > svg { flex: none; width: var(--icon-size); height: var(--icon-size); }
+  .resourceText { display: grid; flex: 1; min-width: 0; }
+  .resourceText strong, .resourceText > span { overflow-wrap: anywhere; white-space: pre-line; }
+  .resourceText > span, .placement, .empty { color: var(--color-text-secondary); }
+  .placement { display: inline-flex; flex: none; }
+  .empty { margin: 0; }
+  @media (hover: hover) {
+    .row:not([aria-pressed="true"]):hover { border-color: var(--color-hover-border); background: var(--surface-button-hover); }
+  }
   .actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
   .notes { position: absolute; inset: 0; pointer-events: none; z-index: 655; overflow: hidden; }
 }
@@ -21,8 +46,8 @@
   :global(.plan-module) .images { z-index: 630; }
   .image { position: absolute; touch-action: none; cursor: move; }
   .imagePixels, .imagePixels div, .imagePixels img { width: 100%; height: 100%; display: block; pointer-events: none; }
-  .handle { position: absolute; transform: translate(-50%, -50%); width: var(--space-3); height: var(--space-3); padding: 0; background: var(--color-field); border: 1px solid var(--color-selection-border); touch-action: none; }
-  .flip { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; }
+  .handle { position: absolute; transform: translate(-50%, -50%); width: calc(2 * var(--space-2)); height: calc(2 * var(--space-2)); padding: 0; background: var(--color-field); border: 1px solid var(--color-selection-border); touch-action: none; }
+  .flip { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: var(--control-gap); background: var(--surface-toolbar); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
   .panel label, .panel form { display: grid; gap: var(--space-1); }
   .locate { position: absolute; width: 48px; height: 48px; border: 3px solid var(--palette-yellow); border-radius: 50%; pointer-events: none; z-index: 670; animation: drawing-locate 3s steps(1) forwards; }
   @keyframes drawing-locate {
@@ -40,4 +65,65 @@
 
 @layer components {
   .boardInk { position: absolute; inset: 0; pointer-events: none; }
+  .anchorDot { filter: drop-shadow(0 0 1px black); pointer-events: none; }
+  .selectedShape { fill: none; stroke: var(--color-selection-border); stroke-width: 2px; stroke-dasharray: 5 3; filter: drop-shadow(0 0 1px white) drop-shadow(0 0 1px black); }
+  .objectEditor { display: grid; min-width: 0; gap: var(--control-gap); }
+  .objectEditor textarea { width: 100%; min-height: 4em; resize: vertical; color: var(--color-text); background: var(--color-field); border: 1px solid var(--color-field-border); border-radius: var(--radius-field); font: inherit; }
+  .label[data-selected="true"] { text-decoration: underline; stroke: var(--color-selection-border); }
+  .image[data-selected="true"], :global(.board-pin[data-selected="true"]), :global(.plan-pin-content[data-selected="true"]),
+  :global(.quick-note[data-selected="true"]), :global([data-drawing-label][data-selected="true"]) {
+    outline: 2px dashed var(--color-selection-border); outline-offset: 2px;
+  }
+  .panel { background: var(--color-module); color: var(--color-text); font-size: var(--control-font-size); }
+  .panel > section + section { padding-top: var(--section-gap); border-top: 1px solid var(--color-border); }
+  .panel fieldset { border: 1px solid var(--color-border); border-radius: var(--radius-field); }
+  .panel label:has([data-slot="checkbox"]) { display: flex; align-items: center; }
+  .panel > section { gap: var(--control-gap); }
+  .groupRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--control-gap); }
+  .groupRow > button:first-child { min-width: 0; width: 100%; height: auto; justify-content: flex-start; text-align: start; white-space: normal; overflow-wrap: anywhere; }
+  .toolbar .toolGroup { display: flex; flex: none; align-items: center; gap: inherit; }
+  .toolGroup + .toolGroup { border-inline-start: 1px solid var(--color-border); padding-inline-start: var(--control-gap); }
+  .unitSwitch, .colorTarget { display: inline-flex; align-items: center; gap: var(--space-1); padding: 1px; border: 1px solid var(--color-field-border); border-radius: var(--radius-control); background: var(--surface-inset); color: var(--color-text-secondary); font: inherit; }
+  :is(.row, .unitSwitch, .colorTarget, .swatches button):focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: -2px; }
+  .unitSwitch, .colorTarget { cursor: pointer; font-family: var(--font-interface); }
+  .unitSwitch svg { width: 1em; height: 1em; margin-inline-start: var(--space-1); }
+  .unitSwitch span, .colorTarget span { padding: var(--space-1); }
+  .unitSwitch [data-current="true"], .colorTarget [data-current="true"] { color: var(--color-text); background: var(--surface-button); box-shadow: var(--shadow-button); border-radius: var(--radius-control); }
+  .palette { box-sizing: border-box; width: 18rem; max-width: min(calc(100vw - 1rem), var(--radix-popover-content-available-width, 100vw)); overscroll-behavior: contain; }
+  .colorPicker, .draftActions { gap: var(--control-gap); }
+  .colorTarget { width: 100%; margin-bottom: var(--section-gap); }
+  .colorTarget span { flex: 1; }
+  .colorPicker { display: grid; min-width: 0; }
+  .swatches { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--control-gap); }
+  .swatches button, .sample { min-width: 0; min-height: var(--control-height); border: 1px solid var(--color-field-border); border-radius: var(--radius-field); }
+  .swatches button { display: grid; place-content: center; }
+  .swatches svg { width: 1em; height: 1em; color: white; filter: drop-shadow(0 0 1px black) drop-shadow(0 0 1px black); }
+  .hexField, .channel { display: grid; align-items: center; gap: var(--space-2); }
+  .hexField { grid-template-columns: var(--control-height) auto minmax(0, 1fr); }
+  .hexField input { min-width: 0; }
+  .channel { grid-template-columns: 4ch minmax(0, 1fr) 4ch; }
+  .channel output { text-align: end; font-variant-numeric: tabular-nums; }
+  .draftActions { position: absolute; z-index: 680; bottom: var(--space-2); left: var(--space-2); right: var(--space-2); display: flex; flex-wrap: wrap; width: fit-content; max-width: calc(100% - 2 * var(--space-2)); padding: var(--space-1); background: var(--surface-toolbar); border: 1px solid var(--color-border); border-radius: var(--radius-control); box-shadow: var(--shadow-panel); }
+  .draftActions button { min-height: max(40px, var(--control-height)); }
+  @media (any-pointer: coarse) {
+    .swatches { grid-template-columns: repeat(4, 1fr); }
+    .swatches button, .panel .row, .unitSwitch, .colorTarget { min-height: 40px; }
+    .handle::after { content: ''; position: absolute; inset: 50% auto auto 50%; width: max(100%, 32px); height: max(100%, 32px); transform: translate(-50%, -50%); }
+    .draftActions button, .actions button, .groupRow button, .flip button { min-width: 40px; min-height: 40px; }
+    .vertexTarget { transform-box: fill-box; transform-origin: center; transform: scale(2); }
+    .shapeHit { stroke-width: max(24px, var(--shape-hit-width, 0px)); }
+  }
+}
+
+@layer overrides {
+  @media (any-pointer: coarse) {
+    .toolbar {
+      --drawing-touch-size: max(40px, var(--control-height));
+      min-height: calc(var(--drawing-touch-size) + 2 * var(--toolbar-padding-block) + 1px);
+    }
+    .toolbar .toolGroup [data-slot="button"] {
+      min-width: var(--drawing-touch-size);
+      min-height: var(--drawing-touch-size);
+    }
+  }
 }

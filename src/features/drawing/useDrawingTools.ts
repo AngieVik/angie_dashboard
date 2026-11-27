@@ -5,15 +5,18 @@ export function useDrawingTools() {
   const [panels, setPanels] = useState<Panel[]>([])
   const [panelWidth, setPanelWidth] = useState(65)
   const [selected, select] = useState<string | null>(null)
-  const [settings, setSettings] = useState<DrawingSettings>({ circle: false, polyline: false, eraser: false })
+  const [settings, setSettings] = useState<DrawingSettings>({ circle: false, polyline: false })
+  function setOption(tool: keyof DrawingSettings, enabled: boolean) {
+    setSettings(previous => previous[tool] === enabled ? previous : { ...previous, [tool]: enabled })
+  }
   function activate(current: string, next: DrawingTool) {
-    if (next === 'circle' || next === 'polyline' || next === 'eraser') {
-      setSettings(previous => ({ ...previous, [next]: current === next ? !previous[next] : false }))
+    if (current === next && (next === 'circle' || next === 'polyline')) {
+      setSettings(previous => ({ ...previous, [next]: !previous[next] }))
     }
   }
   function toggle(panel: Panel) {
     setPanels(previous => previous.includes(panel) ? previous.filter(p => p !== panel) : [...previous, panel])
   }
-  return { panels, toggle, panelWidth, setPanelWidth, selected, select, settings, activate }
+  return { panels, toggle, panelWidth, setPanelWidth, selected, select, settings, activate, setOption }
 }
 

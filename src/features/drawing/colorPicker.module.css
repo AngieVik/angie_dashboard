@@ -1,0 +1,18 @@
+@layer components {
+  .picker { display: grid; gap: var(--section-gap); min-width: 0; }
+  .plane { position: relative; height: clamp(6rem, 17vh, 9rem); border-radius: var(--radius-field); border: 1px solid var(--color-frame-border); overflow: hidden; cursor: crosshair; touch-action: none;
+    background-image: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent); }
+  .reticle { position: absolute; width: 13px; height: 13px; transform: translate(-50%, -50%); border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px black; pointer-events: none; }
+  .hue, .footer { display: flex; align-items: center; gap: var(--control-gap); color: var(--color-text-secondary); }
+  .hue input { appearance: none; flex: 1; min-width: 0; height: 12px; border: 1px solid var(--color-frame-border); border-radius: var(--radius-field); background: linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red); }
+  .hue input::-webkit-slider-thumb { appearance: none; width: 10px; height: 18px; border: 2px solid white; border-radius: 3px; box-shadow: 0 0 0 1px black; background: transparent; }
+  .swatches { display: grid; grid-template-columns: repeat(10,minmax(0,1fr)); gap: 2px; }
+  .swatches button { display: grid; place-items: center; margin: 0; padding: 0; min-width: 0; min-height: var(--control-height); border: 1px solid var(--color-frame-border); border-radius: var(--radius-field); cursor: pointer; }
+  .swatches svg { color: white; filter: drop-shadow(0 0 1px black) drop-shadow(0 0 1px black); }
+  .sample { flex: 0 0 var(--control-height); height: var(--control-height); border: 1px solid var(--color-frame-border); border-radius: var(--radius-field); }
+  .footer { flex-wrap: wrap; }
+  .footer label { display: flex; align-items: center; gap: var(--control-gap); flex: 1; }
+  .footer input { min-width: 7ch; width: 8ch; font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  @media (any-pointer: coarse) { .swatches { grid-template-columns: repeat(5,minmax(0,1fr)); } .swatches button { min-height: 40px; } }
+}

@@ -1,89 +1,73 @@
-import { useRef } from 'react'
-import type { Position } from '@/domain/document/types'
-import { DrawingCursor } from '@/components/DrawingCursor'
+import { useRef, useState } from 'react'
+import type { DrawingObjects, Position } from '@/domain/document/types'
 import type { InkPath, InkChanges } from './inkGeometry'
-import { eraseInk } from './eraseInk'
+import { eraserBox, rectangleErase } from './rectangleErase'
 import { distance, offset, type Projection } from './shapeGeometry'
 import styles from './drawing.module.css'
 
-interface Fragment { id: string; points: Position[] }
-interface Gesture { id: number; start: Position; last: Position; move?: InkPath; parts: Map<string, Fragment[]>; changed: Set<string> }
-export function InkSurface({ mode, projection, paths, diameter, selected, select, preview, commit, clear }: {
-  mode: 'select' | 'eraser' | 'erase-object'; projection: Projection; paths: InkPath[]; diameter: number; selected: string | null
+export function InkSurface({ mode, projection, paths, objects, selected, select, preview, commit, clear }: {
+  mode: 'select' | 'eraser'; projection: Projection; paths: InkPath[]; objects: DrawingObjects; selected: string | null
   select: (id: string) => void; preview: (changes: InkChanges) => void
   commit: (changes: InkChanges, translation?: Position) => void; clear: () => void
 }) {
-  const node = useRef<HTMLDivElement>(null), gesture = useRef<Gesture | null>(null)
+  const node = useRef<HTMLDivElement>(null)
+  const gesture = useRef<{ id: number; start: Position; path?: InkPath } | null>(null)
+  const [box, setBox] = useState<ReturnType<typeof eraserBox> | null>(null)
   function point(e: React.PointerEvent) {
     const el = node.current!, rect = el.getBoundingClientRect()
     return { x: (e.clientX - rect.left) * el.clientWidth / rect.width, y: (e.clientY - rect.top) * el.clientHeight / rect.height }
   }
-  function erase(g: Gesture, p: Position) {
-    for (const [id, parts] of g.parts) {
-      let modified = false
-      const next = parts.flatMap(piece => {
-        const cut = eraseInk(piece.points, g.last, p, diameter / 2)
-        if (!cut) return [piece]
-        modified = true
-        return cut.map((points, i) => ({ id: i ? crypto.randomUUID() : piece.id, points }))
-      })
-      if (modified) { g.changed.add(id); g.parts.set(id, next) }
-    }
-    g.last = p
+  function cancel() { gesture.current = null; setBox(null); clear() }
+  function translate(path: InkPath, delta: Position): InkChanges {
+    return new Map([[path.id, [{ id: path.id, points: path.points.map(p => projection.world(offset(projection.screen(p), delta.x, delta.y))) }]]])
   }
-  function changes(g: Gesture): InkChanges {
-    return new Map([...g.changed].map(id => [id, (g.parts.get(id) ?? []).map(part => ({ id: part.id, points: part.points.map(projection.world) }))]))
-  }
-  function update(g: Gesture, p: Position) {
-    if (g.move) {
-      if (distance(g.start, p) < 3 && !g.changed.size) return
-      g.changed.add(g.move.id)
-      g.parts.set(g.move.id, [{ id: g.move.id, points: g.move.points.map(q => offset(projection.screen(q), p.x - g.start.x, p.y - g.start.y)) }])
-    } else if (mode === 'eraser') erase(g, p)
-  }
-  function cancel() { gesture.current = null; clear() }
-  return <div data-ink-surface ref={node} className={styles.ink} style={{ pointerEvents: mode === 'eraser' ? 'auto' : 'none' }} tabIndex={-1}
+  return <div data-ink-surface ref={node} className={styles.ink} style={{ pointerEvents: mode === 'eraser' ? 'auto' : 'none', cursor: mode === 'eraser' ? 'crosshair' : undefined }} tabIndex={-1}
     onKeyDown={e => { if (e.key === 'Escape' && gesture.current) cancel() }}
     onPointerDown={e => {
-      if (!e.isPrimary || e.button !== 0) return
-      const id = (e.target as Element).closest('[data-ink]')?.getAttribute('data-ink'), path = paths.find(s => s.id === id)
-      if (!path && mode !== 'eraser') return
+      if (!e.isPrimary) { cancel(); return }
+      if (e.button !== 0) return
+      const id = (e.target as Element).closest('[data-ink]')?.getAttribute('data-ink')
+      const path = mode === 'select' ? paths.find(p => p.id === id) : undefined
+      if (mode === 'select' && !path) return
       e.preventDefault(); e.stopPropagation(); e.currentTarget.focus({ preventScroll: true })
-      const p = point(e)
-      const g: Gesture = { id: e.pointerId, start: p, last: p, move: mode === 'select' ? path : undefined, parts: new Map(), changed: new Set() }
-      gesture.current = g
-      e.currentTarget.setPointerCapture(e.pointerId)
-      if (mode === 'select' && path) select(path.id)
-      if (mode === 'erase-object' && path) { g.parts.set(path.id, []); g.changed.add(path.id) }
-      if (mode === 'eraser') {
-        for (const s of paths) g.parts.set(s.id, [{ id: s.id, points: s.points.map(projection.screen) }])
-        erase(g, p)
-      }
-      if (g.changed.size) preview(changes(g))
+      const start = point(e)
+      gesture.current = { id: e.pointerId, start, path }; e.currentTarget.setPointerCapture(e.pointerId)
+      if (path) select(path.id)
+      else setBox(eraserBox(start, start))
     }} onPointerMove={e => {
       const g = gesture.current
       if (!g || g.id !== e.pointerId) return
-      e.stopPropagation(); update(g, point(e))
-      if (g.changed.size) preview(changes(g))
+      e.stopPropagation()
+      const p = point(e)
+      if (!g.path) setBox(eraserBox(g.start, p))
+      else if (distance(g.start, p) >= 3) preview(translate(g.path, { x: p.x - g.start.x, y: p.y - g.start.y }))
     }} onPointerUp={e => {
       const g = gesture.current
       if (!g || g.id !== e.pointerId) return
       e.stopPropagation()
       const p = point(e)
-      update(g, p); gesture.current = null
-      if (g.changed.size) commit(changes(g), g.move ? { x: p.x - g.start.x, y: p.y - g.start.y } : undefined)
-      clear()
+      if (!g.path) {
+        const changes = rectangleErase(eraserBox(g.start, p), paths, objects, projection)
+        if (changes.size) { commit(changes); if (selected && changes.get(selected)?.length === 0) select(null) }
+      } else if (distance(g.start, p) >= 3) {
+        const delta = { x: p.x - g.start.x, y: p.y - g.start.y }
+        commit(translate(g.path, delta), delta)
+      }
+      cancel()
     }} onLostPointerCapture={() => { if (gesture.current) cancel() }} onPointerCancel={cancel}>
-    {mode === 'eraser' ? <DrawingCursor diameter={diameter} /> :
+    {mode === 'eraser' ? box && <svg width="100%" height="100%" className={styles.inkPaths} aria-hidden="true">
+      <rect x={box.left} y={box.top} width={Math.max(1, box.right - box.left)} height={Math.max(1, box.bottom - box.top)}
+        fill="var(--color-accent-red)" fillOpacity={0.18} stroke="var(--color-accent-red)" strokeDasharray="5 3" />
+    </svg> :
       <svg width="100%" height="100%" className={styles.inkPaths}>{paths.map(path => {
         const pts = path.points.map(projection.screen), first = pts[0]
         if (!first) return null
-        const color = mode === 'select' && selected === path.id ? 'var(--color-selection-border)' : 'transparent'
+        const color = selected === path.id ? 'var(--color-selection-border)' : 'transparent'
         const dot = pts.every(p => p.x === first.x && p.y === first.y)
         if (dot) return <circle key={path.id} data-ink={path.id} cx={first.x} cy={first.y} r={Math.max(4, path.width / 2)} fill="transparent" stroke={color} pointerEvents="all" />
         const points = pts.map(p => p.x + ',' + p.y).join(' ')
         return <g key={path.id} data-ink={path.id}><polyline points={points} fill="none" stroke="transparent" strokeWidth={Math.max(path.width, 8)} pointerEvents="stroke" />
-          {selected === path.id && <polyline points={points} fill="none" stroke={color} strokeDasharray="3 3" pointerEvents="none" />}</g>
+          {selected === path.id && <polyline points={points} className={styles.selectedShape} pointerEvents="none" />}</g>
       })}</svg>}
   </div>
 }

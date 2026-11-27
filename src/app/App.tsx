@@ -27,7 +27,6 @@ import { getWorkspaceBounds } from '../layout/adaptiveLayout'
 import type { ModuleId, ModuleLayout } from '../layout/layoutTypes'
 import { clamp, fit, resizeViewport, zoomAt } from '../layout/viewportMath'
 import { readNavigation, readReloadZoom, writeNavigation, writeReloadZoom } from '../layout/navigationStorage'
-import type { Position } from '../domain/document/types'
 
 const moduleFactories = {
   board: () => lazy(() => import('../features/board/BoardModule').then(module => ({ default: module.BoardModule }))),
@@ -108,10 +107,6 @@ export function App() {
   useEffect(() => { void store.initialize(); return store.connectLocalAutosave() }, [store])
   const workspace = useRef<HTMLElement>(null)
   const modulesTrigger = useRef<HTMLButtonElement>(null)
-  const [boardCenter, setBoardCenter] = useState<{ generation: number; center: Position } | null>(null)
-  const updateBoardCenter = useCallback((center: Position) => {
-    setBoardCenter(previous => previous?.generation === documentGeneration && previous.center.x === center.x && previous.center.y === center.y ? previous : { generation: documentGeneration, center })
-  }, [documentGeneration])
   const [initialModulesApplied, setInitialModulesApplied] = useState(false)
   const [refreshRecovery] = useState(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
@@ -326,7 +321,6 @@ export function App() {
     setGrowth(null)
     if (locationHighlight?.id === id) setLocationHighlight(null)
     if (id === 'elements' || id === 'dotations') { setEditRequest(null); pendingEditModule.current = null }
-    if (id === 'board') setBoardCenter(null)
     modulesTrigger.current?.focus()
     setModules(previous => previous.filter(module => module.id !== id))
     setLayers(previous => previous.filter(other => other !== id))
@@ -361,7 +355,7 @@ export function App() {
         setCleanupError(store.getSnapshot().fileMessage ?? 'No se pudieron limpiar los módulos.'); return
       }
       for (const id of ids) if (id === 'board' || id === 'plan') resetDrawingHistory(store, id)
-      if (plan.runtime.has('board-image')) { boardImage.clear(); setBoardCenter(null); setSelectionReset(value => value + 1) }
+      if (plan.runtime.has('board-image')) { boardImage.clear(); setSelectionReset(value => value + 1) }
       if (plan.runtime.has('coordinate-input')) rememberCoordinateInput('')
       if (plan.runtime.has('element-selection')) selectElement(null)
       // Los datos compartidos también pueden modificar otras ventanas; desactiva el redimensionamiento automático hasta la siguiente interacción con el contenido.
@@ -477,7 +471,6 @@ export function App() {
           <DashboardGrid onActions={registerModuleActions} revisions={moduleRevisions} locationHighlight={locationHighlight?.generation === documentGeneration ? locationHighlight : undefined} contentSizeRevisions={sizePreservation.generation === documentGeneration ? sizePreservation.revisions : undefined} viewOrigin={{ x: Math.max(0, -viewport.state.offsetX / viewport.state.scale), y: Math.max(0, -viewport.state.offsetY / viewport.state.scale) }} navigationKey={document.document.id} magnet={magnet ?? false}
             magnetOptions={{ distance: preferences.settings.magnetDistance, alignEdges: preferences.settings.magnetAlignEdges }} generation={documentGeneration} modules={open} bounds={sceneBounds} visible={visibleBounds} layers={layers} scale={viewport.state.scale} active={active} onActive={activate} onClose={close} onLayout={saveLayout} onGrow={grow} onGrowEnd={endGrowth}
             onRetry={retryModule} renderModule={id => id === 'board' ? <BoardModule selectionReset={selectionReset} key={documentGeneration} store={store} imageSession={boardImage} imageInputRef={boardImageInput} selectedId={selectedId} onSelect={selectElement}
-              onViewChange={updateBoardCenter}
               onEditElement={elementId => {
                 const element = document.elements.find(element => element.id === elementId)
                 if (!element) return
@@ -487,11 +480,9 @@ export function App() {
                 else { pendingEditModule.current = id; toggle(id) }
               }} /> :
               id === 'elements' ? <ElementsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
-                editRequest={editRequest?.generation === documentGeneration && editRequest.id === selectedId ? editRequest : undefined}
-                placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
+                editRequest={editRequest?.generation === documentGeneration && editRequest.id === selectedId ? editRequest : undefined} /> :
               id === 'dotations' ? <DotationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement}
-                editRequest={editRequest?.generation === documentGeneration && editRequest.id === selectedId ? editRequest : undefined}
-                placementPosition={boardCenter?.generation === documentGeneration ? boardCenter.center : undefined} /> :
+                editRequest={editRequest?.generation === documentGeneration && editRequest.id === selectedId ? editRequest : undefined} /> :
               id === 'information' ? <InformationModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'operations' ? <OperationsModule key={documentGeneration} store={store} selectedId={selectedId} onSelect={selectElement} /> :
               id === 'timeline' ? <TimelineModule key={documentGeneration} store={store} /> :

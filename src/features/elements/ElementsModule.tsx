@@ -1,6 +1,5 @@
 import { Checkbox } from '@/components/ui/checkbox'
 import { useContext, useId, useLayoutEffect, useRef, useState } from 'react'
-import type { Position } from '../../domain/document/types'
 import { Button } from '@/components/ui/button'
 
 import { ArrowBigLeft, CopyPlus, Eye, EyeOff, ListCheck, ListPlus, PackageCheck, PackagePlus, ScanBox, ScanText, Trash, Wrench, X } from 'lucide-react'
@@ -18,13 +17,13 @@ import { pinNameLines } from './pinPresentation'
 import styles from './elements.module.css'
 import pinSummaryStyles from './pinSummary.module.css'
 import toolbarStyles from '@/layout/moduleToolbar.module.css'
-export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void; placementPosition?: Position; editRequest?: { id: string } }
+export interface ElementsModuleProps { store: DocumentStore; selectedId: string | null; onSelect: (id: string | null) => void; editRequest?: { id: string } }
 type Props = ElementsModuleProps & { isUnit?: boolean }
 export function ElementsModule(props: Props) {
   const { documentGeneration } = useDocumentStore(props.store)
   return <ElementsContent key={documentGeneration} {...props} />
 }
-function ElementsContent({ store, selectedId, onSelect, placementPosition, editRequest, isUnit = false }: Props) {
+function ElementsContent({ store, selectedId, onSelect, editRequest, isUnit = false }: Props) {
   const { document } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const formId = useId()
@@ -58,7 +57,8 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
   const elements = document.elements.filter(element => element.isUnit === isUnit)
   const checked = elements.filter(element => checkedIds.includes(element.id))
   const actionElements = selectionMode ? checked : selected ? [selected] : []
-  const hidePins = actionElements.some(element => element.pinVisible)
+  const placedElements = actionElements.filter(element => element.position !== null)
+  const hidePins = placedElements.some(element => element.pinVisible)
   const visibilityLabel = `${hidePins ? 'Ocultar' : 'Mostrar'} ${selectionMode ? 'pines' : 'pin'}`
   const edited = editor?.id ? document.elements.find(element => element.id === editor.id && element.isUnit === isUnit) : undefined
   if (editor?.kind === 'edit' && editor.id !== selected?.id) setEditor(null)
@@ -146,10 +146,10 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
               })))) return
               addControl.current?.focus(); onSelect(id)
             }}><CopyPlus aria-hidden="true" /></Button>
-            <Button aria-label={visibilityLabel} disabled={blocked || !actionElements.length} onClick={() => {
-              if (blockedRef.current || !actionElements.length) return
+            <Button aria-label={visibilityLabel} disabled={blocked || !placedElements.length} onClick={() => {
+              if (blockedRef.current || !placedElements.length) return
               cancelHold()
-              mutate(document => applyDocumentCommands(document, actionElements.filter(element => element.pinVisible === hidePins)
+              mutate(document => applyDocumentCommands(document, placedElements.filter(element => element.pinVisible === hidePins)
                 .map(element => document => togglePinVisibility(document, element.id))))
             }}>{hidePins ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</Button>
             <Button aria-label="Borrar" disabled={blocked || !actionElements.length} onClick={() => {
@@ -192,7 +192,7 @@ function ElementsContent({ store, selectedId, onSelect, placementPosition, editR
             id = edited.id
             return updateElement(document, edited.id, { name: input.name, information: input.information, visual: input.visual, nameFontSize: input.nameFontSize, nameHidden: input.nameHidden, nameOffset: input.nameOffset, nameColor: input.nameColor, pinAnchor: input.pinAnchor })
           }
-          const result = createElement(document, { ...input, position: placementPosition })
+          const result = createElement(document, { ...input, position: null })
           id = result.value.id
           return result
         })) return false

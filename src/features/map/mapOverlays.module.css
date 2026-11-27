@@ -1,0 +1,54 @@
+@layer components {
+  .overlays, .layer, .disclosure form, .disclosure form label {
+    display: grid;
+    min-width: 0;
+    gap: var(--control-gap);
+  }
+
+  .heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--control-gap);
+  }
+
+  .heading > span, .opacity output {
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .layer + .layer {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--control-gap);
+  }
+
+  .layer .layerName {
+    display: flex;
+    align-items: center;
+    gap: var(--control-gap);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .opacity {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: var(--control-gap);
+  }
+
+  .opacity output { min-width: 5ch; text-align: end; }
+
+  .disclosure {
+    min-width: 0;
+    border-top: 1px solid var(--color-border);
+    padding-block: var(--control-gap);
+  }
+
+  .disclosure summary { color: var(--color-text); cursor: pointer; }
+  .disclosure[open] > summary { margin-bottom: var(--section-gap); }
+  .disclosure form label { color: var(--color-text-secondary); }
+  .disclosure output { overflow-wrap: anywhere; }
+}

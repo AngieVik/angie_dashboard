@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useReducer, useState, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import * as L from 'leaflet'
 import { createPortal } from 'react-dom'
 import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
@@ -24,6 +24,7 @@ function projectMap(map: L.Map): Projection {
   }
 }
 export interface PlanSurfaceActions {
+  projection: () => Projection | undefined
   drop: (p: Position) => Position | null
   center: (p: Position) => void
   fit: (ids: string[]) => void
@@ -39,6 +40,7 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
   const [imageHost, setImageHost] = useState<HTMLDivElement | null>(null)
   const [ready, setReady] = useState<L.Map | null>(null)
   useImperativeHandle(props.actions, () => ({
+    projection: () => ready ? projectMap(ready) : undefined,
     drop(p) {
       if (!ready) return null
       const node = ready.getContainer(), rect = node.getBoundingClientRect()
@@ -62,7 +64,7 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
       if (bounds.isValid()) ready.fitBounds(bounds, { padding: [24, 24], maxZoom: ready.getMaxZoom() })
     },
   }))
-  const [, redraw] = useReducer(value => value + 1, 0)
+  const [projection, setProjection] = useState<Projection | null>(null)
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -77,11 +79,23 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
       const size = map!.getSize()
       host.style.width = size.x + 'px'; host.style.height = size.y + 'px'
       L.DomUtil.setPosition(host, map!.containerPointToLayerPoint([0, 0]))
-      redraw()
+      setProjection(projectMap(map!))
     }
     setImageHost(host); sync(); map.on('move zoom resize', sync)
     return () => { map.off('move zoom resize', sync); host.remove() }
   }, [mapRef])
+  const { shapes, groups, labels, pins, strokes } = props.objects
+  const { select, mode, suspended, selected } = props
+  const selectLabel = useRef(select)
+  const selectedLabel = useRef(selected)
+  useEffect(() => {
+    selectedLabel.current = selected
+    const container = mapRef.current?.getContainer()
+    for (const node of container?.querySelectorAll<HTMLElement>('[data-drawing-label]') ?? []) {
+      node.dataset.selected = String(node.dataset.drawingLabel === selected)
+    }
+  }, [mapRef, selected])
+  useEffect(() => { selectLabel.current = select }, [select])
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -92,8 +106,8 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
     function latlng(p: Position) { return L.latLng(p.y, p.x + 360 * Math.round((map!.getCenter().lng - p.x) / 360)) }
     function paint() {
       group.clearLayers()
-      for (const s of props.objects.shapes ?? []) {
-        if (!groupVisible(props.objects, s.id)) continue
+      for (const s of shapes ?? []) {
+        if (!groupVisible({ groups }, s.id)) continue
         const points = s.points.map(latlng), at = points[0]!, scale = shapeScale(s, projection)
         const options = { pane: 'operational-figures', color: s.color, weight: s.width * scale, fill: false, interactive: false }
         if (s.kind === 'ellipse' && s.radii) {
@@ -112,33 +126,52 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
         else if (s.kind === 'polygon') L.polygon(points, options).addTo(group)
         else L.polyline(points, options).addTo(group)
       }
-      for (const label of props.objects.labels ?? []) {
-        if (label.owner && (!groupVisible(props.objects, label.owner) || props.objects.pins.some(p => p.elementId === label.owner && !p.visible))) continue
+      for (const label of labels ?? []) {
+        if (label.owner && (!groupVisible({ groups }, label.owner) || pins.some(p => p.elementId === label.owner && !p.visible))) continue
         const content = document.createElement('span')
         content.textContent = label.text
-        L.tooltip({ permanent: true, interactive: false }).setContent(content).setLatLng(latlng(label.point)).addTo(group)
+        const interactive = mode === 'select' && !suspended
+        const tip = L.tooltip({ permanent: true, interactive }).setContent(content).setLatLng(latlng(label.point)).addTo(group)
+        const node = tip.getElement()
+        if (node) {
+          node.dataset.drawingLabel = label.id
+          node.dataset.selected = String(label.id === selectedLabel.current)
+          if (interactive) {
+            L.DomEvent.disableClickPropagation(node)
+            node.onclick = () => selectLabel.current(label.id)
+          }
+        }
       }
     }
     paint()
-    map.on('zoomend moveend', paint)
-    return () => { map.off('zoomend moveend', paint); group.remove() }
-  }, [mapRef, props.objects])
-  const { select, mode } = props
+    let frame: number | undefined
+    function schedulePaint() {
+      if (frame !== undefined) return
+      frame = requestAnimationFrame(() => { frame = undefined; paint() })
+    }
+    map.on('zoomend moveend', schedulePaint)
+    return () => {
+      map.off('zoomend moveend', schedulePaint)
+      if (frame !== undefined) cancelAnimationFrame(frame)
+      group.remove()
+    }
+  }, [mapRef, shapes, labels, groups, pins, mode, suspended])
   useEffect(() => {
-    if (!ready || mode !== 'select') return
+    if (!ready || suspended || mode !== 'select') return
     const clear = () => select(null)
     ready.on('click', clear)
     return () => { ready.off('click', clear) }
-  }, [ready, mode, select])
-  if (!ready) return null
-  const projection = projectMap(ready)
-  const ink = props.objects.strokes.filter(s => groupVisible(props.objects, s.id)).map(s => ({ id: s.id, width: s.width * zoom, points: s.points.map(p => ({ x: p.longitude, y: p.latitude })) }))
+  }, [ready, mode, select, suspended])
+  const ink = useMemo(() => strokes.filter(s => groupVisible({ groups }, s.id)).map(s => ({
+    id: s.id, width: s.width * zoom, points: s.points.map(p => ({ x: p.longitude, y: p.latitude })),
+  })), [strokes, groups, zoom])
+  if (!ready || !projection) return null
   const geographic = (p: Position) => ({ longitude: p.x, latitude: p.y })
   return <>
-    {imageHost && createPortal(<DrawingImages images={props.objects.images ?? []} actions={props.imageActions} projection={projection} mode={props.imageMode} enabled={props.mode === 'select'}
+    {imageHost && createPortal(<DrawingImages images={props.objects.images ?? []} actions={props.imageActions} projection={projection} mode={props.imageMode} enabled={!suspended && props.mode === 'select'}
       selected={props.selected} select={props.selectImage} save={props.saveImages} warn={props.warn} />, imageHost)}
-    {(props.mode === 'select' || props.mode === 'eraser' || props.mode === 'erase-object') && <InkSurface key={props.mode} mode={props.mode} paths={ink}
-      diameter={props.width * zoom} projection={projection} selected={props.selected} select={props.select}
+    {!suspended && (props.mode === 'select' || props.mode === 'eraser') && <InkSurface key={props.mode} mode={props.mode} paths={ink}
+      objects={props.objects} projection={projection} selected={props.selected} select={props.select}
       preview={changes => props.previewInk(replaceInk(props.objects.strokes, changes, geographic))} clear={() => props.previewInk(null)}
       commit={(changes, delta) => props.saveInk({ strokes: replaceInk(props.objects.strokes, changes, geographic), ...inkReferences(props.objects, changes, projection, delta) })} />}
     <ShapeSurface key={props.mode} {...props} projection={projection} native anchorAt={point => {

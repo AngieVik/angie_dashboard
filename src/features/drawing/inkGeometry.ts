@@ -25,7 +25,8 @@ export function inkReferences(objects: DrawingObjects, changes: InkChanges, proj
     }
     return [{ ...label, owner: nearest }]
   })
-  return { groups, labels }
+  const removedShape = objects.shapes?.some(shape => changes.get(shape.id)?.length === 0)
+  return { groups, labels, ...(removedShape ? { shapes: objects.shapes!.filter(shape => !changes.has(shape.id)) } : {}) }
 }
 
 export function inkAt(paths: InkPath[], projection: Projection, world: Position) {

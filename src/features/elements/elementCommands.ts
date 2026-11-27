@@ -86,7 +86,7 @@ function duplicateName(document: AngieDocument, element: DocumentElement) {
 export function createElement(document: AngieDocument, input: CreateElementInput) {
   const name = resolveName(document, input.name, input.isUnit)
   const visual = normalizeVisual(input.visual)
-  const requested = input.position === undefined ? { x: 500, y: 500 } : input.position
+  const requested = input.position ?? null
   const common = { ...normalizeNamePresentation(input), ...normalizePinAnchor(input.pinAnchor), id: crypto.randomUUID(), name, visual, information: input.information,
     position: requested ? clampPinPosition(requested, visual) : null, pinVisible: true, ...(input.nameHidden === undefined ? {} : { nameHidden: input.nameHidden }), nameFontSize: validateNameFontSize(input.nameFontSize ?? 16) }
   const element: DocumentElement = input.isUnit ? { ...common, isUnit: true, operational: { status: null, currentEntryId: null, notes: '', tags: [] } } :
@@ -117,8 +117,7 @@ export function updateElement(document: AngieDocument, id: string, patch: Elemen
 export function duplicateElement(document: AngieDocument, id: string) {
   const element = findElement(document, id)
   const result = createElement(document, { name: duplicateName(document, element), visual: element.visual, information: element.information,
-    isUnit: element.isUnit, nameOffset: element.nameOffset, nameColor: element.nameColor, nameHidden: element.nameHidden, nameFontSize: element.nameFontSize, pinAnchor: element.pinAnchor, position: element.position ? { x: element.position.x + 24, y: element.position.y + 24 } : null })
-  result.value.pinVisible = element.pinVisible
+    isUnit: element.isUnit, nameOffset: element.nameOffset, nameColor: element.nameColor, nameHidden: element.nameHidden, nameFontSize: element.nameFontSize, pinAnchor: element.pinAnchor, position: null })
   return result
 }
 export function updateElements(document: AngieDocument, ids: readonly string[], patch: ElementBatchPatch) {

@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { Eye, EyeOff, Focus, MapPin, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, Focus, MapPin, Trash2, Square, SquareCheck } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import { PinThumbnail } from '../elements/PinThumbnail'
 import type { DocumentElement, DrawingGroup, Position } from '@/domain/document/types'
 import { INPUT_BUDGETS } from '@/domain/input/inputBudgets'
 import { ReportSelectionResize } from '../document/ReportSelectionResize'
@@ -12,7 +15,7 @@ interface Props {
   elements: DocumentElement[]; placed: Map<string, boolean>; selected: string | null; select: (id: string) => void
   place: (id: string, client?: Position) => void; center: (id: string) => void; pins: (ids: string[], visible: boolean | null) => void
   groups: DrawingGroup[]; members: { id: string; name: string }[]; saveGroups: (groups: DrawingGroup[]) => boolean
-  fit: (ids: string[]) => void; images: ReactNode; src: ReactNode; blocked: boolean
+  fit: (ids: string[]) => void; editor: ReactNode; src: ReactNode; blocked: boolean
 }
 export function DrawingPanel(p: Props) {
   const id = useId()
@@ -23,7 +26,9 @@ export function DrawingPanel(p: Props) {
   const gesture = useRef<{ id: string; x: number; y: number; dragged: boolean; held: boolean } | null>(null)
   const skipClick = useRef(false)
   useEffect(() => () => clearTimeout(timer.current), [])
-  const selection = (multi ?? (p.selected ? [p.selected] : [])).filter(key => p.elements.some(e => e.id === key))
+  const resourceIds = new Set(p.elements.map(e => e.id))
+  const selection = (multi ?? (p.selected ? [p.selected] : [])).filter(key => resourceIds.has(key))
+  const selectedIds = new Set(selection)
   const single = selection.length === 1 ? selection[0] : undefined
   const placed = selection.filter(key => p.placed.has(key))
   const visible = placed.some(key => p.placed.get(key))
@@ -40,7 +45,8 @@ export function DrawingPanel(p: Props) {
             <Button aria-label="Retirar pines" disabled={!placed.length} onClick={() => p.pins(placed, null)}><Trash2 /></Button>
             {multi && <Button onClick={() => setMulti(null)}>Terminar selección</Button>}
           </div>
-          {p.elements.map(e => <button type="button" key={e.id} className={styles.row} aria-pressed={selection.includes(e.id)}
+          {p.elements.length === 0 && <p className={styles.empty}>Crea un elemento o una dotación para colocar su pin.</p>}
+          {p.elements.map(e => <button type="button" key={e.id} className={styles.row} aria-pressed={selectedIds.has(e.id)}
             onPointerDown={event => {
               if (!event.isPrimary || event.button !== 0) return
               skipClick.current = false
@@ -66,28 +72,30 @@ export function DrawingPanel(p: Props) {
               p.select(e.id)
               if (multi) setMulti(multi.includes(e.id) ? multi.filter(key => key !== e.id) : [...multi, e.id])
             }}>
-            {multi && <input type="checkbox" checked={multi.includes(e.id)} readOnly tabIndex={-1} aria-hidden="true" />}
-            <span><strong>{e.name}</strong>{e.information && <><br />{e.information}</>}</span>
+            {multi && (selectedIds.has(e.id) ? <SquareCheck aria-hidden="true" /> : <Square aria-hidden="true" />)}
+            <PinThumbnail visual={e.visual} />
+            <span className={styles.resourceText}><strong>{e.name}</strong>{e.information && <span>{e.information}</span>}</span>
+            {p.placed.has(e.id) && <span className={styles.placement} role="img" aria-label="Pin colocado" title="Pin colocado"><MapPin /></span>}
           </button>)}
         </section>
-        <section aria-label="Imágenes"><strong>Imágenes</strong>{p.images}</section>
       </>}
+      {p.panels.includes('edit') && <section aria-label="Edición"><strong>Edición</strong>{p.editor}</section>}
       {p.panels.includes('groups') && <section aria-label="Grupos"><strong>Grupos</strong>
         <form onSubmit={event => {
           event.preventDefault()
           if (!name.trim()) return
           const item = { id: crypto.randomUUID(), name: name.trim(), visible: true, members: [] }
           if (p.saveGroups([...p.groups, item])) { setName(''); setActive(item.id) }
-        }}><input aria-label="Nombre del grupo" placeholder="Nombre del grupo" value={name} maxLength={INPUT_BUDGETS.textCharacters} onChange={e => setName(e.target.value)} />
+        }}><Input aria-label="Nombre del grupo" placeholder="Nombre del grupo" value={name} maxLength={INPUT_BUDGETS.textCharacters} onChange={e => setName(e.target.value)} />
           <Button type="submit" disabled={!name.trim()}>Crear grupo</Button></form>
-        {p.groups.map(g => <div className={styles.actions} key={g.id}>
+        {p.groups.map(g => <div className={styles.groupRow} key={g.id}>
           <Button aria-pressed={g.id === active} onClick={() => setActive(g.id)}>{g.name}</Button>
           <Button aria-label={(g.visible ? 'Ocultar ' : 'Mostrar ') + g.name} onClick={() => p.saveGroups(p.groups.map(item => item === g ? { ...g, visible: !g.visible } : item))}>{g.visible ? <Eye /> : <EyeOff />}</Button>
           <Button aria-label={'Encuadrar ' + g.name} disabled={!g.members.length} onClick={() => p.fit(g.members)}><Focus /></Button>
         </div>)}
         {group && <fieldset><legend>{group.name}</legend>{p.members.map(m => <label key={m.id}>
-          <input type="checkbox" checked={group.members.includes(m.id)} onChange={event => p.saveGroups(p.groups.map(item => item === group
-            ? { ...group, members: event.target.checked ? [...group.members, m.id] : group.members.filter(key => key !== m.id) } : item))} />{m.name}
+          <Checkbox aria-label={m.name} checked={group.members.includes(m.id)} onCheckedChange={checked => p.saveGroups(p.groups.map(item => item === group
+            ? { ...group, members: checked ? [...group.members, m.id] : group.members.filter(key => key !== m.id) } : item))} />{m.name}
         </label>)}</fieldset>}
       </section>}
       {p.panels.includes('src') && <section aria-label="SRC"><strong>SRC</strong>{p.src}</section>}

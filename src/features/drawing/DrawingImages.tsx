@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import type { DrawingImage, Position } from '@/domain/document/types'
 import { Button } from '@/components/ui/button'
+import { Crop, FlipHorizontal2, FlipVertical2, ImagePlus, Move, RotateCw, Trash2 } from 'lucide-react'
 import { loadBoardImage } from '../board/imageLoader'
 import type { Projection } from './shapeGeometry'
 import styles from './drawing.module.css'
@@ -14,11 +15,15 @@ export function ImageTools({ actions, mode, setMode, selected, remove }: {
   actions: React.RefObject<ImageActions | null>; mode: ImageMode; setMode: (value: ImageMode) => void; selected: boolean; remove: () => void
 }) {
   const file = useRef<HTMLInputElement>(null)
-  return <><Button onClick={() => file.current?.click()}>Insertar imagen</Button>
+  return <>
+    <Button onClick={() => file.current?.click()}><ImagePlus />Insertar imagen</Button>
     <input type="file" hidden ref={file} accept="image/png,image/jpeg" onChange={e => { const image = e.target.files?.[0]; e.target.value = ''; if (image) actions.current?.insert(image) }} />
-    {([['move', 'Mover y redimensionar'], ['crop', 'Recortar'], ['rotate', 'Girar y voltear']] as const).map(([id, title]) =>
-      <Button key={id} disabled={!selected} aria-pressed={selected && mode === id} onClick={() => setMode(id)}>{title}</Button>)}
-    <Button disabled={!selected} onClick={remove}>Borrar imagen</Button></>
+    {selected && <div className={styles.actions} role="group" aria-label="Editar imagen">
+      {([['move', 'Mover y redimensionar', Move], ['crop', 'Recortar', Crop], ['rotate', 'Girar y voltear', RotateCw]] as const).map(([id, title, Icon]) =>
+        <Button key={id} disabled={!selected} aria-label={title} title={title} aria-pressed={selected && mode === id} onClick={() => setMode(id)}><Icon /></Button>)}
+      <Button aria-label="Borrar imagen" title="Borrar imagen" onClick={remove}><Trash2 /></Button>
+    </div>}
+  </>
 }
 
 function ImagePixels({ source }: { source: DrawingImage['source'] }) {
@@ -107,7 +112,7 @@ export function DrawingImages({ images, selected, select, enabled, mode, actions
     const a = projection.screen(item.corners[0]), b = projection.screen(item.corners[1]), crop = item.crop
     const active = selected === item.id && enabled
     const flip = (key: 'flipX' | 'flipY') => save(images.map(image => image.id === base.id ? { ...image, [key]: !image[key] } : image))
-    return <div key={base.id} data-drawing-image className={styles.image} style={{ left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y,
+    return <div key={base.id} data-drawing-image data-selected={active} className={styles.image} style={{ left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y,
       transform: 'rotate(' + item.rotation + 'deg)', pointerEvents: enabled ? 'auto' : 'none' }} onPointerDown={e => {
       if (!enabled || !e.isPrimary || e.button !== 0 || (e.target as Element).closest('[data-flip]')) return
       e.preventDefault(); e.stopPropagation(); select(item.id)
@@ -127,7 +132,10 @@ export function DrawingImages({ images, selected, select, enabled, mode, actions
         aria-label={(mode === 'crop' ? 'Recortar ' : 'Redimensionar ') + c}
         style={{ left: (c.includes('w') ? crop.left : 1 - crop.right) * 100 + '%', top: (c.includes('n') ? crop.top : 1 - crop.bottom) * 100 + '%' }} />)}
       {active && mode === 'rotate' && <>{[0, 100].map(side => <button type="button" key={side} className={styles.handle} style={{ left: side + '%', top: '50%' }} aria-label="Girar imagen" data-action="rotate" />)}
-        <div className={styles.flip}><Button data-flip onClick={() => flip('flipX')}>Voltear horizontal</Button><Button data-flip onClick={() => flip('flipY')}>Voltear vertical</Button></div></>}
+        <div className={styles.flip}>
+          <Button data-flip aria-label="Voltear horizontal" title="Voltear horizontal" aria-pressed={item.flipX} onClick={() => flip('flipX')}><FlipHorizontal2 /></Button>
+          <Button data-flip aria-label="Voltear vertical" title="Voltear vertical" aria-pressed={item.flipY} onClick={() => flip('flipY')}><FlipVertical2 /></Button>
+        </div></>}
     </div>
   })}</div>
 }

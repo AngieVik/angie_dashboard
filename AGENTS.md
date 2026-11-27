@@ -32,7 +32,7 @@
 
 - **Pruebas E2E (Playwright):**
     - Las pruebas automatizadas están desactivadas temporalmente para evitar el consumo excesivo de recursos ("context flooding").
-    - La validación funcional de la interfaz y la lógica de dominio la realizará el desarrollador de forma estrictamente manual.
+    - La validación funcional de la interfaz y la lógica de dominio la realizará el desarrollador de forma manual.
 - **Depuración silenciosa (Para el Agente):**
     - Prohibido: Imprimir arrays de datos pesados o hacer volcados completos del DOM (ej. `screen.debug()`) en la consola.
     - Excepción: Solo puedes imprimir la traza de error mínima necesaria para identificar la línea exacta que falla (ej. `console.error(err.message)`).
@@ -41,7 +41,7 @@
 
 ## Comprobaciones y entrega
 
-- La lectura de los archivos afectados y la revisión del diff forman parte de tu trabajo inicial.
+- La lectura de los archivos afectados y la revisión del diff.
 - Reserva las auditorías completas del proyecto solo para peticiones expresas.
 - En las revisiones: Presenta los hallazgos indicando ubicación, consecuencia, evidencia y propuesta de solución. Distingue hipótesis de hechos comprobados y aplica correcciones dentro del alcance acordado.
 - En la respuesta final, indica el resultado y enlaza los archivos modificados cuando los haya. Menciona las comprobaciones que aporten evidencia relevante, los fallos que afecten a la entrega y la validación manual que quede pendiente. Omite las comprobaciones rutinarias sin incidencias y las que no apliquen.

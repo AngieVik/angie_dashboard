@@ -16,6 +16,7 @@ import { PlanDrawing } from './PlanDrawing'
 import { PlanPins } from './PlanPins'
 import { DrawingToolbar, type DrawingTool } from '../drawing/DrawingToolbar'
 import { DrawingPanel } from '../drawing/DrawingPanel'
+import { SelectionEditor } from '../drawing/SelectionEditor'
 import { ImageTools, type ImageMode, type ImageActions } from '../drawing/DrawingImages'
 import { useDrawingTools } from '../drawing/useDrawingTools'
 import { drawingMembers, groupVisible } from '../drawing/shapeGeometry'
@@ -89,7 +90,7 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
   function selectObject(id: string | null) { tools.select(id); onSelect(null) }
   const placed = new Map(plan.pins.map(p => [p.elementId, p.visible]))
   return <div className={`plan-module ${styles.base}`} data-mode={mode}>
-    <DrawingToolbar module="plan" mode={mode} settings={tools.settings} panels={tools.panels} toggle={tools.toggle} onMode={activate} replay={replay}
+    <DrawingToolbar module="plan" mode={mode} settings={tools.settings} setOption={tools.setOption} panels={tools.panels} toggle={tools.toggle} onMode={activate} replay={replay}
       canUndo={!!history.undo.length} canRedo={!!history.redo.length} color={color} width={width} blocked={blocked} onWidth={setWidth} onColor={setColor} onAddNote={() => notes.current?.add()} />
     <div className={drawingStyles.workspace} ref={workspace}>
     <div className={styles.mapArea} style={tools.panels.length ? { flex: '0 0 ' + tools.panelWidth + '%' } : undefined}>
@@ -102,7 +103,7 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
           if (!element) throw new Error('El recurso ya no existe.')
           return updateElement(document, id, { visual: { ...element.visual, scale } })
         })} />
-      <PlanShapes previewInk={setInkPreview} saveInk={change} objects={plan} mode={blocked ? 'blocked' : mode === 'eraser' && tools.settings.eraser ? 'erase-object' : mode} actions={canvas}
+      <PlanShapes previewInk={setInkPreview} saveInk={change} objects={plan} suspended={blocked} mode={mode} actions={canvas}
         imageMode={imageMode} imageActions={imageActions} saveImages={images => change({ images })} selectImage={id => { selectObject(id); activate('select') }}
         color={color} width={width} fixed={mode === 'circle' ? tools.settings.circle : tools.settings.polyline} selected={tools.selected} select={selectObject}
         change={change} warn={message => toast.error(message, { notice: 'planInput', id: noticeId })} />
@@ -130,8 +131,13 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
         doc => visible === null ? removePlanPin(doc, id) : togglePlanPin(doc, id))))}
       groups={plan.groups ?? []} saveGroups={groups => change({ groups })} fit={ids => canvas.current?.fit(ids)}
       members={[...document.elements.filter(e => placed.has(e.id)).map(e => ({ id: e.id, name: e.name })), ...drawingMembers(plan)]}
-      images={<ImageTools actions={imageActions} selected={!!plan.images?.some(i => i.id === tools.selected)} mode={imageMode}
-        setMode={value => { activate('select'); setImageMode(value) }} remove={() => change({ images: plan.images?.filter(i => i.id !== tools.selected) })} />}
+      editor={<><SelectionEditor key={tools.selected ?? selectedId} objects={plan} selected={tools.selected} pin={selected} clear={() => selectObject(null)}
+        getProjection={() => canvas.current?.projection()} toPoint={(p: GeographicCoordinate) => ({ x: p.longitude, y: p.latitude })}
+        fromPoint={p => ({ longitude: p.x, latitude: p.y })} change={change}
+        editPin={() => selected && onEditElement(selected.id)} modifyPin={visual => selected && apply(d => updateElement(d, selected.id, { visual }))}
+        removePin={pin ? () => { if (apply(d => removePlanPin(d, pin.elementId))) selectObject(null) } : undefined} />
+        <ImageTools actions={imageActions} selected={!!plan.images?.some(i => i.id === tools.selected)} mode={imageMode}
+        setMode={value => { activate('select'); setImageMode(value) }} remove={() => change({ images: plan.images?.filter(i => i.id !== tools.selected) })} /></>}
       src={<div ref={setSrcPanel} />} />}
     </div>
     {selected && <div className="plan-selection" aria-label="Recurso seleccionado">
