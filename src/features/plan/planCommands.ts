@@ -40,7 +40,11 @@ export function addPlanStroke(document: AngieDocument, stroke: PlanStroke) {
   if (!/^#[0-9A-F]{6}$/.test(stroke.color) || !Number.isFinite(stroke.width) || stroke.width < 1 || stroke.width > 40 || stroke.points.length < 2) {
     throw new Error('El trazo no tiene un color, grosor o número de puntos válido.')
   }
-  const points = stroke.points.map(position)
+  let next: PlanStroke
+  if (stroke.anchor) {
+    if (!stroke.points.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) throw new Error('El trazo no tiene puntos válidos.')
+    next = { ...stroke, anchor: position(stroke.anchor), points: stroke.points.map(p => ({ x: p.x, y: p.y })) }
+  } else next = { ...stroke, points: stroke.points.map(position) }
   const plan = document.plan ?? { pins: [], strokes: [] }
-  return commandResult(document, { ...document, plan: { ...plan, strokes: [...plan.strokes, { ...stroke, points }] } })
+  return commandResult(document, { ...document, plan: { ...plan, strokes: [...plan.strokes, next] } })
 }

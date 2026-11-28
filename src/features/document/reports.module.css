@@ -10,8 +10,6 @@
   .selectionSheet .fields label { min-width: 0; }
   @container report-selection (min-width: 20em) { .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @container report-selection (min-width: 30em) { .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .resizeHandle[aria-orientation="vertical"] { z-index: 22; width: 1px; min-width: 0; padding: 0; border: 0; cursor: col-resize; touch-action: none; }
-  .resizeHandle::before { inset-inline: -6px; }
   .workspace[data-selection-open="false"] .resizeHandle { display: none; }
   .selectionSheet :global(.reports-sections) { display: flex; flex-direction: column; gap: var(--space-2); }
   .selectionSheet fieldset { min-width: 0; margin: 0; padding: var(--space-2); border: 1px solid var(--color-border); }
@@ -30,6 +28,5 @@
   /* A nonmodal Sheet shares the module's columns; preserve its width while closed. */
   .selectionSheet[data-side="left"] { position: absolute; inset: 0; width: var(--report-selection-width); max-height: 100%; padding: 0; gap: 0; box-shadow: none; }
   .selectionSheet [data-slot="sheet-header"] { padding-inline-end: 0; }
-  .resizeHandle[aria-orientation="vertical"] { background: var(--color-field-border); }
   .selectionSheet[data-state="closed"] { visibility: hidden; pointer-events: none; animation: none; }
 }

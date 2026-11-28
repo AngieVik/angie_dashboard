@@ -5,11 +5,17 @@ import styles from '@/components/ui/resizable/resizable.module.css'
 
 const MIN_WIDTH = 25
 const MAX_WIDTH = 75
-const clamp = (value: number) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value))
 
-export function ReportSelectionResize({ value, onChange, container, controls, disabled, label = 'Cambiar ancho del contenido del informe', className = '' }: {
+export function ReportSelectionResize({ value, onChange, container, controls, disabled, label = 'Cambiar ancho del contenido del informe', className = '', keep }: {
   value: number; onChange: (value: number) => void; container: RefObject<HTMLDivElement | null>; controls: string; disabled: boolean; className?: string; label?: string
+  /** Pixels the side after the separator keeps at least; without it that side keeps 25 %. */
+  keep?: number
 }) {
+  function clamp(next: number) {
+    const width = container.current?.getBoundingClientRect().width
+    const max = keep && width ? Math.max(MIN_WIDTH, 100 - keep / width * 100) : MAX_WIDTH
+    return Math.max(MIN_WIDTH, Math.min(max, next))
+  }
   const { blocked, blockedRef } = useViewportInteraction()
   const gesture = useRef<{ id: number; node: HTMLButtonElement; x: number; width: number; value: number } | null>(null)
   const cancel = useCallback(() => {
@@ -69,6 +75,6 @@ export function ReportSelectionResize({ value, onChange, container, controls, di
       if (disabled || blockedRef.current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
       event.preventDefault(); event.stopPropagation()
       const step = event.shiftKey ? 10 : 2
-      onChange(event.key === 'Home' ? MIN_WIDTH : event.key === 'End' ? MAX_WIDTH : clamp(value + (event.key === 'ArrowLeft' ? -step : step)))
+      onChange(event.key === 'Home' ? MIN_WIDTH : event.key === 'End' ? clamp(100) : clamp(value + (event.key === 'ArrowLeft' ? -step : step)))
     }} />
 }

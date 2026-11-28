@@ -2,6 +2,8 @@
   .surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; touch-action: none; outline: none; }
   :global(.plan-module) .surface { z-index: 640; }
   .label { fill: var(--color-text); stroke: var(--color-field); paint-order: stroke; stroke-width: 3px; font-size: var(--control-font-size); }
+  .label[data-background] { stroke: none; }
+  .check { display: flex; align-items: center; gap: var(--space-1); }
   .labelForm { position: absolute; z-index: 680; max-width: 100%; }
   .workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
   .workspace > :global(.map-module) { flex: 1; min-width: 0; }
@@ -49,6 +51,7 @@
   .handle { position: absolute; transform: translate(-50%, -50%); width: calc(2 * var(--space-2)); height: calc(2 * var(--space-2)); padding: 0; background: var(--color-field); border: 1px solid var(--color-selection-border); touch-action: none; }
   .flip { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: var(--control-gap); background: var(--surface-toolbar); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
   .panel label, .panel form { display: grid; gap: var(--space-1); }
+  .panel form.inlineForm { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--control-gap); }
   .locate { position: absolute; width: 48px; height: 48px; border: 3px solid var(--palette-yellow); border-radius: 50%; pointer-events: none; z-index: 670; animation: drawing-locate 3s steps(1) forwards; }
   @keyframes drawing-locate {
     0% { transform: translate(-50%,-50%) scale(1); } 33.333% { transform: translate(-50%,-50%) scale(.7); }
@@ -60,13 +63,30 @@
   .ink { position: absolute; inset: 0; touch-action: none; outline: none; }
   .ink:has([data-slot="drawing-cursor"]:not([hidden])) { cursor: none; }
   .inkPaths { overflow: hidden; pointer-events: none; }
+  :is(.shapeHit, .vertexTarget, .ink [data-ink]) { cursor: pointer; }
   :global(.plan-module) .ink { z-index: 635; }
 }
 
 @layer components {
   .boardInk { position: absolute; inset: 0; pointer-events: none; }
   .anchorDot { filter: drop-shadow(0 0 1px black); pointer-events: none; }
-  .selectedShape { fill: none; stroke: var(--color-selection-border); stroke-width: 2px; stroke-dasharray: 5 3; filter: drop-shadow(0 0 1px white) drop-shadow(0 0 1px black); }
+  .selectionBox { fill: none; }
+  .guideOutline { stroke: var(--color-selection-guide-outline); stroke-width: 1px; }
+  .guideAxes { opacity: .5; }
+  .guide { stroke: var(--color-selection-guide); stroke-width: 1px; stroke-dasharray: 5 3; }
+  .moveHandle { color: var(--color-selection-guide); filter: drop-shadow(0 0 1px var(--color-selection-guide-outline)) drop-shadow(0 0 1px var(--color-selection-guide-outline)); cursor: move; }
+  .rotateHandle { cursor: grab; }
+  /* The cursor icons come from components/iconCursors.ts. */
+  .flipAxis { stroke-width: 8px; }
+  .flipAxis[data-flip="x"] { cursor: var(--cursor-flip-vertical, ns-resize); }
+  .flipAxis[data-flip="y"] { cursor: var(--cursor-flip-horizontal, ew-resize); }
+  /* Old version of what is being moved, turned or edited; the same fade as a dragged label. */
+  .ghost { opacity: .35; }
+  .rotateHandle:active { cursor: grabbing; }
+  .snapRing { fill: none; }
+  .snapOutline { stroke: var(--color-selection-guide); stroke-width: 5px; }
+  .snapLine { stroke: var(--color-selection-guide-outline); stroke-width: 2.5px; }
+  .vertexHandle { fill: var(--color-selection-handle); stroke: var(--color-selection-guide); stroke-width: 2px; filter: drop-shadow(0 0 1px var(--color-selection-guide-outline)); pointer-events: none; }
   .objectEditor { display: grid; min-width: 0; gap: var(--control-gap); }
   .objectEditor textarea { width: 100%; min-height: 4em; resize: vertical; color: var(--color-text); background: var(--color-field); border: 1px solid var(--color-field-border); border-radius: var(--radius-field); font: inherit; }
   .label[data-selected="true"] { text-decoration: underline; stroke: var(--color-selection-border); }
@@ -79,16 +99,17 @@
   .panel fieldset { border: 1px solid var(--color-border); border-radius: var(--radius-field); }
   .panel label:has([data-slot="checkbox"]) { display: flex; align-items: center; }
   .panel > section { gap: var(--control-gap); }
-  .groupRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--control-gap); }
+  .groupRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--control-gap); }
   .groupRow > button:first-child { min-width: 0; width: 100%; height: auto; justify-content: flex-start; text-align: start; white-space: normal; overflow-wrap: anywhere; }
   .toolbar .toolGroup { display: flex; flex: none; align-items: center; gap: inherit; }
   .toolGroup + .toolGroup { border-inline-start: 1px solid var(--color-border); padding-inline-start: var(--control-gap); }
-  .unitSwitch, .colorTarget { display: inline-flex; align-items: center; gap: var(--space-1); padding: 1px; border: 1px solid var(--color-field-border); border-radius: var(--radius-control); background: var(--surface-inset); color: var(--color-text-secondary); font: inherit; }
-  :is(.row, .unitSwitch, .colorTarget, .swatches button):focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: -2px; }
-  .unitSwitch, .colorTarget { cursor: pointer; font-family: var(--font-interface); }
-  .unitSwitch svg { width: 1em; height: 1em; margin-inline-start: var(--space-1); }
-  .unitSwitch span, .colorTarget span { padding: var(--space-1); }
-  .unitSwitch [data-current="true"], .colorTarget [data-current="true"] { color: var(--color-text); background: var(--surface-button); box-shadow: var(--shadow-button); border-radius: var(--radius-control); }
+  .colorTarget { display: inline-flex; align-items: center; gap: var(--space-1); padding: 1px; border: 1px solid var(--color-field-border); border-radius: var(--radius-control); background: var(--surface-inset); color: var(--color-text-secondary); font: inherit; }
+  :is(.row, .colorTarget, .swatches button):focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: -2px; }
+  .colorTarget { cursor: pointer; font-family: var(--font-interface); }
+  .unitGroup { display: flex; flex: none; align-items: center; gap: inherit; margin-inline-start: auto; }
+  .cursorIcon { color: var(--color-text); filter: drop-shadow(0 0 1px var(--color-background)) drop-shadow(0 0 1px var(--color-background)); }
+  .colorTarget span { padding: var(--space-1); }
+  .colorTarget [data-current="true"] { color: var(--color-text); background: var(--surface-button); box-shadow: var(--shadow-button); border-radius: var(--radius-control); }
   .palette { box-sizing: border-box; width: 18rem; max-width: min(calc(100vw - 1rem), var(--radix-popover-content-available-width, 100vw)); overscroll-behavior: contain; }
   .colorPicker, .draftActions { gap: var(--control-gap); }
   .colorTarget { width: 100%; margin-bottom: var(--section-gap); }
@@ -107,7 +128,7 @@
   .draftActions button { min-height: max(40px, var(--control-height)); }
   @media (any-pointer: coarse) {
     .swatches { grid-template-columns: repeat(4, 1fr); }
-    .swatches button, .panel .row, .unitSwitch, .colorTarget { min-height: 40px; }
+    .swatches button, .panel .row, .colorTarget { min-height: 40px; }
     .handle::after { content: ''; position: absolute; inset: 50% auto auto 50%; width: max(100%, 32px); height: max(100%, 32px); transform: translate(-50%, -50%); }
     .draftActions button, .actions button, .groupRow button, .flip button { min-width: 40px; min-height: 40px; }
     .vertexTarget { transform-box: fill-box; transform-origin: center; transform: scale(2); }
@@ -126,4 +147,12 @@
       min-height: var(--drawing-touch-size);
     }
   }
+}
+
+/* Plano labels are Leaflet tooltips: same look as the Pizarra ones. Overrides, like the rest of the Leaflet tweaks. */
+@layer overrides {
+  :global(.leaflet-tooltip.drawing-label) { padding: 0 3px; border: 0; border-radius: 2px; box-shadow: none; background: transparent; color: var(--label-color, var(--color-text));
+    font-size: var(--label-size, var(--control-font-size)); text-shadow: 0 0 2px var(--color-field), 0 0 2px var(--color-field), 0 0 2px var(--color-field); }
+  :global(.leaflet-tooltip.drawing-label[data-background]) { background: var(--label-background); text-shadow: none; }
+  :global(.leaflet-tooltip.drawing-label)::before { display: none; }
 }

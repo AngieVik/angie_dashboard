@@ -629,7 +629,13 @@ export function MapModule({ navigationKey, store, overlay, srcPanel, onCoordinat
     }
   }
   const overlayPanel = <fieldset disabled={blocked}><MapOverlaysPanel sources={overlays} save={items => mutateMap(map => ({ ...map, overlays: items }))} /><CoordinateTransform /></fieldset>
-  return <div data-slot="map-module" className={`${styles.base} map-module`} data-coordinates-open={coordinatesOpen} aria-busy={busy}>
+  // Esc drops the selected point, marker or track location.
+  function clearSelection(event: React.KeyboardEvent) {
+    if (event.key !== 'Escape' || event.defaultPrevented || (event.target as Element).closest('input,textarea,select,[contenteditable="true"]')) return
+    if (!selected && !selectedMarkerId && !selectedGpxId) return
+    cancelGpxSelection(); setSelected(null); setSelectedMarkerId(null); setSelectedGpxId(null)
+  }
+  return <div data-slot="map-module" className={`${styles.base} map-module`} data-coordinates-open={coordinatesOpen} aria-busy={busy} onKeyDown={clearSelection}>
     {srcPanel && createPortal(overlayPanel, srcPanel)}
     {overlays.filter(item => item.active).map(source => <ActiveOverlay key={source.id} mapRef={mapRef} source={source} onError={overlayFailure} />)}
     <div className="map-toolbar" hidden={!coordinatesOpen}>

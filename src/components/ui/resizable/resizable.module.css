@@ -1,8 +1,11 @@
 @layer components {
-  .handle { position: relative; background: var(--color-border); outline: none; }
-  .handle[aria-orientation="vertical"] { width: 1px; align-self: stretch; }
-  .handle[aria-orientation="horizontal"] { height: 1px; align-self: stretch; }
-  .handle::before { position: absolute; inset: -4px; content: ''; }
-  .handle:hover, .handle[data-separator="active"] { background: var(--color-selection-border); }
+  /* Shared separator (Informes and drawing panels): 2px black line, 4px grab area,
+     plain system ew-resize cursor so it reads as a normal separator. */
+  .handle { position: relative; z-index: 22; min-width: 0; padding: 0; border: 0; background: var(--color-resize-handle); outline: none; touch-action: none; }
+  .handle[aria-orientation="vertical"] { flex: none; width: 2px; align-self: stretch; cursor: ew-resize; }
+  .handle[aria-orientation="horizontal"] { flex: none; height: 2px; align-self: stretch; }
+  .handle::before { position: absolute; inset: 0 -1px; content: ''; }
+  .handle[aria-orientation="horizontal"]::before { inset: -1px 0; }
+  .handle:focus-visible { outline: 2px solid var(--color-selection-border); outline-offset: 1px; }
   .handle[aria-disabled="true"] { opacity: .5; }
 }

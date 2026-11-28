@@ -5,7 +5,8 @@ import { MAX_MAP_LATITUDE } from '../map/mapNavigation'
 import { unwrapLongitude } from '../map/longitudeGeometry'
 import { useMapSurface } from '../map/MapSurfaceContext'
 import { ShapeSurface, type ShapeSurfaceProps } from '../drawing/ShapeSurface'
-import { groupVisible, shapeScale, type Projection } from '../drawing/shapeGeometry'
+import { ellipseRing, ghostOpacity, groupVisible, placePoints, screenPoints, shapeScale, type Placed, type Projection } from '../drawing/shapeGeometry'
+import { fromPlanInk, planInk } from './planInk'
 import { InkSurface } from '../drawing/InkSurface'
 import { inkAt, inkReferences, replaceInk } from '../drawing/inkGeometry'
 import { useModuleZoom } from '@/layout/ModuleZoomContext'
@@ -33,6 +34,8 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
   objects: NonNullable<AngieDocument['plan']>; actions: Ref<PlanSurfaceActions>; imageActions: Ref<ImageActions>; imageMode: ImageMode
   previewInk: (strokes: PlanStroke[] | null) => void; saveInk: (patch: Partial<NonNullable<AngieDocument['plan']>>) => boolean
   saveImages: (images: DrawingImage[]) => boolean; selectImage: (id: string) => void
+  /** Figures being moved, turned or edited, drawn faded under their new version. */
+  faded: string[]
 }) {
   const { scale: zoom } = useModuleZoom()
   const { mapRef } = useMapSurface()
@@ -52,13 +55,15 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
       if (!ready) return
       const group = L.featureGroup()
       for (const pin of props.objects.pins) if (ids.includes(pin.elementId)) group.addLayer(L.marker([pin.latitude, pin.longitude]))
-      for (const stroke of props.objects.strokes) if (ids.includes(stroke.id)) group.addLayer(L.polyline(stroke.points.map(p => [p.latitude, p.longitude])))
+      const projection = projectMap(ready)
+      const line = (item: Placed) => L.polyline(screenPoints(item, projection).map(p => ready.containerPointToLatLng([p.x, p.y])))
+      for (const stroke of props.objects.strokes) if (ids.includes(stroke.id)) group.addLayer(line(planInk(stroke)))
       for (const shape of props.objects.shapes ?? []) if (ids.includes(shape.id)) {
         if (shape.radii) {
-          const projection = projectMap(ready), c = projection.screen(shape.points[0]!), k = shapeScale(shape, projection)
+          const c = projection.screen(shape.points[0]!), k = shapeScale(shape, projection)
           const dx = shape.radii.x * k, dy = shape.radii.y * k
           group.addLayer(L.rectangle(L.latLngBounds(ready.containerPointToLatLng([c.x - dx, c.y - dy]), ready.containerPointToLatLng([c.x + dx, c.y + dy]))))
-        } else group.addLayer(L.polyline(shape.points.map(p => [p.y, p.x])))
+        } else group.addLayer(line(shape))
       }
       const bounds = group.getBounds()
       if (bounds.isValid()) ready.fitBounds(bounds, { padding: [24, 24], maxZoom: ready.getMaxZoom() })
@@ -84,7 +89,7 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
     setImageHost(host); sync(); map.on('move zoom resize', sync)
     return () => { map.off('move zoom resize', sync); host.remove() }
   }, [mapRef])
-  const { shapes, groups, labels, pins, strokes } = props.objects
+  const { shapes, groups, labels, pins, strokes } = props.objects, { faded } = props
   const { select, mode, suspended, selected } = props
   const selectLabel = useRef(select)
   const selectedLabel = useRef(selected)
@@ -108,18 +113,15 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
       group.clearLayers()
       for (const s of shapes ?? []) {
         if (!groupVisible({ groups }, s.id)) continue
-        const points = s.points.map(latlng), at = points[0]!, scale = shapeScale(s, projection)
-        const options = { pane: 'operational-figures', color: s.color, weight: s.width * scale, fill: false, interactive: false }
+        const points = s.anchor ? screenPoints(s, projection).map(p => map!.containerPointToLatLng([p.x, p.y])) : s.points.map(latlng)
+        const at = points[0]!
+        const options = { pane: 'operational-figures', color: s.color, weight: s.width, opacity: faded.includes(s.id) ? ghostOpacity : 1, fill: false, interactive: false }
         if (s.kind === 'ellipse' && s.radii) {
           if (s.radii.x === s.radii.y) {
             if (s.unit === 'world') L.circle(at, { ...options, radius: s.radii.x }).addTo(group)
             else L.circleMarker(at, { ...options, radius: s.radii.x }).addTo(group)
           } else {
-            const center = projection.screen(s.points[0]!), radii = s.radii
-            const ring = Array.from({ length: 96 }, (_, i) => {
-              const angle = 2 * Math.PI * i / 96
-              return map!.containerPointToLatLng([center.x + scale * radii.x * Math.cos(angle), center.y + scale * radii.y * Math.sin(angle)])
-            })
+            const ring = ellipseRing(s, projection, 96).map(q => map!.containerPointToLatLng([q.x, q.y]))
             L.polygon(ring, options).addTo(group)
           }
         } else if (s.kind === 'rectangle') L.rectangle(L.latLngBounds(points), options).addTo(group)
@@ -131,10 +133,13 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
         const content = document.createElement('span')
         content.textContent = label.text
         const interactive = mode === 'select' && !suspended
-        const tip = L.tooltip({ permanent: true, interactive }).setContent(content).setLatLng(latlng(label.point)).addTo(group)
+        const tip = L.tooltip({ permanent: true, interactive, className: 'drawing-label' }).setContent(content).setLatLng(latlng(label.point)).addTo(group)
         const node = tip.getElement()
         if (node) {
           node.dataset.drawingLabel = label.id
+          if (label.size) node.style.setProperty('--label-size', label.size + 'px')
+          if (label.color) node.style.setProperty('--label-color', label.color)
+          if (label.background) { node.style.setProperty('--label-background', label.background); node.dataset.background = '' }
           node.dataset.selected = String(label.id === selectedLabel.current)
           if (interactive) {
             L.DomEvent.disableClickPropagation(node)
@@ -155,26 +160,24 @@ export function PlanShapes(props: Omit<ShapeSurfaceProps, 'projection' | 'native
       if (frame !== undefined) cancelAnimationFrame(frame)
       group.remove()
     }
-  }, [mapRef, shapes, labels, groups, pins, mode, suspended])
+  }, [mapRef, shapes, labels, groups, pins, mode, suspended, faded])
   useEffect(() => {
     if (!ready || suspended || mode !== 'select') return
     const clear = () => select(null)
     ready.on('click', clear)
     return () => { ready.off('click', clear) }
   }, [ready, mode, select, suspended])
-  const ink = useMemo(() => strokes.filter(s => groupVisible({ groups }, s.id)).map(s => ({
-    id: s.id, width: s.width * zoom, points: s.points.map(p => ({ x: p.longitude, y: p.latitude })),
-  })), [strokes, groups, zoom])
+  const ink = useMemo(() => strokes.filter(s => groupVisible({ groups }, s.id)).map(s => ({ id: s.id, width: s.width * zoom, color: s.color, ...planInk(s) })), [strokes, groups, zoom])
   if (!ready || !projection) return null
-  const geographic = (p: Position) => ({ longitude: p.x, latitude: p.y })
+  const placeInk = (stroke: PlanStroke, points: Position[]) => fromPlanInk(stroke, placePoints(planInk(stroke), points, projection))
   return <>
     {imageHost && createPortal(<DrawingImages images={props.objects.images ?? []} actions={props.imageActions} projection={projection} mode={props.imageMode} enabled={!suspended && props.mode === 'select'}
       selected={props.selected} select={props.selectImage} save={props.saveImages} warn={props.warn} />, imageHost)}
-    {!suspended && (props.mode === 'select' || props.mode === 'eraser') && <InkSurface key={props.mode} mode={props.mode} paths={ink}
-      objects={props.objects} projection={projection} selected={props.selected} select={props.select}
-      preview={changes => props.previewInk(replaceInk(props.objects.strokes, changes, geographic))} clear={() => props.previewInk(null)}
-      commit={(changes, delta) => props.saveInk({ strokes: replaceInk(props.objects.strokes, changes, geographic), ...inkReferences(props.objects, changes, projection, delta) })} />}
-    <ShapeSurface key={props.mode} {...props} projection={projection} native anchorAt={point => {
+    {!suspended && (props.mode === 'select' || props.mode === 'eraser') && <InkSurface key={'ink-' + props.mode} mode={props.mode} eraserWidth={props.width} paths={ink}
+      objects={props.objects} projection={projection} selected={props.selected} select={props.select} selection={props.selection} selectMany={props.selectMany} rotate={props.rotateSelection} flip={props.flipSelection} onGhost={props.onGhost}
+      preview={changes => props.previewInk(replaceInk(props.objects.strokes, changes, placeInk))} clear={() => props.previewInk(null)}
+      commit={(changes, delta) => props.saveInk({ strokes: replaceInk(props.objects.strokes, changes, placeInk), ...inkReferences(props.objects, changes, projection, delta) })} />}
+    <ShapeSurface key={'shape-' + props.mode} {...props} projection={projection} native ink={ink} anchorAt={point => {
       const p = projection.screen(point)
       return props.objects.pins.findLast(pin => { const q = projection.screen({ x: pin.longitude, y: pin.latitude })
         return pin.visible && groupVisible(props.objects, pin.elementId) && Math.hypot(p.x - q.x, p.y - q.y) < 12 })?.elementId ?? inkAt(ink, projection, point)

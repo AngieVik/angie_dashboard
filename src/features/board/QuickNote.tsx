@@ -78,7 +78,8 @@ export function QuickNote({ note, selected, enabled, surface, onSelect, onMove, 
       viewportSize ?? { width: surface.current!.clientWidth || rect.width, height: surface.current!.clientHeight || rect.height })
     if (current.kind === 'move') current.next = { ...current.base, position: clampBoardPosition({ x: current.base.position.x + delta.x, y: current.base.position.y + delta.y }) }
     else {
-      current.next = resizeQuickNote(current.base, { width: current.base.width + delta.x, height: current.base.height + delta.y })
+      // The note grows from its centre, so the corner follows the pointer when both sides move.
+      current.next = resizeQuickNote(current.base, { width: current.base.width + 2 * delta.x, height: current.base.height + 2 * delta.y })
     }
     setPreview(current.next)
   }

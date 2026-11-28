@@ -1,2 +1,2 @@
 import type { DrawingTool } from '../drawing/DrawingToolbar'
-export type PlanMode = DrawingTool | 'place'
+export type PlanMode = DrawingTool | 'place' | 'note'

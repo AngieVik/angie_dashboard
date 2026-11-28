@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import type { DrawingImage, Position } from '@/domain/document/types'
 import { Button } from '@/components/ui/button'
-import { Crop, FlipHorizontal2, FlipVertical2, ImagePlus, Move, RotateCw, Trash2 } from 'lucide-react'
+import { Crop, FlipHorizontal2, FlipVertical2, Move, RotateCw, Trash2 } from 'lucide-react'
 import { loadBoardImage } from '../board/imageLoader'
 import type { Projection } from './shapeGeometry'
 import styles from './drawing.module.css'
@@ -11,13 +11,11 @@ export interface ImageActions { insert: (file: File) => void }
 const pixels = new WeakMap<DrawingImage['source'], Blob>()
 const corners = ['nw', 'ne', 'se', 'sw'] as const
 
-export function ImageTools({ actions, mode, setMode, selected, remove }: {
-  actions: React.RefObject<ImageActions | null>; mode: ImageMode; setMode: (value: ImageMode) => void; selected: boolean; remove: () => void
+// Inserting is on the toolbar; these tools edit the selected image.
+export function ImageTools({ mode, setMode, selected, remove }: {
+  mode: ImageMode; setMode: (value: ImageMode) => void; selected: boolean; remove: () => void
 }) {
-  const file = useRef<HTMLInputElement>(null)
   return <>
-    <Button onClick={() => file.current?.click()}><ImagePlus />Insertar imagen</Button>
-    <input type="file" hidden ref={file} accept="image/png,image/jpeg" onChange={e => { const image = e.target.files?.[0]; e.target.value = ''; if (image) actions.current?.insert(image) }} />
     {selected && <div className={styles.actions} role="group" aria-label="Editar imagen">
       {([['move', 'Mover y redimensionar', Move], ['crop', 'Recortar', Crop], ['rotate', 'Girar y voltear', RotateCw]] as const).map(([id, title, Icon]) =>
         <Button key={id} disabled={!selected} aria-label={title} title={title} aria-pressed={selected && mode === id} onClick={() => setMode(id)}><Icon /></Button>)}

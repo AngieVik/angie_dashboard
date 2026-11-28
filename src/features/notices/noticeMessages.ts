@@ -3,6 +3,12 @@
 import type { NoticeLevel } from './noticePreferences'
 export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLevel[] }[] = [
   {
+    "text": "¿Eliminar el objeto seleccionado?",
+    "levels": [
+      "warning"
+    ]
+  },
+  {
     "text": "Actualmente hay cambios sin guardar.",
     "levels": [
       "message"
@@ -310,6 +316,12 @@ export const NOTICE_MESSAGES: readonly { text: string; levels: readonly NoticeLe
   },
   {
     "text": "El tamaño de letra debe estar entre 8 y 72 px.",
+    "levels": [
+      "error"
+    ]
+  },
+  {
+    "text": "El trazo no tiene puntos válidos.",
     "levels": [
       "error"
     ]

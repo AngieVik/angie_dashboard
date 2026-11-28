@@ -8,6 +8,8 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/pwa/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/pwa/apple-touch-icon-180.png" />
     <title>Angie Dashboard</title>
+    <!-- Layer order first: in the build some component stylesheets load before main.tsx imports layers.css. -->
+    <style>@layer reset, vendor, base, components, overrides, utilities;</style>
   </head>
   <body>
     <div id="root"></div>

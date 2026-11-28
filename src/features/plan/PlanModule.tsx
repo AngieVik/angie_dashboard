@@ -3,7 +3,7 @@ import { Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 import { toast } from '@/components/ui/sonner'
-import type { PlanPin, PlanStroke } from '../../domain/document/types'
+import type { PlanPin, PlanStroke, Position } from '../../domain/document/types'
 import { useViewportInteraction } from '../../layout/ViewportContext'
 import { copyText } from '../../platform/clipboard'
 import type { GeographicCoordinate } from '../coordinates/coordinateTypes'
@@ -19,7 +19,8 @@ import { DrawingPanel } from '../drawing/DrawingPanel'
 import { SelectionEditor } from '../drawing/SelectionEditor'
 import { ImageTools, type ImageMode, type ImageActions } from '../drawing/DrawingImages'
 import { useDrawingTools } from '../drawing/useDrawingTools'
-import { drawingMembers, groupVisible } from '../drawing/shapeGeometry'
+import { drawingMembers, groupVisible, isFixed, offset, setAnchored, translated, turn, turned, turnedShape, flipped, flippedShape, mirror, withUnit } from '../drawing/shapeGeometry'
+import { fromPlanInk, planInk } from './planInk'
 import { PlanShapes, type PlanSurfaceActions } from './PlanShapes'
 import { PlanNotes } from './PlanNotes'
 import drawingStyles from '../drawing/drawing.module.css'
@@ -27,6 +28,7 @@ import { applyDocumentCommands, commandResult } from '@/domain/document/document
 import { drawingHistory, recordDrawingEdit, replayDrawingEdit } from '../drawing/drawingHistory'
 import type { PlanMode } from './planTypes'
 import { updateElement } from '../elements/elementCommands'
+import { removeDrawingObjects } from '@/domain/document/drawingReferences'
 import { addPlanStroke, placePlanPin, removePlanPin, togglePlanPin } from './planCommands'
 import styles from './plan.module.css'
 
@@ -45,15 +47,17 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
   const { document, documentGeneration } = useDocumentStore(store)
   const { blocked, blockedRef } = useViewportInteraction()
   const [mode, setMode] = useState<PlanMode>('select')
-  const [color, setColor] = useState('#D63A3A')
-  const [width, setWidth] = useState(3)
+  const [color, setColor] = useState('#000000')
+  const [width, setWidth] = useState(3), [newLabel, setNewLabel] = useState<string | null>(null)
   const tools = useDrawingTools()
-  const workspace = useRef<HTMLDivElement>(null), canvas = useRef<PlanSurfaceActions>(null), notes = useRef<{ add: () => void }>(null)
+  const workspace = useRef<HTMLDivElement>(null), canvas = useRef<PlanSurfaceActions>(null), notes = useRef<{ add: (at?: Position) => void }>(null)
   const [srcPanel, setSrcPanel] = useState<HTMLDivElement | null>(null)
   const imageActions = useRef<ImageActions>(null), [imageMode, setImageMode] = useState<ImageMode>('move')
   const plan: NonNullable<typeof document.plan> = document.plan ?? EMPTY_PLAN
   const visiblePins = useMemo(() => plan.pins.filter(pin => groupVisible(plan, pin.elementId)), [plan])
   const [inkPreview, setInkPreview] = useState<PlanStroke[] | null>(null)
+  // What is being moved, turned or edited, drawn faded under its new version.
+  const [ghost, setGhost] = useState<string[]>([])
   const visibleStrokes = useMemo(() => ((!blocked && (mode === 'eraser' || mode === 'select') && inkPreview) || plan.strokes).filter(s => groupVisible(plan, s.id)), [plan, blocked, mode, inkPreview])
   const history = drawingHistory(store, 'plan')
   const noticeId = navigationKey + '-plan-notice'
@@ -80,18 +84,92 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
     try { replayDrawingEdit(store, 'plan', direction) }
     catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo restaurar la edición.', { notice: 'planEdit', id: noticeId }) }
   }
-  function activate(next: DrawingTool) {
+  function activate(next: DrawingTool | 'note') {
     if (blockedRef.current) return
-    setInkPreview(null); tools.activate(mode, next); setMode(next)
+    setInkPreview(null); setMode(next)
   }
   function change(patch: Partial<typeof plan>) {
     return apply(d => commandResult(d, { ...d, plan: { ...d.plan ?? EMPTY_PLAN, ...patch } }))
   }
   function selectObject(id: string | null) { tools.select(id); onSelect(null) }
+  // Supr removes the selection; the eraser button asks first. Esc deselects.
+  function removeSelection() {
+    if (change(removeDrawingObjects(plan, new Set(tools.selection)))) selectObject(null)
+  }
+  function chooseTool(next: DrawingTool) {
+    if (next !== 'eraser' || !tools.selection.length) { activate(next); return }
+    const count = tools.selection.length
+    toast.warning(count === 1 ? '¿Eliminar el objeto seleccionado?' : `¿Eliminar ${count} objetos seleccionados?`, { id: noticeId + '-remove', requiredAction: true,
+      action: { label: 'Eliminar', onClick: removeSelection }, cancel: { label: 'Cancelar', onClick: () => { selectObject(null); activate('eraser') } } })
+  }
+  // Ctrl+Z undoes and Ctrl+Y or Ctrl+Mayús+Z redoes, except while typing.
+  function selectionKeys(event: React.KeyboardEvent) {
+    if ((event.target as Element).closest('input,textarea,[contenteditable="true"]')) return
+    const key = event.key.toLowerCase()
+    const z = key === 'z' || event.code === 'KeyZ', y = key === 'y' || event.code === 'KeyY'
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && (z || y)) {
+      event.preventDefault()
+      const direction = y || event.shiftKey ? 'redo' : 'undo'
+      if (history[direction].length) replay(direction)
+      return
+    }
+    if (!tools.selection.length) return
+    if (event.key === 'Delete') { event.preventDefault(); removeSelection() }
+    if (event.key === 'Escape') selectObject(null)
+  }
+
+  // The unit buttons show and convert the selected figures and strokes (none pressed when they differ);
+  // with nothing selected they show and change the user's choice.
+  const chosen = mode === 'select' ? tools.selection : (mode === 'polyline' || mode === 'circle') && tools.selected ? [tools.selected] : []
+  const chosenShapes = plan.shapes?.filter(s => chosen.includes(s.id)) ?? []
+  const chosenStrokes = mode === 'select' ? plan.strokes.filter(s => chosen.includes(s.id)) : []
+  const units = [...chosenShapes.map(isFixed), ...chosenStrokes.map(s => Boolean(s.anchor))]
+  const shownFixed = !units.length ? tools.fixed : units.every(Boolean) ? true : units.some(Boolean) ? null : false
+  // Colour and width restyle the selected figures and strokes. They show the values of a single selected object;
+  // with several, the toolbar keeps its own values.
+  const chosenDrawn = [...chosenShapes, ...chosenStrokes]
+  const first = chosenDrawn.length === 1 ? chosenDrawn[0] : undefined
+  const shownColor = first?.color ?? color
+  const shownWidth = first?.width ?? width
+  function restyle(patch: { color: string } | { width: number }) {
+    if ('color' in patch) setColor(patch.color); else setWidth(patch.width)
+    if (chosenDrawn.length) change({ shapes: plan.shapes?.map(s => chosenShapes.includes(s) ? { ...s, ...patch } : s),
+      strokes: plan.strokes.map(s => chosenStrokes.includes(s) ? { ...s, ...patch } : s) })
+  }
+  function chooseUnit(fixed: boolean) {
+    const projection = canvas.current?.projection()
+    if (!units.length) { tools.setFixed(fixed); return }
+    if (!projection) return
+    change({ shapes: plan.shapes?.map(s => chosenShapes.includes(s) ? withUnit(s, fixed, projection) : s),
+      strokes: plan.strokes.map(s => chosenStrokes.includes(s) ? fromPlanInk(s, setAnchored(planInk(s), fixed, projection)) : s) })
+  }
+  // Free rotation around a screen point; labels stuck to a turned object go round with it.
+  // Mirrors the selection across the x axis (upside down) or the y axis (sideways) of its box.
+  function flipSelection(axis: 'x' | 'y', center: Position) {
+    const projection = canvas.current?.projection(), ids = new Set(tools.selection)
+    if (!projection) return
+    change({ shapes: plan.shapes?.map(s => ids.has(s.id) ? flippedShape(s, center, axis, projection) : s),
+      strokes: plan.strokes.map(s => ids.has(s.id) ? fromPlanInk(s, flipped(planInk(s), center, axis, projection)) : s),
+      labels: plan.labels?.map(l => l.owner && ids.has(l.owner) ? { ...l, point: projection.world(mirror(projection.screen(l.point), center, axis)) } : l) })
+  }
+  function rotateSelection(center: Position, deg: number) {
+    const projection = canvas.current?.projection(), ids = new Set(tools.selection)
+    if (!projection) return
+    change({ shapes: plan.shapes?.map(s => ids.has(s.id) ? turnedShape(s, center, deg, projection) : s),
+      strokes: plan.strokes.map(s => ids.has(s.id) ? fromPlanInk(s, turned(planInk(s), center, deg, projection)) : s),
+      labels: plan.labels?.map(l => l.owner && ids.has(l.owner) ? { ...l, point: projection.world(turn(projection.screen(l.point), center, deg)) } : l) })
+  }
+  function moveSelection(delta: Position) {
+    const projection = canvas.current?.projection(), ids = new Set(tools.selection)
+    if (!projection) return
+    change({ shapes: plan.shapes?.map(s => ids.has(s.id) ? translated(s, delta, projection) : s),
+      strokes: plan.strokes.map(s => ids.has(s.id) ? fromPlanInk(s, translated(planInk(s), delta, projection)) : s),
+      labels: plan.labels?.map(l => l.owner && ids.has(l.owner) ? { ...l, point: projection.world(offset(projection.screen(l.point), delta.x, delta.y)) } : l) })
+  }
   const placed = new Map(plan.pins.map(p => [p.elementId, p.visible]))
-  return <div className={`plan-module ${styles.base}`} data-mode={mode}>
-    <DrawingToolbar module="plan" mode={mode} settings={tools.settings} setOption={tools.setOption} panels={tools.panels} toggle={tools.toggle} onMode={activate} replay={replay}
-      canUndo={!!history.undo.length} canRedo={!!history.redo.length} color={color} width={width} blocked={blocked} onWidth={setWidth} onColor={setColor} onAddNote={() => notes.current?.add()} />
+  return <div className={`plan-module ${styles.base}`} data-mode={mode} onKeyDown={selectionKeys}>
+    <DrawingToolbar onImage={file => imageActions.current?.insert(file)} module="plan" mode={mode} fixed={shownFixed} onFixed={chooseUnit} panels={tools.panels} toggle={tools.toggle} onMode={chooseTool} replay={replay}
+      canUndo={!!history.undo.length} canRedo={!!history.redo.length} color={shownColor} width={shownWidth} blocked={blocked} onWidth={width => restyle({ width })} onColor={color => restyle({ color })} onAddNote={() => activate(mode === 'note' ? 'select' : 'note')} />
     <div className={drawingStyles.workspace} ref={workspace}>
     <div className={styles.mapArea} style={tools.panels.length ? { flex: '0 0 ' + tools.panelWidth + '%' } : undefined}>
     <MapModule srcPanel={srcPanel} navigationKey={'plan.' + navigationKey} store={store} onCoordinateSelect={onCoordinateSelect} onNoticesChange={onNoticesChange} noticeSource="plan" overlay={<>
@@ -105,14 +183,16 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
         })} />
       <PlanShapes previewInk={setInkPreview} saveInk={change} objects={plan} suspended={blocked} mode={mode} actions={canvas}
         imageMode={imageMode} imageActions={imageActions} saveImages={images => change({ images })} selectImage={id => { selectObject(id); activate('select') }}
-        color={color} width={width} fixed={mode === 'circle' ? tools.settings.circle : tools.settings.polyline} selected={tools.selected} select={selectObject}
-        change={change} warn={message => toast.error(message, { notice: 'planInput', id: noticeId })} />
+        color={color} width={width} fixed={tools.fixed} selected={tools.selected} select={selectObject}
+        selection={tools.selection} selectMany={ids => { tools.selectMany(ids); onSelect(null) }} moveSelection={moveSelection} rotateSelection={rotateSelection} flipSelection={flipSelection} onGhost={setGhost} faded={ghost}
+        pick={mode === 'note' ? (_, at) => { notes.current?.add(at); setMode('select') } : undefined}
+        change={change} onLabel={id => { tools.show('edit'); setNewLabel(id) }} warn={message => toast.error(message, { notice: 'planInput', id: noticeId })} />
       <PlanNotes notes={plan.quickNotes ?? []} enabled={!blocked && mode === 'select'} store={store} generation={documentGeneration} actions={notes}
         selected={tools.selected} select={selectObject} activate={() => activate('select')} save={update => apply(d => {
           const current = d.plan ?? EMPTY_PLAN
           return commandResult(d, { ...d, plan: { ...current, quickNotes: update(d.plan?.quickNotes ?? []) } })
         })} />
-      <PlanDrawing navigationKey={navigationKey} mode={mode} color={color} width={width} strokes={visibleStrokes} placeId={selected?.id ?? null}
+      <PlanDrawing navigationKey={navigationKey} mode={mode} color={color} width={width} fixed={tools.fixed} strokes={visibleStrokes} faded={ghost} placeId={selected?.id ?? null}
         onReject={message => toast.error(message, { notice: 'planInput', id: noticeId })}
         onStroke={stroke => apply(document => addPlanStroke(document, stroke))}
         onPlace={(id, point) => { if (apply(document => placePlanPin(document, id, point))) { setMode('select'); onCoordinateSelect?.(point) } }} />
@@ -131,12 +211,11 @@ export function PlanModule({ navigationKey, store, selectedId, onSelect, onCoord
         doc => visible === null ? removePlanPin(doc, id) : togglePlanPin(doc, id))))}
       groups={plan.groups ?? []} saveGroups={groups => change({ groups })} fit={ids => canvas.current?.fit(ids)}
       members={[...document.elements.filter(e => placed.has(e.id)).map(e => ({ id: e.id, name: e.name })), ...drawingMembers(plan)]}
-      editor={<><SelectionEditor key={tools.selected ?? selectedId} objects={plan} selected={tools.selected} pin={selected} clear={() => selectObject(null)}
-        getProjection={() => canvas.current?.projection()} toPoint={(p: GeographicCoordinate) => ({ x: p.longitude, y: p.latitude })}
-        fromPoint={p => ({ longitude: p.x, latitude: p.y })} change={change}
+      editor={<><SelectionEditor selection={tools.selection} key={tools.selection.join() || selectedId} objects={plan} selected={tools.selected} focusText={!!newLabel && newLabel === tools.selected} textFocused={() => setNewLabel(null)} pin={selected} clear={() => selectObject(null)}
+        change={change}
         editPin={() => selected && onEditElement(selected.id)} modifyPin={visual => selected && apply(d => updateElement(d, selected.id, { visual }))}
         removePin={pin ? () => { if (apply(d => removePlanPin(d, pin.elementId))) selectObject(null) } : undefined} />
-        <ImageTools actions={imageActions} selected={!!plan.images?.some(i => i.id === tools.selected)} mode={imageMode}
+        <ImageTools selected={!!plan.images?.some(i => i.id === tools.selected)} mode={imageMode}
         setMode={value => { activate('select'); setImageMode(value) }} remove={() => change({ images: plan.images?.filter(i => i.id !== tools.selected) })} /></>}
       src={<div ref={setSrcPanel} />} />}
     </div>

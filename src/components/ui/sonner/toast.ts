@@ -1,3 +1,4 @@
+import { createElement, isValidElement } from 'react'
 import { toast as sonnerToast } from 'sonner'
 import type { ExternalToast } from 'sonner'
 import { noticeHistoryStore } from '@/features/notices/noticeHistoryStore'
@@ -19,6 +20,13 @@ function show(level: NoticeLevel, message: Parameters<typeof sonnerToast>[0], op
   if (!requiredAction && !(notice ? noticeEnabled(preferences, notice, level, typeof message === 'string' ? message : undefined) : preferences.levels.includes(level))) {
     if (data.id !== undefined) sonnerToast.dismiss(data.id)
     return data.id ?? `hidden-notice-${++hiddenSequence}`
+  }
+  // Sonner ignores its cancel button on toasts that cannot be dismissed, so required actions get their own.
+  if (requiredAction && data.cancel && !isValidElement(data.cancel)) {
+    const cancel = data.cancel as { label: React.ReactNode; onClick: (event: React.MouseEvent<HTMLButtonElement>) => void }, id = data.id ?? `required-notice-${++hiddenSequence}`
+    data.id = id
+    data.cancel = createElement('button', { type: 'button', 'data-button': true, 'data-cancel': true,
+      onClick: (event: React.MouseEvent<HTMLButtonElement>) => { cancel.onClick(event); sonnerToast.dismiss(id) } }, cancel.label)
   }
   return sonnerToast[level](text, { ...data, duration: requiredAction ? Infinity : preferences.duration * 1000,
     ...(requiredAction ? { dismissible: false, closeButton: false } : {}) })

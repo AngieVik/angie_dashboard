@@ -22,7 +22,7 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       return { ...state, draft: state.mode === 'pen' ? { ...common, tool: 'pen', color: action.color.toUpperCase() } : { ...common, tool: 'eraser', color: null } }
     }
     case 'point': return state.draft && finitePoint(action.point) ? { ...state, draft: { ...state.draft, points: [...state.draft.points, clampBoardPosition(action.point)] } } : state
-    case 'finish': return state.draft ? { ...state, draft: null, board: { ...board, strokes: [...board.strokes, state.draft] } } : state
+    case 'finish': return state.draft ? { ...state, draft: null, board: { ...board, strokes: [...board.strokes, action.place?.(state.draft) ?? state.draft] } } : state
     case 'cancel': return { ...state, draft: null }
     case 'select-note': return state.mode === 'select' ? { ...state, selectedNoteId: action.id } : state
     case 'add-note': return finitePoint(action.note.position) && [action.note.width, action.note.height, action.note.scale].every(value => Number.isFinite(value) && value > 0) ? {

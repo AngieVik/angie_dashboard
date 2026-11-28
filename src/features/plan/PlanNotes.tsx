@@ -6,17 +6,17 @@ import type { DocumentStore } from '../document/documentStore'
 import styles from '../drawing/drawing.module.css'
 
 export function PlanNotes({ notes, enabled, actions, save, store, generation, activate, selected, select }: {
-  notes: Note[]; enabled: boolean; actions: Ref<{ add: () => void }>; save: (update: (notes: Note[]) => Note[]) => boolean
+  notes: Note[]; enabled: boolean; actions: Ref<{ add: (at?: { x: number; y: number }) => void }>; save: (update: (notes: Note[]) => Note[]) => boolean
   store: DocumentStore; generation: number; selected: string | null; select: (id: string) => void; activate: () => void
 }) {
   const surface = useRef<HTMLDivElement>(null)
   const [focus, setFocus] = useState<string | null>(null)
-  useImperativeHandle(actions, () => ({ add() {
+  useImperativeHandle(actions, () => ({ add(at) {
     const node = surface.current
     if (!node) return
     const size = { width: Math.min(180, node.clientWidth), height: 64 }
-    const { position } = findQuickNotePlacement({ x: 0, y: 0, width: node.clientWidth, height: node.clientHeight }, size,
-      notes.map(n => ({ x: n.position.x - n.width / 2, y: n.position.y - n.height / 2, width: n.width, height: n.height })))
+    const position = at ?? findQuickNotePlacement({ x: 0, y: 0, width: node.clientWidth, height: node.clientHeight }, size,
+      notes.map(n => ({ x: n.position.x - n.width / 2, y: n.position.y - n.height / 2, width: n.width, height: n.height }))).position
     const id = crypto.randomUUID()
     if (save(current => [...current, { id, position, title: '', text: '', scale: 1, ...size }])) { activate(); select(id); setFocus(id) }
   } }))

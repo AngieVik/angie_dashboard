@@ -11,10 +11,12 @@ function contentBounds(board: Board, elements: DocumentElement[]): BoardBounds |
     const box = { left: x - halfWidth, top: y - halfHeight, right: x + halfWidth, bottom: y + halfHeight }
     bounds = bounds ? { left: Math.min(bounds.left, box.left), top: Math.min(bounds.top, box.top), right: Math.max(bounds.right, box.right), bottom: Math.max(bounds.bottom, box.bottom) } : box
   }
-  for (const stroke of board.strokes) for (const point of stroke.points) include(point.x, point.y, stroke.width / 2, stroke.width / 2)
+  // Pixel offsets of anchored items are counted as board units (zoom 1).
+  const at = (item: { anchor?: Position }, p: Position) => item.anchor ? { x: item.anchor.x + p.x, y: item.anchor.y + p.y } : p
+  for (const stroke of board.strokes) for (const point of stroke.points.map(p => at(stroke, p))) include(point.x, point.y, stroke.width / 2, stroke.width / 2)
   for (const shape of board.shapes ?? []) {
     const factor = shape.unit === 'world' ? 1 / (board.metersPerUnit ?? 1) : 1
-    for (const point of shape.points) include(point.x, point.y, (shape.radii?.x ?? shape.width / 2) * factor, (shape.radii?.y ?? shape.width / 2) * factor)
+    for (const point of shape.points.map(p => at(shape, p))) include(point.x, point.y, (shape.radii?.x ?? shape.width / 2) * factor, (shape.radii?.y ?? shape.width / 2) * factor)
   }
   for (const image of board.images ?? []) for (const p of image.corners) include(p.x, p.y, 0, 0)
   for (const label of board.labels ?? []) include(label.point.x, label.point.y, 0, 0)

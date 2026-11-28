@@ -80,6 +80,10 @@
   --color-frame-separator: var(--palette-gray-975);
   --color-active-border: var(--color-accent-red);
   --color-selection-border: var(--color-accent-red);
+  --color-resize-handle: var(--palette-gray-975);
+  --color-selection-guide: var(--palette-gray-50);
+  --color-selection-guide-outline: var(--palette-gray-975);
+  --color-selection-handle: var(--palette-red);
   --color-selected: var(--palette-gray-700);
   --color-field: var(--palette-gray-925);
   --color-field-border: var(--palette-gray-500);

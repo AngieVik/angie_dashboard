@@ -23,6 +23,8 @@ export type BoardStroke = {
   id: string
   width: number
   points: Position[]
+  /** Only in screen-pixel strokes: points are pixel offsets from this point. */
+  anchor?: Position
 } & ({ tool: 'pen'; color: string } | { tool: 'eraser'; color: null })
 
 export interface DrawingShape {
@@ -32,9 +34,14 @@ export interface DrawingShape {
   color: string
   width: number
   unit: 'world' | 'screen'
+  /** Only in screen-pixel lines and polygons: points are pixel offsets from this point. */
+  anchor?: Position
   radii?: Position
+  /** Only in ellipses: clockwise turn in degrees on screen. */
+  rotation?: number
 }
-export interface DrawingLabel { id: string; text: string; point: Position; owner?: string }
+// size is in screen pixels; colours are the user's HEX choice. Without them the label uses the theme.
+export interface DrawingLabel { id: string; text: string; point: Position; owner?: string; size?: number; color?: string; background?: string }
 export interface DrawingGroup { id: string; name: string; visible: boolean; members: string[] }
 export interface DrawingImage {
   id: string; source: { name: string }; corners: [Position, Position]; rotation: number; flipX: boolean; flipY: boolean
@@ -121,7 +128,9 @@ export interface MapOverlay {
 export interface MapDocument { overlays?: MapOverlay[]; markers: MapMarker[]; gpx: MapGpxReference[] }
 export interface GeographicPosition { latitude: number; longitude: number }
 export interface PlanPin extends GeographicPosition { elementId: string; visible: boolean }
-export interface PlanStroke { id: string; color: string; width: number; points: GeographicPosition[] }
+/** A screen-pixel stroke keeps its anchor on the map and its points as pixel offsets. */
+export type PlanStroke = { id: string; color: string; width: number }
+  & ({ anchor?: undefined; points: GeographicPosition[] } | { anchor: GeographicPosition; points: Position[] })
 interface OperationalPlanDocument extends DrawingObjects { quickNotes?: QuickNote[]; pins: PlanPin[]; strokes: PlanStroke[] }
 export interface ReferencedBoardImage { resourceId: string; layout: { x: number; y: number; width: number; height: number } }
 

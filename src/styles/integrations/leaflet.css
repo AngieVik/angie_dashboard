@@ -9,7 +9,7 @@
   }
 
   .map-canvas { background: var(--color-map-background); }
-  .map-canvas.leaflet-container.leaflet-grab { cursor: pointer; }
+  .map-canvas.leaflet-container.leaflet-grab { cursor: default; }
   .leaflet-dragging .map-canvas.leaflet-container.leaflet-grab,
   .leaflet-dragging .map-canvas.leaflet-container.leaflet-grab .leaflet-interactive { cursor: grabbing; }
   .map-canvas.leaflet-container .leaflet-control-attribution { background: var(--surface-map-attribution); color: var(--color-text); font-size: var(--font-size-technical); }

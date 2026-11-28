@@ -5,6 +5,7 @@ import type { BoardStroke, Position } from '../../domain/document/types'
 import type { DocumentStore } from '../document/documentStore'
 import type { DocumentCommand } from '../../domain/document/documentCommand'
 import { replaceBoard } from '../document/documentEdits'
+import { removeDrawingObjects } from '@/domain/document/drawingReferences'
 import { useDocumentStore } from '../document/documentStore'
 import type { BoardImageSession } from './useBoardImage'
 import type { BoardAction } from './boardTypes'
@@ -22,7 +23,7 @@ import { DrawingImages, ImageTools, type ImageActions, type ImageMode } from '..
 import { InkSurface } from '../drawing/InkSurface'
 import { inkAt, inkReferences, replaceInk } from '../drawing/inkGeometry'
 import { ShapeSurface } from '../drawing/ShapeSurface'
-import { distance, drawingMembers, groupVisible, type Projection } from '../drawing/shapeGeometry'
+import { distance, drawingMembers, groupVisible, isFixed, offset, placePoints, screenPoints, setAnchored, translated, turn, turned, turnedShape, flipped, flippedShape, mirror, withUnit, ghostOpacity, type Projection } from '../drawing/shapeGeometry'
 import { useDrawingTools } from '../drawing/useDrawingTools'
 import drawingStyles from '../drawing/drawing.module.css'
 import { Button } from '@/components/ui/button'
@@ -42,12 +43,16 @@ import styles from './board.module.css'
 import { Textarea } from '@/components/ui/textarea'
 import noteStyles from './QuickNote.module.css'
 
-function Stroke({ stroke }: { stroke: BoardStroke }) {
+// Pen width is in screen pixels; old eraser strokes keep their board width.
+function Stroke({ stroke, scale, ghost = false }: { stroke: BoardStroke; scale: number; ghost?: boolean }) {
   const operation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over'
   const color = stroke.color ?? '#000000'
-  if (stroke.points.length === 1) return <Circle x={stroke.points[0]!.x} y={stroke.points[0]!.y} radius={stroke.width / 2} fill={color} globalCompositeOperation={operation} listening={false} />
-  return <Line points={stroke.points.flatMap(point => [point.x, point.y])} stroke={color} strokeWidth={stroke.width}
-    lineCap="round" lineJoin="round" globalCompositeOperation={operation} listening={false} />
+  const width = stroke.tool === 'eraser' ? stroke.width : stroke.width / (stroke.anchor ? 1 : scale)
+  const shape = stroke.points.length === 1
+    ? <Circle x={stroke.points[0]!.x} y={stroke.points[0]!.y} radius={width / 2} fill={color} opacity={ghost ? ghostOpacity : 1} globalCompositeOperation={operation} listening={false} />
+    : <Line points={stroke.points.flatMap(point => [point.x, point.y])} stroke={color} strokeWidth={width}
+      lineCap="round" lineJoin="round" opacity={ghost ? ghostOpacity : 1} globalCompositeOperation={operation} listening={false} />
+  return stroke.anchor ? <Group x={stroke.anchor.x} y={stroke.anchor.y} scaleX={1 / scale} scaleY={1 / scale} listening={false}>{shape}</Group> : shape
 }
 
 export function BoardModule({ store, imageSession, imageInputRef, selectedId = null, onSelect, onEditElement, selectionReset = 0 }: {
@@ -69,8 +74,8 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   const { blocked, blockedRef } = useViewportInteraction()
   const [state, setState] = useState(() => createBoardState(document.board))
   const interaction = useRef(state)
-  const [color, setColor] = useState('#D63A3A'), [width, setWidth] = useState(4)
-  const [focusNote, setFocusNote] = useState<string | null>(null)
+  const [color, setColor] = useState('#000000'), [width, setWidth] = useState(4)
+  const [focusNote, setFocusNote] = useState<string | null>(null), [newLabel, setNewLabel] = useState<string | null>(null)
   const tools = useDrawingTools()
   const workspace = useRef<HTMLDivElement>(null), imageActions = useRef<ImageActions>(null)
   const [imageMode, setImageMode] = useState<ImageMode>('move')
@@ -81,6 +86,8 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   function focusTool() { toolbar.current?.querySelector<HTMLButtonElement>('[data-board-mode][aria-pressed="true"]')?.focus() }
   const area = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null)
   const [inkPreview, setInkPreview] = useState<BoardStroke[] | null>(null)
+  // What is being moved, turned or edited, drawn faded under its new version.
+  const [ghost, setGhost] = useState<string[]>([])
   const pointer = useRef<number | null>(null)
   const emptyPointer = useRef<{ id: number; x: number; y: number } | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -120,7 +127,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     setExplored(previous => ({ width: Math.max(previous.width, (size.width - next.offsetX) / next.scale),
       height: Math.max(previous.height, (size.height - next.offsetY) / next.scale) }))
   }, [size])
-  const navigation = useBoardViewportGestures(view, size, bounds, navigate, surface, state.mode === 'select')
+  const navigation = useBoardViewportGestures(view, size, bounds, navigate, surface, state.mode === 'pan')
   useLayoutEffect(() => {
     if (!area.current) return
     const node = area.current
@@ -208,14 +215,15 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     emptyPointer.current = null
     if (pointer.current === event.pointerId) {
       pointer.current = null
-      dispatch({ type: blockedRef.current ? 'cancel' : 'finish' })
+      dispatch(blockedRef.current ? { type: 'cancel' } : { type: 'finish', place: tools.fixed ? stroke => setAnchored(stroke, true, projection) : undefined })
     }
     if (empty?.id === event.pointerId && !blockedRef.current && Math.hypot(event.clientX - empty.x, event.clientY - empty.y) <= 4) {
       if (interaction.current.mode === 'image') dispatch({ type: 'mode', mode: 'select' })
       tools.select(null); dispatch({ type: 'select-note', id: null }); onSelect?.(null)
     }
   }
-  function addNote() {
+  // The note button arms the note tool; the next click places the note there.
+  function addNote(at?: Position) {
     if (blockedRef.current || !size.width || !size.height) return
     const current = store.getSnapshot().document
     const rect = surface.current?.getBoundingClientRect()
@@ -232,7 +240,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
       return rect?.width ? (name?.getBoundingClientRect().width ?? 0) * size.width / rect.width / view.scale : 0
     })
     const dimensions = { width: 180, height: noteMeasure.current?.offsetHeight || 32 }
-    const { position } = findQuickNotePlacement(visible, dimensions, occupied)
+    const position = at ?? findQuickNotePlacement(visible, dimensions, occupied).position
     const id = crypto.randomUUID()
     pointer.current = null; emptyPointer.current = null
     if (!dispatch({ type: 'add-note', note: { id, title: '', text: '', scale: 1, position, ...dimensions } })) return
@@ -265,10 +273,39 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   const change = (patch: Partial<typeof board>) => !blockedRef.current && apply(d => replaceBoard(d, { ...d.board, ...patch }))
   function activate(mode: DrawingTool) {
     cancelImage(); pointer.current = null; emptyPointer.current = null
-    setInkPreview(null); tools.activate(state.mode, mode); dispatch({ type: 'mode', mode })
+    setInkPreview(null); dispatch({ type: 'mode', mode })
   }
   function selectDrawing(id: string | null) {
     tools.select(id); onSelect?.(null); dispatch({ type: 'select-note', id: null })
+  }
+
+  // Supr removes the selection; the eraser button asks first. Esc deselects.
+  function removeSelection() {
+    if (change(removeDrawingObjects(board, new Set(tools.selection)))) selectDrawing(null)
+  }
+  function chooseTool(next: DrawingTool) {
+    if (next !== 'eraser' || !tools.selection.length) { activate(next); return }
+    const count = tools.selection.length
+    toast.warning(count === 1 ? '¿Eliminar el objeto seleccionado?' : `¿Eliminar ${count} objetos seleccionados?`, { id: 'board-remove-selection', requiredAction: true,
+      action: { label: 'Eliminar', onClick: removeSelection }, cancel: { label: 'Cancelar', onClick: () => { selectDrawing(null); activate('eraser') } } })
+  }
+  // Ctrl+Z undoes and Ctrl+Y or Ctrl+Mayús+Z redoes, except while typing.
+  function selectionKeys(event: React.KeyboardEvent) {
+    if ((event.target as Element).closest('input,textarea,[contenteditable="true"]')) return
+    const key = event.key.toLowerCase()
+    const z = key === 'z' || event.code === 'KeyZ', y = key === 'y' || event.code === 'KeyY'
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && (z || y)) {
+      event.preventDefault()
+      const direction = y || event.shiftKey ? 'redo' : 'undo'
+      if (history[direction].length) replay(direction)
+      return
+    }
+    if (!tools.selection.length) return
+    if (event.key === 'Delete') { event.preventDefault(); removeSelection() }
+    if (event.key === 'Escape') selectDrawing(null)
+  }
+  function selectDrawings(ids: string[]) {
+    tools.selectMany(ids); onSelect?.(null); dispatch({ type: 'select-note', id: null })
   }
   const pins = document.elements.filter(e => e.position)
   const placed = new Map(pins.map(e => [e.id, e.pinVisible]))
@@ -288,9 +325,9 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
     for (const s of board.shapes ?? []) if (ids.includes(s.id)) {
       const r = s.radii, c = s.points[0]!, factor = s.unit === 'world' ? 1 / (board.metersPerUnit ?? 1) : 1 / view.scale
       if (r) points.push({ x: c.x - r.x * factor, y: c.y - r.y * factor }, { x: c.x + r.x * factor, y: c.y + r.y * factor })
-      else points.push(...s.points)
+      else points.push(...screenPoints(s, projection).map(projection.world))
     }
-    for (const s of board.strokes) if (ids.includes(s.id)) for (const p of s.points) points.push(p)
+    for (const s of board.strokes) if (ids.includes(s.id)) points.push(...screenPoints(s, projection).map(projection.world))
     if (!points.length) return
     let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity
     for (const p of points) { left = Math.min(left, p.x); right = Math.max(right, p.x); top = Math.min(top, p.y); bottom = Math.max(bottom, p.y) }
@@ -298,19 +335,64 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
   }
   const pick = state.mode === 'origin' ? (p: Position) => { if (change({ origin: p })) activate('select') }
     : state.mode === 'calibrate' ? (p: Position) => { if (!calibration.length || distance(calibration[0]!, p) > 0) setCalibration([...calibration.slice(0, 1), p]) }
-    : state.mode === 'place' && selectedId ? (p: Position) => place(selectedId, p) : undefined
+    : state.mode === 'place' && selectedId ? (p: Position) => place(selectedId, p)
+    : state.mode === 'note' ? (p: Position) => addNote(p) : undefined
+  // The unit buttons show and convert the selected figures and strokes (none pressed when they differ);
+  // with nothing selected they show and change the user's choice.
+  const chosen = state.mode === 'select' ? tools.selection : (state.mode === 'polyline' || state.mode === 'circle') && tools.selected ? [tools.selected] : []
+  const chosenShapes = board.shapes?.filter(s => chosen.includes(s.id)) ?? []
+  const chosenStrokes = state.mode === 'select' ? board.strokes.filter(s => chosen.includes(s.id) && s.tool === 'pen') : []
+  const units = [...chosenShapes.map(isFixed), ...chosenStrokes.map(s => Boolean(s.anchor))]
+  const shownFixed = !units.length ? tools.fixed : units.every(Boolean) ? true : units.some(Boolean) ? null : false
+  // Colour and width restyle the selected figures and strokes. They show the values of a single selected object;
+  // with several, the toolbar keeps its own values.
+  const chosenDrawn = [...chosenShapes, ...chosenStrokes]
+  const first = chosenDrawn.length === 1 ? chosenDrawn[0] : undefined
+  const shownColor = first?.color ?? color
+  const shownWidth = first?.width ?? width
+  function restyle(patch: { color: string } | { width: number }) {
+    if ('color' in patch) setColor(patch.color); else setWidth(patch.width)
+    if (chosenDrawn.length) change({ shapes: board.shapes?.map(s => chosenShapes.includes(s) ? { ...s, ...patch } : s),
+      strokes: board.strokes.map(s => s.tool === 'pen' && chosenStrokes.includes(s) ? { ...s, ...patch } : s) })
+  }
+  function chooseUnit(fixed: boolean) {
+    if (!units.length) { tools.setFixed(fixed); return }
+    change({ shapes: board.shapes?.map(s => chosenShapes.includes(s) ? withUnit(s, fixed, projection) : s),
+      strokes: board.strokes.map(s => chosenStrokes.includes(s) ? setAnchored(s, fixed, projection) : s) })
+  }
+  function moveSelection(delta: Position) {
+    const ids = new Set(tools.selection)
+    change({ shapes: board.shapes?.map(s => ids.has(s.id) ? translated(s, delta, projection) : s),
+      strokes: board.strokes.map(s => ids.has(s.id) ? translated(s, delta, projection) : s),
+      labels: board.labels?.map(l => l.owner && ids.has(l.owner) ? { ...l, point: projection.world(offset(projection.screen(l.point), delta.x, delta.y)) } : l) })
+  }
+  // Free rotation around a screen point; labels stuck to a turned object go round with it.
+  // Mirrors the selection across the x axis (upside down) or the y axis (sideways) of its box.
+  function flipSelection(axis: 'x' | 'y', center: Position) {
+    const ids = new Set(tools.selection)
+    change({ shapes: board.shapes?.map(s => ids.has(s.id) ? flippedShape(s, center, axis, projection) : s),
+      strokes: board.strokes.map(s => ids.has(s.id) ? flipped(s, center, axis, projection) : s),
+      labels: board.labels?.map(l => l.owner && ids.has(l.owner) ? { ...l, point: projection.world(mirror(projection.screen(l.point), center, axis)) } : l) })
+  }
+  function rotateSelection(center: Position, deg: number) {
+    const ids = new Set(tools.selection)
+    change({ shapes: board.shapes?.map(s => ids.has(s.id) ? turnedShape(s, center, deg, projection) : s),
+      strokes: board.strokes.map(s => ids.has(s.id) ? turned(s, center, deg, projection) : s),
+      labels: board.labels?.map(l => l.owner && ids.has(l.owner) ? { ...l, point: projection.world(turn(projection.screen(l.point), center, deg)) } : l) })
+  }
+  const placeInk = (stroke: BoardStroke, points: Position[]) => placePoints(stroke, points, projection)
   const imageSelected = board.images?.some(i => i.id === tools.selected) ?? false
   const editPin = document.elements.find(e => e.id === selectedId)
   const located = pins.find(e => e.id === locate?.id)?.position
   const image = imageSession.image
-  const ink = board.strokes.filter(s => s.tool === 'pen' && groupVisible(board, s.id)).map(s => ({ id: s.id, points: s.points, width: s.width * view.scale }))
+  const ink = board.strokes.filter(s => s.tool === 'pen' && groupVisible(board, s.id)).map(s => ({ id: s.id, points: s.points, anchor: s.anchor, width: s.width, color: s.color ?? undefined }))
   const inkMode = state.mode
   const committed = !blocked && (state.mode === 'eraser' || state.mode === 'select') ? inkPreview ?? board.strokes : board.strokes
   const strokes = state.draft && !blocked ? [...committed, state.draft] : committed
-  return <div className={`board-module ${styles.base}`} data-mode={state.mode}>
-    <DrawingToolbar module="board" toolbarRef={toolbar} mode={state.mode} settings={tools.settings} setOption={tools.setOption} panels={tools.panels} toggle={tools.toggle} onMode={activate}
-      canUndo={!!history.undo.length} canRedo={!!history.redo.length} replay={replay} onAddNote={addNote} background={board.backgroundColor}
-      onBackground={color => dispatch({ type: 'background', color })} color={color} onColor={setColor} width={width} onWidth={setWidth} blocked={blocked} />
+  return <div className={`board-module ${styles.base}`} data-mode={state.mode} onKeyDown={selectionKeys}>
+    <DrawingToolbar onImage={file => imageActions.current?.insert(file)} module="board" toolbarRef={toolbar} mode={state.mode} fixed={shownFixed} onFixed={chooseUnit} panels={tools.panels} toggle={tools.toggle} onMode={chooseTool}
+      canUndo={!!history.undo.length} canRedo={!!history.redo.length} replay={replay} onAddNote={() => dispatch({ type: 'mode', mode: state.mode === 'note' ? 'select' : 'note' })} background={board.backgroundColor}
+      onBackground={color => dispatch({ type: 'background', color })} color={shownColor} onColor={color => restyle({ color })} width={shownWidth} onWidth={width => restyle({ width })} blocked={blocked} />
     <input ref={imageInputRef} hidden type="file" accept="image/png,image/jpeg" onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void imageSession.load(file) }} />
     <div className={drawingStyles.workspace} ref={workspace}>
     <div ref={area} className="board-area" style={tools.panels.length ? { flex: '0 0 ' + tools.panelWidth + '%' } : undefined}>
@@ -338,7 +420,7 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
           if (position) dispatch({ type: 'point', point: position })
         }} onPointerUp={finish} onPointerCancel={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}
         onLostPointerCapture={() => { cancelImage(); pointer.current = null; emptyPointer.current = null; dispatch({ type: 'cancel' }) }}>
-        {!blocked && state.mode === 'pen' && <DrawingCursor diameter={width * view.scale}
+        {!blocked && state.mode === 'pen' && <DrawingCursor diameter={width}
           color={state.mode === 'pen' ? color : undefined} exclude=".board-pin,.quick-note" />}
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
@@ -351,17 +433,17 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
         <DrawingImages images={board.images ?? []} actions={imageActions} projection={projection} mode={imageMode} enabled={!blocked && state.mode === 'select'}
           selected={tools.selected} select={id => { selectDrawing(id); activate('select') }} save={images => change({ images })} warn={message => toast.error(message, { notice: 'boardImage' })} />
         <Stage className={drawingStyles.boardInk} width={size.width} height={size.height} listening={false}>
-          <Layer listening={false} x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>{strokes.filter(stroke => groupVisible(board, stroke.id)).map(stroke => <Stroke key={stroke.id} stroke={stroke} />)}</Layer>
+          <Layer listening={false} x={view.offsetX} y={view.offsetY} scaleX={view.scale} scaleY={view.scale}>{strokes.filter(stroke => groupVisible(board, stroke.id)).map(stroke => <Stroke key={stroke.id} stroke={stroke} scale={view.scale} ghost={ghost.includes(stroke.id)} />)}</Layer>
         </Stage>
-        {!blocked && (inkMode === 'select' || inkMode === 'eraser') && <InkSurface key={inkMode} mode={inkMode}
-          paths={ink} objects={board} projection={projection} selected={tools.selected} select={selectDrawing}
-          preview={changes => setInkPreview(replaceInk(board.strokes, changes, p => p))} clear={() => setInkPreview(null)}
-          commit={(changes, delta) => change({ strokes: replaceInk(board.strokes, changes, p => p), ...inkReferences(board, changes, projection, delta) })} />}
-        <ShapeSurface suspended={blocked} key={state.mode} mode={state.mode}
-          color={color} width={width} fixed={state.mode === 'circle' ? tools.settings.circle : tools.settings.polyline} objects={board} projection={projection}
+        {!blocked && (inkMode === 'select' || inkMode === 'eraser') && <InkSurface key={'ink-' + inkMode} mode={inkMode} eraserWidth={width}
+          paths={ink} objects={board} projection={projection} selected={tools.selected} select={selectDrawing} selection={tools.selection} selectMany={selectDrawings} rotate={rotateSelection} flip={flipSelection} onGhost={setGhost}
+          preview={changes => setInkPreview(replaceInk(board.strokes, changes, placeInk))} clear={() => setInkPreview(null)}
+          commit={(changes, delta) => change({ strokes: replaceInk(board.strokes, changes, placeInk), ...inkReferences(board, changes, projection, delta) })} />}
+        <ShapeSurface suspended={blocked} key={'shape-' + state.mode} mode={state.mode}
+          color={color} width={width} fixed={tools.fixed} objects={board} projection={projection} ink={ink} selection={tools.selection} selectMany={selectDrawings} moveSelection={moveSelection} rotateSelection={rotateSelection} flipSelection={flipSelection} onGhost={setGhost}
           ownerVisible={id => placed.get(id) !== false}
           anchorAt={p => pins.findLast(e => e.pinVisible && groupVisible(board, e.id) && distance(projection.screen(e.position!), projection.screen(p)) < 12)?.id ?? inkAt(ink, projection, p)}
-          selected={tools.selected} select={selectDrawing} change={change} pick={pick} warn={message => toast.error(message, { notice: 'boardPoints' })} />
+          selected={tools.selected} select={selectDrawing} change={change} pick={pick} onLabel={id => { tools.show('edit'); setNewLabel(id) }} warn={message => toast.error(message, { notice: 'boardPoints' })} />
         {locate && located && <span key={locate.revision} className={drawingStyles.locate} onAnimationEnd={() => setLocate(null)} style={{ left: projection.screen(located).x, top: projection.screen(located).y }} />}
         {image && imageLayout && state.mode === 'image' && !blocked && !imageSession.busy && <div className="board-image-editor"
           aria-label="Mover imagen de fondo" data-image-action="move"
@@ -411,11 +493,11 @@ export function BoardModule({ store, imageSession, imageInputRef, selectedId = n
         : doc.elements.find(e => e.id === id)?.pinVisible === visible ? { document: doc, value: undefined, changed: false } : togglePinVisibility(doc, id))))}
       groups={board.groups ?? []} saveGroups={groups => change({ groups })} fit={fit}
       members={[...pins.map(e => ({ id: e.id, name: e.name })), ...drawingMembers(board)]}
-      editor={<><SelectionEditor key={tools.selected ?? state.selectedNoteId ?? selectedId} objects={board} selected={tools.selected ?? state.selectedNoteId} pin={editPin}
-        getProjection={() => projection} toPoint={(p: Position) => p} fromPoint={p => p} change={change} clear={() => selectDrawing(null)}
+      editor={<><SelectionEditor selection={tools.selection} key={tools.selection.join() || (state.selectedNoteId ?? selectedId)} objects={board} selected={tools.selected ?? state.selectedNoteId} focusText={!!newLabel && newLabel === tools.selected} textFocused={() => setNewLabel(null)} pin={editPin}
+        change={change} clear={() => selectDrawing(null)}
         editPin={() => editPin && onEditElement?.(editPin.id)} modifyPin={visual => editPin && apply(d => updateElement(d, editPin.id, { visual }))}
         removePin={editPin?.position ? () => { if (apply(d => updateElement(d, editPin.id, { position: null }))) selectDrawing(null) } : undefined} />
-        <ImageTools actions={imageActions} selected={imageSelected} mode={imageMode} setMode={value => { activate('select'); setImageMode(value) }}
+        <ImageTools selected={imageSelected} mode={imageMode} setMode={value => { activate('select'); setImageMode(value) }}
         remove={() => change({ images: board.images?.filter(i => i.id !== tools.selected) })} />
         {image && <><Button onClick={() => dispatch({ type: 'mode', mode: 'image' })}>Mover imagen de fondo</Button><Button onClick={imageSession.clear}>Retirar imagen de fondo</Button></>}</>}
       src={<><Button onClick={() => dispatch({ type: 'mode', mode: 'origin' })}>Fijar origen</Button>

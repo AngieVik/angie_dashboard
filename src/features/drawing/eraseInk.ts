@@ -1,5 +1,5 @@
-import type { Position } from '@/domain/document/types'
-import { distance } from './shapeGeometry'
+import type { DrawingObjects, Position } from '@/domain/document/types'
+import { distance, ellipseRing, groupVisible, screenPoints, type Projection } from './shapeGeometry'
 
 type Interval = [number, number]
 const interpolate = (a: Position, b: Position, t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
@@ -58,3 +58,20 @@ export function eraseInk(points: Position[], from: Position, to: Position, radiu
   return parts
 }
 
+
+// Ids of the figures whose line the swept eraser touches. The inside of a closed figure does not count.
+export function sweptShapes(objects: DrawingObjects, from: Position, to: Position, radius: number, projection: Projection) {
+  return (objects.shapes ?? []).filter(shape => {
+    if (!groupVisible(objects, shape.id)) return false
+    const pts = screenPoints(shape, projection), r = radius + shape.width / 2
+    let ring = pts
+    if (shape.radii) {
+      if (!pts[0]) return false
+      ring = ellipseRing(shape, projection)
+    }
+    if (ring.length === 1) return !!cut(ring[0]!, ring[0]!, from, to, r)
+    const closed = shape.kind !== 'line' || !!shape.radii
+    for (let i = 0; i < ring.length - (closed ? 0 : 1); i++) if (cut(ring[i]!, ring[(i + 1) % ring.length]!, from, to, r)) return true
+    return false
+  }).map(shape => shape.id)
+}
